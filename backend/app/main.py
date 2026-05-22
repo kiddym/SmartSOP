@@ -19,7 +19,15 @@ from app.config import settings
 from app.db import engine
 from app.logging_config import configure_logging
 from app.middleware import RequestIdMiddleware
-from app.routers import chapters, folders, parse, procedure_groups, procedures, steps
+from app.routers import (
+    attachments,
+    chapters,
+    folders,
+    parse,
+    procedure_groups,
+    procedures,
+    steps,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +84,7 @@ app.include_router(procedure_groups.router)
 app.include_router(chapters.router)
 app.include_router(steps.router)
 app.include_router(parse.router)
+app.include_router(attachments.router)
 
 
 @app.get("/healthz", tags=["health"])

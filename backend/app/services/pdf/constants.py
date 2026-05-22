@@ -52,7 +52,13 @@ WARNING_BORDER = Color(220 / 255, 38 / 255, 38 / 255)
 HOLD_BORDER = Color(220 / 255, 38 / 255, 38 / 255)
 
 ALERT_SPECS: dict[str, dict[str, object]] = {
-    "note": {"bg": NOTE_BG, "border": NOTE_BORDER, "title": "ℹ 注意 NOTE", "title_color": NOTE_BORDER},
+    # 图标用 GB2312 子集确有的字形（ℹ/⛔/◈/☐ 在 Noto SC 缺失，§59.1 验证后替换）
+    "note": {
+        "bg": NOTE_BG,
+        "border": NOTE_BORDER,
+        "title": "ⓘ 注意 NOTE",
+        "title_color": NOTE_BORDER,
+    },
     "caution": {
         "bg": CAUTION_BG,
         "border": CAUTION_BORDER,
@@ -62,7 +68,7 @@ ALERT_SPECS: dict[str, dict[str, object]] = {
     "warning": {
         "bg": WARNING_BG,
         "border": WARNING_BORDER,
-        "title": "⛔ 警告 WARNING",
+        "title": "‼ 警告 WARNING",
         "title_color": WARNING_BORDER,
     },
 }
@@ -99,20 +105,26 @@ REVISION_CHANGE_TYPES = frozenset(CHANGE_TYPE_LABELS)
 
 # --------------------------------------------------------------------------- #
 # 步骤附件标记 kind 中文（§6.3 / Q203）
+# 注：编辑器实际存 kind='document'（StepDetailPanel ATTACH_KINDS），兼容文档的 'doc'。
 # --------------------------------------------------------------------------- #
 ATTACHMENT_KIND_LABELS: dict[str, str] = {
     "video": "视频",
     "image": "图片",
+    "document": "文档",
     "doc": "文档",
     "audio": "音频",
     "other": "其他",
 }
+ATTACHMENT_MARK_PREFIX = "▶ 附件:"  # 📎(emoji) 在 CJK 字体缺失 → 用三角符（§59.1）
 
 # --------------------------------------------------------------------------- #
 # 执行表单 12 型纸质占位符（§6.3 / Q262）
 # --------------------------------------------------------------------------- #
 DEFAULT_PASS_LABEL = "通过"
 DEFAULT_FAIL_LABEL = "不通过"
+# 勾选/单选字形：☐(2610)/☑(2611) 在 Noto SC 缺失 → 用 □(25A1)/○(25CB)（下载版恒空框）
+CHECKBOX_GLYPH = "□"
+RADIO_GLYPH = "○"
 
 # 附件章节名（§6.6.2）
 ATTACHMENT_CHAPTER_NAMES = ("附件", "Attachments")

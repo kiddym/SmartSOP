@@ -77,5 +77,5 @@ docker-compose.override.yml
 # Claude Code (machine-local)
 .claude/settings.local.json
 
-# Large downloaded fonts (regenerable via _font_tmp/dl.py)
-_font_tmp/*.ttf
+# Font build scratch dir (downloads + instancing scripts; assets/fonts holds the committed subset)
+_font_tmp/

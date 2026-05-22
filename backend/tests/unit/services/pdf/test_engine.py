@@ -15,24 +15,55 @@ from tests.conftest import Factory
 def _rich_proc(db: Session, factory: Factory):
     leaf = factory.folder(name="质检", prefix="QC", full_path="根/质检")
     factory.sequence(leaf.id)
-    proc = factory.procedure(leaf.id, code="QC-00001", name="启动 SOP", status="PUBLISHED", version=2)
+    proc = factory.procedure(
+        leaf.id, code="QC-00001", name="启动 SOP", status="PUBLISHED", version=2
+    )
     proc.version_change_log = [
-        {"version": 2, "change_type": "publish", "changed_at": "2026-05-20T10:00:00Z",
-         "description": "发布 v2"},
-        {"version": 1, "change_type": "create", "changed_at": "2026-05-19T10:00:00Z",
-         "description": "创建"},
+        {
+            "version": 2,
+            "change_type": "publish",
+            "changed_at": "2026-05-20T10:00:00Z",
+            "description": "发布 v2",
+        },
+        {
+            "version": 1,
+            "change_type": "create",
+            "changed_at": "2026-05-19T10:00:00Z",
+            "description": "创建",
+        },
     ]
     proc.version_update_notes = "本次新增启动前检查"
     purpose = factory.chapter(proc.id, title="目的", level=1, sort_order=0)
-    factory.chapter(proc.id, title="", parent_id=purpose.id, content_type="content", level=2,
-                    sort_order=0, rich_content="<p>本程序用于规范启动流程。</p>")
+    factory.chapter(
+        proc.id,
+        title="",
+        parent_id=purpose.id,
+        content_type="content",
+        level=2,
+        sort_order=0,
+        rich_content="<p>本程序用于规范启动流程。</p>",
+    )
     ops = factory.chapter(proc.id, title="操作", level=1, sort_order=1)
-    factory.step(proc.id, chapter_id=ops.id, title="启动电源", sort_order=0,
-                 input_schema={"type": "CHECK"})
-    factory.step(proc.id, chapter_id=ops.id, title="检查阀门", sort_order=1,
-                 input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10})
-    db.add(ProcedureAttachment(procedure_id=proc.id, file_name="图纸.pdf", storage_path="/x/a",
-                               mime_type="application/pdf", size_bytes=2048, sort_order=0))
+    factory.step(
+        proc.id, chapter_id=ops.id, title="启动电源", sort_order=0, input_schema={"type": "CHECK"}
+    )
+    factory.step(
+        proc.id,
+        chapter_id=ops.id,
+        title="检查阀门",
+        sort_order=1,
+        input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10},
+    )
+    db.add(
+        ProcedureAttachment(
+            procedure_id=proc.id,
+            file_name="图纸.pdf",
+            storage_path="/x/a",
+            mime_type="application/pdf",
+            size_bytes=2048,
+            sort_order=0,
+        )
+    )
     numbering_service.recompute(db, proc.id)
     db.commit()
     return proc

@@ -282,8 +282,13 @@ def _image_flowable(asset_id: str, assets: dict[str, tuple[bytes, str]], width: 
         return Paragraph("[不支持的图片格式]", s("body"))
 
 
-def render_html(html: str, assets: dict[str, tuple[bytes, str]], *, width: float = CONTENT_WIDTH,
-                base_style: str = "body") -> list[Flowable]:
+def render_html(
+    html: str,
+    assets: dict[str, tuple[bytes, str]],
+    *,
+    width: float = CONTENT_WIDTH,
+    base_style: str = "body",
+) -> list[Flowable]:
     """把一段富文本 HTML 转为 flowable 列表。空 → []。"""
     if not html or not html.strip():
         return []

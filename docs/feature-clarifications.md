@@ -3949,10 +3949,10 @@ PDF **只渲染附件的元数据**（文件名 / 大小 / MIME / 上传日期 /
 
 ---
 
-## 五十九、Phase 8 PDF 生成实现落地决策（Q359–Q365）
+## 五十九、Phase 8 PDF 生成实现落地决策（Q359–Q366）
 
 > 来源：Phase 8 开工锁定 PDF 渲染架构。pdf-rendering.md（主规范）+ §11/§23.4/§34 已定**渲染规格与对外契约**；本节钉死规范未覆盖的**实现层**决策（字体落地形态、layout JSON 字段、引擎遍数、超时实现、端点访问语义、富文本解析、包结构），消除「照过时 dev-plan 清单」风险。
-> 编号：续 §58（Q351–Q358）；本批 Q359–Q365。grill 方式：开工通读 11 份权威文档 + 勘察后端现状（services/pdf 为空壳、无 dpms 源、字体目录空）后逐项锁定。
+> 编号：续 §58（Q351–Q358）；本批 Q359–Q364 为开工锁定，Q365–Q366 为实现后子代理评审收尾追加。grill 方式：开工通读 11 份权威文档 + 勘察后端现状（services/pdf 为空壳、无 dpms 源、字体目录空）后逐项锁定。
 
 ### 59.1 Q359 中文字体落地 = 开源 Noto CJK（默认母版内嵌）+ CID 内置回退
 
@@ -4078,3 +4078,78 @@ PDF **只渲染附件的元数据**（文件名 / 大小 / MIME / 上传日期 /
 | Q362 | `pdf/engine.py`（超时/异常）+`pdf/errors.py`+`pdf/context.py`（PROCEDURE_NOT_FOUND）|
 | Q363 | `pdf/html_render.py`+`pdf/flowables.py` |
 | Q364 | `pdf/` 11 模块 + 路由两端点 |
+
+### 59.8 实现后子代理评审收尾决策（Q365–Q366）
+
+> 实现全绿后做独立子代理评审，发现 1 个必修（字体）+ 4 个中等（前端预览与下载不一致）+ 若干 LOW。字体（H1）直接补齐，不另立决策。以下两项为需钉死的实现策略。
+
+#### Q365 步骤跨页保护 = 仅标题 `keepWithNext` 防孤行，不做整步 `KeepTogether`（推迟）
+
+- **决策**：步骤渲染只在标题 Paragraph 上设 `keepWithNext=1`（章节标题同），保证标题不会孤悬页底；**不**把「标题+警示+正文+占位符+确认行」整体 `KeepTogether`。整步保护推迟为后续增强。
+- **Why**：
+  1. `KeepTogether` 会把整组移至下一页，对**高于一页**的步骤（长正文/大图/多警示）反而强制溢出、布局更差；
+  2. 本引擎页码追踪靠 `afterFlowable` 对带 `_pdf_key` 的标题回调收页号（Q361 迭代收敛的输入），`KeepTogether` 包裹后子 flowable 的回调时机不确定，**有打断页码追踪 → layout/bytes 不一致**的风险，与「单引擎双产出一致」（Q361）冲突；
+  3. `keepWithNext` 已消除最常见的「标题落在页底、内容翻页」孤行问题，性价比最高。
+- **落地**：`sections.py:_keyed()` 设 `keepWithNext=1`（现状保留）。整步 `KeepTogether` 不实现；如未来要做，须先验证其不破坏 `afterFlowable` 页码追踪，并对超页步骤定义降级（允许从标题处断页）。
+
+#### Q366 前端预览层与下载版一致性收尾（preview ≈ download）
+
+- **决策**：前端预览（`PdfPreviewDialog.vue` + `pdfModel.ts`）须与 ReportLab 下载版**同口径**呈现以下五点：
+  1. **封面自定义字段**：仅 `show_on_cover=true` 且有值的字段上封面；`select/multi_select/checkbox` 解析为 option `label`（与后端 `context._resolve_field_value` 一致）。为此 `FieldOut` 增 `show_on_cover` 字段。
+  2. **附件清单区段**：渲染「序号/文件名/大小/类型/上传日期/描述」表；用户自建「附件/Attachments」L1 章节时不再重复标题（标题已在正文章节渲染），否则显示虚拟章节标题 `{N}.0 附件 / Attachments`（与后端 `_virtual_attachment_chapter` 同编号规则）；页码取后端 `layout.attachments_page`。
+  3. **步骤附件标注**：统一走 `attachmentMarkText(mark)` 输出「▶ 附件: 名称（中文类型）— 备注」，不再裸显 `kind`。
+  4. **水印透明度**：`DRAFT` alpha 0.30、`ARCHIVED` 0.35，与后端 `constants.WATERMARK` 对齐。
+  5. **修订说明换行**：后端 `_revision_desc` 内文换行转 `<br/>`（`_esc_multiline`）；前端用 `white-space: pre-wrap` 呈现，二者均保留多行。
+- **Why**：预览是「所见即所得」的下载前确认面（Q235 页码一律取后端 layout）。封面字段不过滤/不解析、附件区段缺失、标注裸显英文，都会让用户在预览里看到与下载 PDF 不同的内容，破坏信任。
+- **落地**：`schemas/procedure.py:FieldOut`（+`show_on_cover`）；`types/procedure.ts:ProcedureFieldView`；`pdfModel.ts`（`resolveFieldValue`/`coverFieldRows`/`attachmentChapterTitle`/model 增 `coverFields`+`attachmentChapterTitle`）；`PdfPreviewDialog.vue`（封面字段、附件区段、`attachmentMarkText`、水印 alpha）；`sections.py:_esc_multiline`。
+
+---
+
+## 六十、Phase 9 实现层收口（Q367–Q371）
+
+> 来源：Phase 9（附件 + 自定义字段 + 设置 + 审计 + 收尾）开工前通读 dev-plan §3 Phase 9 / §53 / 风险表 + feature-clarifications §14（附件传递）/§15（审计颗粒度）/§38（自定义字段）/§39（设置）/§53（调度清理）/§54（遗留收口）+ api-specification §5.5/§5.7/§5.8/§5.9 + data-model §3.6/§3.7/§3.8/§3.9 后，发现 4 个 spec 未钉死、臆测有成本的实现层分叉（经 grill 定案）+ 1 批自决实现细节。落库供实现遵循。
+> 编号：续 §59（Q359–Q366）；本批 Q367–Q371。落地前已 grep 全库确认上限为 Q366。
+> 现状勘察结论（不重造）：① fields/settings/attachment/审计表 + `tb_procedure.procedure_group_id` 列已全在初始迁移建好——**Phase 9 无需新迁移**（dev-plan「procedure 表加 procedure_group_id 列」已由 Phase 1/7 满足）；② scheduler 进程 + `cleanup_uploads`/`asset_gc` 两任务已在 Phase 6 建好——Phase 9 仅**新增第 3 个附件清理任务并挂载**（非从零搭 3 个）；③ `audit_service.log_*_action` 写入已被 8 个 service 接入（chapter/step 等 `target_id`=对象自身 id、`procedure_group_id`=所属族），审计读接口可查到真实数据；④ `auto_archive_days` 定时任务 Q337 定 0.1.0 不实现。
+
+### 60.1 Q367 自定义字段值校验 = 手写子集校验器（不引 jsonschema 库）
+
+**决策**：`custom_values` 对字段 `validation_rules`（存储恒为标准 JSON Schema，Q-C6）的校验，用**手写子集校验器**，**不引入 `jsonschema` 运行时依赖**。校验器只覆盖 Q253「表单化常用项」对应的 JSON Schema 关键字：`type`、`required`（字段级 `required` 标志）、`minimum`/`maximum`、`minLength`/`maxLength`、`pattern`，叠加按 `field_type` 的形态校验（`number`→数值、`date`→ISO 日期串 `YYYY-MM-DD`、`select`→单值 ∈ 选项值、`multi_select`/`checkbox`→列表 ⊆ 选项值、`text`/`textarea`→字符串）。选项校验对 active **与 archived** 选项值均放行（旧值保留只读，Q255），仅彻底未知值才拒。命中违规返 `CUSTOM_FIELD_INVALID`（422，`field` 指向出错的字段 key）。字段配置变更**不写审计**（Q122 未列字段动作；settings 才审计，§5.8/Q233）；新增错误码 `FIELD_KEY_DUPLICATE`（409，创建时 key 撞已存在记录）。
+
+**Why**：Q253 已把字段校验框死为「表单化常用项」，对应的 JSON Schema 是可控子集；手写校验器零新依赖、`mypy --strict` 友好、与 Q253 范围严格对齐。代价（用户手贴超出该子集的 schema 关键字会被忽略）在「校验规则由表单生成」前提下不会发生。
+
+**落地**：`field_service.compile_form_to_schema()`（表单项→JSON Schema，保存字段时调用，承 Q253）+ `field_service.validate_values()`（custom_values × active fields 校验，供 procedure 创建/保存/发布调用）；`errors` 加 `CUSTOM_FIELD_INVALID`。
+
+### 60.2 Q368 required 校验时机 = 新建 + DRAFT 保存 + 发布；未知/归档键容忍
+
+**决策**：`required`/`validation_rules` 校验在 **3 个时机**强制——① 新建程序、② DRAFT 保存（PUT /procedures/{id}）、③ **发布（transition → PUBLISHED）**（扩展 Q256，发布前补一道 active+required 闸门，防止「正式发布」一个缺必填项的程序）。校验**仅针对当前 active 字段**；`custom_values` 中**未定义键 / 已归档字段对应的键一律容忍保留**（不报错、程序里只读展示，承 Q255）。已 PUBLISHED 历史程序不追溯（承 Q256）。
+
+**Why**：发布=对外正式生效，缺必填元数据上线风险高；新建/保存的两道闸门挡不住「先建空草稿、改字段为 required 后直接发布」的路径，发布闸门补齐。容忍未知/归档键是 Q255「归档值保留只读」的直接要求，不能因校验误删历史值。
+
+**落地**：`field_service.validate_values()` 接入 `procedure_service.create` / `procedure_service.update` / 状态机 publish 分支（DRAFT→PUBLISHED）。
+
+### 60.3 Q369 PUT /settings 并发控制 = `updated_at` 弱 ETag（零迁移）
+
+**决策**：settings 单例**不加 `revision` 列**（维持 Phase 9 零迁移）；`PUT /settings` 的 If-Match（api-spec §5.8「必须带」）以 `updated_at` 的 ISO-8601 串作弱 ETag——`GET /settings` 响应回带 `updated_at`，PUT 须带 `If-Match: <updated_at>`，与 DB 当前 `updated_at` 不一致返 **412 `VERSION_CONFLICT`**（复用既有 `precondition_failed`）。改动写 `tb_procedure_audit_log`（`target_id`=settings.id、`procedure_group_id`=NULL、`action='settings_update'` + 字段级 diff + IP/UA，承 §5.8）。
+
+**Why**：settings 单例、低频、匿名，`updated_at` 弱 ETag 足以挡「读后被他人改再覆盖」的丢写，且不破坏「Phase 9 无新迁移」基调；加 revision 列收益边际、引入迁移成本不值；放宽不强制则违背 api-spec 字面契约。
+
+**落地**：`settings_service.get_singleton()` / `update()`（校验 If-Match → diff → 审计）；`/settings` 路由（GET + `/current` alias + PUT 注入 `If-Match` header + RequestMeta）。
+
+### 60.4 Q370 审计读接口 = JSON 查询 + `export=csv` 流式导出（本期实现）
+
+**决策**：`GET /audit-logs/folders`、`GET /audit-logs/procedures` 本期实现**全部过滤**（`target_id` / `action` 逗号分隔多选 / `date_from` / `date_to` / `ip_address` / `procedure_group_id`〔仅 procedures〕 / `page` / `page_size`，承 Q126）**+ `export=csv`**（承 Q288：带相同过滤、`StreamingResponse` 流式、**忽略分页不截断**、UTF-8 BOM 便于 Excel）。只读、匿名可看、无写接口（承 Q125/Q289）。`target_id` 语义：可为 procedure 版本 id / chapter id / step id / attachment id / folder id（按写入侧 `target_id`=对象自身 id）；`procedure_group_id` 跨版本+跨章节/步骤/附件聚合整族历史。
+
+**Why**：两端点的过滤维度与 CSV 导出均已在 api-spec §5.9 列入契约（合规巡检/留档刚需），后端成本低（同一查询构造 + 流式序列化）；本期一次做齐避免遗留半截契约。
+
+**落地**：`audit_service.query_*()`（构造过滤 + 分页 / 流式）；`/audit-logs` 路由两端点（`export` 分支返 `StreamingResponse`）；`schemas` 加 `AuditLogOut` / 分页信封。
+
+### 60.5 Q371 附件落盘布局 + storage_path 复制 + 30 天孤儿清理（自决实现细节）
+
+**决策**：
+- **落盘布局**：附件**不去重**（区别于 sha256 去重的 asset），每次上传生成独立 `storage_path`（承 Q119）= `attachment/{uuid前2}/{uuid}{原扩展名}`（沿用 asset 分桶风格；`storage.attachment_path(uuid, ext)` 助手）。`file_name` 存原始名（同名可并存）。
+- **元数据复制**（承 Q113/Q117）：`_fork`（upgrade/restore）复制 `content_source` 版本的 active 附件行（新 id、新 `procedure_id`，`file_name`/`storage_path`/`mime_type`/`size_bytes`/`description`/`sort_order` 复用，**物理文件不复制**）；`rollback` 取 **target_version** 的附件（已在 `_fork` 以 `content_source=target` 传入）；`copy_procedure` 取所传 `{id}` 版本的附件（Q238）。
+- **30 天孤儿清理**（新 task `cleanup_attachments`，每日 `CLEANUP_HOUR`，承 Q115/Q332/§53.2）：取「软删（`is_active=false`）且 `deleted_at ≤ now-30d`」的附件行，按 `storage_path` 分组；对每组 **若该 path 无任何 `is_active=true` 行引用** → **先删物理文件**（缺失视为成功；`OSError` 保留行下轮重试）→ **再硬删该 path 下全部软删行**（行+文件同删）。逐项提交、单项失败记日志续跑、结构化 run 摘要（承 §53.2/§53.4）；CLI `python -m app.tasks.cleanup_attachments --once`；挂入 scheduler 第 3 个 daily job。
+
+**Why**：附件去重无意义（用户文件非内容寻址、同名并存是显式需求 Q119），独立 `storage_path` 最简；元数据复制挂在既有 `_fork`/`copy_procedure` 零新路径；清理按 `storage_path` 分组判 active 引用，精确实现「跨版本复用的 storage_path 仅在全无 active 引用时才删文件」，与 asset GC 的「行+文件同删/文件先删/grace」语义一致、复用既有 task 模板。
+
+**落地**：`storage.attachment_path()`；`attachment_service`（上传落盘+上限校验+CRUD+`copy_for_version()`+`cleanup_orphans()`）；`version_flow_service._fork`/`copy_procedure` 调 `copy_for_version`；`tasks/cleanup_attachments.py` + `scheduler.build_scheduler()` 加 job；`errors` 加 `ATTACHMENT_LIMIT_EXCEEDED`。

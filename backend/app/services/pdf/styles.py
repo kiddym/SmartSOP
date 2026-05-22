@@ -48,10 +48,22 @@ def stylesheet() -> StyleSheet1:
     # 封面（§3.1）
     add("cover_title", fontName=hei, fontSize=22, alignment=TA_CENTER, leading=30, spaceAfter=18)
     add("cover_sub", fontName=song, fontSize=12, alignment=TA_CENTER, spaceAfter=2)
-    add("cover_status_draft", fontName=song, fontSize=12, alignment=TA_CENTER,
-        textColor=Color(0.5, 0.5, 0.5), spaceBefore=6)
-    add("cover_status_archived", fontName=hei, fontSize=14, alignment=TA_CENTER,
-        textColor=Color(220 / 255, 38 / 255, 38 / 255), spaceBefore=6)
+    add(
+        "cover_status_draft",
+        fontName=song,
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=Color(0.5, 0.5, 0.5),
+        spaceBefore=6,
+    )
+    add(
+        "cover_status_archived",
+        fontName=hei,
+        fontSize=14,
+        alignment=TA_CENTER,
+        textColor=Color(220 / 255, 38 / 255, 38 / 255),
+        spaceBefore=6,
+    )
 
     # 章节标题（§6.2）
     add("h1", fontName=hei, fontSize=16, spaceBefore=24, spaceAfter=8)
@@ -77,16 +89,27 @@ def stylesheet() -> StyleSheet1:
     # 警示 / hold-point（§7）
     add("alert_title", fontName=hei, fontSize=12, spaceAfter=2)
     add("alert_body", fontName=song, fontSize=12)
-    add("hold_title", fontName=hei, fontSize=14, textColor=Color(220 / 255, 38 / 255, 38 / 255),
-        spaceAfter=4)
+    add(
+        "hold_title",
+        fontName=hei,
+        fontSize=14,
+        textColor=Color(220 / 255, 38 / 255, 38 / 255),
+        spaceAfter=4,
+    )
 
     # 页眉（§6.1）
     add("header_left", fontName=song, fontSize=11, alignment=TA_LEFT, leading=14)
     add("header_right", fontName=song, fontSize=10, alignment=TA_RIGHT, leading=13)
 
     # 占位 / 空状态（§12）
-    add("placeholder_muted", fontName=song, fontSize=12, alignment=TA_CENTER,
-        textColor=Color(0.5, 0.5, 0.5), spaceBefore=12)
+    add(
+        "placeholder_muted",
+        fontName=song,
+        fontSize=12,
+        alignment=TA_CENTER,
+        textColor=Color(0.5, 0.5, 0.5),
+        spaceBefore=12,
+    )
     return ss
 
 

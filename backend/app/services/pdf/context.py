@@ -125,7 +125,9 @@ def _resolve_field_value(fld: ProcedureField, raw: Any) -> str:
     """把存储值解析为封面展示串；空值返回 ''（调用方据此跳过，§3.1/Q257）。"""
     if raw is None or raw == "" or raw == []:
         return ""
-    options = {str(o.get("value")): str(o.get("label", o.get("value"))) for o in (fld.options or [])}
+    options = {
+        str(o.get("value")): str(o.get("label", o.get("value"))) for o in (fld.options or [])
+    }
     if fld.field_type in ("select",):
         return options.get(str(raw), str(raw))
     if fld.field_type in ("multi_select", "checkbox"):
@@ -226,7 +228,9 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
         display = _resolve_field_value(fld, proc.custom_values.get(fld.key))
         if display:
             cover_fields.append(
-                FieldData(name=fld.name, key=fld.key, field_type=fld.field_type, display_value=display)
+                FieldData(
+                    name=fld.name, key=fld.key, field_type=fld.field_type, display_value=display
+                )
             )
 
     # 预取所有富文本里引用的 asset 字节（content 节点 + step 富文本字段）

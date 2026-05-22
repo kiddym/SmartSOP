@@ -24,7 +24,13 @@ from app.models.procedure import Procedure
 from app.models.settings import ProcedureSettings
 from app.models.step import ProcedureStep
 from app.seed import DEPRECATED_FOLDER_NAME
-from app.services import audit_service, numbering_service, procedure_service, version_service
+from app.services import (
+    attachment_service,
+    audit_service,
+    numbering_service,
+    procedure_service,
+    version_service,
+)
 from app.services.sequence_generator import next_sequence_value
 
 # 深拷贝时一并复制的章节 / 步骤字段（id / parent 关系单独重映射）。
@@ -190,6 +196,8 @@ def _fork(
     db.add(new_proc)
     db.flush()
     _clone_tree(db, content_source.id, new_proc.id)
+    # 附件元数据复制：取 content_source 版本（rollback 即 target，Q117/Q371）。
+    attachment_service.copy_for_version(db, content_source.id, new_proc.id)
     return new_proc
 
 
@@ -436,6 +444,8 @@ def copy_procedure(
     db.add(new_proc)
     db.flush()
     _clone_tree(db, src.id, new_proc.id)
+    # 复制所传 {id} 版本的附件元数据（Q238/Q371，不取 is_current）。
+    attachment_service.copy_for_version(db, src.id, new_proc.id)
     version_service.record_create(new_proc, description=f"复制自 {src.code} v{src.version}")
     db.flush()
     _audit(db, new_proc, "copy", meta, new_value={"copy_from": src.id, "source_code": src.code})

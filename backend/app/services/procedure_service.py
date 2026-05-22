@@ -28,6 +28,7 @@ from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
 from app.models.step import ProcedureStep
+from app.schemas.attachment import AttachmentOut
 from app.schemas.common import BatchDeleteFailure, BatchDeleteResult
 from app.schemas.node import ChapterTreeNode, StepOut
 from app.schemas.procedure import (
@@ -42,7 +43,7 @@ from app.schemas.procedure import (
     ProcedureUpdate,
     TransitionIn,
 )
-from app.services import audit_service, optimistic_lock, version_service
+from app.services import attachment_service, audit_service, optimistic_lock, version_service
 from app.services.sequence_generator import next_sequence_value
 
 LEGAL_TRANSITIONS = {("DRAFT", "PUBLISHED"), ("PUBLISHED", "ARCHIVED")}
@@ -609,6 +610,8 @@ def get_detail(db: Session, proc_id: str) -> ProcedureDetail:
         procedure=_meta_model(db, proc),
         chapters=_build_chapter_tree(db, proc_id),
         steps=_load_steps(db, proc_id),
-        attachments=[],
+        attachments=[
+            AttachmentOut.model_validate(a) for a in attachment_service.rows_for(db, proc_id)
+        ],
         fields=[FieldOut.model_validate(f) for f in fields],
     )

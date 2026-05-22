@@ -50,6 +50,7 @@ class Settings(BaseSettings):
     cleanup_hour: int = 3  # 每日附件 + asset GC 执行时刻（服务器时区）
     temp_upload_ttl_hours: int = 24  # 临时上传过期时长（Q141）
     asset_gc_grace_hours: int = 24  # asset ref_count=0 宽限（Q333）
+    attachment_retention_days: int = 30  # 软删附件物理清理宽限（Q115/Q371）
 
     # PDF 字体目录
     pdf_font_dir: str = "app/assets/fonts"

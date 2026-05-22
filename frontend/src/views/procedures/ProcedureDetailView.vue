@@ -7,11 +7,13 @@ import VersionListPanel from '@/components/version/VersionListPanel.vue'
 import VersionActionDialog, {
   type VersionActionResult,
 } from '@/components/version/VersionActionDialog.vue'
+import PdfPreviewDialog from '@/components/PdfPreview/PdfPreviewDialog.vue'
 import {
   copyProcedure,
   deleteGroup,
   deleteProcedure,
   deprecateGroup,
+  downloadPdf,
   fetchProcedureDetail,
   restoreGroup,
   restorePreview,
@@ -32,6 +34,21 @@ const loading = ref(false)
 const editVisible = ref(false)
 const busy = ref(false)
 const panelRef = ref<InstanceType<typeof VersionListPanel> | null>(null)
+// PDF 预览 / 下载（任意 is_current=true 程序可用，editor-behavior §10）
+const previewVisible = ref(false)
+const pdfBusy = ref(false)
+const canPdf = computed(() => !!meta.value?.is_current)
+
+async function onDownloadPdf(): Promise<void> {
+  pdfBusy.value = true
+  try {
+    await downloadPdf(id.value)
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    pdfBusy.value = false
+  }
+}
 
 const editable = computed(
   () => !!meta.value && meta.value.is_current && meta.value.status === 'DRAFT' && !deprecated.value,
@@ -331,6 +348,8 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
           <el-button v-if="editable" type="primary" @click="doTransition('PUBLISHED', '发布')">
             发布
           </el-button>
+          <el-button v-if="canPdf" @click="previewVisible = true">PDF 预览</el-button>
+          <el-button v-if="canPdf" :loading="pdfBusy" @click="onDownloadPdf">PDF 下载</el-button>
           <el-button v-if="canUpgrade" type="primary" plain :disabled="busy" @click="onUpgrade">
             升级版本
           </el-button>
@@ -468,6 +487,8 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
         :loading="busy"
         @confirm="onDialogConfirm"
       />
+
+      <PdfPreviewDialog v-model="previewVisible" :procedure-id="id" />
     </template>
   </div>
 </template>

@@ -22,6 +22,14 @@ def test_register_is_idempotent() -> None:
     assert fonts.mono() == "Courier"
 
 
+def test_uses_bundled_ttf_not_cid_fallback() -> None:
+    """字体资产已内置（H1/Q359）：注册 Noto TTF 而非回退 CID，保证加粗中文=黑体。"""
+    fonts.register_fonts()
+    assert fonts.song() == "SmartSong"
+    assert fonts.hei() == "SmartHei"
+    assert fonts.song_bold() == fonts.hei()  # 宋体加粗渲染为黑体
+
+
 def test_logical_fonts_render_chinese() -> None:
     fonts.register_fonts()
     buf = BytesIO()

@@ -31,8 +31,13 @@ def test_chapter_tree_with_content_and_steps(db: Session, factory: Factory) -> N
     # L1 章节「目的」含一个 content 子节点
     purpose = factory.chapter(proc.id, title="目的", level=1, sort_order=0)
     factory.chapter(
-        proc.id, title="", parent_id=purpose.id, content_type="content",
-        level=2, sort_order=0, rich_content="<p>本程序用于…</p>",
+        proc.id,
+        title="",
+        parent_id=purpose.id,
+        content_type="content",
+        level=2,
+        sort_order=0,
+        rich_content="<p>本程序用于…</p>",
     )
     # L1 章节「操作」含两个 step（与 content 互斥）
     ops = factory.chapter(proc.id, title="操作", level=1, sort_order=1)
@@ -72,9 +77,13 @@ def test_attachments_loaded_sorted(db: Session, factory: Factory) -> None:
     for i, name in enumerate(["b.pdf", "a.png"]):
         db.add(
             ProcedureAttachment(
-                procedure_id=proc.id, file_name=name, storage_path=f"/x/{name}",
-                mime_type="application/octet-stream", size_bytes=1024 * (i + 1),
-                description="" if i else "首图", sort_order=i,
+                procedure_id=proc.id,
+                file_name=name,
+                storage_path=f"/x/{name}",
+                mime_type="application/octet-stream",
+                size_bytes=1024 * (i + 1),
+                description="" if i else "首图",
+                sort_order=i,
             )
         )
     db.commit()
@@ -90,24 +99,42 @@ def test_cover_fields_resolved_and_empty_skipped(db: Session, factory: Factory) 
     proc.custom_values = {"dept": "维修部", "grade": "high", "blank": ""}
     db.add(
         ProcedureField(
-            name="部门", key="dept", field_type="text", show_on_cover=True, sort_order=0, status="active"
+            name="部门",
+            key="dept",
+            field_type="text",
+            show_on_cover=True,
+            sort_order=0,
+            status="active",
         )
     )
     db.add(
         ProcedureField(
-            name="等级", key="grade", field_type="select", show_on_cover=True, sort_order=1,
+            name="等级",
+            key="grade",
+            field_type="select",
+            show_on_cover=True,
+            sort_order=1,
             status="active",
             options=[{"value": "low", "label": "低"}, {"value": "high", "label": "高"}],
         )
     )
     db.add(  # 空值字段不渲染
         ProcedureField(
-            name="空", key="blank", field_type="text", show_on_cover=True, sort_order=2, status="active"
+            name="空",
+            key="blank",
+            field_type="text",
+            show_on_cover=True,
+            sort_order=2,
+            status="active",
         )
     )
     db.add(  # 未勾上封面的字段不进
         ProcedureField(
-            name="隐藏", key="hidden", field_type="text", show_on_cover=False, sort_order=3,
+            name="隐藏",
+            key="hidden",
+            field_type="text",
+            show_on_cover=False,
+            sort_order=3,
             status="active",
         )
     )

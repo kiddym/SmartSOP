@@ -55,7 +55,9 @@ def test_nested_table_degrades_with_warning(caplog) -> None:
 
 
 def test_missing_image_placeholder() -> None:
-    fl = render_html('<img src="/api/v1/procedures/p1/assets/00000000-0000-0000-0000-000000000000">', {})
+    fl = render_html(
+        '<img src="/api/v1/procedures/p1/assets/00000000-0000-0000-0000-000000000000">', {}
+    )
     assert len(fl) == 1
     # 资产字典为空 → 占位段落（非 Image）
     assert not isinstance(fl[0], Image)

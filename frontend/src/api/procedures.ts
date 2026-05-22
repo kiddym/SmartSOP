@@ -1,6 +1,7 @@
 import { http } from './http'
 import type { BatchDeleteResult, PageResult } from '@/types/common'
 import type { ApplyMarksResult } from '@/types/node'
+import type { PdfLayout } from '@/types/pdf'
 import type {
   BatchMoveResult,
   CopyPayload,
@@ -150,4 +151,26 @@ export const fetchGroupVersions = async (
 
 export const deleteGroup = async (groupId: string, reason: string): Promise<void> => {
   await http.delete(`/procedure-groups/${groupId}`, { data: { reason } })
+}
+
+// --------------------------------------------------------------------------- //
+// PDF（Phase 8，§34/§59）。预览=前端渲染层（detail + layout）；下载=后端 ReportLab。
+// --------------------------------------------------------------------------- //
+export const fetchPdfLayout = async (id: string): Promise<PdfLayout> =>
+  (await http.get<PdfLayout>(`/procedures/${id}/pdf-layout`)).data
+
+// 下载静态 PDF（blob）→ 浏览器另存，文件名取 Content-Disposition（{code}_Rev{version}.pdf）。
+export const downloadPdf = async (id: string): Promise<void> => {
+  const resp = await http.get(`/procedures/${id}/pdf-download`, { responseType: 'blob' })
+  const cd = String(resp.headers['content-disposition'] ?? '')
+  const match = /filename="?([^"]+)"?/.exec(cd)
+  const filename = match ? match[1] : `${id}.pdf`
+  const url = URL.createObjectURL(resp.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
 }

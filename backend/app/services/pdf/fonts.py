@@ -91,7 +91,17 @@ def register_fonts() -> None:
         mono=_MONO,
     )
     using_ttf = song_name == "SmartSong" and hei_name == "SmartHei"
-    logger.info("pdf fonts registered song=%s hei=%s ttf=%s", song_name, hei_name, using_ttf)
+    if using_ttf:
+        logger.info("pdf fonts registered song=%s hei=%s ttf=True", song_name, hei_name)
+    else:
+        # 生产应内置 Noto 子集；回退 CID 仅作兜底（字形覆盖窄、加粗中文≠黑体）。
+        logger.warning(
+            "pdf fonts fell back to CID (assets/fonts missing TTF) song=%s hei=%s dir=%s; "
+            "PDF 字体已降级，加粗中文将无法显示为黑体，请确认部署内置了 Noto 子集",
+            song_name,
+            hei_name,
+            _font_dir(),
+        )
 
 
 def _get(key: str) -> str:

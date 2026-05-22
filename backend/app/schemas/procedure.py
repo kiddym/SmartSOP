@@ -10,6 +10,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.attachment import AttachmentOut
 from app.schemas.common import BatchDeleteFailure
 from app.schemas.node import ChapterTreeNode, ChapterUpsert, StepOut, StepUpsert
 
@@ -230,6 +231,7 @@ class FieldOut(BaseModel):
     required: bool
     options: list[dict[str, Any]]
     sort_order: int
+    show_on_cover: bool
 
 
 class ProcedureDetail(BaseModel):
@@ -238,5 +240,5 @@ class ProcedureDetail(BaseModel):
     procedure: ProcedureMeta
     chapters: list[ChapterTreeNode] = Field(default_factory=list)
     steps: list[StepOut] = Field(default_factory=list)
-    attachments: list[Any] = Field(default_factory=list)
+    attachments: list[AttachmentOut] = Field(default_factory=list)
     fields: list[FieldOut] = Field(default_factory=list)

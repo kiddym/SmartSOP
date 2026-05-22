@@ -43,7 +43,9 @@ class LayoutInfo:
     cover_pages: int = 0
     front_pages: int = 0
     content_pages: int = 0
-    section_starts: dict[str, int] = field(default_factory=dict)  # cover/toc/revision/content/attachments
+    section_starts: dict[str, int] = field(
+        default_factory=dict
+    )  # cover/toc/revision/content/attachments
     page_labels: list[str] = field(default_factory=list)
     toc_entries: list[TocEntryInfo] = field(default_factory=list)
     chapters: dict[str, int] = field(default_factory=dict)
@@ -76,7 +78,9 @@ def _assemble_story(data: RenderData, toc_pages: dict[str, str]) -> list[Flowabl
     return story
 
 
-def _build_once(data: RenderData, totals: dict[str, int], toc_pages: dict[str, str]) -> tuple[bytes, ProcedureDocTemplate]:
+def _build_once(
+    data: RenderData, totals: dict[str, int], toc_pages: dict[str, str]
+) -> tuple[bytes, ProcedureDocTemplate]:
     buf = BytesIO()
     doc = ProcedureDocTemplate(
         buf,
@@ -173,14 +177,18 @@ def _render_iterate(data: RenderData) -> RenderResult:
     pdf_bytes = b""
     layout = LayoutInfo()
     for _ in range(MAX_ITERS):
-        totals = _totals_from(prev) if prev else {"cover_pages": 1, "front_pages": 0, "total_pages": 0}
+        totals = (
+            _totals_from(prev) if prev else {"cover_pages": 1, "front_pages": 0, "total_pages": 0}
+        )
         toc_pages = _toc_pages_from(prev) if prev else {}
         pdf_bytes, doc = _build_once(data, totals, toc_pages)
         layout = _extract_layout(data, doc)
         if layout == prev:  # 本遍用的是 prev 的页码，已与本遍一致 → 收敛
             return RenderResult(pdf_bytes, layout)
         prev = layout
-    logger.warning("pdf layout not converged after %d iterations proc=%s", MAX_ITERS, data.procedure.id)
+    logger.warning(
+        "pdf layout not converged after %d iterations proc=%s", MAX_ITERS, data.procedure.id
+    )
     return RenderResult(pdf_bytes, layout)
 
 
@@ -202,7 +210,9 @@ def _run_with_timeout(data: RenderData) -> RenderResult:
 
 def render_pdf(data: RenderData) -> RenderResult:
     """生成 PDF 字节 + layout（download 用）。"""
-    logger.info("pdf generation started proc=%s version=%s", data.procedure.id, data.procedure.version)
+    logger.info(
+        "pdf generation started proc=%s version=%s", data.procedure.id, data.procedure.version
+    )
     result = _run_with_timeout(data)
     logger.info(
         "pdf generation complete proc=%s pages=%s size=%s",

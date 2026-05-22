@@ -24,7 +24,9 @@ def to_layout_out(info: LayoutInfo, *, debug: dict[str, object] | None = None) -
 
     sections["cover"] = SectionInfo(start_page=cover_start, page_count=info.cover_pages or 1)
     if toc_start is not None:
-        sections["toc"] = SectionInfo(start_page=toc_start, page_count=span(toc_start, revision_start))
+        sections["toc"] = SectionInfo(
+            start_page=toc_start, page_count=span(toc_start, revision_start)
+        )
     if revision_start is not None:
         sections["revision"] = SectionInfo(
             start_page=revision_start, page_count=span(revision_start, content_start)

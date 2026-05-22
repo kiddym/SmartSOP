@@ -1,0 +1,601 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { downloadPdf, fetchPdfLayout, fetchProcedureDetail } from '@/api/procedures'
+import type { ProcedureDetail } from '@/types/procedure'
+import {
+  LEVEL_OF_USE_LABELS,
+  RISK_COLORS,
+  RISK_LABELS,
+  attachmentMarkText,
+  buildModel,
+  coverFieldRows,
+  execText,
+  fmtDate,
+  type PreviewModel,
+} from './pdfModel'
+
+const props = defineProps<{ modelValue: boolean; procedureId: string }>()
+const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
+
+const visible = computed({
+  get: () => props.modelValue,
+  set: (v) => emit('update:modelValue', v),
+})
+
+const loading = ref(false)
+const downloading = ref(false)
+const detail = ref<ProcedureDetail | null>(null)
+const model = ref<PreviewModel | null>(null)
+// 勾选 state（仅前端临时，刷新即丢，Q213）
+const checked = ref<Set<string>>(new Set())
+
+const meta = computed(() => detail.value?.procedure ?? null)
+const watermarkText = computed(() => {
+  const s = meta.value?.status
+  return s === 'DRAFT' ? '草稿 DRAFT' : s === 'ARCHIVED' ? '已作废 SUPERSEDED' : ''
+})
+const watermarkClass = computed(() => {
+  const s = meta.value?.status
+  return s === 'DRAFT' ? 'wm-draft' : s === 'ARCHIVED' ? 'wm-archived' : ''
+})
+
+watch(visible, async (open) => {
+  if (!open) return
+  checked.value = new Set()
+  loading.value = true
+  try {
+    const [d, l] = await Promise.all([
+      fetchProcedureDetail(props.procedureId),
+      fetchPdfLayout(props.procedureId),
+    ])
+    detail.value = d
+    model.value = buildModel(d, l)
+  } catch {
+    /* 拦截器已提示 */
+    visible.value = false
+  } finally {
+    loading.value = false
+  }
+})
+
+function toggle(key: string): void {
+  const next = new Set(checked.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  checked.value = next
+}
+
+function levelOfUse(): string {
+  const m = meta.value
+  if (!m) return ''
+  const [cn, en] = LEVEL_OF_USE_LABELS[m.level_of_use] ?? [m.level_of_use, '']
+  return `${cn} (${en})`
+}
+
+function doPrint(): void {
+  window.print()
+}
+
+async function doDownload(): Promise<void> {
+  downloading.value = true
+  try {
+    await downloadPdf(props.procedureId)
+  } catch {
+    /* 拦截器已提示 */
+  } finally {
+    downloading.value = false
+  }
+}
+
+// 封面字段：仅 show_on_cover 且有值，select/multi 解析为 label（与下载版一致）
+const coverRows = computed(() => (detail.value ? coverFieldRows(detail.value) : []))
+
+// 附件区段页码标签（取后端 layout，对齐下载版页眉）
+const attachmentsLabel = computed(() => {
+  const m = model.value
+  if (!m?.attachmentsPage) return ''
+  return m.layout.page_labels[m.attachmentsPage - 1] ?? String(m.attachmentsPage)
+})
+
+defineExpose({ model })
+
+function onPreviewClick(e: MouseEvent): void {
+  // 富文本内嵌 signature-bar / hold-point「点击激活」（Q204）
+  const el = (e.target as HTMLElement).closest('.signature-bar, .hold-point')
+  if (el) el.classList.toggle('signed')
+}
+</script>
+
+<template>
+  <el-dialog
+    v-model="visible"
+    fullscreen
+    :show-close="false"
+    class="pdf-preview-dialog"
+    append-to-body
+  >
+    <template #header>
+      <div class="pv-toolbar no-print">
+        <span class="pv-title">PDF 预览 · {{ meta?.code }} {{ meta?.name }}</span>
+        <div class="pv-actions">
+          <el-button :loading="downloading" @click="doDownload">下载 PDF</el-button>
+          <el-button type="primary" @click="doPrint">打印</el-button>
+          <el-button @click="visible = false">关闭</el-button>
+        </div>
+      </div>
+    </template>
+
+    <div v-loading="loading" class="pv-scroll">
+      <div v-if="model && meta" class="pv-doc" @click="onPreviewClick">
+        <!-- 封面（§3） -->
+        <section class="page cover" :class="watermarkClass" :data-wm="watermarkText">
+          <h1 class="cover-title">{{ meta.name }}</h1>
+          <div class="cover-meta">
+            <p>程序编号: {{ meta.code }}</p>
+            <p>版本: Rev.{{ meta.version }}</p>
+            <p>用途级别: {{ levelOfUse() }}</p>
+            <p v-if="meta.folder_full_path">所属文件夹: {{ meta.folder_full_path }}</p>
+            <p>
+              风险等级: {{ RISK_LABELS[meta.risk_level] }}（{{ meta.risk_level }}）
+              <span class="swatch" :style="{ background: RISK_COLORS[meta.risk_level] }" />
+            </p>
+            <p>
+              质量等级: {{ RISK_LABELS[meta.quality_level] }}（{{ meta.quality_level }}）
+              <span class="swatch" :style="{ background: RISK_COLORS[meta.quality_level] }" />
+            </p>
+            <p v-for="f in coverRows" :key="f.name">{{ f.name }}: {{ f.value }}</p>
+            <p>创建日期: {{ fmtDate(meta.created_at) }}</p>
+            <p>更新日期: {{ fmtDate(meta.updated_at) }}</p>
+            <p v-if="meta.status === 'DRAFT'" class="status-draft">状态: 草稿 DRAFT</p>
+            <p v-else-if="meta.status === 'ARCHIVED'" class="status-archived">
+              已作废 SUPERSEDED<span v-if="meta.archived_at"> · 作废日期 {{ fmtDate(meta.archived_at) }}</span>
+            </p>
+          </div>
+          <table class="sign-table cover-sign">
+            <tr><th>编制</th><th>审核</th><th>批准</th></tr>
+            <tr><td>签名:</td><td>签名:</td><td>签名:</td></tr>
+            <tr><td>日期:</td><td>日期:</td><td>日期:</td></tr>
+          </table>
+        </section>
+
+        <!-- 目录（§4） -->
+        <section class="page front" :class="watermarkClass" :data-wm="watermarkText">
+          <div class="page-header"><span class="ph-title">{{ meta.name }}</span></div>
+          <h2 class="sec-title">目录</h2>
+          <ul v-if="model.toc.length" class="toc">
+            <li v-for="t in model.toc" :key="t.chapter_id" :class="`toc-l${t.level}`">
+              <span class="toc-code">{{ t.code }}</span>
+              <span class="toc-name">{{ t.title }}</span>
+              <span class="toc-dots" />
+              <span class="toc-page">{{ t.display_page }}</span>
+            </li>
+          </ul>
+          <p v-else class="muted">（无章节）</p>
+        </section>
+
+        <!-- 修订记录（§5） -->
+        <section class="page front" :class="watermarkClass" :data-wm="watermarkText">
+          <div class="page-header"><span class="ph-title">{{ meta.name }}</span></div>
+          <h2 class="sec-title">修订记录</h2>
+          <table v-if="model.revision.length" class="grid">
+            <tr><th>版本号</th><th>变更类型</th><th>变更日期</th><th>说明</th></tr>
+            <tr v-for="(r, i) in model.revision" :key="i">
+              <td>{{ r.version }}</td><td>{{ r.changeType }}</td><td>{{ r.changedAt }}</td>
+              <td class="pre">{{ r.desc }}</td>
+            </tr>
+          </table>
+          <p v-else class="muted">（无修订记录）</p>
+        </section>
+
+        <!-- 正文逐页（§6） -->
+        <section
+          v-for="pg in model.contentPages"
+          :key="pg.page"
+          class="page content"
+          :class="watermarkClass"
+          :data-wm="watermarkText"
+        >
+          <div class="page-header">
+            <span class="ph-title">{{ meta.name }}</span>
+            <span class="ph-right">
+              <span>程序编号: {{ meta.code }}</span>
+              <span>版本: Rev.{{ meta.version }}</span>
+              <span>第 {{ pg.label }} 页 / 共 {{ model.layout.total_pages }} 页</span>
+            </span>
+          </div>
+          <p v-if="!pg.blocks.length" class="muted">（程序无内容）</p>
+          <template v-for="b in pg.blocks" :key="b.key">
+            <component
+              :is="`h${Math.min(b.level || 1, 3)}`"
+              v-if="b.kind === 'chapter'"
+              class="chapter-title"
+            >
+              <span v-if="b.code" class="ch-code">{{ b.code }}</span> {{ b.title }}
+            </component>
+
+            <div v-else-if="b.kind === 'content'" class="content-node" v-html="b.html" />
+
+            <div v-else-if="b.kind === 'step' && b.step" class="step">
+              <div class="step-title">
+                <span v-if="b.code" class="st-code">{{ b.code }}</span> {{ b.step.title || '（步骤）' }}
+              </div>
+              <div v-if="b.step.note" class="alert note-block" v-html="b.step.note" />
+              <div v-if="b.step.caution" class="alert caution-block" v-html="b.step.caution" />
+              <div v-if="b.step.warning" class="alert warning-block" v-html="b.step.warning" />
+              <div v-if="b.step.content" class="step-body" v-html="b.step.content" />
+              <p v-for="(m, i) in b.step.attachment_marks" :key="i" class="mark">
+                {{ attachmentMarkText(m) }}
+              </p>
+              <p class="exec">{{ execText(b.step) }}</p>
+              <p
+                v-if="b.step.require_confirmation"
+                class="signoff"
+                :class="{ checked: checked.has(b.key) }"
+                @click.stop="toggle(b.key)"
+              >
+                <span class="box">{{ checked.has(b.key) ? '☑' : '□' }}</span>
+                已确认完成 签名: __________ 日期: __________
+              </p>
+            </div>
+          </template>
+        </section>
+
+        <!-- 附件清单（§6.6）：与下载版同列序、同页码 -->
+        <section
+          v-if="model.attachments.length"
+          class="page content"
+          :class="watermarkClass"
+          :data-wm="watermarkText"
+        >
+          <div class="page-header">
+            <span class="ph-title">{{ meta.name }}</span>
+            <span class="ph-right">
+              <span>程序编号: {{ meta.code }}</span>
+              <span>版本: Rev.{{ meta.version }}</span>
+              <span v-if="attachmentsLabel">
+                第 {{ attachmentsLabel }} 页 / 共 {{ model.layout.total_pages }} 页
+              </span>
+            </span>
+          </div>
+          <h1 v-if="model.attachmentChapterTitle" class="chapter-title">
+            {{ model.attachmentChapterTitle }}
+          </h1>
+          <table class="grid">
+            <tr>
+              <th>序号</th><th>文件名</th><th>大小</th><th>类型</th><th>上传日期</th><th>描述</th>
+            </tr>
+            <tr v-for="a in model.attachments" :key="a.index">
+              <td>{{ a.index }}</td>
+              <td>{{ a.fileName }}</td>
+              <td>{{ a.size }}</td>
+              <td>{{ a.mime }}</td>
+              <td>{{ a.date }}</td>
+              <td>{{ a.description }}</td>
+            </tr>
+          </table>
+        </section>
+      </div>
+    </div>
+  </el-dialog>
+</template>
+
+<style scoped>
+.pv-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.pv-title {
+  font-weight: 600;
+}
+.pv-scroll {
+  height: calc(100vh - 90px);
+  overflow: auto;
+  background: #525659;
+  padding: 24px 0;
+}
+.pv-doc {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+}
+.page {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 1.27cm 2.03cm;
+  background: #fff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  box-sizing: border-box;
+  font-family: 'SimSun', 'Noto Serif SC', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  color: #000;
+}
+/* 水印（§3.4）：45° 斜纹平铺文字 */
+.page[data-wm]:not([data-wm=''])::before {
+  content: attr(data-wm);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30pt;
+  font-weight: 700;
+  transform: rotate(-45deg);
+  pointer-events: none;
+  z-index: 0;
+  white-space: nowrap;
+  letter-spacing: 0.4em;
+}
+/* 水印色/透明度与后端 constants.WATERMARK 对齐（DRAFT 0.30 / ARCHIVED 0.35） */
+.wm-draft[data-wm]:not([data-wm=''])::before {
+  color: rgba(200, 200, 200, 0.3);
+}
+.wm-archived[data-wm]:not([data-wm=''])::before {
+  color: rgba(230, 150, 150, 0.35);
+}
+.page > * {
+  position: relative;
+  z-index: 1;
+}
+.cover {
+  text-align: center;
+}
+.cover-title {
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+  font-size: 22pt;
+  margin: 48px 0 18px;
+}
+.cover-meta p {
+  margin: 2px 0;
+}
+.swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+.status-draft {
+  color: #808080;
+}
+.status-archived {
+  color: #dc2626;
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+}
+.sign-table {
+  border-collapse: collapse;
+  margin: 28px auto 0;
+  width: 80%;
+}
+.sign-table th,
+.sign-table td {
+  border: 1px solid #000;
+  padding: 6px 10px;
+  text-align: left;
+}
+.sign-table th {
+  background: #eee;
+  text-align: center;
+}
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid #000;
+  padding-bottom: 6px;
+  margin-bottom: 12px;
+  font-size: 10pt;
+}
+.ph-title {
+  font-size: 11pt;
+}
+.ph-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+.sec-title {
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+  font-size: 16pt;
+  margin: 0 0 12px;
+}
+.toc {
+  list-style: none;
+  padding: 0;
+}
+.toc li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 4px 0;
+}
+.toc-l1 {
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+  font-size: 14pt;
+}
+.toc-l2 {
+  padding-left: 1em;
+}
+.toc-l3 {
+  padding-left: 2em;
+}
+.toc-dots {
+  flex: 1;
+  border-bottom: 1px dotted #888;
+  transform: translateY(-3px);
+}
+.grid {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 10.5pt;
+}
+.grid th,
+.grid td {
+  border: 1px solid #000;
+  padding: 4px 5px;
+  text-align: left;
+  vertical-align: top;
+}
+.grid th {
+  background: #eee;
+}
+.pre {
+  white-space: pre-wrap;
+}
+.chapter-title {
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+  margin: 14px 0 6px;
+}
+h1.chapter-title {
+  font-size: 16pt;
+}
+h2.chapter-title {
+  font-size: 14pt;
+}
+h3.chapter-title {
+  font-size: 12pt;
+}
+.content-node {
+  margin: 1em 0;
+}
+.step {
+  margin: 10px 0;
+}
+.step-title {
+  font-family: 'SimHei', 'Noto Sans SC', sans-serif;
+  font-size: 14pt;
+  font-weight: 700;
+  margin: 8px 0 4px;
+}
+.mark {
+  color: #404040;
+  font-size: 11pt;
+  margin: 2px 0;
+}
+.exec {
+  margin: 4px 0;
+}
+.signoff {
+  cursor: pointer;
+  user-select: none;
+}
+.signoff.checked {
+  color: #15803d;
+}
+.muted {
+  color: #888;
+  text-align: center;
+  margin-top: 12px;
+}
+/* 警示三色（ANSI Z535，§7） + 富文本内嵌特殊块 */
+.alert,
+:deep(.note-block),
+:deep(.caution-block),
+:deep(.warning-block) {
+  border-width: 1px;
+  border-style: solid;
+  padding: 8px 12px;
+  margin: 8px 0;
+}
+.note-block,
+:deep(.note-block) {
+  background: rgb(204, 229, 255);
+  border-color: rgb(13, 71, 161);
+}
+.caution-block,
+:deep(.caution-block) {
+  background: rgb(255, 217, 102);
+  border-color: #000;
+}
+.warning-block,
+:deep(.warning-block) {
+  background: rgb(255, 205, 210);
+  border-color: rgb(220, 38, 38);
+}
+.alert.note-block::before {
+  content: 'ⓘ 注意 NOTE';
+  display: block;
+  font-weight: 700;
+  color: rgb(13, 71, 161);
+  margin-bottom: 2px;
+}
+.alert.caution-block::before {
+  content: '⚠ 小心 CAUTION';
+  display: block;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.alert.warning-block::before {
+  content: '‼ 警告 WARNING';
+  display: block;
+  font-weight: 700;
+  color: rgb(220, 38, 38);
+  margin-bottom: 2px;
+}
+:deep(.hold-point) {
+  border: 2px solid rgb(220, 38, 38);
+  padding: 10px 12px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+:deep(.hold-point.signed) {
+  background: rgba(220, 38, 38, 0.08);
+}
+:deep(.signature-bar) {
+  border: 1px dashed #888;
+  padding: 8px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+:deep(.signature-bar.signed) {
+  background: rgba(21, 128, 61, 0.08);
+}
+:deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+:deep(td),
+:deep(th) {
+  border: 1px solid #000;
+  padding: 4px;
+}
+:deep(img) {
+  max-width: 100%;
+  display: block;
+  margin: 8px auto;
+}
+</style>
+
+<style>
+/* 打印（§6.7 / Q213）：仅留预览文档、隐藏工具栏与对话框 chrome */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .pdf-preview-dialog .pv-doc,
+  .pdf-preview-dialog .pv-doc * {
+    visibility: visible;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .pv-scroll {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .pv-doc {
+    gap: 0 !important;
+  }
+  .page {
+    box-shadow: none !important;
+    page-break-after: always;
+    min-height: auto !important;
+  }
+}
+</style>

@@ -34,8 +34,16 @@ class PageMarker(Flowable):  # type: ignore[misc]  # reportlab 无类型
         pass
 
 
-def _cell_table(inner: list[Flowable], *, bg: Color, border: Color, border_w: float = 1.0,
-                pad: float = 8.0, lr_pad: float = 12.0, width: float = CONTENT_WIDTH) -> Table:
+def _cell_table(
+    inner: list[Flowable],
+    *,
+    bg: Color,
+    border: Color,
+    border_w: float = 1.0,
+    pad: float = 8.0,
+    lr_pad: float = 12.0,
+    width: float = CONTENT_WIDTH,
+) -> Table:
     t = Table([[inner]], colWidths=[width])
     t.setStyle(
         TableStyle(
@@ -88,7 +96,7 @@ def signature_bar(width: float = CONTENT_WIDTH) -> Flowable:
 
 def hold_point(body: list[Flowable], *, width: float = CONTENT_WIDTH) -> Flowable:
     """hold-point：红双圈边框 + 标题 + 内容 + 自动追加签名/日期行（§7.4）。"""
-    inner: list[Flowable] = [Paragraph("◈ HOLD POINT 检查点", s("hold_title")), *body]
+    inner: list[Flowable] = [Paragraph("◆ HOLD POINT 检查点", s("hold_title")), *body]
     inner.append(Paragraph("签名: __________   日期: __________", s("alert_body")))
     box = _cell_table(inner, bg=white, border=HOLD_BORDER, border_w=2.0, width=width)
     # 外圈细线模拟双圈

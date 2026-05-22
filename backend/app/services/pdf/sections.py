@@ -17,11 +17,14 @@ from app.services.pdf.constants import (
     ATTACHMENT_CHAPTER_NAMES,
     ATTACHMENT_CHAPTER_TITLE,
     ATTACHMENT_KIND_LABELS,
+    ATTACHMENT_MARK_PREFIX,
     CHANGE_TYPE_LABELS,
+    CHECKBOX_GLYPH,
     CONTENT_WIDTH,
     DEFAULT_FAIL_LABEL,
     DEFAULT_PASS_LABEL,
     LEVEL_OF_USE_LABELS,
+    RADIO_GLYPH,
     REVISION_CHANGE_TYPES,
     RISK_COLORS,
     RISK_LABELS,
@@ -61,6 +64,11 @@ def _fmt_date(dt: datetime | None) -> str:
 
 def _esc(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _esc_multiline(text: str) -> str:
+    """转义并把换行转为 <br/>（修订说明等多行文本，§5.2）。"""
+    return _esc(text).replace("\n", "<br/>")
 
 
 # --------------------------------------------------------------------------- #
@@ -161,8 +169,12 @@ def build_revision(data: RenderData) -> list[Flowable]:
     head = s("table_head")
     cell = s("table_cell")
     rows: list[list[Any]] = [
-        [Paragraph("版本号", head), Paragraph("变更类型", head),
-         Paragraph("变更日期", head), Paragraph("说明", head)]
+        [
+            Paragraph("版本号", head),
+            Paragraph("变更类型", head),
+            Paragraph("变更日期", head),
+            Paragraph("说明", head),
+        ]
     ]
     for e in entries:
         ver = e.get("version", "")
@@ -172,8 +184,12 @@ def build_revision(data: RenderData) -> list[Flowable]:
         changed = str(e.get("changed_at", ""))[:10]
         desc = _revision_desc(e, p)
         rows.append(
-            [Paragraph(_esc(str(ver)), cell), Paragraph(_esc(ctype), cell),
-             Paragraph(_esc(changed), cell), Paragraph(desc, cell)]
+            [
+                Paragraph(_esc(str(ver)), cell),
+                Paragraph(_esc(ctype), cell),
+                Paragraph(_esc(changed), cell),
+                Paragraph(desc, cell),
+            ]
         )
     widths = [CONTENT_WIDTH * w for w in (0.10, 0.14, 0.16, 0.60)]
     t = Table(rows, colWidths=widths, repeatRows=1)
@@ -188,9 +204,9 @@ def _revision_desc(entry: dict[str, Any], p: ProcedureData) -> str:
     for k in ("description", "reason"):
         v = entry.get(k)
         if v:
-            parts.append(_esc(str(v)))
+            parts.append(_esc_multiline(str(v)))
     if entry.get("version") == p.version and p.version_update_notes.strip():
-        parts.append(_esc(p.version_update_notes.strip()))
+        parts.append(_esc_multiline(p.version_update_notes.strip()))
     return "<br/>".join(parts) if parts else "—"
 
 
@@ -281,13 +297,20 @@ def _render_step(st: StepData, data: RenderData, out: list[Flowable]) -> None:
         out.append(placeholder)
     # 确认行
     if st.require_confirmation:
-        out.append(Paragraph("☐ 已确认完成    签名: __________  日期: __________", s("step_placeholder")))
+        out.append(
+            Paragraph(
+                f"{CHECKBOX_GLYPH} 已确认完成    签名: __________  日期: __________",
+                s("step_placeholder"),
+            )
+        )
 
 
 def _attachment_mark_text(mark: dict[str, Any]) -> str:
-    name = _esc(str(mark.get("name", "")))
+    # 编辑器存 filename（StepDetailPanel），兼容文档/规范的 name
+    raw_name = mark.get("filename") or mark.get("name") or ""
+    name = _esc(str(raw_name))
     kind = ATTACHMENT_KIND_LABELS.get(str(mark.get("kind", "other")), "其他")
-    text = f"📎 附件: {name}（{kind}）"
+    text = f"{ATTACHMENT_MARK_PREFIX} {name}（{kind}）"
     if mark.get("note"):
         text += f" — {_esc(str(mark['note']))}"
     return text
@@ -300,13 +323,15 @@ def _form_placeholder(schema: dict[str, Any]) -> Flowable | None:
     if t == "NONE":
         return None
     if t == "COMMON":
-        return Paragraph("☐ 已完成", st)
+        return Paragraph(f"{CHECKBOX_GLYPH} 已完成", st)
     if t == "CHECK":
         pl = schema.get("pass_label") or DEFAULT_PASS_LABEL
         fa = schema.get("fail_label") or DEFAULT_FAIL_LABEL
-        return Paragraph(f"执行结果:  ☐ {_esc(str(pl))}    ☐ {_esc(str(fa))}", st)
+        return Paragraph(
+            f"执行结果:  {CHECKBOX_GLYPH} {_esc(str(pl))}    {CHECKBOX_GLYPH} {_esc(str(fa))}", st
+        )
     if t == "YESNO":
-        return Paragraph("☐ 是    ☐ 否", st)
+        return Paragraph(f"{CHECKBOX_GLYPH} 是    {CHECKBOX_GLYPH} 否", st)
     if t == "NUMBER":
         label = _esc(str(schema.get("label", "数值")))
         unit = _esc(str(schema.get("unit", "")))
@@ -318,9 +343,13 @@ def _form_placeholder(schema: dict[str, Any]) -> Flowable | None:
         unit = _esc(str(schema.get("unit", "")))
         return Paragraph(f"{label}: __________ {unit}", st)
     if t in ("CHECKBOX", "RADIO"):
-        mark = "☐" if t == "CHECKBOX" else "○"
+        mark = CHECKBOX_GLYPH if t == "CHECKBOX" else RADIO_GLYPH
         opts = _schema_options(schema)
-        cells = "   ".join(f"{mark} {_esc(o)}" for o in opts) if opts else f"{mark} 选项1   {mark} 选项2"
+        cells = (
+            "   ".join(f"{mark} {_esc(o)}" for o in opts)
+            if opts
+            else f"{mark} 选项1   {mark} 选项2"
+        )
         return Paragraph(cells, st)
     if t == "UPLOAD":
         return Paragraph("附件: ____________（见附页 / 粘贴）", st)
@@ -330,7 +359,7 @@ def _form_placeholder(schema: dict[str, Any]) -> Flowable | None:
         return Paragraph("日期: ______ 年 ___ 月 ___ 日", st)
     if t == "PHOTO":
         return _photo_box()
-    return Paragraph("☐ 已完成", st)  # 未知型兜底
+    return Paragraph(f"{CHECKBOX_GLYPH} 已完成", st)  # 未知型兜底
 
 
 def _schema_options(schema: dict[str, Any]) -> list[str]:
@@ -345,8 +374,11 @@ def _schema_options(schema: dict[str, Any]) -> list[str]:
 
 
 def _photo_box() -> Flowable:
-    t = Table([[Paragraph("照片粘贴区", s("placeholder_muted"))]], colWidths=[CONTENT_WIDTH * 0.5],
-              rowHeights=[60])
+    t = Table(
+        [[Paragraph("照片粘贴区", s("placeholder_muted"))]],
+        colWidths=[CONTENT_WIDTH * 0.5],
+        rowHeights=[60],
+    )
     t.setStyle(
         TableStyle(
             [

@@ -27,7 +27,9 @@ class PdfLayoutOut(BaseModel):
     """GET /procedures/{id}/pdf-layout 响应（前端预览逐页复刻，与下载版页码一致）。"""
 
     total_pages: int
-    sections: dict[str, SectionInfo] = Field(default_factory=dict)  # cover/toc/revision/content/attachments
+    sections: dict[str, SectionInfo] = Field(
+        default_factory=dict
+    )  # cover/toc/revision/content/attachments
     page_labels: list[str] = Field(default_factory=list)  # 每物理页页眉右列第3行 P
     toc_entries: list[TocEntry] = Field(default_factory=list)
     chapters: dict[str, int] = Field(default_factory=dict)  # chapter_id → 物理页

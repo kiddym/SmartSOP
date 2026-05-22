@@ -60,6 +60,7 @@ export interface ProcedureFieldView {
   required: boolean
   options: Array<Record<string, unknown>>
   sort_order: number
+  show_on_cover: boolean
 }
 
 export interface ProcedureDetail {

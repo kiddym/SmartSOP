@@ -18,7 +18,9 @@ def _filename(code: str, version: int) -> str:
     return f"{code}_Rev{version}.pdf"
 
 
-def generate_pdf(db: Session, proc_id: str, *, debug: bool = False) -> tuple[bytes, PdfLayoutOut, str]:
+def generate_pdf(
+    db: Session, proc_id: str, *, debug: bool = False
+) -> tuple[bytes, PdfLayoutOut, str]:
     """生成下载 PDF：返回 (bytes, layout, filename)。debug=1 时 layout.debug 填诊断。"""
     data = load_render_data(db, proc_id)
     result = engine.render_pdf(data)

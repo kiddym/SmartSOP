@@ -61,6 +61,67 @@ def test_upgrade_forks_new_draft(db: Session, factory: Factory) -> None:
     assert len(cloned) == 1
 
 
+def _add_attachment(db: Session, proc_id: str, *, storage_path: str) -> None:
+    from app.models.attachment import ProcedureAttachment
+
+    db.add(
+        ProcedureAttachment(
+            procedure_id=proc_id,
+            file_name="规程.pdf",
+            storage_path=storage_path,
+            mime_type="application/pdf",
+            size_bytes=10,
+        )
+    )
+    db.commit()
+
+
+def test_upgrade_copies_attachment_metadata(db: Session, factory: Factory) -> None:
+    from app.services import attachment_service
+
+    factory.settings()
+    folder = _leaf(factory)
+    proc = _published(factory, folder, version=1)
+    _add_attachment(db, proc.id, storage_path="attachment/ab/orig.pdf")
+
+    new = version_flow_service.upgrade_version(db, proc.id, META)
+    db.commit()
+    rows = attachment_service.list_attachments(db, new.id)
+    assert len(rows) == 1
+    assert rows[0].storage_path == "attachment/ab/orig.pdf"  # 复用 storage_path
+
+
+def test_rollback_inherits_target_attachments(db: Session, factory: Factory) -> None:
+    from app.services import attachment_service
+
+    factory.settings()
+    folder = _leaf(factory)
+    gid = "g-roll"
+    v1 = factory.procedure(
+        folder.id,
+        code="QC-1",
+        procedure_group_id=gid,
+        version=1,
+        status="ARCHIVED",
+        is_current=False,
+    )
+    _add_attachment(db, v1.id, storage_path="attachment/v1/file.pdf")
+    v2 = factory.procedure(
+        folder.id,
+        code="QC-1",
+        procedure_group_id=gid,
+        version=2,
+        status="PUBLISHED",
+    )
+    _add_attachment(db, v2.id, storage_path="attachment/v2/file.pdf")
+
+    new = version_flow_service.rollback(db, v2.id, 1, "回退原因", META)
+    db.commit()
+    rows = attachment_service.list_attachments(db, new.id)
+    # 继承 target(v1) 的附件，而非 current(v2) 的（Q117）
+    assert [r.storage_path for r in rows] == ["attachment/v1/file.pdf"]
+
+
 def test_upgrade_rejects_non_published(db: Session, factory: Factory) -> None:
     factory.settings()
     folder = _leaf(factory)
