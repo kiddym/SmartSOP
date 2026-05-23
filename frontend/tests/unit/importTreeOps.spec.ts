@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   addChildNode,
   addSiblingNode,
+  buildWizardTree,
   computeLevelMap,
   demoteNode,
   extractIgnored,
@@ -10,7 +11,6 @@ import {
   restoreFromIgnored,
   setMarkStatus,
 } from '@/utils/importTree'
-import { buildWizardTree } from '@/utils/importTree'
 import type { ParsedNode } from '@/types/parse'
 
 function pnode(partial: Partial<ParsedNode> & { id: string }): ParsedNode {
@@ -152,5 +152,26 @@ describe('importTree 新增操作', () => {
     const [stripped, removed] = extractIgnored(tree, ['a1'])
     const restored = restoreFromIgnored(stripped, removed)
     expect(restored.map((n) => n.id)).toEqual(['a', 'b', 'a1'])
+  })
+
+  it('demoteNode 根级首位 no-op', () => {
+    const tree = sample()
+    const next = demoteNode(tree, 'a') // 'a' is first at root, no previous sibling
+    expect(next).toEqual(tree)
+  })
+
+  it('addSiblingNode 不存在的 id 返回原树', () => {
+    const tree = sample()
+    const next = addSiblingNode(tree, 'zzz', 'chapter')
+    expect(next).toEqual(tree)
+  })
+
+  it('extractIgnored 同时含父子 id：子随父移除（不重复）', () => {
+    const tree = sample()
+    // 'a' contains 'a1' — if both in ids, a1 is swallowed inside removed 'a'
+    const [next, removed] = extractIgnored(tree, ['a', 'a1'])
+    expect(removed).toHaveLength(1) // only 'a' is top-level removed; a1 is inside it
+    expect(removed[0].id).toBe('a')
+    expect(next.map((n) => n.id)).toEqual(['b'])
   })
 })

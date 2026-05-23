@@ -243,7 +243,7 @@ export function demoteNode(nodes: WizardNode[], id: string): WizardNode[] {
     const node = siblings[idx]
     const prev = siblings[idx - 1]
     const next = siblings.filter((_, i) => i !== idx)
-    next[idx - 1] = { ...prev, children: [...prev.children, node] }
+    next[idx - 1] = { ...prev, children: [...prev.children, { ...node, children: [...node.children] }] }
     return next
   }
 
