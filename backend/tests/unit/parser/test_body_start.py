@@ -7,6 +7,7 @@ from app.parser.utils.opc import DocxPackage
 from tests.unit.parser._docx_builder import (
     DocxBuilder,
     empty_sop,
+    manual_toc_sop,
     styled_sop,
     synonym_sop,
 )
@@ -65,3 +66,33 @@ def test_cover_skip_fallback_for_headingless_doc() -> None:
     idx, source = body_start.find_body_start(nd.blocks, toc_field_end=None)
     assert source == "cover_skip"
     assert nd.blocks[idx].text.strip().startswith("这是一段")
+
+
+def test_method_c_skips_manual_toc_area() -> None:
+    """方案C：手动目录区（连续样式标题）被跳过，正文从首个"标题后接内容"的块开始。"""
+    nd = _norm(manual_toc_sop())
+    idx, source = body_start.find_body_start(nd.blocks, toc_field_end=nd.toc_field_end_index)
+    assert source == "first_styled_heading"
+    body_block = nd.blocks[idx]
+    # 正文起始块本身是"目的"
+    assert body_block.text.strip() == "目的"
+    # 正文起始块之后、在下一个样式标题之前，存在非标题内容块
+    subsequent = [b for b in nd.blocks if b.source_index > body_block.source_index]
+    first_content = next((b for b in subsequent if b.style_level is None and b.text.strip()), None)
+    assert first_content is not None
+    assert first_content.text.strip() == "本程序规定了碘吸附器定期试验要求。"
+
+
+def test_method_c_fallback_when_all_headings_have_no_content() -> None:
+    """方案C兜底：文档全为连续样式标题（无正文段），退回首个样式标题，不崩溃。"""
+    data = (
+        DocxBuilder()
+        .styled_heading("目的", "章节标题")
+        .styled_heading("范围", "章节标题")
+        .styled_heading("程序", "章节标题")
+        .build()
+    )
+    nd = _norm(data)
+    idx, source = body_start.find_body_start(nd.blocks, toc_field_end=nd.toc_field_end_index)
+    assert source == "first_styled_heading"
+    assert nd.blocks[idx].text.strip() == "目的"

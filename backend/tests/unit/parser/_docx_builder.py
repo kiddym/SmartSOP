@@ -226,3 +226,27 @@ def empty_sop() -> bytes:
         .para("又一段普通文字同样没有结构特征可言。")
         .build()
     )
+
+
+def manual_toc_sop() -> bytes:
+    """手动排版目录 SOP（章节标题样式，无 TOC 域）。
+
+    结构：封面 → 手动目录区（连续章节标题，无正文段）→ 正文区（章节标题 + 正文段）。
+    方案C 须跳过目录区的三个「章节标题」，从正文区第一个「目的」（后接正文）开始。
+    """
+    return (
+        DocxBuilder()
+        .para("公司机密文件", center=True)
+        .section_break()
+        .para("目 录")
+        .styled_heading("目的", "章节标题")        # 目录区：连续标题，无内容跟随
+        .styled_heading("范围", "章节标题")
+        .styled_heading("程序", "章节标题")
+        .styled_heading("目的", "章节标题")        # 正文区：标题后有正文段
+        .para("本程序规定了碘吸附器定期试验要求。")
+        .styled_heading("范围", "章节标题")
+        .para("适用于一期1–4号机组。")
+        .styled_heading("程序", "章节标题")
+        .para("操作步骤如下。")
+        .build()
+    )
