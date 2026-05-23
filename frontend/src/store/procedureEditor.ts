@@ -47,6 +47,15 @@ function byteLength(s: string): number {
   return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : s.length
 }
 
+function titleFromHtml(html: string): string {
+  const text = html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return text.slice(0, 80) || '未命名章节'
+}
+
 interface Snapshot {
   chapters: EditorChapter[]
   steps: EditorStep[]
@@ -444,6 +453,38 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       if (!ch) return
       const next: ContentType = ch.content_type === 'chapter' ? 'content' : 'chapter'
       this.updateChapterFields(id, { content_type: next }, `content_type:${id}`)
+    },
+
+    promoteContentToChapter(id: string): void {
+      const ch = this.chapterMap.get(id)
+      if (!ch || ch.content_type !== 'content') return
+      const hasChildren =
+        this.chapters.some((c) => c.parent_id === id) ||
+        this.steps.some((s) => s.chapter_id === id)
+      if (hasChildren) return
+
+      this.pushUndo()
+      const originalHtml = ch.rich_content
+      const childId = genTempId()
+      const child: EditorChapter = {
+        id: childId,
+        parent_id: id,
+        content_type: 'content',
+        title: '',
+        rich_content: originalHtml,
+        skip_numbering: true,
+        mark_status: 'unmarked',
+        sort_order: 0,
+      }
+      ch.content_type = 'chapter'
+      ch.title = ch.title.trim() || titleFromHtml(originalHtml)
+      ch.rich_content = ''
+      ch.skip_numbering = false
+      this.chapters.push(child)
+      this.dirtyChapters.add(id)
+      this.dirtyChapters.add(childId)
+      this.setExpanded(id, true)
+      this.selectedId = id
     },
 
     nextSortOrder(siblings: { sort_order: number }[]): number {

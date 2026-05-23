@@ -62,6 +62,16 @@ const children = computed<ChildRow[]>(() => {
           <el-radio-button value="chapter">章节</el-radio-button>
           <el-radio-button value="content">内容块</el-radio-button>
         </el-radio-group>
+        <el-button
+          v-if="chapter.content_type === 'content' && !ro"
+          size="small"
+          type="primary"
+          plain
+          style="margin-left: 8px"
+          @click="store.promoteContentToChapter(chapter.id)"
+        >
+          提升为章节
+        </el-button>
       </el-form-item>
 
       <el-form-item label="章节标题">

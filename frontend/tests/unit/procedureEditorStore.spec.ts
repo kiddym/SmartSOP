@@ -357,3 +357,56 @@ describe('canDemoteChapter', () => {
     expect(store.canDemoteChapter('c2')).toBe(false)
   })
 })
+
+describe('内容提升为章节', () => {
+  it('promoteContentToChapter 把内容节点变章节并保留正文为子内容', () => {
+    const s = seed()
+    s.chapters = [
+      {
+        id: 'c1',
+        parent_id: null,
+        content_type: 'content',
+        title: '',
+        rich_content: '<p>系统启动条件</p><p>正文</p>',
+        skip_numbering: true,
+        mark_status: 'unmarked',
+        sort_order: 0,
+      },
+    ]
+
+    s.promoteContentToChapter('c1')
+
+    const promoted = s.chapterMap.get('c1')
+    expect(promoted?.content_type).toBe('chapter')
+    expect(promoted?.title).toBe('系统启动条件 正文')
+    expect(promoted?.rich_content).toBe('')
+    expect(promoted?.skip_numbering).toBe(false)
+
+    const child = s.chapters.find((c) => c.parent_id === 'c1')
+    expect(child?.content_type).toBe('content')
+    expect(child?.rich_content).toBe('<p>系统启动条件</p><p>正文</p>')
+    expect(s.dirtyChapters.has('c1')).toBe(true)
+    expect(child && s.dirtyChapters.has(child.id)).toBe(true)
+  })
+
+  it('promoteContentToChapter 忽略已有子节点的内容节点', () => {
+    const s = seed()
+    s.chapters = [
+      {
+        id: 'c1',
+        parent_id: null,
+        content_type: 'content',
+        title: '',
+        rich_content: '<p>正文</p>',
+        skip_numbering: true,
+        mark_status: 'unmarked',
+        sort_order: 0,
+      },
+      chap('child', 'c1', 0),
+    ]
+
+    s.promoteContentToChapter('c1')
+
+    expect(s.chapterMap.get('c1')?.content_type).toBe('content')
+  })
+})
