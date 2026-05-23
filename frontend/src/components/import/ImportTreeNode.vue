@@ -2,7 +2,7 @@
 import type { WizardNode } from '@/utils/importTree'
 
 // 导入向导树审查行（递归）。纯展示 + 冒泡操作事件，树变更由 TreeReviewStep 用纯函数处理。
-defineProps<{ node: WizardNode; depth: number; selectedId: string | null }>()
+defineProps<{ node: WizardNode; depth: number; selectedId: string | null; readonly?: boolean }>()
 const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'delete', id: string): void
@@ -31,7 +31,7 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
       </el-tag>
       <el-tag v-if="node.skip_numbering" size="small" disable-transitions>不编号</el-tag>
       <span class="spacer" />
-      <span class="ops" @click.stop>
+      <span v-if="!readonly" class="ops" @click.stop>
         <el-button text size="small" title="上移" @click="emit('move', node.id, -1)">↑</el-button>
         <el-button text size="small" title="下移" @click="emit('move', node.id, 1)">↓</el-button>
         <el-button text size="small" type="danger" title="删除（含子节点）" @click="emit('delete', node.id)">
@@ -45,6 +45,7 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
       :node="child"
       :depth="depth + 1"
       :selected-id="selectedId"
+      :readonly="readonly"
       @select="(id) => emit('select', id)"
       @delete="(id) => emit('delete', id)"
       @move="(id, dir) => emit('move', id, dir)"

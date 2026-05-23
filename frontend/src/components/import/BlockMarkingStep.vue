@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import ImportTreeNode from './ImportTreeNode.vue'
 import {
   applyBatchMark,
   rebuildTreeFromMarks,
@@ -7,6 +8,7 @@ import {
   type MarkRole,
   type MarkedImportBlock,
 } from '@/utils/importBlocks'
+import type { WizardNode } from '@/utils/importTree'
 
 const props = defineProps<{ modelValue: MarkedImportBlock[] }>()
 const emit = defineEmits<{ (e: 'update:modelValue', blocks: MarkedImportBlock[]): void }>()
@@ -14,7 +16,7 @@ const emit = defineEmits<{ (e: 'update:modelValue', blocks: MarkedImportBlock[])
 const selected = ref<string[]>([])
 
 const issues = computed(() => validateMarkedBlocks(props.modelValue))
-const preview = computed(() => rebuildTreeFromMarks(props.modelValue))
+const preview = computed(() => rebuildTreeFromMarks(props.modelValue) as WizardNode[])
 const selectedCount = computed(() => selected.value.length)
 
 function checked(id: string): boolean {
@@ -87,7 +89,14 @@ function issueFor(id: string): string {
       <div class="preview">
         <div class="preview-title">导入后树预览</div>
         <template v-if="preview.length">
-          <pre class="tree-text">{{ JSON.stringify(preview, null, 2) }}</pre>
+          <ImportTreeNode
+            v-for="node in preview"
+            :key="node.id"
+            :node="node"
+            :depth="0"
+            :selected-id="null"
+            :readonly="true"
+          />
         </template>
         <el-empty v-else description="暂无章节树" />
       </div>
@@ -158,11 +167,5 @@ function issueFor(id: string): string {
   margin-bottom: 8px;
   font-size: 13px;
   font-weight: 600;
-}
-.tree-text {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  white-space: pre-wrap;
 }
 </style>

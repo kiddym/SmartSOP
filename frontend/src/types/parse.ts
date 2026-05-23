@@ -116,6 +116,7 @@ export interface ParseResponse {
 
 // ---- 导入入参（POST /procedures/import） ---- //
 export interface ImportNode {
+  id?: string
   title: string
   content_type: 'chapter' | 'content'
   rich_content: string

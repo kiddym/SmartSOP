@@ -50,6 +50,7 @@ export function clearBatchMark(blocks: MarkedImportBlock[], ids: string[]): Mark
 
 function contentNode(block: MarkedImportBlock): ImportNode {
   return {
+    id: crypto.randomUUID(),
     title: '',
     content_type: 'content',
     rich_content: block.rich_content,
@@ -61,6 +62,7 @@ function contentNode(block: MarkedImportBlock): ImportNode {
 
 function chapterNode(block: MarkedImportBlock): ImportNode {
   return {
+    id: crypto.randomUUID(),
     title: block.clean_text.trim() || block.display_text.trim(),
     content_type: 'chapter',
     rich_content: '',
