@@ -14,7 +14,6 @@ import { importProcedure, parseDocx, uploadDocx } from '@/api/parse'
 import {
   buildMarkedBlocks,
   rebuildTreeFromMarks,
-  toImportNodesFromBlocks,
   validateMarkedBlocks,
   type MarkedImportBlock,
 } from '@/utils/importBlocks'
