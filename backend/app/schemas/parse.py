@@ -52,6 +52,24 @@ class ParsedNodeOut(BaseModel):
     children: list[ParsedNodeOut] = Field(default_factory=list)
 
 
+class ParsedImportBlockOut(BaseModel):
+    id: str
+    source_index: int
+    raw_text: str
+    display_text: str
+    clean_text: str
+    rich_content: str
+    block_type: str
+    has_word_numbering: bool
+    word_number: str | None
+    word_number_level: int | None
+    style_name: str | None
+    suggested_type: str
+    suggested_level: int | None
+    confidence_tier: str
+    mark_status: str
+
+
 class ParsedAssetOut(BaseModel):
     temp_id: str
     url: str
@@ -101,6 +119,7 @@ class ParseMetadataOut(BaseModel):
 class ParseResponse(BaseModel):
     metadata: ParseMetadataOut
     chapters: list[ParsedNodeOut]
+    import_blocks: list[ParsedImportBlockOut]
     assets: list[ParsedAssetOut]
     detected_patterns: list[DetectedPatternOut]
     validation: ValidationReportOut | None
@@ -188,6 +207,26 @@ def build_parse_response(
             parse_time_ms=parse_time_ms,
         ),
         chapters=[node(c, i, None) for i, c in enumerate(result.chapters)],
+        import_blocks=[
+            ParsedImportBlockOut(
+                id=b.id,
+                source_index=b.source_index,
+                raw_text=b.raw_text,
+                display_text=b.display_text,
+                clean_text=b.clean_text,
+                rich_content=b.rich_content,
+                block_type=b.block_type,
+                has_word_numbering=b.has_word_numbering,
+                word_number=b.word_number,
+                word_number_level=b.word_number_level,
+                style_name=b.style_name,
+                suggested_type=b.suggested_type,
+                suggested_level=b.suggested_level,
+                confidence_tier=b.confidence_tier,
+                mark_status=b.mark_status,
+            )
+            for b in result.import_blocks
+        ],
         assets=assets,
         detected_patterns=[
             DetectedPatternOut(

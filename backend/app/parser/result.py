@@ -29,6 +29,27 @@ class ParsedNode:
 
 
 @dataclass
+class ParsedImportBlock:
+    """导入前批量标定使用的顺序块。"""
+
+    id: str
+    source_index: int
+    raw_text: str
+    display_text: str
+    clean_text: str
+    rich_content: str
+    block_type: str  # paragraph | table
+    has_word_numbering: bool = False
+    word_number: str | None = None
+    word_number_level: int | None = None
+    style_name: str | None = None
+    suggested_type: str = "content"  # chapter | content
+    suggested_level: int | None = None
+    confidence_tier: str = "low"
+    mark_status: str = "unmarked"
+
+
+@dataclass
 class DetectedPattern:
     """零样式文档的编号模式建议（Q200，前端按组选择性批量提升）。"""
 
@@ -80,3 +101,4 @@ class ParseResult:
     warnings: list[ParseWarning] = field(default_factory=list)
     review_required: int = 0
     image_refs: list[ImageRef] = field(default_factory=list)  # 供 asset 阶段抽图
+    import_blocks: list[ParsedImportBlock] = field(default_factory=list)

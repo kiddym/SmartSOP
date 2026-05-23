@@ -53,6 +53,54 @@ def test_parse_unknown_mode(storage_tmp: Path) -> None:
     assert exc.value.detail["code"] == "PARSE_FAILED"  # type: ignore[index]
 
 
+def test_build_parse_response_includes_import_blocks() -> None:
+    from app.parser.result import ParsedImportBlock
+    from app.schemas.parse import build_parse_response
+
+    result = ParseResult(
+        metadata=ParseMetadata(
+            total_chapters=1,
+            image_count=0,
+            table_count=0,
+            body_start_index=5,
+            body_start_detected_by="first_styled_heading",
+        ),
+        chapters=[],
+        parse_method="smart",
+        import_blocks=[
+            ParsedImportBlock(
+                id="block-5",
+                source_index=5,
+                raw_text="目的",
+                display_text="目的",
+                clean_text="目的",
+                rich_content="<p>目的</p>",
+                block_type="paragraph",
+                has_word_numbering=True,
+                word_number=None,
+                word_number_level=None,
+                style_name="Heading 1",
+                suggested_type="chapter",
+                suggested_level=1,
+                confidence_tier="high",
+                mark_status="unmarked",
+            )
+        ],
+    )
+
+    response = build_parse_response(result, assets=[], parse_time_ms=12)
+
+    assert len(response.import_blocks) == 1
+    block = response.import_blocks[0]
+    assert block.id == "block-5"
+    assert block.source_index == 5
+    assert block.clean_text == "目的"
+    assert block.has_word_numbering is True
+    assert block.word_number is None
+    assert block.suggested_type == "chapter"
+    assert block.suggested_level == 1
+
+
 def test_no_headings_smart(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     token = upload_service.save_upload(styled_sop(), "a.docx").upload_token
 
