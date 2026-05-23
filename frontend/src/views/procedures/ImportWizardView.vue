@@ -312,7 +312,7 @@ function discardAndExit(): void {
         :error-validation="parseErrorValidation"
         :review-count="reviewCount"
       />
-      <BlockMarkingStep v-show="step === 3" v-model="markedBlocks" />
+      <BlockMarkingStep v-show="step === 3" v-model="markedBlocks" :file="file" />
       <TreeReviewStep v-show="step === 4" v-model="tree" :initial="initialTree" />
       <ImportFormStep
         v-show="step === 5"

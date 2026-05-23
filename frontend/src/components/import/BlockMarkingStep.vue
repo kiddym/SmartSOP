@@ -10,7 +10,7 @@ import {
 } from '@/utils/importBlocks'
 import { computeChapterNumbers, type WizardNode } from '@/utils/importTree'
 
-const props = defineProps<{ modelValue: MarkedImportBlock[] }>()
+const props = defineProps<{ modelValue: MarkedImportBlock[]; file?: File | null }>()
 const emit = defineEmits<{ (e: 'update:modelValue', blocks: MarkedImportBlock[]): void }>()
 
 const selected = ref<string[]>([])
