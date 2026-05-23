@@ -101,6 +101,46 @@ def test_build_parse_response_includes_import_blocks() -> None:
     assert block.suggested_level == 1
 
 
+def test_rewrite_placeholders_updates_import_blocks() -> None:
+    from app.parser.result import ParsedImportBlock, ParsedNode
+
+    result = ParseResult(
+        metadata=ParseMetadata(
+            total_chapters=1,
+            image_count=1,
+            table_count=0,
+            body_start_index=0,
+            body_start_detected_by="first_styled_heading",
+        ),
+        chapters=[
+            ParsedNode(
+                id="n1",
+                title="目的",
+                level=1,
+                content_type="content",
+                rich_content='<p><img src="media:rId1"/></p>',
+            )
+        ],
+        parse_method="smart",
+        import_blocks=[
+            ParsedImportBlock(
+                id="block-1",
+                source_index=1,
+                raw_text="图",
+                display_text="图",
+                clean_text="图",
+                rich_content='<p><img src="media:rId1"/></p>',
+                block_type="paragraph",
+            )
+        ],
+    )
+
+    parse_service._rewrite_placeholders(result, {"media:rId1": "/api/v1/uploads/t/media/a.png"})
+
+    assert result.chapters[0].rich_content == '<p><img src="/api/v1/uploads/t/media/a.png"/></p>'
+    assert result.import_blocks[0].rich_content == '<p><img src="/api/v1/uploads/t/media/a.png"/></p>'
+
+
 def test_no_headings_smart(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     token = upload_service.save_upload(styled_sop(), "a.docx").upload_token
 

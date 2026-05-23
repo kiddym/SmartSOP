@@ -16,6 +16,7 @@ from app.parser import styles as styles_mod
 from app.parser.body_start import find_body_start
 from app.parser.ir import Block, ImageRef, NormalizedDoc
 from app.parser.result import (
+    ParsedImportBlock,
     ParsedNode,
     ParseMetadata,
     ParseResult,
@@ -41,6 +42,49 @@ def _new_id() -> str:
 
 def _is_empty(block: Block) -> bool:
     return not (block.text.strip() or block.images) and not block.html.strip()
+
+
+def _style_name(block: Block, style_index: styles_mod.StyleIndex) -> str | None:
+    info = style_index.get(block.style_id)
+    return info.name if info is not None else None
+
+
+def _to_import_block(
+    block: Block,
+    *,
+    head: tuple[int, float, str, str, str] | None,
+    style_index: styles_mod.StyleIndex,
+) -> ParsedImportBlock:
+    if head is None:
+        suggested_type = "content"
+        suggested_level = None
+        confidence_tier = "low"
+        mark_status = "unmarked"
+    else:
+        raw_level, _conf, tier, mark, _source = head
+        suggested_type = "chapter"
+        suggested_level = min(raw_level, _MAX_CHAPTER_LEVEL)
+        confidence_tier = tier
+        mark_status = mark
+
+    raw_text = block.text.strip()
+    return ParsedImportBlock(
+        id=f"block-{block.source_index}",
+        source_index=block.source_index,
+        raw_text=raw_text,
+        display_text=raw_text,
+        clean_text=raw_text,
+        rich_content=block.html,
+        block_type=block.kind,
+        has_word_numbering=block.numbered,
+        word_number=None,
+        word_number_level=None,
+        style_name=_style_name(block, style_index),
+        suggested_type=suggested_type,
+        suggested_level=suggested_level,
+        confidence_tier=confidence_tier,
+        mark_status=mark_status,
+    )
 
 
 def structure(
@@ -75,6 +119,7 @@ def structure(
     stack: list[tuple[int, ParsedNode]] = []  # (h_level, node)
     warnings: list[ParseWarning] = []
     image_refs: list[ImageRef] = []
+    import_blocks: list[ParsedImportBlock] = []
     review_required = 0
     image_count = 0
     table_count = 0
@@ -83,6 +128,7 @@ def structure(
         if _is_empty(block):
             continue
         head = _classify_heading(block, mode, style_index, synonyms, style_overrides, stats)
+        import_blocks.append(_to_import_block(block, head=head, style_index=style_index))
         if head is not None:
             raw_level, conf, tier, mark, source = head
             h_level = min(raw_level, _MAX_CHAPTER_LEVEL)
@@ -156,6 +202,7 @@ def structure(
         warnings=warnings,
         review_required=review_required,
         image_refs=image_refs,
+        import_blocks=import_blocks,
     )
 
 

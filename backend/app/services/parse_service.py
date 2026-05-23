@@ -61,7 +61,7 @@ def parse(token: str, mode: str) -> ParseResponse:
         raise bad_request("PARSE_NO_HEADINGS", "未识别到任何标题，无法生成章节树")
 
     mapping, assets = upload_service.write_temp_media(token, result.image_refs)
-    _rewrite_placeholders(result.chapters, mapping)
+    _rewrite_placeholders(result, mapping)
     parse_time_ms = int((time.monotonic() - start) * 1000)
     return build_parse_response(result, assets, parse_time_ms)
 
@@ -76,12 +76,23 @@ def _run_with_timeout(data: bytes, mode: str) -> ParseResult:
         executor.shutdown(wait=False, cancel_futures=True)
 
 
-def _rewrite_placeholders(nodes: list[ParsedNode], mapping: dict[str, str]) -> None:
-    for node in nodes:
-        if node.rich_content and mapping:
-            for placeholder, url in mapping.items():
-                node.rich_content = node.rich_content.replace(f'"{placeholder}"', f'"{url}"')
-        _rewrite_placeholders(node.children, mapping)
+def _rewrite_placeholders(result: ParseResult, mapping: dict[str, str]) -> None:
+    def rewrite_html(value: str) -> str:
+        if not value or not mapping:
+            return value
+        out = value
+        for placeholder, url in mapping.items():
+            out = out.replace(f'"{placeholder}"', f'"{url}"')
+        return out
+
+    def walk(nodes: list[ParsedNode]) -> None:
+        for node in nodes:
+            node.rich_content = rewrite_html(node.rich_content)
+            walk(node.children)
+
+    walk(result.chapters)
+    for block in result.import_blocks:
+        block.rich_content = rewrite_html(block.rich_content)
 
 
 def _template_invalid(report: ValidationReport) -> HTTPException:
