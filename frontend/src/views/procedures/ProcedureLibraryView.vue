@@ -52,6 +52,7 @@ function onCreated(proc: ProcedureMeta): void {
       <h2 class="title">程序库</h2>
       <div class="toolbar-actions">
         <el-button @click="router.push({ name: 'procedure-import' })">从 Word 导入</el-button>
+        <el-button type="primary" plain @click="router.push({ name: 'procedure-import-v2' })">导入 v2 (Beta)</el-button>
         <el-button type="primary" @click="createVisible = true">新建程序</el-button>
       </div>
     </div>

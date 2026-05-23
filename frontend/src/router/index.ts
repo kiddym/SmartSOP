@@ -21,6 +21,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '导入程序' },
   },
   {
+    path: '/procedures/import-v2',
+    name: 'procedure-import-v2',
+    component: () => import('@/views/procedures/ImportDialogView.vue'),
+    meta: { title: '导入程序 (v2)' },
+  },
+  {
     path: '/procedures/:id/edit',
     name: 'procedure-edit',
     component: () => import('@/views/procedures/ProcedureEditorView.vue'),
@@ -43,6 +49,24 @@ const routes: RouteRecordRaw[] = [
     name: 'folder-manage',
     component: () => import('@/views/folders/FolderManageView.vue'),
     meta: { title: '标准文件库' },
+  },
+  {
+    path: '/audit-logs',
+    name: 'audit-logs',
+    component: () => import('@/views/audit/AuditLogsView.vue'),
+    meta: { title: '审计日志' },
+  },
+  {
+    path: '/settings',
+    name: 'global-settings',
+    component: () => import('@/views/settings/SettingsView.vue'),
+    meta: { title: '系统设置' },
+  },
+  {
+    path: '/settings/fields',
+    name: 'field-manage',
+    component: () => import('@/views/settings/FieldManageView.vue'),
+    meta: { title: '字段管理' },
   },
 ]
 
