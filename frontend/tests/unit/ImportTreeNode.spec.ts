@@ -50,8 +50,50 @@ describe('ImportTreeNode', () => {
   })
 
   it('递归渲染子节点', () => {
-    const w = mountNode(node({ children: [node({ id: 'a1', title: '正文', content_type: 'content' })] }))
-    expect(w.text()).toContain('正文')
-    expect(w.text()).toContain('容')
+    const w = mountNode(node({ children: [node({ id: 'a1', title: '子章节', content_type: 'chapter' })] }))
+    expect(w.text()).toContain('子章节')
+    expect(w.text()).toContain('章')
+  })
+
+  it('renders chapter number when numberMap contains node id', () => {
+    const w = mount(ImportTreeNode, {
+      props: { node: node({ id: 'a', title: '目的' }), depth: 0, selectedId: null, numberMap: { a: '1' } },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(w.find('.chapter-num').text()).toBe('1')
+  })
+
+  it('does not render number span when numberMap omitted', () => {
+    const w = mount(ImportTreeNode, {
+      props: { node: node({ id: 'a', title: '目的' }), depth: 0, selectedId: null },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(w.find('.chapter-num').exists()).toBe(false)
+  })
+
+  it('content node shows plain-text snippet from rich_content', () => {
+    const w = mount(ImportTreeNode, {
+      props: {
+        node: node({
+          id: 'x',
+          content_type: 'content',
+          rich_content: '<p>这是正文内容ABCDEFGHIJKLMNOPQ</p>',
+        }),
+        depth: 0,
+        selectedId: null,
+      },
+      global: { plugins: [ElementPlus] },
+    })
+    const snippet = w.find('.snippet')
+    expect(snippet.exists()).toBe(true)
+    expect(snippet.text()).toBe('这是正文内容ABCDEFGHIJKLMN') // 20 chars
+  })
+
+  it('content node with empty rich_content shows no snippet', () => {
+    const w = mount(ImportTreeNode, {
+      props: { node: node({ id: 'x', content_type: 'content', rich_content: '' }), depth: 0, selectedId: null },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(w.find('.snippet').exists()).toBe(false)
   })
 })

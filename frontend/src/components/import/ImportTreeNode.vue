@@ -1,8 +1,13 @@
 <script setup lang="ts">
 import type { WizardNode } from '@/utils/importTree'
 
-// 导入向导树审查行（递归）。纯展示 + 冒泡操作事件，树变更由 TreeReviewStep 用纯函数处理。
-defineProps<{ node: WizardNode; depth: number; selectedId: string | null; readonly?: boolean }>()
+defineProps<{
+  node: WizardNode
+  depth: number
+  selectedId: string | null
+  readonly?: boolean
+  numberMap?: Record<string, string>
+}>()
 const emit = defineEmits<{
   (e: 'select', id: string): void
   (e: 'delete', id: string): void
@@ -10,6 +15,12 @@ const emit = defineEmits<{
 }>()
 
 const TYPE_LABEL = { chapter: '章', content: '容' } as const
+
+function snippetOf(html: string): string {
+  const el = document.createElement('div')
+  el.innerHTML = html
+  return (el.textContent ?? '').trim().slice(0, 20)
+}
 </script>
 
 <template>
@@ -23,9 +34,14 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
       <el-tag size="small" :type="node.content_type === 'chapter' ? 'primary' : 'info'" disable-transitions>
         {{ TYPE_LABEL[node.content_type] }}
       </el-tag>
-      <span class="title" :class="{ empty: !node.title }">
+      <span v-if="numberMap?.[node.id]" class="chapter-num">{{ numberMap[node.id] }}</span>
+      <span v-if="node.content_type === 'chapter'" class="title" :class="{ empty: !node.title }">
         {{ node.title || '（无标题）' }}
       </span>
+      <span v-else-if="node.rich_content" class="snippet">
+        {{ snippetOf(node.rich_content) }}
+      </span>
+      <span v-else class="title empty">（无标题）</span>
       <el-tag v-if="node.mark_status === 'review'" size="small" type="warning" disable-transitions>
         待确认
       </el-tag>
@@ -46,6 +62,7 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
       :depth="depth + 1"
       :selected-id="selectedId"
       :readonly="readonly"
+      :number-map="numberMap"
       @select="(id) => emit('select', id)"
       @delete="(id) => emit('delete', id)"
       @move="(id, dir) => emit('move', id, dir)"
@@ -74,6 +91,12 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
 .row.review.selected {
   background: #faecd8;
 }
+.chapter-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: #409eff;
+  flex-shrink: 0;
+}
 .title {
   font-size: 13px;
   color: #303133;
@@ -84,6 +107,15 @@ const TYPE_LABEL = { chapter: '章', content: '容' } as const
 }
 .title.empty {
   color: #c0c4cc;
+  font-style: italic;
+}
+.snippet {
+  font-size: 12px;
+  color: #909399;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 280px;
   font-style: italic;
 }
 .spacer {
