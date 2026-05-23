@@ -219,13 +219,12 @@ def save_procedure(
             _content_size_guard(cu.rich_content, "正文超过 5 MB 上限")
         ch_node = existing_chapters.get(cu.id)
         if ch_node is None:
-            ch_node = ProcedureChapter(
-                id=id_map[cu.id], procedure_id=proc.id, content_type=cu.content_type
-            )
+            ch_node = ProcedureChapter(id=id_map[cu.id], procedure_id=proc.id)
             db.add(ch_node)
+        ch_node.content_type = cu.content_type
         ch_node.parent_id = resolve(cu.parent_id)
         ch_node.title = cu.title
-        ch_node.rich_content = "" if ch_node.content_type == "chapter" else cu.rich_content
+        ch_node.rich_content = "" if cu.content_type == "chapter" else cu.rich_content
         ch_node.skip_numbering = cu.skip_numbering
         ch_node.sort_order = cu.sort_order
 

@@ -168,3 +168,62 @@ def test_readonly_rejected(db: Session, factory: Factory) -> None:
     with pytest.raises(HTTPException) as exc:
         _save(db, proc, 0)
     assert exc.value.detail["code"] == "PROCEDURE_READONLY"
+
+
+def test_save_procedure_persists_existing_content_type_change(
+    db: Session, factory: Factory
+) -> None:
+    proc = _proc(factory)
+    content = chapter_service.create_chapter(
+        db,
+        ChapterCreate(
+            procedure_id=proc.id,
+            content_type="content",
+            rich_content="<p>系统启动条件</p>",
+            sort_order=0,
+        ),
+        META,
+    )
+    db.refresh(proc)
+
+    _save(
+        db,
+        proc,
+        proc.revision,
+        chapters=[
+            ChapterUpsert(
+                id=content.id,
+                content_type="chapter",
+                title="系统启动条件",
+                rich_content="",
+                skip_numbering=False,
+                sort_order=0,
+            ),
+            ChapterUpsert(
+                id="temp-child",
+                parent_id=content.id,
+                content_type="content",
+                title="",
+                rich_content="<p>系统启动条件</p>",
+                skip_numbering=True,
+                sort_order=0,
+            ),
+        ],
+    )
+
+    db.refresh(content)
+    children = chapter_service.list_chapters(
+        db,
+        procedure_id=proc.id,
+        parent_id=content.id,
+        content_type=None,
+        mark_status=None,
+    )
+
+    assert content.content_type == "chapter"
+    assert content.rich_content == ""
+    assert content.skip_numbering is False
+    assert len(children) == 1
+    assert children[0].content_type == "content"
+    assert children[0].parent_id == content.id
+    assert children[0].rich_content == "<p>系统启动条件</p>"
