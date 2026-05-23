@@ -7,6 +7,28 @@ import {
   saveWizard,
   type WizardSnapshot,
 } from '@/composables/useImportWizardPersistence'
+import type { MarkedImportBlock } from '@/utils/importBlocks'
+
+function markedBlock(): MarkedImportBlock {
+  return {
+    id: 'block-1',
+    source_index: 1,
+    raw_text: '目的',
+    display_text: '目的',
+    clean_text: '目的',
+    rich_content: '<p>目的</p>',
+    block_type: 'paragraph',
+    has_word_numbering: false,
+    word_number: null,
+    word_number_level: null,
+    style_name: null,
+    suggested_type: 'chapter',
+    suggested_level: 1,
+    confidence_tier: 'high',
+    mark_status: 'unmarked',
+    assigned_role: 'chapter_1',
+  }
+}
 
 function snap(createdAt: string): WizardSnapshot {
   return {
@@ -17,6 +39,7 @@ function snap(createdAt: string): WizardSnapshot {
     parse_mode: 'smart',
     parse_result: null,
     tree: [],
+    marked_blocks: [markedBlock()],
     form: { name: '记录控制程序', folder_id: 'f1' },
   }
 }
@@ -33,6 +56,8 @@ describe('导入向导 sessionStorage 持久化', () => {
     const loaded = loadWizard()
     expect(loaded?.upload_token).toBe('tok-1')
     expect(loaded?.step).toBe(3)
+    expect(loaded?.marked_blocks).toHaveLength(1)
+    expect(loaded?.marked_blocks[0].assigned_role).toBe('chapter_1')
   })
 
   it('无存储时 load 返回 null', () => {

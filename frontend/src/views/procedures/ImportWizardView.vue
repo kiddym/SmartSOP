@@ -7,9 +7,17 @@ import type { AxiosError } from 'axios'
 import UploadStep from '@/components/import/UploadStep.vue'
 import ModeStep from '@/components/import/ModeStep.vue'
 import ReviewReportStep from '@/components/import/ReviewReportStep.vue'
+import BlockMarkingStep from '@/components/import/BlockMarkingStep.vue'
 import TreeReviewStep from '@/components/import/TreeReviewStep.vue'
 import ImportFormStep from '@/components/import/ImportFormStep.vue'
 import { importProcedure, parseDocx, uploadDocx } from '@/api/parse'
+import {
+  buildMarkedBlocks,
+  rebuildTreeFromMarks,
+  toImportNodesFromBlocks,
+  validateMarkedBlocks,
+  type MarkedImportBlock,
+} from '@/utils/importBlocks'
 import {
   buildWizardTree,
   cloneTree,
@@ -28,7 +36,7 @@ import type { ParseMode, ParseResponse, ValidationReport } from '@/types/parse'
 
 const router = useRouter()
 
-const STEPS = ['上传文档', '解析模式', '校验报告', '树审查', '导入信息']
+const STEPS = ['上传文档', '解析模式', '校验报告', '章节标定', '树审查', '导入信息']
 const step = ref(0)
 
 const file = ref<File | null>(null)
@@ -36,6 +44,8 @@ const uploadToken = ref('')
 const filename = ref('')
 const parseMode = ref<ParseMode>('smart')
 const parseResult = ref<ParseResponse | null>(null)
+const markedBlocks = ref<MarkedImportBlock[]>([])
+const markIssues = computed(() => validateMarkedBlocks(markedBlocks.value))
 const initialTree = ref<WizardNode[]>([])
 const tree = ref<WizardNode[]>([])
 const form = reactive({ name: '', folder_id: '' })
@@ -71,7 +81,8 @@ function onClear(): void {
 const canNext = computed(() => {
   if (step.value === 0) return !!file.value && uploadSizeTier(file.value.size).tier !== 'error'
   if (step.value === 2) return !!parseResult.value && !parseErrorMessage.value
-  if (step.value === 3) return tree.value.length > 0
+  if (step.value === 3) return markedBlocks.value.length > 0 && !markIssues.value.some((i) => i.level === 'error')
+  if (step.value === 4) return tree.value.length > 0
   return true
 })
 
@@ -81,7 +92,8 @@ function defaultName(): string {
 
 function applyParse(res: ParseResponse): void {
   parseResult.value = res
-  initialTree.value = buildWizardTree(res.chapters)
+  markedBlocks.value = buildMarkedBlocks(res.import_blocks)
+  initialTree.value = rebuildTreeFromMarks(markedBlocks.value) as WizardNode[]
   tree.value = cloneTree(initialTree.value)
   parseErrorMessage.value = ''
   parseErrorValidation.value = null
@@ -144,7 +156,13 @@ async function next(): Promise<void> {
     await runParse() // 进入报告页即解析（可能成功 / 失败，均停在报告页）
     return
   }
-  if (step.value === 4) {
+  if (step.value === 3) {
+    initialTree.value = rebuildTreeFromMarks(markedBlocks.value) as WizardNode[]
+    tree.value = cloneTree(initialTree.value)
+    step.value += 1
+    return
+  }
+  if (step.value === 5) {
     await submit()
     return
   }
@@ -197,6 +215,7 @@ function snapshot(): WizardSnapshot {
     parse_mode: parseMode.value,
     parse_result: parseResult.value,
     tree: tree.value,
+    marked_blocks: markedBlocks.value,
     form: { ...form },
   }
 }
@@ -208,6 +227,7 @@ function restore(s: WizardSnapshot): void {
   parseMode.value = s.parse_mode
   parseResult.value = s.parse_result
   tree.value = s.tree
+  markedBlocks.value = s.marked_blocks ?? (s.parse_result?.import_blocks?.length ? buildMarkedBlocks(s.parse_result.import_blocks) : [])
   if (s.parse_result) initialTree.value = buildWizardTree(s.parse_result.chapters)
   form.name = s.form.name
   form.folder_id = s.form.folder_id
@@ -293,9 +313,10 @@ function discardAndExit(): void {
         :error-validation="parseErrorValidation"
         :review-count="reviewCount"
       />
-      <TreeReviewStep v-show="step === 3" v-model="tree" :initial="initialTree" />
+      <BlockMarkingStep v-show="step === 3" v-model="markedBlocks" />
+      <TreeReviewStep v-show="step === 4" v-model="tree" :initial="initialTree" />
       <ImportFormStep
-        v-show="step === 4"
+        v-show="step === 5"
         v-model:name="form.name"
         v-model:folder-id="form.folder_id"
       />
@@ -305,7 +326,7 @@ function discardAndExit(): void {
       <el-button v-if="step > 0" @click="prev">上一步</el-button>
       <span class="spacer" />
       <el-button
-        v-if="step < 4"
+        v-if="step < 5"
         type="primary"
         :loading="uploading || parsing"
         :disabled="!canNext"

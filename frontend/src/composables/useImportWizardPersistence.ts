@@ -3,9 +3,10 @@
 // created_at 超 24h（与临时上传 TTL 一致）→ 静默清除，避免恢复到已被 scheduler 清掉的 token。
 
 import type { ParseMode, ParseResponse } from '@/types/parse'
+import type { MarkedImportBlock } from '@/utils/importBlocks'
 import type { WizardNode } from '@/utils/importTree'
 
-export const WIZARD_KEY = 'procedure_import_wizard_v1'
+export const WIZARD_KEY = 'procedure_import_wizard_v2'
 export const WIZARD_TTL_MS = 24 * 60 * 60 * 1000
 
 export interface WizardSnapshot {
@@ -16,6 +17,7 @@ export interface WizardSnapshot {
   parse_mode: ParseMode
   parse_result: ParseResponse | null
   tree: WizardNode[]
+  marked_blocks: MarkedImportBlock[]
   form: { name: string; folder_id: string }
 }
 
