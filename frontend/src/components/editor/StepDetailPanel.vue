@@ -1,20 +1,19 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { ElMessageBox } from 'element-plus'
 import RichTextEditor from './RichTextEditor.vue'
 import StepFormFields from './StepFormFields.vue'
 import FormFieldPreview from './FormFieldPreview.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
-import { FORM_TYPE_META } from '@/utils/editor'
+import { FORM_TYPE_META, isRichTextType } from '@/utils/editor'
 import { FORM_TYPES } from '@/types/node'
 import type { AttachmentMark, FormType, InputSchema } from '@/types/node'
 
-type AlertField = 'note' | 'caution' | 'warning'
-
-// step 节点详情（§4.1，§40 重构）：基本信息 / 警示 / 正文 / 附件标记 / 执行记录 / 其他。
+// step 节点详情（§4.1，§40 重构）：基本信息 / 内容 / 附件标记 / 其他。
 const store = useProcedureEditorStore()
 const step = computed(() => store.selectedStep)
 const ro = computed(() => !store.editable)
-const active = ref(['basic', 'alerts', 'body', 'attach', 'exec', 'other'])
+const active = ref(['basic', 'content', 'attach', 'other'])
 
 const ATTACH_KINDS = [
   { value: 'video', label: '视频' },
@@ -46,11 +45,30 @@ function removeMark(i: number): void {
 function onSchema(schema: InputSchema): void {
   upd({ input_schema: schema })
 }
-function onAlertSchema(field: AlertField, schema: InputSchema): void {
-  upd({ [`${field}_schema`]: schema })
+
+const alertClass = computed(() => {
+  const t = step.value?.input_schema.type
+  return t === 'NOTE' ? 'alert-note' : t === 'CAUTION' ? 'alert-caution' : t === 'WARNING' ? 'alert-warning' : ''
+})
+const hasHiddenBody = computed(() => !!step.value && !isRichTextType(step.value.input_schema.type) && !!step.value.content?.trim())
+
+function isDataType(t: FormType): boolean {
+  return !isRichTextType(t) && t !== 'NONE'
 }
-function setAlertFormType(field: AlertField, type: FormType): void {
-  upd({ [`${field}_schema`]: { type } as InputSchema })
+function hasConfig(schema: InputSchema): boolean {
+  return Object.keys(schema).some((k) => k !== 'type')
+}
+async function onTypeChange(next: FormType): Promise<void> {
+  const cur = step.value?.input_schema
+  if (!step.value || !cur) return
+  if (isDataType(cur.type) && cur.type !== next && hasConfig(cur)) {
+    try {
+      await ElMessageBox.confirm('切换类型会清空当前类型的配置（单位/范围/选项等），是否继续？', '切换确认', { type: 'warning' })
+    } catch {
+      return
+    }
+  }
+  store.setStepFormType(step.value.id, next)
 }
 </script>
 
@@ -69,15 +87,6 @@ function setAlertFormType(field: AlertField, type: FormType): void {
             />
           </el-form-item>
           <div class="inline">
-            <el-form-item label="执行表单类型">
-              <el-select
-                :model-value="step.input_schema.type"
-                :disabled="ro"
-                @change="(v: FormType) => store.setStepFormType(step!.id, v)"
-              >
-                <el-option v-for="t in FORM_TYPES" :key="t" :value="t" :label="FORM_TYPE_META[t].label" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="跳号">
               <el-switch :model-value="step.skip_numbering" :disabled="ro" @change="store.toggleSkipNumbering(step!.id)" />
             </el-form-item>
@@ -85,86 +94,53 @@ function setAlertFormType(field: AlertField, type: FormType): void {
         </el-form>
       </el-collapse-item>
 
-      <el-collapse-item title="警示（注意 / 小心 / 警告）" name="alerts">
-        <div class="alert-block alert-note">
-          <div class="alert-header">
-            <span class="alert-label">注意 Note</span>
+      <el-collapse-item title="内容" name="content">
+        <el-form label-position="top">
+          <el-form-item label="类型">
             <el-select
-              :model-value="step.note_schema.type"
+              :model-value="step.input_schema.type"
               :disabled="ro"
-              size="small"
-              class="alert-type-select"
-              @change="(v: FormType) => setAlertFormType('note', v)"
+              @change="onTypeChange"
             >
               <el-option v-for="t in FORM_TYPES" :key="t" :value="t" :label="FORM_TYPE_META[t].label" />
             </el-select>
-          </div>
-          <RichTextEditor v-if="step.note_schema.type === 'COMMON'" :key="`note-${step.id}`" :model-value="step.note" variant="step" :readonly="ro" @update:model-value="(v) => upd({ note: v }, `note:${step!.id}`)" />
-          <el-form v-else label-position="top">
-            <div class="config-preview">
-              <div class="cp-config">
-                <StepFormFields :schema="step.note_schema" :readonly="ro" @update:schema="(s) => onAlertSchema('note', s)" />
-              </div>
-              <div class="cp-preview">
-                <FormFieldPreview :schema="step.note_schema" />
-              </div>
-            </div>
-          </el-form>
-        </div>
-        <div class="alert-block alert-caution">
-          <div class="alert-header">
-            <span class="alert-label">小心 Caution</span>
-            <el-select
-              :model-value="step.caution_schema.type"
-              :disabled="ro"
-              size="small"
-              class="alert-type-select"
-              @change="(v: FormType) => setAlertFormType('caution', v)"
-            >
-              <el-option v-for="t in FORM_TYPES" :key="t" :value="t" :label="FORM_TYPE_META[t].label" />
-            </el-select>
-          </div>
-          <RichTextEditor v-if="step.caution_schema.type === 'COMMON'" :key="`caution-${step.id}`" :model-value="step.caution" variant="step" :readonly="ro" @update:model-value="(v) => upd({ caution: v }, `caution:${step!.id}`)" />
-          <el-form v-else label-position="top">
-            <div class="config-preview">
-              <div class="cp-config">
-                <StepFormFields :schema="step.caution_schema" :readonly="ro" @update:schema="(s) => onAlertSchema('caution', s)" />
-              </div>
-              <div class="cp-preview">
-                <FormFieldPreview :schema="step.caution_schema" />
-              </div>
-            </div>
-          </el-form>
-        </div>
-        <div class="alert-block alert-warning">
-          <div class="alert-header">
-            <span class="alert-label">警告 Warning</span>
-            <el-select
-              :model-value="step.warning_schema.type"
-              :disabled="ro"
-              size="small"
-              class="alert-type-select"
-              @change="(v: FormType) => setAlertFormType('warning', v)"
-            >
-              <el-option v-for="t in FORM_TYPES" :key="t" :value="t" :label="FORM_TYPE_META[t].label" />
-            </el-select>
-          </div>
-          <RichTextEditor v-if="step.warning_schema.type === 'COMMON'" :key="`warning-${step.id}`" :model-value="step.warning" variant="step" :readonly="ro" @update:model-value="(v) => upd({ warning: v }, `warning:${step!.id}`)" />
-          <el-form v-else label-position="top">
-            <div class="config-preview">
-              <div class="cp-config">
-                <StepFormFields :schema="step.warning_schema" :readonly="ro" @update:schema="(s) => onAlertSchema('warning', s)" />
-              </div>
-              <div class="cp-preview">
-                <FormFieldPreview :schema="step.warning_schema" />
-              </div>
-            </div>
-          </el-form>
-        </div>
-      </el-collapse-item>
+          </el-form-item>
 
-      <el-collapse-item title="正文" name="body">
-        <RichTextEditor :key="`body-${step.id}`" :model-value="step.content" variant="step" :readonly="ro" placeholder="操作说明正文…" @update:model-value="(v) => upd({ content: v }, `content:${step!.id}`)" />
+          <div
+            v-if="isRichTextType(step.input_schema.type)"
+            class="rt-wrap"
+            :class="alertClass"
+          >
+            <RichTextEditor
+              :key="`content-${step.id}`"
+              :model-value="step.content"
+              variant="step"
+              :readonly="ro"
+              placeholder="输入内容…"
+              @update:model-value="(v) => upd({ content: v }, `content:${step!.id}`)"
+            />
+          </div>
+
+          <template v-else>
+            <div class="config-preview">
+              <div class="cp-config">
+                <StepFormFields :schema="step.input_schema" :readonly="ro" @update:schema="onSchema" />
+              </div>
+              <div class="cp-preview">
+                <FormFieldPreview :schema="step.input_schema" />
+              </div>
+            </div>
+            <div v-if="hasHiddenBody" class="hidden-body-hint">已隐藏正文（切回「通用 / 注意 / 小心 / 警告」可恢复）</div>
+          </template>
+
+          <el-checkbox
+            :model-value="step.require_confirmation"
+            :disabled="ro"
+            @change="(v: string | number | boolean) => upd({ require_confirmation: !!v })"
+          >
+            需要操作员确认
+          </el-checkbox>
+        </el-form>
       </el-collapse-item>
 
       <el-collapse-item title="附件标记" name="attach">
@@ -177,22 +153,6 @@ function setAlertFormType(field: AlertField, type: FormType): void {
           <el-button v-if="!ro" size="small" text @click="removeMark(i)">✕</el-button>
         </div>
         <el-button v-if="!ro" size="small" @click="addMark">+ 附件标记</el-button>
-      </el-collapse-item>
-
-      <el-collapse-item title="执行记录" name="exec">
-        <el-form label-position="top">
-          <div class="config-preview">
-            <div class="cp-config">
-              <StepFormFields :schema="step.input_schema" :readonly="ro" @update:schema="onSchema" />
-            </div>
-            <div class="cp-preview">
-              <FormFieldPreview :schema="step.input_schema" />
-            </div>
-          </div>
-          <el-checkbox :model-value="step.require_confirmation" :disabled="ro" @change="(v: string | number | boolean) => upd({ require_confirmation: !!v })">
-            需要操作员确认
-          </el-checkbox>
-        </el-form>
       </el-collapse-item>
 
       <el-collapse-item title="其他" name="other">
@@ -222,8 +182,7 @@ function setAlertFormType(field: AlertField, type: FormType): void {
   flex: 1 1 280px;
   min-width: 0;
 }
-.alert-block {
-  margin-bottom: 12px;
+.rt-wrap {
   padding-left: 8px;
   border-left: 3px solid transparent;
 }
@@ -236,19 +195,10 @@ function setAlertFormType(field: AlertField, type: FormType): void {
 .alert-warning {
   border-left-color: #f56c6c;
 }
-.alert-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-.alert-label {
+.hidden-body-hint {
   font-size: 12px;
   color: #909399;
-  flex: none;
-}
-.alert-type-select {
-  width: 160px;
+  margin: 4px 0 8px;
 }
 .mark-row {
   display: flex;
