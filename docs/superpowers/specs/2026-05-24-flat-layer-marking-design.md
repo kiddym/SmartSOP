@@ -44,16 +44,21 @@ type LayerRole = 'chapter_1' | 'chapter_2' | 'chapter_3' | 'content'
 
 // 标定期间唯一真相源：每段 id → 目标级别
 const roleMap = ref<Map<string, LayerRole>>(new Map())
+// 进入标定时的树快照，作为重建基准（避免反复转换导致数据退化）
+const markingBaseline = ref<WizardNode[] | null>(null)
 ```
 
-- 进入层级标定模式时：`roleMap` 由 `flattenForMarking(tree)` 初始化，每段预填**解析器当前级别**——
+- 进入层级标定模式时：`markingBaseline = cloneTree(tree)`；`roleMap` 由 `flattenForMarking(markingBaseline)` 初始化，每段预填**解析器当前级别**——
   - `content_type === 'content'` → `'content'`
   - 否则按其在树中的深度 → `chapter_${min(depth, 3)}`
-- 点选某行 → `setRole(id, role)` 只改 `roleMap` 中该 id 的值；行缩进随之实时刷新（缩进由 `roleMap` 派生，不重排顺序）。
-- 点「完成」→ `tree.value = buildTreeFromRoles(tree.value, roleMap.value)`，重建嵌套树并退回普通模式；用户在嵌套树里看到层级跳跃被夹紧后的真实结果。
-- 退出标定模式即清空 `roleMap`。
+- 点选某行 → `setRole(id, role)` 只改 `roleMap` 中该 id 的值；平铺清单与缩进由 `roleMap` 派生、实时刷新，行顺序不变。
+- **离开标定模式（任何方式：点「完成」/ 再点顶部「层级标定」/ Esc / 切到步骤标注）统一生效**：`tree.value = buildTreeFromRoles(markingBaseline, roleMap)`，重建嵌套树并清空 `roleMap`/`markingBaseline`；用户回到普通模式后在嵌套树里看到层级跳跃被夹紧后的真实结果。
+- 没有"丢弃"路径——改动总会保留；要整体反悔用全局「↺ 重置」（重载初始解析结果）。
 
-为何 `roleMap` 而非直接改树：标定时若每点一下就重建树，夹紧可能让「意图」与「显示」漂移；以 `roleMap` 为真相源、显示按字面、重建只在「完成」时发生一次，行为可预测且顺序稳定。
+设计取舍：
+- 以 `markingBaseline` 快照为重建基准（而非反复在已重建树上再建），保证 content↔章节来回切换不会累积丢失富文本。
+- 平铺清单显示**按 `roleMap` 字面**（所见即所选），夹紧只发生在重建出的嵌套树里；二者解耦，避免标定时缩进跳动。
+- 「任何方式离开都生效」消除"误点一下顶部按钮丢失全部改动"的数据陷阱。
 
 ## 4. 核心纯函数（`utils/importTree.ts`）
 
@@ -83,7 +88,7 @@ interface MarkRow {
    - `chapter_3`：挂到 `l2` 下；`l2` 不存在则退挂 `l1`；都没有则夹紧为根级；设 `l3`。
 3. 内容↔章节互转保数据，**沿用现有逻辑**：章节→正文把标题文本回填正文（`<p>title</p>`）、`skip_numbering=true`；正文→章节用 `title || titleFromHtml(rich_content)` 作标题、清空正文、`skip_numbering=false`。
 
-> 实现上可把现有 `applyLayerRole(nodes, ids, role)` 重构为薄封装：内部构造一张「ids→role、其余保持原级别」的 `roleMap` 再调 `buildTreeFromRoles`；或反之让 `buildTreeFromRoles` 成为通用底座、`applyLayerRole` 调它。择一以避免逻辑重复（细节留给实施计划）。
+> `buildTreeFromRoles` 是全新纯函数，承接现有 `applyLayerRole` 的重建算法（章节挂最近可达父、正文挂最深章节、内容↔章节互转保数据），但**每段都有显式目标级别、不保留"子树连动"语义**（旧 `applyLayerRole` 里"选中章节降级、其未选中后代自动跟降"在平铺模型下不再需要——每行都是独立、所见即所选的选择）。批量标定入口移除后 `applyLayerRole` 再无调用方，故**连同其测试一并删除**，不做"重构复用"以免两套近似逻辑并存。
 
 ## 5. 界面（中栏，层级标定模式）
 
@@ -108,11 +113,19 @@ interface MarkRow {
 
 | 文件 | 改动 |
 |------|------|
-| `frontend/src/utils/importTree.ts` | 新增 `flattenForMarking`、`buildTreeFromRoles`；`applyLayerRole` 重构为复用后者；视引用情况删除 `promoteNode/demoteNode` |
-| `frontend/src/composables/useImportDialog.ts` | 新增 `roleMap` 状态 + `setRole` + 进/出标定模式的初始化/清空 + 「完成」调 `buildTreeFromRoles`；移除 `promoteSelected/demoteSelected`（及导出） |
-| `frontend/src/components/import-v2/ImportTreePanel.vue` | 按 mode 分支渲染平铺清单；标定模式工具条精简（仅搜索+完成）；普通模式动态条去掉提升/降级按钮 |
-| `frontend/src/components/import-v2/ImportMarkingRow.vue` | 新建：单段平铺行（文本 + 缩进 + 分段选择器） |
-| `frontend/tests/unit/utils/importTree.spec.ts` | 新增 `flattenForMarking`/`buildTreeFromRoles` 用例；删除 `promoteNode/demoteNode` 相关用例（若函数删除） |
+| `frontend/src/utils/importTree.ts` | 新增 `defaultRoleOf`、`flattenForMarking`、`buildTreeFromRoles`、`computeMarkIndents`；删除 `applyLayerRole`、`promoteNode`、`demoteNode` |
+| `frontend/src/composables/useImportDialog.ts` | 新增 `roleMap`/`markingBaseline` 状态 + `setRole` + `markRows`/`markIndents` 派生 + 进/离标定模式初始化与统一生效；移除 `applyLayerMarking`、`promoteSelected`、`demoteSelected`（及导出与无用 import） |
+| `frontend/src/components/import-v2/ImportTreePanel.vue` | 按 mode 分支：标定模式渲染平铺清单（`ImportMarkingRow` 列表）+ 精简工具条（搜索 + 完成）；普通模式动态条去掉提升/降级按钮 |
+| `frontend/src/components/import-v2/ImportMarkingRow.vue` | 新建：单段平铺行（文本 + 缩进 + `el-radio-group` 分段选择器） |
+| `frontend/src/components/import-v2/ImportDialog.vue` | 移除 Tab/Shift+Tab → 降级/提升的键盘处理 |
+| `frontend/tests/unit/importTree.spec.ts` | 新增 `flattenForMarking`/`buildTreeFromRoles`/`computeMarkIndents`/`defaultRoleOf` 用例 |
+| `frontend/tests/unit/applyLayerRole.spec.ts` | **删除**（函数已移除） |
+| `frontend/tests/unit/importTreeOps.spec.ts` | 删除 `promoteNode`/`demoteNode` 相关用例 |
+| `frontend/tests/unit/useImportDialog.spec.ts` | 删除 5 个 `applyLayerMarking` 用例；`restoreIgnored` 用例改为直接预置 `ignored` 后再恢复 |
+| `frontend/tests/unit/ImportTreePanel.spec.ts` | 改写 layer-marking 工具条断言（批量按钮 → 完成 + 选择器） |
+| `frontend/src/components/import-v2/ImportMarkingRow` 测试 | 新建 `tests/unit/ImportMarkingRow.spec.ts` |
+
+**「已忽略」相关（`ignored` 状态 / `extractIgnored` / `restoreFromIgnored` / `restoreIgnored` / `restoreAllIgnored` / 底部忽略区）保持不动**：标定模式只移除「→忽略」批量按钮入口；恢复逻辑保留（删除走普通模式的永久删除，符合 spec §8）。`extractIgnored` 移除调用后成为已导出但暂无引用的工具函数，可接受。`ImportTreeRow.vue` 不改（layer-marking 不再渲染它，其 `showCheckbox` 仅对步骤标注生效）。
 
 无后端改动、无数据库迁移、无新依赖。
 
@@ -143,6 +156,8 @@ interface MarkRow {
 ## 8. 边界与决策记录
 
 - **层级跳跃**：所见即所选（平铺清单按字面缩进），重建树时夹紧成合法层级，退出后在嵌套树查看真实结果。
+- **改动生效时机**：以进入时快照为基准，离开标定模式（任何方式）统一重建；无丢弃路径，整体反悔用「↺ 重置」。
+- **子树连动**：平铺为每行独立选择，不做旧 `applyLayerRole` 的"父降级子自动跟降"——更可预测，且缩进已直观呈现各行级别。
 - **预填默认**：每行预选解析器当前级别，用户只改错行，无需逐行从头点——这是去掉批量操作仍不繁琐的前提。
-- **「忽略」与「提升/降级」下放/移除**：忽略归普通模式删除；提升/降级被平铺标定完整覆盖故移除。代价：调单个节点级别也需进一次标定模式，换来「改层级仅一个入口」。
+- **「忽略」与「提升/降级」下放/移除**：忽略归普通模式删除（标定模式仅移除「→忽略」按钮，恢复机制保留不动）；提升/降级被平铺标定完整覆盖故移除。代价：调单个节点级别也需进一次标定模式，换来「改层级仅一个入口」。
 - **空树 / 全文本**：平铺清单可为空（显示 el-empty）；全为正文时全部落根。
