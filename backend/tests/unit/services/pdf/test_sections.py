@@ -61,9 +61,6 @@ def _step(**kw: object) -> StepData:
         content="",
         skip_numbering=False,
         input_schema={"type": "COMMON"},
-        note="",
-        caution="",
-        warning="",
         expected_output="",
         attachment_marks=[],
         require_confirmation=False,
@@ -134,11 +131,9 @@ def test_human_size() -> None:
 # --------------------------------------------------------------------------- #
 # 步骤渲染（§6.3）
 # --------------------------------------------------------------------------- #
-def test_step_renders_alerts_marks_confirmation() -> None:
+def test_step_renders_content_marks_confirmation() -> None:
+    """COMMON 步骤：正文渲染 + 附件标记 + 确认行 + 执行占位符。"""
     step = _step(
-        note="<p>提示</p>",
-        caution="<p>小心</p>",
-        warning="<p>危险</p>",
         content="<p>正文</p>",
         # 编辑器真实字段形态：filename + kind=video
         attachment_marks=[{"filename": "demo.mp4", "kind": "video", "note": ""}],
@@ -147,8 +142,6 @@ def test_step_renders_alerts_marks_confirmation() -> None:
     )
     out: list = []
     sections._render_step(step, _data(_proc()), out)
-    tables = [f for f in out if isinstance(f, Table)]
-    assert len(tables) == 3  # note/caution/warning 三色框
     texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
     assert "demo.mp4" in texts and "视频" in texts
     assert "已确认完成" in texts
@@ -277,3 +270,59 @@ def test_empty_content_placeholder() -> None:
     out, has_attach = sections.build_content(_data(_proc()))
     assert not has_attach
     assert any("程序无内容" in _text(f) for f in out)
+
+
+# --------------------------------------------------------------------------- #
+# 警示型步骤渲染（§6.3 / Q261/§40.1）
+# --------------------------------------------------------------------------- #
+def test_warning_type_step_renders_alert_box() -> None:
+    """WARNING 类型步骤：content 以 alert_box 渲染，返回 Table（警示框）。"""
+    step = _step(
+        content="<p>危险</p>",
+        input_schema={"type": "WARNING"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    tables = [f for f in out if isinstance(f, Table)]
+    # 应有一个 alert box（Table），且无普通正文段落（content 走 alert 渲染路径）
+    assert len(tables) == 1
+
+
+def test_note_type_step_renders_alert_box() -> None:
+    """NOTE 类型步骤：content 以 alert_box 渲染，不渲染普通正文。"""
+    step = _step(
+        content="<p>提示内容</p>",
+        input_schema={"type": "NOTE"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    tables = [f for f in out if isinstance(f, Table)]
+    assert len(tables) == 1
+
+
+def test_number_type_step_hides_content() -> None:
+    """NUMBER 类型步骤：content 隐藏（数据型不渲染正文），仅渲染表单占位符。"""
+    step = _step(
+        content="<p>这段文字应被隐藏</p>",
+        input_schema={"type": "NUMBER", "label": "压力", "unit": "MPa"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    # 不应出现来自 content 的文字段落
+    texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
+    assert "这段文字应被隐藏" not in texts
+    # 应有 NUMBER 占位符
+    assert "压力" in texts
+
+
+def test_warning_type_step_no_form_placeholder() -> None:
+    """WARNING 类型步骤：不渲染执行表单占位符。"""
+    step = _step(
+        content="<p>危险操作</p>",
+        input_schema={"type": "WARNING"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    # 没有「已完成」占位文字
+    texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
+    assert "已完成" not in texts

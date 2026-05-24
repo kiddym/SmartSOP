@@ -85,21 +85,25 @@ def test_invalid_input_schema_type(db: Session, factory: Factory) -> None:
 def test_update_step_fields(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
     ch = _chapter(db, proc.id)
-    st = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id), META)
+    st = step_service.create_step(
+        db,
+        _sc(proc.id, chapter_id=ch.id, content="<p>高压</p>", input_schema={"type": "WARNING"}),
+        META,
+    )
     step_service.update_step(
         db,
         st.id,
         StepUpdate(
             title="改名",
+            content="<p>高温</p>",
             input_schema={"type": "CHECK", "pass_label": "通过"},
-            warning="<p>高压</p>",
         ),
         META,
     )
     db.refresh(st)
     assert st.title == "改名"
     assert st.input_schema["type"] == "CHECK"
-    assert st.warning == "<p>高压</p>"
+    assert st.content == "<p>高温</p>"
 
 
 def test_step_move_up_down(db: Session, factory: Factory) -> None:
