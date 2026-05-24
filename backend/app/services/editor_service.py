@@ -5,7 +5,7 @@
 单事务、乐观锁（If-Match → revision）；任一校验失败整体回滚（router 不 commit）。
 
 最终态校验（应用全部 upsert/删除后）：Q25 子节点互斥、章节 ≤3 级、content 强制叶子、
-chapter 节点 rich_content 恒空、执行表单 12 型、正文 ≤5 MB。校验后整树重算编号（§47）。
+chapter 节点 rich_content 恒空、执行表单 15 型、正文 ≤5 MB。校验后整树重算编号（§47）。
 
 事务边界：只 flush，不 commit；由 router 提交。
 """
@@ -243,9 +243,6 @@ def save_procedure(
         st_node.title = su.title
         st_node.content = su.content
         st_node.input_schema = su.input_schema
-        st_node.note = su.note
-        st_node.caution = su.caution
-        st_node.warning = su.warning
         st_node.expected_output = su.expected_output
         st_node.require_confirmation = su.require_confirmation
         st_node.attachment_marks = su.attachment_marks

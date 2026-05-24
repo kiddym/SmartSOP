@@ -462,14 +462,8 @@ def convert_to_chapter(db: Session, step_id: str, meta: RequestMeta) -> Conversi
 
 
 def _compose_step_body(st: ProcedureStep) -> str:
-    """把 step 正文与三警示拼为新 content 节点的 rich_content（Q8 §19 调和）。"""
-    parts: list[str] = []
-    if st.content.strip():
-        parts.append(st.content)
-    for label, value in (("note", st.note), ("caution", st.caution), ("warning", st.warning)):
-        if value.strip():
-            parts.append(f'<div class="{label}-block">{value}</div>')
-    return "".join(parts)
+    """步骤正文即新 content 节点的 rich_content（§19 调和；警示已并入 content）。"""
+    return st.content
 
 
 # --------------------------------------------------------------------------- #

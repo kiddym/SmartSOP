@@ -3,7 +3,7 @@
 约束：
 - Q25 互斥：step 只能挂在「不含 chapter/content 子节点」的 chapter 下，或根级（与根 chapter 互斥）。
 - step 为叶子（无子步骤，Q308）；编号 code = 父 chapter.code + 序号，全自动（§47）。
-- 执行表单 12 型（input_schema.type 大写枚举，Q261）；step.content ≤ 5 MB（CONTENT_TOO_LARGE）。
+- 执行表单 15 型（input_schema.type 大写枚举，Q261）；step.content ≤ 5 MB（CONTENT_TOO_LARGE）。
 - 仅 is_current=true 且 status=DRAFT 可编辑（PROCEDURE_READONLY）。
 
 事务边界：只 flush，不 commit；结构变更 bump 程序 revision。
@@ -156,9 +156,6 @@ def create_step(db: Session, data: StepCreate, meta: RequestMeta) -> ProcedureSt
         title=data.title,
         content=data.content,
         input_schema=data.input_schema,
-        note=data.note,
-        caution=data.caution,
-        warning=data.warning,
         expected_output=data.expected_output,
         require_confirmation=data.require_confirmation,
         attachment_marks=data.attachment_marks,
@@ -196,9 +193,6 @@ def update_step(db: Session, step_id: str, data: StepUpdate, meta: RequestMeta) 
     st.title = data.title
     st.content = data.content
     st.input_schema = data.input_schema
-    st.note = data.note
-    st.caution = data.caution
-    st.warning = data.warning
     st.expected_output = data.expected_output
     st.require_confirmation = data.require_confirmation
     st.attachment_marks = data.attachment_marks
