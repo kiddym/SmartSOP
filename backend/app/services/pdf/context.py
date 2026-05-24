@@ -32,9 +32,6 @@ class StepData:
     content: str
     skip_numbering: bool
     input_schema: dict[str, Any]
-    note: str
-    caution: str
-    warning: str
     expected_output: str
     attachment_marks: list[dict[str, Any]]
     require_confirmation: bool
@@ -112,9 +109,6 @@ def _to_step(s: ProcedureStep) -> StepData:
         content=s.content,
         skip_numbering=s.skip_numbering,
         input_schema=dict(s.input_schema or {}),
-        note=s.note,
-        caution=s.caution,
-        warning=s.warning,
         expected_output=s.expected_output,
         attachment_marks=list(s.attachment_marks or []),
         require_confirmation=s.require_confirmation,
@@ -236,7 +230,7 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
     # 预取所有富文本里引用的 asset 字节（content 节点 + step 富文本字段）
     htmls: list[str] = [c.rich_content for c in chapters]
     for s in steps:
-        htmls += [s.content, s.note, s.caution, s.warning]
+        htmls += [s.content]
     assets: dict[str, tuple[bytes, str]] = {}
     for aid in _collect_asset_ids(*htmls):
         try:
