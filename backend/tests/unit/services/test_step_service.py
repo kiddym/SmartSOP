@@ -154,3 +154,14 @@ def test_readonly_rejected(db: Session, factory: Factory) -> None:
     with pytest.raises(HTTPException) as exc:
         step_service.create_step(db, _sc(proc.id, chapter_id=None), META)
     assert exc.value.detail["code"] == "PROCEDURE_READONLY"
+
+
+def test_create_step_accepts_warning_type(db: Session, factory: Factory) -> None:
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    st = step_service.create_step(
+        db,
+        _sc(proc.id, chapter_id=ch.id, content="<p>高温危险</p>", input_schema={"type": "WARNING"}),
+        META,
+    )
+    assert st.input_schema["type"] == "WARNING"
