@@ -95,7 +95,7 @@ function snippetOf(html: string): string {
 .tr-check { flex: none; }
 .tr-tag { flex: none; }
 .tr-num { color: var(--el-color-primary, #d97757); font-weight: 600; font-variant-numeric: tabular-nums; flex: none; }
-.tr-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #303133; }
+.tr-title { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #303133; }
 .tr-title--empty { color: #c0c4cc; font-style: italic; }
 .tr-spacer { flex: 1; }
 .tr-actions { display: none; flex: none; gap: 2px; }

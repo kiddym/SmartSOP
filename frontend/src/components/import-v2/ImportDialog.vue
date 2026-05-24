@@ -192,7 +192,7 @@ watch(visible, (on) => {
 .hint { margin-top: 8px; color: #606266; }
 .cols { flex: 1; display: flex; min-height: 0; }
 .col { display: flex; flex-direction: column; min-width: 0; }
-.col.left { width: 28%; }
-.col.mid { width: 37%; }
-.col.right { width: 35%; }
+.col.left { width: 38%; }
+.col.mid { width: 28%; }
+.col.right { width: 34%; }
 </style>
