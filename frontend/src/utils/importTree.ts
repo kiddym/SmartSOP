@@ -441,6 +441,11 @@ export function flattenForMarking(nodes: WizardNode[]): MarkRow[] {
   return rows
 }
 
+// 章节角色 → 字面层级（1..3）。
+function roleLevel(role: LayerRole): number {
+  return role === 'chapter_3' ? 3 : role === 'chapter_2' ? 2 : 1
+}
+
 // 用「每段 id → 目标级别」映射表从基准树按文档序重建嵌套树。
 // 每段都有显式级别（缺失回落 defaultRoleOf）；章节挂最近可达父、正文挂最深章节；
 // 不可达层级夹紧（chapter_2 无一级父→根级；chapter_3 无二级父→退挂一级）；内容↔章节互转保数据。
@@ -488,7 +493,7 @@ export function buildTreeFromRoles(
     }
 
     // level 仅对章节有意义（正文已在上面 return）
-    const level = role === 'chapter_3' ? 3 : role === 'chapter_2' ? 2 : 1
+    const level = roleLevel(role)
     if (level >= 3 && l2) {
       l2.children.push(fresh)
       l3 = fresh
@@ -505,4 +510,24 @@ export function buildTreeFromRoles(
   }
 
   return roots
+}
+
+// 平铺清单的「所见即所选」缩进：章节缩进 = 字面 level-1；正文 = 当前标题 level（深一级）。
+export function computeMarkIndents(
+  rows: MarkRow[],
+  roleMap: Map<string, LayerRole>,
+): Map<string, number> {
+  const map = new Map<string, number>()
+  let headingLevel = 0
+  for (const row of rows) {
+    const role = roleMap.get(row.id) ?? row.defaultRole
+    if (role === 'content') {
+      map.set(row.id, headingLevel)
+    } else {
+      const lv = roleLevel(role)
+      map.set(row.id, lv - 1)
+      headingLevel = lv
+    }
+  }
+  return map
 }

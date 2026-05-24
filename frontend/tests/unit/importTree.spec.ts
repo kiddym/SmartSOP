@@ -5,6 +5,7 @@ import {
   clearReview,
   computeChapterNumbers,
   computeLevelMap,
+  computeMarkIndents,
   countReview,
   defaultRoleOf,
   deleteNode,
@@ -343,5 +344,54 @@ describe('buildTreeFromRoles', () => {
     expect(out.map((n) => n.id)).toEqual(['a'])
     expect(out[0].children.map((n) => n.id)).toEqual(['a1'])
     expect(computeLevelMap(out).get('a1')).toBe(2)
+  })
+})
+
+describe('computeMarkIndents', () => {
+  it('章节缩进=level-1；正文比当前标题深一级', () => {
+    const rows = [
+      { id: 'a', label: 'A', defaultRole: 'chapter_1' as LayerRole },
+      { id: 'b', label: 'B', defaultRole: 'chapter_2' as LayerRole },
+      { id: 'x', label: 'X', defaultRole: 'content' as LayerRole },
+      { id: 'c', label: 'C', defaultRole: 'chapter_1' as LayerRole },
+    ]
+    const m = computeMarkIndents(rows, new Map(rows.map((r) => [r.id, r.defaultRole])))
+    expect(m.get('a')).toBe(0)
+    expect(m.get('b')).toBe(1)
+    expect(m.get('x')).toBe(2)
+    expect(m.get('c')).toBe(0)
+  })
+
+  it('开头即正文（无标题）缩进 0', () => {
+    const m = computeMarkIndents(
+      [{ id: 'x', label: 'X', defaultRole: 'content' as LayerRole }],
+      new Map([['x', 'content' as LayerRole]]),
+    )
+    expect(m.get('x')).toBe(0)
+  })
+
+  it('roleMap 覆盖默认：b 改正文后挂在一级标题 a 下（缩进 1）', () => {
+    const rows = [
+      { id: 'a', label: 'A', defaultRole: 'chapter_1' as LayerRole },
+      { id: 'b', label: 'B', defaultRole: 'chapter_2' as LayerRole },
+    ]
+    const m = computeMarkIndents(rows, new Map<string, LayerRole>([['a', 'chapter_1'], ['b', 'content']]))
+    expect(m.get('b')).toBe(1)
+  })
+
+  it('正文在三级标题下缩进 3', () => {
+    const rows = [
+      { id: 'h3', label: 'H3', defaultRole: 'chapter_3' as LayerRole },
+      { id: 'c', label: 'C', defaultRole: 'content' as LayerRole },
+    ]
+    const m = computeMarkIndents(rows, new Map(rows.map((r) => [r.id, r.defaultRole])))
+    expect(m.get('h3')).toBe(2)
+    expect(m.get('c')).toBe(3)
+  })
+
+  it('chapter_2 无前置一级仍缩进 1（所见即所选，不夹紧）', () => {
+    const rows = [{ id: 'b', label: 'B', defaultRole: 'chapter_2' as LayerRole }]
+    const m = computeMarkIndents(rows, new Map([['b', 'chapter_2' as LayerRole]]))
+    expect(m.get('b')).toBe(1)
   })
 })
