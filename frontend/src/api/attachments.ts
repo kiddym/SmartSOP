@@ -15,11 +15,9 @@ export const uploadAttachment = (
     .then(r => r.data)
 }
 
-export const downloadAttachment = async (procedureId: string, attachId: string): Promise<void> => {
-  const res = await http.get<Blob>(
-    `/procedures/${procedureId}/attachments/${attachId}/download`,
-    { responseType: 'blob' }
-  )
+// 单附件操作后端扁平挂 /attachments/{id}（非嵌套在 procedures 下）。
+export const downloadAttachment = async (attachId: string): Promise<void> => {
+  const res = await http.get<Blob>(`/attachments/${attachId}/download`, { responseType: 'blob' })
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = url
@@ -28,5 +26,5 @@ export const downloadAttachment = async (procedureId: string, attachId: string):
   URL.revokeObjectURL(url)
 }
 
-export const deleteAttachment = (procedureId: string, attachId: string): Promise<void> =>
-  http.delete(`/procedures/${procedureId}/attachments/${attachId}`).then(() => undefined)
+export const deleteAttachment = (attachId: string): Promise<void> =>
+  http.delete(`/attachments/${attachId}`).then(() => undefined)

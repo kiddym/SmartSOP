@@ -60,7 +60,7 @@ async function handleFiles(event: Event): Promise<void> {
 
 async function handleDelete(id: string): Promise<void> {
   try {
-    await deleteAttachment(props.procedureId, id)
+    await deleteAttachment(id)
     await fetchAttachments()
     ElMessage.success('删除成功')
   } catch {
@@ -127,7 +127,7 @@ onMounted(fetchAttachments)
       </el-table-column>
       <el-table-column label="操作" width="130">
         <template #default="{ row }">
-          <el-button link @click="downloadAttachment(props.procedureId, row.id)">下载</el-button>
+          <el-button link @click="downloadAttachment(row.id)">下载</el-button>
           <el-popconfirm v-if="editable" title="确定删除？" @confirm="handleDelete(row.id)">
             <template #reference>
               <el-button link type="danger">删除</el-button>
