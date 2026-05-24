@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildTreeFromRoles,
   buildWizardTree,
   clearReview,
   computeChapterNumbers,
+  computeLevelMap,
   countReview,
   defaultRoleOf,
   deleteNode,
@@ -12,6 +14,7 @@ import {
   toImportNodes,
   updateNode,
 } from '@/utils/importTree'
+import type { LayerRole } from '@/utils/importTree'
 import type { ParsedNode } from '@/types/parse'
 
 function pnode(partial: Partial<ParsedNode> & { id: string }): ParsedNode {
@@ -243,5 +246,102 @@ describe('flattenForMarking', () => {
   it('空正文节点 label 为空字符串（仅章节才回落"无标题"）', () => {
     const tree = buildWizardTree([pnode({ id: 'x', content_type: 'content', rich_content: '' })])
     expect(flattenForMarking(tree)[0].label).toBe('')
+  })
+})
+
+function rmap(obj: Record<string, LayerRole>): Map<string, LayerRole> {
+  return new Map(Object.entries(obj) as [string, LayerRole][])
+}
+
+describe('buildTreeFromRoles', () => {
+  it('默认级别 round-trip：结构不变', () => {
+    const tree = buildWizardTree([
+      pnode({ id: 'a', children: [pnode({ id: 'a1', content_type: 'content', rich_content: '<p>x</p>' })] }),
+      pnode({ id: 'b' }),
+    ])
+    const m = new Map(flattenForMarking(tree).map((r) => [r.id, r.defaultRole]))
+    const out = buildTreeFromRoles(tree, m)
+    expect(out.map((n) => n.id)).toEqual(['a', 'b'])
+    expect(out[0].children.map((n) => n.id)).toEqual(['a1'])
+    expect(out[0].children[0].content_type).toBe('content')
+  })
+
+  it('正文挂到最近最深章节；开头即正文落根', () => {
+    const tree = buildWizardTree([
+      pnode({ id: 'a' }),
+      pnode({ id: 'x', content_type: 'content', rich_content: '<p>x</p>' }),
+    ])
+    const out = buildTreeFromRoles(tree, rmap({ a: 'chapter_1', x: 'content' }))
+    expect(out.map((n) => n.id)).toEqual(['a'])
+    expect(out[0].children.map((n) => n.id)).toEqual(['x'])
+
+    const tree2 = buildWizardTree([pnode({ id: 'x', content_type: 'content', rich_content: '<p>x</p>' })])
+    const out2 = buildTreeFromRoles(tree2, rmap({ x: 'content' }))
+    expect(out2.map((n) => n.id)).toEqual(['x'])
+    expect(out2[0].content_type).toBe('content')
+  })
+
+  it('层级跳跃夹紧：chapter_2 无一级父→根级；chapter_3 无二级父→退挂一级', () => {
+    const tree = buildWizardTree([pnode({ id: 'a' }), pnode({ id: 'b' })])
+    const out = buildTreeFromRoles(tree, rmap({ a: 'chapter_2', b: 'chapter_3' }))
+    expect(out.map((n) => n.id)).toEqual(['a'])
+    expect(out[0].children.map((n) => n.id)).toEqual(['b'])
+    expect(computeLevelMap(out).get('a')).toBe(1)
+    expect(computeLevelMap(out).get('b')).toBe(2)
+  })
+
+  it('顺序无关：map 写入顺序不影响结果', () => {
+    const tree = buildWizardTree([pnode({ id: 'A' }), pnode({ id: 'B' }), pnode({ id: 'C' })])
+    const out1 = buildTreeFromRoles(tree, new Map<string, LayerRole>([['A', 'chapter_1'], ['B', 'chapter_2'], ['C', 'chapter_2']]))
+    const out2 = buildTreeFromRoles(tree, new Map<string, LayerRole>([['C', 'chapter_2'], ['A', 'chapter_1'], ['B', 'chapter_2']]))
+    expect(out2).toEqual(out1)
+    expect(out1[0].children.map((n) => n.id)).toEqual(['B', 'C'])
+  })
+
+  it('内容升级为章节：文本作标题、清空正文、参与编号', () => {
+    const tree = buildWizardTree([
+      pnode({ id: 'a' }),
+      pnode({ id: 'x', content_type: 'content', title: '', rich_content: '<p>操作步骤</p>' }),
+    ])
+    const x = buildTreeFromRoles(tree, rmap({ a: 'chapter_1', x: 'chapter_2' }))[0].children[0]
+    expect(x.id).toBe('x')
+    expect(x.content_type).toBe('chapter')
+    expect(x.title).toBe('操作步骤')
+    expect(x.rich_content).toBe('')
+    expect(x.skip_numbering).toBe(false)
+  })
+
+  it('章节降级为正文：标题回填正文、skip_numbering=true', () => {
+    const tree = buildWizardTree([pnode({ id: 'a', title: '操作' })])
+    const out = buildTreeFromRoles(tree, rmap({ a: 'content' }))
+    expect(out[0].content_type).toBe('content')
+    expect(out[0].rich_content).toContain('操作')
+    expect(out[0].skip_numbering).toBe(true)
+  })
+
+  it('全部设为正文：均落根且为 content', () => {
+    const tree = buildWizardTree([pnode({ id: 'a' }), pnode({ id: 'b' })])
+    const out = buildTreeFromRoles(tree, rmap({ a: 'content', b: 'content' }))
+    expect(out.map((n) => n.id)).toEqual(['a', 'b'])
+    expect(out.every((n) => n.content_type === 'content')).toBe(true)
+  })
+
+  it('chapter_3 直接挂一级（无二级父，跳过二级层）', () => {
+    const tree = buildWizardTree([pnode({ id: 'a' }), pnode({ id: 'b' })])
+    const out = buildTreeFromRoles(tree, rmap({ a: 'chapter_1', b: 'chapter_3' }))
+    expect(out.map((n) => n.id)).toEqual(['a'])
+    expect(out[0].children.map((n) => n.id)).toEqual(['b'])
+    expect(computeLevelMap(out).get('b')).toBe(2)
+  })
+
+  it('roleMap 缺某 id → 该节点回落解析默认级别（defaultRoleOf）', () => {
+    const tree = buildWizardTree([
+      pnode({ id: 'a', children: [pnode({ id: 'a1' })] }),
+    ])
+    // 只显式给 a；a1 缺失 → 回落 chapter_2（其原始深度）
+    const out = buildTreeFromRoles(tree, rmap({ a: 'chapter_1' }))
+    expect(out.map((n) => n.id)).toEqual(['a'])
+    expect(out[0].children.map((n) => n.id)).toEqual(['a1'])
+    expect(computeLevelMap(out).get('a1')).toBe(2)
   })
 })

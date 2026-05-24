@@ -440,3 +440,69 @@ export function flattenForMarking(nodes: WizardNode[]): MarkRow[] {
   walk(nodes, 1)
   return rows
 }
+
+// 用「每段 id → 目标级别」映射表从基准树按文档序重建嵌套树。
+// 每段都有显式级别（缺失回落 defaultRoleOf）；章节挂最近可达父、正文挂最深章节；
+// 不可达层级夹紧（chapter_2 无一级父→根级；chapter_3 无二级父→退挂一级）；内容↔章节互转保数据。
+export function buildTreeFromRoles(
+  nodes: WizardNode[],
+  roleMap: Map<string, LayerRole>,
+): WizardNode[] {
+  interface Flat { node: WizardNode; role: LayerRole }
+  const flat: Flat[] = []
+  const walk = (list: WizardNode[], depth: number): void => {
+    for (const n of list) {
+      flat.push({ node: n, role: roleMap.get(n.id) ?? defaultRoleOf(n, depth) })
+      walk(n.children, depth + 1)
+    }
+  }
+  walk(nodes, 1)
+
+  const roots: WizardNode[] = []
+  let l1: WizardNode | null = null
+  let l2: WizardNode | null = null
+  let l3: WizardNode | null = null
+
+  for (const { node, role } of flat) {
+    const asChapter = role !== 'content'
+    const fromContent = asChapter && node.content_type === 'content'
+    const toContentNode = !asChapter && node.content_type === 'chapter'
+    const fresh: WizardNode = {
+      ...node,
+      content_type: asChapter ? 'chapter' : 'content',
+      title: fromContent ? node.title.trim() || titleFromHtml(node.rich_content) : node.title,
+      rich_content: asChapter
+        ? ''
+        : toContentNode
+          ? node.rich_content || (node.title.trim() ? `<p>${node.title.trim()}</p>` : '')
+          : node.rich_content,
+      skip_numbering: asChapter ? (fromContent ? false : node.skip_numbering) : true,
+      children: [],
+    }
+
+    if (!asChapter) {
+      const parent = l3 ?? l2 ?? l1
+      if (parent) parent.children.push(fresh)
+      else roots.push(fresh)
+      continue
+    }
+
+    // level 仅对章节有意义（正文已在上面 return）
+    const level = role === 'chapter_3' ? 3 : role === 'chapter_2' ? 2 : 1
+    if (level >= 3 && l2) {
+      l2.children.push(fresh)
+      l3 = fresh
+    } else if (level >= 2 && l1) {
+      l1.children.push(fresh)
+      l2 = fresh
+      l3 = null
+    } else {
+      roots.push(fresh)
+      l1 = fresh
+      l2 = null
+      l3 = null
+    }
+  }
+
+  return roots
+}
