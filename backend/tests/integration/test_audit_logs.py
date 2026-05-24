@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import io
 import csv
+import io
 from datetime import datetime, timedelta
 
-import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -165,13 +164,9 @@ def test_folder_audit_filter_date_from(client: TestClient, db: Session) -> None:
     """date_from 过滤：只返回该时间点之后的记录。"""
     base = datetime(2026, 1, 1, 0, 0, 0)
     _add_folder_log(db, target_id="old", action="create", created_at=base)
-    _add_folder_log(
-        db, target_id="new", action="update", created_at=base + timedelta(days=1)
-    )
+    _add_folder_log(db, target_id="new", action="update", created_at=base + timedelta(days=1))
 
-    resp = client.get(
-        FOLDERS_BASE, params={"date_from": (base + timedelta(hours=1)).isoformat()}
-    )
+    resp = client.get(FOLDERS_BASE, params={"date_from": (base + timedelta(hours=1)).isoformat()})
     body = resp.json()
     assert body["total"] == 1
     assert body["items"][0]["target_id"] == "new"
@@ -181,9 +176,7 @@ def test_folder_audit_filter_date_to(client: TestClient, db: Session) -> None:
     """date_to 过滤：只返回该时间点之前的记录。"""
     base = datetime(2026, 1, 1, 0, 0, 0)
     _add_folder_log(db, target_id="early", action="create", created_at=base)
-    _add_folder_log(
-        db, target_id="late", action="update", created_at=base + timedelta(days=2)
-    )
+    _add_folder_log(db, target_id="late", action="update", created_at=base + timedelta(days=2))
 
     resp = client.get(
         FOLDERS_BASE,
@@ -355,9 +348,7 @@ def test_procedure_audit_filter_ip(client: TestClient, db: Session) -> None:
 
 def test_procedure_audit_export_csv(client: TestClient, db: Session) -> None:
     """export=csv 返回包含 procedure_group_id 列的 CSV。"""
-    _add_procedure_log(
-        db, target_id="exp-p1", action="create", procedure_group_id="grp-csv"
-    )
+    _add_procedure_log(db, target_id="exp-p1", action="create", procedure_group_id="grp-csv")
 
     resp = client.get(PROCEDURES_BASE, params={"export": "csv"})
     assert resp.status_code == 200
@@ -390,9 +381,7 @@ def test_procedure_audit_date_from_filter(client: TestClient, db: Session) -> No
     """date_from 过滤程序审计日志。"""
     base = datetime(2026, 4, 1, 0, 0, 0)
     _add_procedure_log(db, target_id="pold", action="create", created_at=base)
-    _add_procedure_log(
-        db, target_id="pnew", action="update", created_at=base + timedelta(days=1)
-    )
+    _add_procedure_log(db, target_id="pnew", action="update", created_at=base + timedelta(days=1))
 
     resp = client.get(
         PROCEDURES_BASE,

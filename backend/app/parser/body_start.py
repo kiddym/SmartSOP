@@ -44,10 +44,9 @@ def find_body_start(
 
     # 1. first_styled_heading（方案C：优先取首个"标题后紧跟内容"的样式标题）
     styled_candidates = [
-        b for b in blocks
-        if b.source_index >= toc_floor
-        and b.style_level is not None
-        and not b.is_toc_field
+        b
+        for b in blocks
+        if b.source_index >= toc_floor and b.style_level is not None and not b.is_toc_field
     ]
     for block in styled_candidates:
         if _has_content_after(block, blocks):

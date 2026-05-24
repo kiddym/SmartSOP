@@ -239,10 +239,10 @@ def manual_toc_sop() -> bytes:
         .para("公司机密文件", center=True)
         .section_break()
         .para("目 录")
-        .styled_heading("目的", "章节标题")        # 目录区：连续标题，无内容跟随
+        .styled_heading("目的", "章节标题")  # 目录区：连续标题，无内容跟随
         .styled_heading("范围", "章节标题")
         .styled_heading("程序", "章节标题")
-        .styled_heading("目的", "章节标题")        # 正文区：标题后有正文段
+        .styled_heading("目的", "章节标题")  # 正文区：标题后有正文段
         .para("本程序规定了碘吸附器定期试验要求。")
         .styled_heading("范围", "章节标题")
         .para("适用于一期1–4号机组。")

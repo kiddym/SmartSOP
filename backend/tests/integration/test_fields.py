@@ -422,10 +422,22 @@ def test_reorder_missing_ids_skipped(client: TestClient) -> None:
 
 def test_put_full_replace_required_field(client: TestClient) -> None:
     """PUT 是 full-replace：创建 required=True，PUT 时须显式传 required=True 保持。"""
-    resp = client.post(FIELDS, json={"name": "必填字段", "key": "req_field", "field_type": "text", "required": True})
+    resp = client.post(
+        FIELDS,
+        json={"name": "必填字段", "key": "req_field", "field_type": "text", "required": True},
+    )
     assert resp.status_code == 201
     fid = resp.json()["id"]
     # 正确的 full PUT 保持 required=True
-    upd = client.put(f"{FIELDS}/{fid}", json={"name": "必填字段", "required": True, "sort_order": 0, "show_on_cover": False, "description": ""})
+    upd = client.put(
+        f"{FIELDS}/{fid}",
+        json={
+            "name": "必填字段",
+            "required": True,
+            "sort_order": 0,
+            "show_on_cover": False,
+            "description": "",
+        },
+    )
     assert upd.status_code == 200
     assert upd.json()["required"] is True

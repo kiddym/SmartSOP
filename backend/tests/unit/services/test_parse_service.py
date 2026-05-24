@@ -138,7 +138,9 @@ def test_rewrite_placeholders_updates_import_blocks() -> None:
     parse_service._rewrite_placeholders(result, {"media:rId1": "/api/v1/uploads/t/media/a.png"})
 
     assert result.chapters[0].rich_content == '<p><img src="/api/v1/uploads/t/media/a.png"/></p>'
-    assert result.import_blocks[0].rich_content == '<p><img src="/api/v1/uploads/t/media/a.png"/></p>'
+    assert (
+        result.import_blocks[0].rich_content == '<p><img src="/api/v1/uploads/t/media/a.png"/></p>'
+    )
 
 
 def test_no_headings_smart(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
