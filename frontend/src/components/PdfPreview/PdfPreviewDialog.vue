@@ -13,6 +13,12 @@ import {
   fmtDate,
   type PreviewModel,
 } from './pdfModel'
+import { isAlertType } from '@/utils/editor'
+import type { FormType } from '@/types/node'
+
+function alertBlockClass(t: FormType): string {
+  return t === 'NOTE' ? 'note-block' : t === 'CAUTION' ? 'caution-block' : 'warning-block'
+}
 
 const props = defineProps<{ modelValue: boolean; procedureId: string }>()
 const emit = defineEmits<{ (e: 'update:modelValue', v: boolean): void }>()
@@ -219,14 +225,21 @@ function onPreviewClick(e: MouseEvent): void {
               <div class="step-title">
                 <span v-if="b.code" class="st-code">{{ b.code }}</span> {{ b.step.title || '（步骤）' }}
               </div>
-              <div v-if="b.step.note" class="alert note-block" v-html="b.step.note" />
-              <div v-if="b.step.caution" class="alert caution-block" v-html="b.step.caution" />
-              <div v-if="b.step.warning" class="alert warning-block" v-html="b.step.warning" />
-              <div v-if="b.step.content" class="step-body" v-html="b.step.content" />
+              <div
+                v-if="isAlertType(b.step.input_schema.type)"
+                class="alert"
+                :class="alertBlockClass(b.step.input_schema.type)"
+                v-html="b.step.content"
+              />
+              <div
+                v-else-if="b.step.input_schema.type === 'COMMON' && b.step.content"
+                class="step-body"
+                v-html="b.step.content"
+              />
               <p v-for="(m, i) in b.step.attachment_marks" :key="i" class="mark">
                 {{ attachmentMarkText(m) }}
               </p>
-              <p class="exec">{{ execText(b.step) }}</p>
+              <p v-if="execText(b.step)" class="exec">{{ execText(b.step) }}</p>
               <p
                 v-if="b.step.require_confirmation"
                 class="signoff"

@@ -106,6 +106,7 @@ export function changeTypeLabel(entry: Record<string, unknown>): string {
 export function execText(step: StepOut): string {
   const s = step.input_schema as Record<string, unknown>
   const t = String(s.type ?? 'COMMON').toUpperCase()
+  if (t === 'NOTE' || t === 'CAUTION' || t === 'WARNING') return ''
   const opts = Array.isArray(s.options)
     ? (s.options as unknown[]).map((o) =>
         typeof o === 'object' && o ? String((o as Record<string, unknown>).label ?? '') : String(o),
