@@ -6,7 +6,7 @@ export type ContentType = 'chapter' | 'content'
 // 标记态：编辑器三态 + Word 智能解析留下的持久 'review' 态（apply-marks 不碰，M1 修复）。
 export type MarkStatus = 'unmarked' | 'step' | 'content' | 'review'
 
-// 执行表单 12 型 + 三警示型（大写枚举，Q261/§40.1）。
+// 执行表单 15 型（大写枚举，Q261/§40.1）。
 export type FormType =
   | 'COMMON'
   | 'NOTE'
@@ -42,7 +42,7 @@ export const FORM_TYPES: readonly FormType[] = [
   'NONE',
 ]
 
-// input_schema：type 必有，其余配置字段随 12 型动态（NUMBER 的 unit/min/max、CHOICE 的 options 等）。
+// input_schema：type 必有，其余配置字段随类型动态（NUMBER 的 unit/min/max、CHOICE 的 options 等）。
 export interface InputSchema {
   type: FormType
   [key: string]: unknown

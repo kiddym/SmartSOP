@@ -156,7 +156,7 @@ export function computeFallback(kind: NodeKind, body: string): string {
   return preview || '(空步骤)'
 }
 
-// ---- 执行表单 12 型元数据（标签 + 色组，§2.1 类型色条） ---- //
+// ---- 执行表单类型元数据（标签 + 色组，§2.1 类型色条） ---- //
 
 export interface FormTypeMeta {
   label: string

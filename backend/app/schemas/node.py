@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 ContentType = Literal["chapter", "content"]
 MarkStatus = Literal["unmarked", "step", "content"]
 
-# 执行表单 12 型 + 三警示型（大写枚举，Q261/§40.1）
+# 执行表单 15 型（大写枚举，Q261/§40.1）
 FORM_TYPES: frozenset[str] = frozenset(
     {
         "COMMON",

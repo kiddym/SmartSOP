@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import type { InputSchema } from '@/types/node'
 
-// 执行表单 12 型动态配置（§4.1 执行记录区 / Q261-Q262）。
+// 执行表单 15 型动态配置（§4.1 执行记录区 / Q261-Q262）。
 const props = defineProps<{ schema: InputSchema; readonly?: boolean }>()
 const emit = defineEmits<{ (e: 'update:schema', value: InputSchema): void }>()
 

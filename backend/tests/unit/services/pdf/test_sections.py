@@ -1,4 +1,4 @@
-"""pdf.sections 单测：12 型占位符 / 封面状态 / 修订过滤 / 附件区段 / 步骤渲染。"""
+"""pdf.sections 单测：15 型占位符 / 封面状态 / 修订过滤 / 附件区段 / 步骤渲染。"""
 
 from __future__ import annotations
 
@@ -74,7 +74,7 @@ def _text(flowable: object) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# 12 型执行占位符（§6.3）
+# 15 型执行占位符（§6.3）
 # --------------------------------------------------------------------------- #
 def test_form_placeholder_none_returns_none() -> None:
     assert sections._form_placeholder({"type": "NONE"}) is None
@@ -326,3 +326,28 @@ def test_warning_type_step_no_form_placeholder() -> None:
     # 没有「已完成」占位文字
     texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
     assert "已完成" not in texts
+
+
+def test_caution_type_step_renders_alert_box() -> None:
+    """CAUTION 类型步骤：content 以 alert_box 渲染，返回 Table（警示框）。"""
+    step = _step(
+        content="<p>小心操作</p>",
+        input_schema={"type": "CAUTION"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    tables = [f for f in out if isinstance(f, Table)]
+    # 应有一个 alert box（Table），且无普通正文段落（content 走 alert 渲染路径）
+    assert len(tables) == 1
+
+
+def test_common_type_step_renders_content_body() -> None:
+    """COMMON 类型步骤：content 正文文字出现在渲染输出中（正向断言正文被渲染）。"""
+    step = _step(
+        content="<p>正文渲染验证</p>",
+        input_schema={"type": "COMMON"},
+    )
+    out: list = []
+    sections._render_step(step, _data(_proc()), out)
+    texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
+    assert "正文渲染验证" in texts

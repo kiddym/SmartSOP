@@ -17,7 +17,7 @@ import { isAlertType } from '@/utils/editor'
 import type { FormType } from '@/types/node'
 
 function alertBlockClass(t: FormType): string {
-  return t === 'NOTE' ? 'note-block' : t === 'CAUTION' ? 'caution-block' : 'warning-block'
+  return `${t.toLowerCase()}-block`
 }
 
 const props = defineProps<{ modelValue: boolean; procedureId: string }>()
@@ -231,6 +231,7 @@ function onPreviewClick(e: MouseEvent): void {
                 :class="alertBlockClass(b.step.input_schema.type)"
                 v-html="b.step.content"
               />
+              <!-- 数据类型步骤的 content 被有意隐藏（与编辑器"已隐藏正文"提示一致） -->
               <div
                 v-else-if="b.step.input_schema.type === 'COMMON' && b.step.content"
                 class="step-body"

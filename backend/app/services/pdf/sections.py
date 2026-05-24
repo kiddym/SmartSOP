@@ -1,6 +1,6 @@
 """各区段 flowable 构建（pdf-rendering §3/§4/§5/§6 / §59.6·Q364）。
 
-封面 / TOC / 修订记录 / 正文（章节·content·步骤·12 型占位符）/ 附件区段。编号 L1
+封面 / TOC / 修订记录 / 正文（章节·content·步骤·15 型占位符）/ 附件区段。编号 L1
 渲染追加 `.0`（render-only，§47/Q305）；元素前置 `_pdf_key` 供 afterFlowable 收页号。
 """
 
@@ -320,7 +320,7 @@ def _attachment_mark_text(mark: dict[str, Any]) -> str:
 
 
 def _form_placeholder(schema: dict[str, Any]) -> Flowable | None:
-    """执行表单 12 型 → 纸质占位符（§6.3/Q262）。"""
+    """执行表单 15 型 → 纸质占位符（§6.3/Q262）。"""
     t = str(schema.get("type", "COMMON")).upper()
     st = s("step_placeholder")
     if t == "NONE":

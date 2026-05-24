@@ -18,6 +18,8 @@ _ALERT_COLS = ('note', 'caution', 'warning', 'note_schema', 'caution_schema', 'w
 
 
 def upgrade() -> None:
+    # 回填：把旧三警示 HTML 追加进 content。Alembic 版本表保证整体只跑一次；
+    # 即便重跑，旧列清空后 new_content==content，不会重复追加。
     bind = op.get_bind()
     rows = bind.execute(sa.text(
         "SELECT id, content, note, caution, warning FROM tb_procedure_step"

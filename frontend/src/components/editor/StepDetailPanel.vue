@@ -5,7 +5,7 @@ import RichTextEditor from './RichTextEditor.vue'
 import StepFormFields from './StepFormFields.vue'
 import FormFieldPreview from './FormFieldPreview.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
-import { FORM_TYPE_META, isRichTextType } from '@/utils/editor'
+import { FORM_TYPE_META, isAlertType, isRichTextType } from '@/utils/editor'
 import { FORM_TYPES } from '@/types/node'
 import type { AttachmentMark, FormType, InputSchema } from '@/types/node'
 
@@ -48,10 +48,11 @@ function onSchema(schema: InputSchema): void {
 
 const alertClass = computed(() => {
   const t = step.value?.input_schema.type
-  return t === 'NOTE' ? 'alert-note' : t === 'CAUTION' ? 'alert-caution' : t === 'WARNING' ? 'alert-warning' : ''
+  return t && isAlertType(t) ? `alert-${t.toLowerCase()}` : ''
 })
 const hasHiddenBody = computed(() => !!step.value && !isRichTextType(step.value.input_schema.type) && !!step.value.content?.trim())
 
+// NONE 既非富文本也非数据型，切到/从 NONE 无配置可丢，故不触发切换确认。
 function isDataType(t: FormType): boolean {
   return !isRichTextType(t) && t !== 'NONE'
 }
