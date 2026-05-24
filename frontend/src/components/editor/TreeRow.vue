@@ -244,6 +244,9 @@ const typeLabel = computed(() =>
 .bar-orange {
   color: #e6a23c;
 }
+.bar-red {
+  color: #f56c6c;
+}
 .tr-flag {
   color: #e6a23c;
   flex: none;

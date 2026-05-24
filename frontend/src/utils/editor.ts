@@ -160,7 +160,7 @@ export function computeFallback(kind: NodeKind, body: string): string {
 
 export interface FormTypeMeta {
   label: string
-  color: 'gray' | 'blue' | 'purple' | 'cyan' | 'orange'
+  color: 'gray' | 'blue' | 'purple' | 'cyan' | 'orange' | 'red'
 }
 
 export const FORM_TYPE_META: Record<FormType, FormTypeMeta> = {
@@ -176,4 +176,17 @@ export const FORM_TYPE_META: Record<FormType, FormTypeMeta> = {
   PHOTO: { label: '拍照', color: 'orange' },
   SIGNATURE: { label: '签名', color: 'orange' },
   DATE: { label: '日期', color: 'orange' },
+  NOTE: { label: '注意', color: 'blue' },
+  CAUTION: { label: '小心', color: 'orange' },
+  WARNING: { label: '警告', color: 'red' },
+}
+
+// 警示类型（渲染成彩色提示框）与富文本类型（用富文本编辑、绑定 content）。
+export const ALERT_TYPES: readonly FormType[] = ['NOTE', 'CAUTION', 'WARNING']
+export const RICH_TEXT_TYPES: readonly FormType[] = ['COMMON', 'NOTE', 'CAUTION', 'WARNING']
+export function isAlertType(t: FormType): boolean {
+  return ALERT_TYPES.includes(t)
+}
+export function isRichTextType(t: FormType): boolean {
+  return RICH_TEXT_TYPES.includes(t)
 }

@@ -6,9 +6,12 @@ export type ContentType = 'chapter' | 'content'
 // 标记态：编辑器三态 + Word 智能解析留下的持久 'review' 态（apply-marks 不碰，M1 修复）。
 export type MarkStatus = 'unmarked' | 'step' | 'content' | 'review'
 
-// 执行表单 12 型（大写枚举，Q261/§40.1）。
+// 执行表单 12 型 + 三警示型（大写枚举，Q261/§40.1）。
 export type FormType =
   | 'COMMON'
+  | 'NOTE'
+  | 'CAUTION'
+  | 'WARNING'
   | 'CHECK'
   | 'YESNO'
   | 'NUMBER'
@@ -23,6 +26,9 @@ export type FormType =
 
 export const FORM_TYPES: readonly FormType[] = [
   'COMMON',
+  'NOTE',
+  'CAUTION',
+  'WARNING',
   'CHECK',
   'YESNO',
   'NUMBER',
