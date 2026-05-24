@@ -8,6 +8,7 @@ import type {
   FormType,
   NodeKind,
 } from '@/types/node'
+import type { FieldDetailOut, FieldOption } from '@/types/field'
 
 // ---- 临时 id（新建节点；后端按「不在既有集合」判定为新建并返回 id 映射） ---- //
 
@@ -189,4 +190,46 @@ export function isAlertType(t: FormType): boolean {
 }
 export function isRichTextType(t: FormType): boolean {
   return RICH_TEXT_TYPES.includes(t)
+}
+
+// ---- 已废弃自定义字段的历史值（字段归档/删除后值不丢，只读展示，Q255/Q256） ---- //
+
+export interface DeprecatedFieldEntry {
+  key: string
+  label: string
+  value: string
+}
+
+type ArchivedFieldDef = Pick<FieldDetailOut, 'key' | 'name' | 'field_type' | 'options'>
+
+function isEmptyCustomValue(v: unknown): boolean {
+  return v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)
+}
+
+function optionLabel(options: FieldOption[] | undefined, value: unknown): string {
+  return options?.find((o) => o.value === value)?.label ?? String(value)
+}
+
+function formatDeprecatedValue(raw: unknown, def: ArchivedFieldDef | undefined): string {
+  if (Array.isArray(raw)) return raw.map((v) => optionLabel(def?.options, v)).join(', ')
+  if (def?.field_type === 'select') return optionLabel(def.options, raw)
+  return String(raw)
+}
+
+// custom_values 中「仍有非空值、但 key 已不在 active 字段」的条目；标签优先取归档字段名，
+// 字段定义彻底删除时回退为 key。
+export function collectDeprecatedFieldValues(
+  customValues: Record<string, unknown> | null | undefined,
+  activeFieldKeys: Iterable<string>,
+  archivedFields: ArchivedFieldDef[] = [],
+): DeprecatedFieldEntry[] {
+  const active = new Set(activeFieldKeys)
+  const archived = new Map(archivedFields.map((f) => [f.key, f]))
+  const out: DeprecatedFieldEntry[] = []
+  for (const [key, raw] of Object.entries(customValues ?? {})) {
+    if (active.has(key) || isEmptyCustomValue(raw)) continue
+    const def = archived.get(key)
+    out.push({ key, label: def?.name ?? key, value: formatDeprecatedValue(raw, def) })
+  }
+  return out
 }

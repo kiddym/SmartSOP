@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import { listFields } from '@/api/fields'
+import { collectDeprecatedFieldValues } from '@/utils/editor'
 import { LEVEL_OF_USE_LABELS } from '@/utils/format'
 import type { LevelOfUse } from '@/types/procedure'
 import type { FieldDetailOut } from '@/types/field'
@@ -9,6 +11,23 @@ import type { FieldDetailOut } from '@/types/field'
 const store = useProcedureEditorStore()
 const p = computed(() => store.procedure)
 const ro = computed(() => !store.editable)
+
+// 已废弃字段（归档/删除后历史值不丢，只读展示，Q255/Q256）：拉归档字段定义贴标签，失败则回退 key。
+const archivedFields = ref<FieldDetailOut[]>([])
+onMounted(async () => {
+  try {
+    archivedFields.value = await listFields({ status: 'archived' })
+  } catch {
+    archivedFields.value = []
+  }
+})
+const deprecatedEntries = computed(() =>
+  collectDeprecatedFieldValues(
+    p.value?.custom_values ?? {},
+    store.fields.map((f) => f.key),
+    archivedFields.value,
+  ),
+)
 
 function setCustom(key: string, value: unknown): void {
   if (!p.value) return
@@ -168,6 +187,17 @@ function customValLabels(key: string, opts: { value: string; label: string }[]):
         </template>
       </el-form>
     </el-collapse-item>
+
+    <el-collapse-item v-if="deprecatedEntries.length" name="deprecated">
+      <template #title>
+        <span class="deprecated-title">已废弃字段（{{ deprecatedEntries.length }}）</span>
+      </template>
+      <el-form label-width="110px" label-position="left">
+        <el-form-item v-for="e in deprecatedEntries" :key="e.key" :label="e.label">
+          <span class="custom-readonly">{{ e.value }}</span>
+        </el-form-item>
+      </el-form>
+    </el-collapse-item>
   </el-collapse>
 </template>
 
@@ -182,5 +212,8 @@ function customValLabels(key: string, opts: { value: string; label: string }[]):
 .custom-readonly {
   color: var(--el-text-color-regular, #606266);
   word-break: break-word;
+}
+.deprecated-title {
+  color: var(--el-text-color-secondary, #909399);
 }
 </style>

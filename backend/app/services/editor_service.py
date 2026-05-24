@@ -23,7 +23,7 @@ from app.models.procedure import Procedure
 from app.models.step import ProcedureStep
 from app.schemas.node import FORM_TYPES
 from app.schemas.procedure import ProcedureSaveIn
-from app.services import audit_service, numbering_service, optimistic_lock
+from app.services import audit_service, field_service, numbering_service, optimistic_lock
 
 MAX_DEPTH = 3
 CONTENT_MAX_BYTES = 5 * 1024 * 1024
@@ -169,6 +169,9 @@ def save_procedure(
 ) -> tuple[Procedure, dict[str, str]]:
     proc = _get_proc_editable(db, proc_id)
     optimistic_lock.verify_revision(proc.revision, expected_revision)
+
+    # 自定义字段值校验：草稿保存只校验已填值格式，不强制必填（Q367/Q368）
+    field_service.validate_values(db, data.custom_values, require_check=False)
 
     # 1. 程序级元字段
     proc.name = data.name

@@ -43,7 +43,13 @@ from app.schemas.procedure import (
     ProcedureUpdate,
     TransitionIn,
 )
-from app.services import attachment_service, audit_service, optimistic_lock, version_service
+from app.services import (
+    attachment_service,
+    audit_service,
+    field_service,
+    optimistic_lock,
+    version_service,
+)
 from app.services.sequence_generator import next_sequence_value
 
 LEGAL_TRANSITIONS = {("DRAFT", "PUBLISHED"), ("PUBLISHED", "ARCHIVED")}
@@ -197,6 +203,7 @@ def _resolve_leaf_folder(db: Session, folder_id: str) -> Folder:
 # --------------------------------------------------------------------------- #
 def create_procedure(db: Session, data: ProcedureCreate, meta: RequestMeta) -> Procedure:
     folder = _resolve_leaf_folder(db, data.folder_id)
+    field_service.validate_values(db, data.custom_values, require_check=False)
     code = f"{folder.prefix}-{next_sequence_value(db, folder.id)}"
 
     proc = Procedure(
@@ -235,6 +242,7 @@ def update_procedure(
     _assert_not_deprecated(proc)
     _assert_editable(proc)
     optimistic_lock.verify_revision(proc.revision, expected_revision)
+    field_service.validate_values(db, data.custom_values, require_check=False)
 
     before = {
         "name": proc.name,
@@ -291,6 +299,9 @@ def transition(
     # v2+ 发布必须有更新说明（Q178）
     if target == "PUBLISHED" and proc.version > 1 and not proc.version_update_notes.strip():
         raise bad_request("VERSION_UPDATE_NOTES_REQUIRED", "请先填写本次版本的更新说明")
+    # 发布前强制必填自定义字段（Q367/Q368）
+    if target == "PUBLISHED":
+        field_service.validate_values(db, proc.custom_values, require_check=True)
 
     proc.status = target
     if target == "ARCHIVED":
