@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import ImportTreeRow from './ImportTreeRow.vue'
+import ImportMarkingRow from './ImportMarkingRow.vue'
 import type { useImportDialog } from '@/composables/useImportDialog'
 
 const props = defineProps<{ ctx: ReturnType<typeof useImportDialog> }>()
@@ -37,6 +38,14 @@ const visibleRows = computed(() => {
   return allRows.value.filter((r) =>
     `${r.node.title} ${r.node.rich_content}`.toLowerCase().includes(q),
   )
+})
+
+// 平铺标定清单（按搜索过滤；行顺序恒为原文顺序）
+const visibleMarkRows = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  const rows = props.ctx.markRows.value
+  if (!q) return rows
+  return rows.filter((r) => r.label.toLowerCase().includes(q))
 })
 
 function checked(id: string): boolean {
@@ -112,19 +121,13 @@ async function onApplyStepAnnotation(): Promise<void> {
           <span class="ctx-label">「{{ levelOf(ctx.selected.value.id) }} · {{ ctx.selected.value.title || '（无标题）' }}」：</span>
           <el-button size="small" @click="ctx.addChild(ctx.selectedId.value!, 'chapter')">+子章节</el-button>
           <el-button size="small" @click="ctx.addChild(ctx.selectedId.value!, 'content')">+内容</el-button>
-          <el-button size="small" @click="ctx.promoteSelected">⇤ 提升</el-button>
-          <el-button size="small" @click="ctx.demoteSelected">⇥ 降级</el-button>
         </template>
       </template>
 
       <template v-else-if="ctx.mode.value === 'layer-marking'">
-        <el-button size="small" @click="ctx.exitMode">← 退出</el-button>
-        <span class="ctx-label">已选 {{ ctx.markSelection.value.size }} 项：</span>
-        <el-button size="small" :disabled="!ctx.markSelection.value.size" @click="ctx.applyLayerMarking('chapter_1')">→一级</el-button>
-        <el-button size="small" :disabled="!ctx.markSelection.value.size" @click="ctx.applyLayerMarking('chapter_2')">→二级</el-button>
-        <el-button size="small" :disabled="!ctx.markSelection.value.size" @click="ctx.applyLayerMarking('chapter_3')">→三级</el-button>
-        <el-button size="small" :disabled="!ctx.markSelection.value.size" @click="ctx.applyLayerMarking('content')">→正文</el-button>
-        <el-button size="small" :disabled="!ctx.markSelection.value.size" type="info" plain @click="ctx.applyLayerMarking('ignored')">→忽略</el-button>
+        <span class="ctx-label">逐段选择级别（只需改解析错的行）：</span>
+        <span class="spacer" />
+        <el-button size="small" type="primary" @click="ctx.exitMode">完成</el-button>
       </template>
 
       <template v-else>
@@ -136,29 +139,42 @@ async function onApplyStepAnnotation(): Promise<void> {
       </template>
     </div>
 
-    <!-- 树体 -->
+    <!-- 树体 / 平铺标定清单 -->
     <div class="tree-scroll">
-      <ImportTreeRow
-        v-for="row in visibleRows"
-        :key="row.node.id"
-        :node="row.node"
-        :depth="row.depth"
-        :level="ctx.levelMap.value.get(row.node.id) ?? 1"
-        :number="ctx.numberMap.value[row.node.id] ?? ''"
-        :selected="ctx.selectedId.value === row.node.id"
-        :mode="ctx.mode.value"
-        :checked="checked(row.node.id)"
-        :can-move-up="row.canMoveUp"
-        :can-move-down="row.canMoveDown"
-        @select="ctx.mode.value === 'normal' ? ctx.selectNode(row.node.id) : ctx.toggleMarkSelection(row.node.id)"
-        @check="() => ctx.toggleMarkSelection(row.node.id)"
-        @move="(dir) => onMove(row.node.id, dir)"
-        @remove="onRemove(row.node.id)"
-      />
-      <el-empty v-if="!visibleRows.length" description="树为空" :image-size="60" />
+      <template v-if="ctx.mode.value === 'layer-marking'">
+        <ImportMarkingRow
+          v-for="row in visibleMarkRows"
+          :key="row.id"
+          :label="row.label"
+          :role="ctx.roleMap.value.get(row.id) ?? row.defaultRole"
+          :indent="ctx.markIndents.value.get(row.id) ?? 0"
+          @set="(r) => ctx.setRole(row.id, r)"
+        />
+        <el-empty v-if="!visibleMarkRows.length" description="无可标定内容" :image-size="60" />
+      </template>
+      <template v-else>
+        <ImportTreeRow
+          v-for="row in visibleRows"
+          :key="row.node.id"
+          :node="row.node"
+          :depth="row.depth"
+          :level="ctx.levelMap.value.get(row.node.id) ?? 1"
+          :number="ctx.numberMap.value[row.node.id] ?? ''"
+          :selected="ctx.selectedId.value === row.node.id"
+          :mode="ctx.mode.value"
+          :checked="checked(row.node.id)"
+          :can-move-up="row.canMoveUp"
+          :can-move-down="row.canMoveDown"
+          @select="ctx.mode.value === 'normal' ? ctx.selectNode(row.node.id) : ctx.toggleMarkSelection(row.node.id)"
+          @check="() => ctx.toggleMarkSelection(row.node.id)"
+          @move="(dir) => onMove(row.node.id, dir)"
+          @remove="onRemove(row.node.id)"
+        />
+        <el-empty v-if="!visibleRows.length" description="树为空" :image-size="60" />
+      </template>
     </div>
 
-    <!-- 底部忽略区 -->
+    <!-- 底部忽略区（保留：仅展示/恢复，已无新增入口） -->
     <div v-if="ctx.ignored.value.length" class="ignored-bar">
       <el-collapse>
         <el-collapse-item :title="`已忽略 (${ctx.ignored.value.length} 项)`" name="ig">

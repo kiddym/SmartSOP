@@ -173,11 +173,6 @@ function onKey(ev: KeyboardEvent): void {
     ev.preventDefault()
     return
   }
-  if (ev.key === 'Tab' && ctx.selectedId.value) {
-    if (ev.shiftKey) ctx.promoteSelected()
-    else ctx.demoteSelected()
-    ev.preventDefault()
-  }
 }
 
 watch(visible, (on) => {

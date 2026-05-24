@@ -84,66 +84,6 @@ describe('useImportDialog 装载与编辑', () => {
     expect(d.selectedId.value).toBeNull()
   })
 
-  it('applyLayerMarking 把 markSelection 内节点设为目标层级', () => {
-    const d = useImportDialog()
-    d.loadParseResult(mkParse([
-      pnode({ id: 'a', children: [pnode({ id: 'a1' })] }),
-    ]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('a1')
-    d.applyLayerMarking('chapter_1')
-    // a1 提升到根
-    expect(d.tree.value.map((n) => n.id)).toEqual(['a', 'a1'])
-    expect(d.mode.value).toBe('normal') // 应用后退出模式
-  })
-
-  it('applyLayerMarking 多选标二级：与点选顺序无关，都挂到首章节下', () => {
-    const d = useImportDialog()
-    d.loadParseResult(mkParse([pnode({ id: 'A' }), pnode({ id: 'B' }), pnode({ id: 'C' })]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('C') // 故意从下往上点
-    d.toggleMarkSelection('B')
-    d.applyLayerMarking('chapter_2')
-    expect(d.levelMap.value.get('B')).toBe(2)
-    expect(d.levelMap.value.get('C')).toBe(2)
-    expect(d.tree.value.find((n) => n.id === 'A')?.children.map((n) => n.id)).toEqual(['B', 'C'])
-  })
-
-  it('applyLayerMarking 前驱为正文时不把章节嵌进正文', () => {
-    const d = useImportDialog()
-    d.loadParseResult(mkParse([
-      pnode({ id: 'X', content_type: 'content', rich_content: '<p>正文</p>' }),
-      pnode({ id: 'B' }),
-    ]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('B')
-    d.applyLayerMarking('chapter_2')
-    const x = d.tree.value.find((n) => n.id === 'X')
-    expect(x?.children.some((c) => c.id === 'B')).toBe(false)
-    expect(d.numberMap.value.B).toBeTruthy()
-  })
-
-  it('applyLayerMarking →正文 把节点类型改 content', () => {
-    const d = useImportDialog()
-    d.loadParseResult(mkParse([pnode({ id: 'a' })]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('a')
-    d.applyLayerMarking('content')
-    expect(d.tree.value[0].content_type).toBe('content')
-  })
-
-  it('applyLayerMarking →忽略 把节点移到 ignored', () => {
-    const d = useImportDialog()
-    d.loadParseResult(mkParse([
-      pnode({ id: 'a' }), pnode({ id: 'b' }),
-    ]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('a')
-    d.applyLayerMarking('ignored')
-    expect(d.tree.value.map((n) => n.id)).toEqual(['b'])
-    expect(d.ignored.value.map((n) => n.id)).toEqual(['a'])
-  })
-
   it('applyStepAnnotation 设置 mark_status 为 step', () => {
     const d = useImportDialog()
     d.loadParseResult(mkParse([pnode({ id: 'a' }), pnode({ id: 'b' })]))
@@ -159,11 +99,78 @@ describe('useImportDialog 装载与编辑', () => {
   it('restoreIgnored 把单个忽略项恢复到根末尾', () => {
     const d = useImportDialog()
     d.loadParseResult(mkParse([pnode({ id: 'a' })]))
-    d.toggleLayerMarking()
-    d.toggleMarkSelection('a')
-    d.applyLayerMarking('ignored')
-    d.restoreIgnored('a')
-    expect(d.tree.value.map((n) => n.id)).toEqual(['a'])
+    // 直接预置一个忽略项（标定模式不再提供忽略入口）
+    d.ignored.value = [{
+      id: 'z', title: 'Z', content_type: 'chapter', rich_content: '',
+      skip_numbering: false, mark_status: 'unmarked', confidence_tier: 'high', children: [],
+    }]
+    d.restoreIgnored('z')
+    expect(d.tree.value.map((n) => n.id)).toEqual(['a', 'z'])
     expect(d.ignored.value).toHaveLength(0)
+  })
+
+  it('层级标定：setRole 改级别，离开模式时统一生效', () => {
+    const d = useImportDialog()
+    d.loadParseResult(mkParse([pnode({ id: 'a' }), pnode({ id: 'b' })]))
+    d.toggleLayerMarking()
+    expect(d.mode.value).toBe('layer-marking')
+    expect(d.roleMap.value.get('b')).toBe('chapter_1') // 预填默认
+    d.setRole('b', 'chapter_2')
+    d.toggleLayerMarking() // 离开 → 生效
+    expect(d.mode.value).toBe('normal')
+    expect(d.levelMap.value.get('b')).toBe(2)
+    expect(d.tree.value.find((n) => n.id === 'a')?.children.map((n) => n.id)).toEqual(['b'])
+  })
+
+  it('层级标定：切到步骤标注也会生效改动', () => {
+    const d = useImportDialog()
+    d.loadParseResult(mkParse([pnode({ id: 'a' })]))
+    d.toggleLayerMarking()
+    d.setRole('a', 'content')
+    d.toggleStepAnnotation() // 切走 → 应已生效
+    expect(d.tree.value[0].content_type).toBe('content')
+  })
+
+  it('markRows 预填解析级别；markIndents 按字面级别给缩进', () => {
+    const d = useImportDialog()
+    d.loadParseResult(mkParse([
+      pnode({ id: 'a', children: [pnode({ id: 'a1', content_type: 'content', rich_content: '<p>x</p>' })] }),
+    ]))
+    d.toggleLayerMarking()
+    expect(d.markRows.value.map((r) => r.id)).toEqual(['a', 'a1'])
+    expect(d.roleMap.value.get('a')).toBe('chapter_1')
+    expect(d.roleMap.value.get('a1')).toBe('content')
+    expect(d.markIndents.value.get('a')).toBe(0)
+    expect(d.markIndents.value.get('a1')).toBe(1)
+  })
+
+  it('exitMode 直接调用也应用 roleMap（完成按钮路径）', () => {
+    const d = useImportDialog()
+    d.loadParseResult(mkParse([pnode({ id: 'a' }), pnode({ id: 'b' })]))
+    d.toggleLayerMarking()
+    d.setRole('b', 'chapter_2')
+    d.exitMode()
+    expect(d.mode.value).toBe('normal')
+    expect(d.levelMap.value.get('b')).toBe(2)
+  })
+
+  it('空树进入层级标定：markRows 为空', () => {
+    const d = useImportDialog()
+    d.toggleLayerMarking()
+    expect(d.mode.value).toBe('layer-marking')
+    expect(d.markRows.value).toEqual([])
+    expect(d.markIndents.value.size).toBe(0)
+  })
+
+  it('layer-marking 中重置（loadParseResult）清空标定状态，不残留旧 baseline', () => {
+    const d = useImportDialog()
+    d.loadParseResult(mkParse([pnode({ id: 'a' }), pnode({ id: 'b' })]))
+    d.toggleLayerMarking()
+    d.setRole('b', 'chapter_2')
+    d.loadParseResult(mkParse([pnode({ id: 'x' })])) // 重置核心动作
+    expect(d.mode.value).toBe('normal')
+    expect(d.roleMap.value.size).toBe(0)
+    expect(d.markingBaseline.value).toBeNull()
+    expect(d.tree.value.map((n) => n.id)).toEqual(['x'])
   })
 })

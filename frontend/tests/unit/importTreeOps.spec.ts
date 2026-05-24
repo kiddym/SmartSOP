@@ -4,10 +4,8 @@ import {
   addSiblingNode,
   buildWizardTree,
   computeLevelMap,
-  demoteNode,
   extractIgnored,
   findParent,
-  promoteNode,
   restoreFromIgnored,
   setMarkStatus,
 } from '@/utils/importTree'
@@ -96,35 +94,6 @@ describe('importTree 新增操作', () => {
     expect(next[0].children[2].id).toBe('a2')
   })
 
-  it('promoteNode 把子节点提升到父的同级（紧跟父之后）', () => {
-    const tree = sample()
-    // a1 提升 → a 之后变成 a, a1, b（a1a 仍是 a1 的子）
-    const next = promoteNode(tree, 'a1')
-    expect(next.map((n) => n.id)).toEqual(['a', 'a1', 'b'])
-    expect(next[0].children.map((c) => c.id)).toEqual(['a2'])
-    expect(next[1].children.map((c) => c.id)).toEqual(['a1a'])
-  })
-
-  it('promoteNode 根节点 no-op', () => {
-    const tree = sample()
-    const next = promoteNode(tree, 'a')
-    expect(next).toEqual(tree)
-  })
-
-  it('demoteNode 把节点降为前一个同级的最后一个子', () => {
-    const tree = sample()
-    // a2 降级 → 变成 a1 的子（在 a1a 后）
-    const next = demoteNode(tree, 'a2')
-    expect(next[0].children.map((c) => c.id)).toEqual(['a1'])
-    expect(next[0].children[0].children.map((c) => c.id)).toEqual(['a1a', 'a2'])
-  })
-
-  it('demoteNode 同级首位 no-op（无前一个同级）', () => {
-    const tree = sample()
-    const next = demoteNode(tree, 'a1')
-    expect(next).toEqual(tree)
-  })
-
   it('setMarkStatus 设置单节点 mark_status', () => {
     const tree = sample()
     const next = setMarkStatus(tree, 'a1', 'step')
@@ -152,12 +121,6 @@ describe('importTree 新增操作', () => {
     const [stripped, removed] = extractIgnored(tree, ['a1'])
     const restored = restoreFromIgnored(stripped, removed)
     expect(restored.map((n) => n.id)).toEqual(['a', 'b', 'a1'])
-  })
-
-  it('demoteNode 根级首位 no-op', () => {
-    const tree = sample()
-    const next = demoteNode(tree, 'a') // 'a' is first at root, no previous sibling
-    expect(next).toEqual(tree)
   })
 
   it('addSiblingNode 不存在的 id 返回原树', () => {

@@ -4,25 +4,26 @@ import type { ContentType, MarkStatus } from '@/types/node'
 import {
   addChildNode,
   addSiblingNode,
-  applyLayerRole,
+  buildTreeFromRoles,
   buildWizardTree,
+  cloneTree,
   computeChapterNumbers,
   computeLevelMap,
+  computeMarkIndents,
   countReview,
   deleteNode,
-  demoteNode,
-  extractIgnored,
   findNode,
+  flattenForMarking,
   moveNode,
-  promoteNode,
   restoreFromIgnored,
   setMarkStatus,
   updateNode,
+  type LayerRole,
+  type MarkRow,
   type WizardNode,
 } from '@/utils/importTree'
 
 export type ImportDialogMode = 'normal' | 'layer-marking' | 'step-annotation'
-type LayerRole = 'chapter_1' | 'chapter_2' | 'chapter_3' | 'content' | 'ignored'
 
 export function useImportDialog() {
   // ---- 文件 / 解析 ---- //
@@ -40,6 +41,10 @@ export function useImportDialog() {
   const mode = ref<ImportDialogMode>('normal')
   const markSelection = ref<Set<string>>(new Set())
 
+  // ---- 层级标定（平铺逐段） ---- //
+  const roleMap = ref<Map<string, LayerRole>>(new Map())
+  const markingBaseline = ref<WizardNode[] | null>(null)
+
   // ---- 表单 ---- //
   const form = reactive({ name: '', folder_id: '' })
 
@@ -48,27 +53,56 @@ export function useImportDialog() {
   const levelMap = computed(() => computeLevelMap(tree.value))
   const numberMap = computed(() => computeChapterNumbers(tree.value))
   const reviewCount = computed(() => countReview(tree.value))
+  const markRows = computed<MarkRow[]>(() =>
+    markingBaseline.value ? flattenForMarking(markingBaseline.value) : [],
+  )
+  const markIndents = computed(() => computeMarkIndents(markRows.value, roleMap.value))
 
   // ---- 模式切换 ---- //
+  // 离开层级标定（任何方式：完成 / 再点按钮 / Esc / 切到步骤标注）统一以 baseline 为基准重建，
+  // 改动总会保留；没有"丢弃"路径，整体反悔用「↺ 重置」。
+  function applyAndClearMarking(): void {
+    if (markingBaseline.value) {
+      tree.value = buildTreeFromRoles(markingBaseline.value, roleMap.value)
+    }
+    roleMap.value = new Map()
+    markingBaseline.value = null
+  }
+
   function exitMode(): void {
+    if (mode.value === 'layer-marking') applyAndClearMarking()
     mode.value = 'normal'
+    markSelection.value = new Set()
+  }
+
+  function enterLayerMarking(): void {
+    markingBaseline.value = cloneTree(tree.value)
+    const m = new Map<string, LayerRole>()
+    for (const r of flattenForMarking(markingBaseline.value)) m.set(r.id, r.defaultRole)
+    roleMap.value = m
+    mode.value = 'layer-marking'
     markSelection.value = new Set()
   }
 
   function toggleLayerMarking(): void {
     if (mode.value === 'layer-marking') exitMode()
-    else {
-      mode.value = 'layer-marking'
+    else enterLayerMarking()
+  }
+
+  function toggleStepAnnotation(): void {
+    if (mode.value === 'step-annotation') {
+      exitMode()
+    } else {
+      exitMode() // 若正处于层级标定，先统一生效再切换
+      mode.value = 'step-annotation'
       markSelection.value = new Set()
     }
   }
 
-  function toggleStepAnnotation(): void {
-    if (mode.value === 'step-annotation') exitMode()
-    else {
-      mode.value = 'step-annotation'
-      markSelection.value = new Set()
-    }
+  function setRole(id: string, role: LayerRole): void {
+    const next = new Map(roleMap.value)
+    next.set(id, role)
+    roleMap.value = next
   }
 
   function toggleMarkSelection(id: string): void {
@@ -88,6 +122,10 @@ export function useImportDialog() {
     tree.value = buildWizardTree(res.chapters)
     ignored.value = []
     selectedId.value = null
+    mode.value = 'normal'
+    markSelection.value = new Set()
+    roleMap.value = new Map()
+    markingBaseline.value = null
     if (!form.name) {
       form.name = filename.value.replace(/\.docx$/i, '').trim()
     }
@@ -108,16 +146,6 @@ export function useImportDialog() {
     selectedId.value = null
   }
 
-  function promoteSelected(): void {
-    if (!selectedId.value) return
-    tree.value = promoteNode(tree.value, selectedId.value)
-  }
-
-  function demoteSelected(): void {
-    if (!selectedId.value) return
-    tree.value = demoteNode(tree.value, selectedId.value)
-  }
-
   function addChild(parentId: string | null, type: ContentType): void {
     tree.value = addChildNode(tree.value, parentId, type)
   }
@@ -129,25 +157,6 @@ export function useImportDialog() {
   function updateSelectedFields(patch: { title?: string; skip_numbering?: boolean; mark_status?: MarkStatus }): void {
     if (!selectedId.value) return
     tree.value = updateNode(tree.value, selectedId.value, patch)
-  }
-
-  // ---- 层级标定动作 ---- //
-  // 标定走「重建」语义（见 importTree.applyLayerRole）：顺序无关、子树整体平移、
-  // 不可达层级夹紧、绝不把章节嵌进正文、内容↔章节互转保数据。
-  function applyLayerMarking(role: LayerRole): void {
-    const ids = [...markSelection.value]
-    if (ids.length === 0) return
-
-    if (role === 'ignored') {
-      const [next, removed] = extractIgnored(tree.value, ids)
-      tree.value = next
-      ignored.value = [...ignored.value, ...removed]
-      exitMode()
-      return
-    }
-
-    tree.value = applyLayerRole(tree.value, ids, role)
-    exitMode()
   }
 
   // ---- 步骤标注动作 ---- //
@@ -165,7 +174,7 @@ export function useImportDialog() {
     exitMode()
   }
 
-  // ---- 忽略项恢复 ---- //
+  // ---- 忽略项恢复（保留：删除走普通模式永久删除，恢复机制不变） ---- //
   function restoreIgnored(id: string): void {
     const idx = ignored.value.findIndex((n) => n.id === id)
     if (idx === -1) return
@@ -189,16 +198,15 @@ export function useImportDialog() {
     // state
     file, uploadToken, filename, parseResult,
     tree, ignored, selectedId, mode, markSelection, form,
+    roleMap, markingBaseline,
     // derived
-    selected, levelMap, numberMap, reviewCount,
+    selected, levelMap, numberMap, reviewCount, markRows, markIndents,
     // mode
     toggleLayerMarking, toggleStepAnnotation, exitMode,
-    toggleMarkSelection, clearMarkSelection,
+    toggleMarkSelection, clearMarkSelection, setRole,
     // tree actions
     loadParseResult, selectNode, moveSelected, deleteSelected,
-    promoteSelected, demoteSelected, addChild, addSibling, updateSelectedFields,
-    // layer marking
-    applyLayerMarking,
+    addChild, addSibling, updateSelectedFields,
     // step annotation
     applyStepAnnotation, clearStepAnnotation,
     // ignored
