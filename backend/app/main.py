@@ -21,13 +21,16 @@ from app.logging_config import configure_logging
 from app.middleware import RequestIdMiddleware
 from app.routers import (
     attachments,
+    audit_logs,
     chapters,
+    fields,
     folders,
     parse,
     procedure_groups,
     procedures,
     steps,
 )
+from app.routers import settings as settings_router
 
 logger = logging.getLogger(__name__)
 
@@ -79,12 +82,15 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 app.include_router(folders.router)
+app.include_router(audit_logs.router)
 app.include_router(procedures.router)
 app.include_router(procedure_groups.router)
 app.include_router(chapters.router)
 app.include_router(steps.router)
 app.include_router(parse.router)
 app.include_router(attachments.router)
+app.include_router(fields.router)
+app.include_router(settings_router.router)
 
 
 @app.get("/healthz", tags=["health"])

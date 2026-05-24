@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { LEVEL_OF_USE_LABELS } from '@/utils/format'
 import type { LevelOfUse } from '@/types/procedure'
+import type { FieldDetailOut } from '@/types/field'
 
 // 程序详情折叠面板（§1.2 / Q162）：元字段 + 自定义字段，折叠收纳。
 const store = useProcedureEditorStore()
@@ -13,9 +14,25 @@ function setCustom(key: string, value: unknown): void {
   if (!p.value) return
   store.setMetaField('custom_values', { ...p.value.custom_values, [key]: value })
 }
-function customVal(key: string): string {
+function customVal(key: string): unknown {
+  const v = p.value?.custom_values?.[key]
+  return v === undefined || v === null ? '' : v
+}
+function customValStr(key: string): string {
   const v = p.value?.custom_values?.[key]
   return v === undefined || v === null ? '' : String(v)
+}
+function customValArr(key: string): string[] {
+  const v = p.value?.custom_values?.[key]
+  if (Array.isArray(v)) return v as string[]
+  return []
+}
+function fieldOpts(f: Pick<FieldDetailOut, 'options'>): Array<{ value: string; label: string }> {
+  return f.options.map(o => ({ value: o.value, label: o.label }))
+}
+function customValLabels(key: string, opts: { value: string; label: string }[]): string {
+  const vals = customValArr(key)
+  return vals.map(v => opts.find(o => o.value === v)?.label ?? v).join(', ')
 }
 </script>
 
@@ -49,7 +66,104 @@ function customVal(key: string): string {
         <template v-if="store.fields.length">
           <el-divider content-position="left">自定义字段</el-divider>
           <el-form-item v-for="f in store.fields" :key="f.id" :label="f.name" :required="f.required">
-            <el-input :model-value="customVal(f.key)" :disabled="ro" @input="(v: string) => setCustom(f.key, v)" />
+            <!-- read-only: plain text display -->
+            <template v-if="ro">
+              <span v-if="f.field_type === 'text' || f.field_type === 'textarea' || f.field_type === 'number' || f.field_type === 'date'" class="custom-readonly">{{ customValStr(f.key) }}</span>
+              <span v-else-if="f.field_type === 'select'" class="custom-readonly">{{ fieldOpts(f).find(o => o.value === customValStr(f.key))?.label ?? customValStr(f.key) }}</span>
+              <span v-else-if="f.field_type === 'multi_select' || f.field_type === 'checkbox'" class="custom-readonly">{{ customValLabels(f.key, fieldOpts(f)) }}</span>
+              <span v-else class="custom-readonly">{{ customValStr(f.key) }}</span>
+            </template>
+
+            <!-- text -->
+            <el-input
+              v-else-if="f.field_type === 'text'"
+              :model-value="customValStr(f.key)"
+              type="text"
+              @input="(v: string) => setCustom(f.key, v)"
+            />
+
+            <!-- textarea -->
+            <el-input
+              v-else-if="f.field_type === 'textarea'"
+              :model-value="customValStr(f.key)"
+              type="textarea"
+              :rows="3"
+              @input="(v: string) => setCustom(f.key, v)"
+            />
+
+            <!-- number -->
+            <el-input-number
+              v-else-if="f.field_type === 'number'"
+              :model-value="customVal(f.key) === '' ? undefined : Number(customVal(f.key))"
+              @change="(v: number | undefined) => setCustom(f.key, v)"
+            />
+
+            <!-- date -->
+            <el-date-picker
+              v-else-if="f.field_type === 'date'"
+              :model-value="customValStr(f.key)"
+              type="date"
+              value-format="YYYY-MM-DD"
+              @update:model-value="(v: string | null) => setCustom(f.key, v ?? '')"
+            />
+
+            <!-- select -->
+            <el-select
+              v-else-if="f.field_type === 'select'"
+              :model-value="customValStr(f.key)"
+              @update:model-value="(v: string) => setCustom(f.key, v)"
+            >
+              <el-option
+                v-for="opt in fieldOpts(f)"
+                :key="opt.value"
+                :value="opt.value"
+                :label="opt.label"
+              />
+            </el-select>
+
+            <!-- multi_select -->
+            <el-select
+              v-else-if="f.field_type === 'multi_select'"
+              :model-value="customValArr(f.key)"
+              multiple
+              @update:model-value="(v: string[]) => setCustom(f.key, v)"
+            >
+              <el-option
+                v-for="opt in fieldOpts(f)"
+                :key="opt.value"
+                :value="opt.value"
+                :label="opt.label"
+              />
+            </el-select>
+
+            <!-- checkbox: single option → el-switch; multiple options → el-checkbox-group -->
+            <template v-else-if="f.field_type === 'checkbox'">
+              <el-switch
+                v-if="fieldOpts(f).length <= 1"
+                :model-value="Boolean(customVal(f.key))"
+                @update:model-value="(v: boolean) => setCustom(f.key, v)"
+              />
+              <el-checkbox-group
+                v-else
+                :model-value="customValArr(f.key)"
+                @update:model-value="(v: string[]) => setCustom(f.key, v)"
+              >
+                <el-checkbox
+                  v-for="opt in fieldOpts(f)"
+                  :key="opt.value"
+                  :value="opt.value"
+                  :label="opt.label"
+                />
+              </el-checkbox-group>
+            </template>
+
+            <!-- fallback: plain text input -->
+            <el-input
+              v-else
+              :model-value="customValStr(f.key)"
+              type="text"
+              @input="(v: string) => setCustom(f.key, v)"
+            />
           </el-form-item>
         </template>
       </el-form>
@@ -64,5 +178,9 @@ function customVal(key: string): string {
 .row2 {
   display: flex;
   gap: 16px;
+}
+.custom-readonly {
+  color: var(--el-text-color-regular, #606266);
+  word-break: break-word;
 }
 </style>

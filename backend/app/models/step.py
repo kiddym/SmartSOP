@@ -36,6 +36,10 @@ class ProcedureStep(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     note: Mapped[str] = mapped_column(LONGTEXT, default="", server_default="")
     caution: Mapped[str] = mapped_column(LONGTEXT, default="", server_default="")
     warning: Mapped[str] = mapped_column(LONGTEXT, default="", server_default="")
+    # 三警示执行表单类型（与 input_schema 同构，默认 COMMON 即富文本）
+    note_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    caution_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    warning_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     expected_output: Mapped[str] = mapped_column(Text, default="", server_default="")
     # 步骤级附件标记（仅标记，不嵌文件，Q203）
     attachment_marks: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)

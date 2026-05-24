@@ -79,3 +79,11 @@ docker-compose.override.yml
 
 # Font build scratch dir (downloads + instancing scripts; assets/fonts holds the committed subset)
 _font_tmp/
+
+# Run-time scratch (machine-local)
+*.pid
+backend/var/
+backend-init-log.txt
+backend-pip-freeze.txt
+frontend-npm-install.txt
+frontend-package-list.json

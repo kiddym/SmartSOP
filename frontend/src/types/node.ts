@@ -79,6 +79,9 @@ export interface StepOut {
   note: string
   caution: string
   warning: string
+  note_schema: InputSchema
+  caution_schema: InputSchema
+  warning_schema: InputSchema
   expected_output: string
   require_confirmation: boolean
   attachment_marks: AttachmentMark[]
@@ -120,6 +123,9 @@ export interface StepUpsert {
   note: string
   caution: string
   warning: string
+  note_schema: InputSchema
+  caution_schema: InputSchema
+  warning_schema: InputSchema
   expected_output: string
   require_confirmation: boolean
   attachment_marks: AttachmentMark[]
@@ -184,6 +190,9 @@ export interface EditorStep {
   note: string
   caution: string
   warning: string
+  note_schema: InputSchema
+  caution_schema: InputSchema
+  warning_schema: InputSchema
   expected_output: string
   require_confirmation: boolean
   attachment_marks: AttachmentMark[]

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import datetime as dt
 import re
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -146,8 +146,13 @@ def list_fields(
 
 
 def options_data(db: Session) -> list[ProcedureField]:
-    """active 字段（供 /procedure-fields/options 渲染表单；router 投影非归档选项）。"""
+    """active 字段（供 /procedure-fields/options 渲染表单）。"""
     return list_fields(db, status="active")
+
+
+def active_options(field: ProcedureField) -> list[dict[str, Any]]:
+    """过滤 archived 选项（Q255）：archived=True 的选项不暴露给前端。"""
+    return [o for o in (field.options or []) if not o.get("archived")]
 
 
 def get_or_404(db: Session, field_id: str) -> ProcedureField:
@@ -241,7 +246,7 @@ def _dedup(ids: list[str]) -> list[str]:
     return out
 
 
-def update_status(db: Session, ids: list[str], status: str) -> list[str]:
+def update_status(db: Session, ids: list[str], status: Literal["active", "archived"]) -> list[str]:
     rows = list(
         db.execute(
             select(ProcedureField).where(

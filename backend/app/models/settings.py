@@ -23,3 +23,5 @@ class ProcedureSettings(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     require_read_confirmation: Mapped[bool] = mapped_column(default=False, server_default="0")
     default_risk_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     default_quality_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    # 乐观锁版本号（Q18 / data-model §4.6）
+    revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

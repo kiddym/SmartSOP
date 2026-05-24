@@ -42,8 +42,15 @@ const visibleRows = computed<FlatRow[]>(() => {
   return rows.filter((r) => keep.has(r.id))
 })
 
-// ---- 虚拟滚动（节点 > 50 自动；本实现恒用窗口化，覆盖大树性能） ---- //
+const VIRTUAL_THRESHOLD = 50
+
+// ---- 虚拟滚动（节点 > 50 自动；小树直接渲染，避免容器未测高时窗口为空） ---- //
 const { list, containerProps, wrapperProps } = useVirtualList(visibleRows, { itemHeight: 30 })
+const renderedRows = computed<FlatRow[]>(() => {
+  if (visibleRows.value.length <= VIRTUAL_THRESHOLD) return visibleRows.value
+  return list.value.map((item) => item.data)
+})
+const useVirtualRows = computed(() => visibleRows.value.length > VIRTUAL_THRESHOLD)
 
 // 同组首/末判定（上下移按钮 disabled）。
 const moveFlags = computed(() => {
@@ -331,32 +338,32 @@ defineExpose({ focusSearch })
     </div>
 
     <div v-bind="containerProps" class="tree-scroll">
-      <div v-bind="wrapperProps">
+      <div v-bind="useVirtualRows ? wrapperProps : {}">
         <TreeRow
-          v-for="item in list"
-          :key="item.data.id"
-          :row="item.data"
-          :selected="store.selectedId === item.data.id"
+          v-for="row in renderedRows"
+          :key="row.id"
+          :row="row"
+          :selected="store.selectedId === row.id"
           :mark-mode="store.markMode"
-          :selected-for-mark="markSel.has(item.data.id)"
-          :add-state="addStateFor(item.data)"
+          :selected-for-mark="markSel.has(row.id)"
+          :add-state="addStateFor(row)"
           :editable="store.editable"
-          :can-move-up="moveFlags.get(item.data.id)?.up ?? false"
-          :can-move-down="moveFlags.get(item.data.id)?.down ?? false"
-          :can-promote="item.data.kind !== 'step' && store.canPromoteChapter(item.data.id)"
-          :can-demote="item.data.kind !== 'step' && store.canDemoteChapter(item.data.id)"
-          :drop-hint="overId === item.data.id ? overHint : ''"
-          @select="onSelect(item.data)"
-          @toggle="store.toggleExpanded(item.data.id)"
-          @add="(kind) => onAdd(item.data.id, kind)"
-          @move="(dir) => store.reorder(item.data.id, dir)"
-          @promote="void store.promoteChapter(item.data.id)"
-          @demote="void store.demoteChapter(item.data.id)"
-          @remove="onRemove(item.data)"
-          @check="(shift) => onCheck(item.data, shift)"
-          @dragstart="(ev) => onDragStart(item.data, ev)"
-          @dragover="(ev) => onDragOver(item.data, ev)"
-          @drop="onDrop(item.data)"
+          :can-move-up="moveFlags.get(row.id)?.up ?? false"
+          :can-move-down="moveFlags.get(row.id)?.down ?? false"
+          :can-promote="row.kind !== 'step' && store.canPromoteChapter(row.id)"
+          :can-demote="row.kind !== 'step' && store.canDemoteChapter(row.id)"
+          :drop-hint="overId === row.id ? overHint : ''"
+          @select="onSelect(row)"
+          @toggle="store.toggleExpanded(row.id)"
+          @add="(kind) => onAdd(row.id, kind)"
+          @move="(dir) => store.reorder(row.id, dir)"
+          @promote="void store.promoteChapter(row.id)"
+          @demote="void store.demoteChapter(row.id)"
+          @remove="onRemove(row)"
+          @check="(shift) => onCheck(row, shift)"
+          @dragstart="(ev) => onDragStart(row, ev)"
+          @dragover="(ev) => onDragOver(row, ev)"
+          @drop="onDrop(row)"
           @dragend="resetDrag"
         />
       </div>

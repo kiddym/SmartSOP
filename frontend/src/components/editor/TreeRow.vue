@@ -59,7 +59,7 @@ const typeLabel = computed(() =>
   <div
     class="tr"
     :class="[{ 'tr--selected': selected }, dropHint ? `tr--drop-${dropHint}` : '']"
-    :style="{ paddingLeft: `${row.depth * 16 + 6}px` }"
+    :style="{ boxSizing: 'border-box', paddingLeft: `${row.depth * 16 + 6}px` }"
     :draggable="editable && !markMode"
     @click="emit('select')"
     @dragstart="emit('dragstart', $event)"

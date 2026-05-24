@@ -238,8 +238,7 @@ export function resolveFieldValue(field: ProcedureFieldView, raw: unknown): stri
   if (raw == null || raw === '' || (Array.isArray(raw) && raw.length === 0)) return ''
   const opts = new Map<string, string>()
   for (const o of field.options ?? []) {
-    const v = String((o as Record<string, unknown>).value ?? '')
-    opts.set(v, String((o as Record<string, unknown>).label ?? v))
+    opts.set(o.value, o.label)
   }
   if (field.field_type === 'select') return opts.get(String(raw)) ?? String(raw)
   if (field.field_type === 'multi_select' || field.field_type === 'checkbox') {

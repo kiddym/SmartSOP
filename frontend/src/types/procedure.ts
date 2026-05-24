@@ -1,6 +1,7 @@
 // 程序类型（与后端 app/schemas/procedure.py 对齐）
 
 import type { ChapterTreeNode, ChapterUpsert, StepOut, StepUpsert } from '@/types/node'
+import type { FieldOption, FieldType } from '@/types/field'
 
 export type LevelOfUse = 'reference' | 'continuous' | 'information'
 export type ProcedureStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
@@ -56,9 +57,9 @@ export interface ProcedureFieldView {
   id: string
   name: string
   key: string
-  field_type: string
+  field_type: FieldType
   required: boolean
-  options: Array<Record<string, unknown>>
+  options: FieldOption[]
   sort_order: number
   show_on_cover: boolean
 }

@@ -47,6 +47,11 @@ describe('TreeRow', () => {
     expect(w.text()).toContain('安全须知')
   })
 
+  it('uses border-box sizing so virtual row height stays at 30px', () => {
+    const w = mountRow(row())
+    expect(getComputedStyle(w.find('.tr').element).boxSizing).toBe('border-box')
+  })
+
   it('标题为空时显示回退文案', () => {
     const w = mountRow(row({ title: '' }))
     expect(w.text()).toContain('(未命名章节)')

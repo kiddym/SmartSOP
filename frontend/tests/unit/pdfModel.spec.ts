@@ -18,7 +18,8 @@ function step(partial: Partial<StepOut>): StepOut {
   return {
     id: 's1', procedure_id: 'p', chapter_id: 'c1', title: '步骤', code: '1.1', content: '',
     sort_order: 0, skip_numbering: false, input_schema: { type: 'COMMON' }, note: '', caution: '',
-    warning: '', expected_output: '', require_confirmation: false, attachment_marks: [],
+    warning: '', note_schema: { type: 'COMMON' }, caution_schema: { type: 'COMMON' },
+    warning_schema: { type: 'COMMON' }, expected_output: '', require_confirmation: false, attachment_marks: [],
     ...partial,
   }
 }
