@@ -81,24 +81,23 @@ def test_full_standard_flow(client: TestClient, storage_tmp: Path) -> None:
     assert served.content  # 有字节
 
 
-def test_smart_unstyled_review_blocks_import(client: TestClient, storage_tmp: Path) -> None:
+def test_smart_unstyled_review_carried_into_draft(client: TestClient, storage_tmp: Path) -> None:
     leaf = _leaf(client)
     token = _upload(client, unstyled_numbered_sop())
     parsed = client.post(PARSE, json={"upload_token": token, "parse_mode": "smart"}).json()
     assert parsed["review_required"] >= 2
-    assert parsed["detected_patterns"]
 
-    # 带 review 直接导入 → 422
-    blocked = client.post(
-        IMPORT, json={"name": "x", "folder_id": leaf, "chapters": parsed["chapters"]}
+    # 带 review 直接导入：不再拦截，建成 DRAFT 草稿
+    ok = client.post(
+        IMPORT, json={"name": "带待确认", "folder_id": leaf, "chapters": parsed["chapters"]}
     )
-    assert blocked.status_code == 422
-    assert blocked.json()["detail"]["code"] == "REVIEW_NOT_CLEARED"
-
-    # 用户确认（清掉 review）后可导入
-    cleared = _clear_review(parsed["chapters"])
-    ok = client.post(IMPORT, json={"name": "已确认程序", "folder_id": leaf, "chapters": cleared})
     assert ok.status_code == 201, ok.text
+    pid = ok.json()["id"]
+
+    # review 状态带进草稿：至少一个章节 mark_status == 'review'
+    detail = client.get(f"/api/v1/procedures/{pid}").json()
+    flat = _flatten(detail["chapters"])
+    assert any(n["mark_status"] == "review" for n in flat), "review 应带入草稿"
 
 
 def test_standard_no_styled_heading_rejected(client: TestClient, storage_tmp: Path) -> None:
@@ -258,11 +257,3 @@ def _flatten(nodes: list[dict]) -> list[dict]:
         out.append(n)
         out.extend(_flatten(n.get("children", [])))
     return out
-
-
-def _clear_review(nodes: list[dict]) -> list[dict]:
-    for n in nodes:
-        if n.get("mark_status") == "review":
-            n["mark_status"] = "unmarked"
-        _clear_review(n.get("children", []))
-    return nodes

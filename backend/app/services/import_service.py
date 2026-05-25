@@ -2,7 +2,7 @@
 
 把 /parse 返回（用户审查后）的 chapters[] 落库为新程序：创建程序骨架 → 递归建
 章节树（§19：chapter 标题容器 + content 子节点）→ 临时图按 sha256 提升为永久
-asset 并改写 URL → 整树重算编号 → 重建 asset 引用。import 前必须清空 review。
+asset 并改写 URL → 整树重算编号 → 重建 asset 引用。review 节点直接带入草稿。
 """
 
 from __future__ import annotations
@@ -44,12 +44,6 @@ def import_procedure(
     name = name.strip()
     if not name:
         raise unprocessable("VALIDATION_FAILED", "程序名不能为空", field="name")
-    if _has_review(chapters):
-        raise unprocessable(
-            "REVIEW_NOT_CLEARED",
-            "存在未确认的 review 节点，导入前必须全部确认/降级",
-            field="chapters",
-        )
 
     proc = procedure_service.create_procedure(
         db,
@@ -96,7 +90,7 @@ def _create_node(
         level=level,
         sort_order=sort_order,
         skip_numbering=node.skip_numbering,
-        mark_status="unmarked",
+        mark_status="review" if node.mark_status == "review" else "unmarked",
     )
     db.add(row)
     db.flush()
@@ -115,7 +109,3 @@ def _promote_temp_urls(db: Session, procedure_id: str, html: str) -> str:
         return f'src="{asset_service.asset_url(procedure_id, asset.id)}"'
 
     return _TEMP_SRC_RE.sub(repl, html)
-
-
-def _has_review(nodes: list[ImportNodeIn]) -> bool:
-    return any(n.mark_status == "review" or _has_review(n.children) for n in nodes)
