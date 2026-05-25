@@ -41,6 +41,13 @@ function onChange(v: string | number | boolean): void {
 }
 .mr:hover { background: #f5f7fa; }
 .mr-roles { flex: none; }
+/* 三层对比：未选中淡化退后 / 选中加粗最强 / 内容作阅读锚点 */
+.mr-roles :deep(.el-radio-button:not(.is-active) .el-radio-button__inner) {
+  color: var(--el-text-color-placeholder);
+}
+.mr-roles :deep(.el-radio-button.is-active .el-radio-button__inner) {
+  font-weight: 600;
+}
 .mr-title {
   flex: 0 1 auto;
   min-width: 0;
@@ -48,5 +55,6 @@ function onChange(v: string | number | boolean): void {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #303133;
+  font-weight: 500;
 }
 </style>
