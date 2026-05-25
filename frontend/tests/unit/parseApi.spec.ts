@@ -6,6 +6,7 @@ vi.mock('@/api/http', () => ({ http: { get, post } }))
 
 import {
   fetchParseMethods,
+  importFromWord,
   importProcedure,
   parseDocx,
   uploadAsset,
@@ -74,6 +75,25 @@ describe('parse api', () => {
     }
     await importProcedure(payload)
     expect(post).toHaveBeenCalledWith('/procedures/import', payload)
+  })
+
+  it('importFromWord 串 upload→parse→import 并按序回报阶段', async () => {
+    post.mockImplementation((url: string) => {
+      if (url === '/uploads') return Promise.resolve({ data: { upload_token: 'tk' } })
+      if (url === '/parse') return Promise.resolve({ data: { chapters: [{ title: 'x' }] } })
+      return Promise.resolve({ data: { id: 'p1', code: 'QC-1' } }) // /procedures/import
+    })
+    const stages: string[] = []
+    const out = await importFromWord(
+      new File([new Uint8Array([1])], 'a.docx'),
+      'f1',
+      '名',
+      (s) => stages.push(s),
+    )
+    expect(out.id).toBe('p1')
+    expect(stages).toEqual(['uploading', 'parsing', 'creating'])
+    const importCall = post.mock.calls.find((c) => c[0] === '/procedures/import')
+    expect(importCall?.[1]).toMatchObject({ name: '名', folder_id: 'f1', upload_token: 'tk' })
   })
 
   it('uploadAsset 以 multipart 发到 /procedures/{id}/assets', async () => {

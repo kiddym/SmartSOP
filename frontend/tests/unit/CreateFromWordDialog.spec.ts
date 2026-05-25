@@ -100,7 +100,7 @@ describe('CreateFromWordDialog', () => {
     await setFolder(wrapper, 'f1')
     await clickSubmit(wrapper)
     await flushPromises()
-    expect(importFromWord).toHaveBeenCalledWith(file, 'f1', '记录控制')
+    expect(importFromWord).toHaveBeenCalledWith(file, 'f1', '记录控制', expect.any(Function))
     expect(wrapper.emitted('imported')?.[0]).toEqual(['p9'])
     expect(wrapper.emitted('update:modelValue')?.some((e) => e[0] === false)).toBe(true)
   })
@@ -115,5 +115,6 @@ describe('CreateFromWordDialog', () => {
     expect(importFromWord).toHaveBeenCalled()
     expect(wrapper.emitted('imported')).toBeUndefined()
     expect(wrapper.emitted('update:modelValue')?.some((e) => e[0] === false)).toBeFalsy()
+    expect(wrapper.text()).toContain('导入失败') // 内联错误而非仅 toast
   })
 })

@@ -48,14 +48,23 @@ export const parseDocx = async (
 export const importProcedure = async (payload: ImportRequest): Promise<ProcedureMeta> =>
   (await http.post<ProcedureMeta>('/procedures/import', payload)).data
 
+export type ImportStage = 'uploading' | 'parsing' | 'creating'
+
 // 从 Word 一步创建草稿：upload→parse→import（triage 移到编辑器，故此处无标定）。
+// onStage 回报阶段（uploading 带 0-100 上传百分比），供对话框展示分阶段进度。
 export const importFromWord = async (
   file: File,
   folderId: string,
   name: string,
+  onStage?: (stage: ImportStage, uploadPct?: number) => void,
 ): Promise<ProcedureMeta> => {
-  const up = await uploadDocx(file)
+  onStage?.('uploading', 0)
+  const up = await uploadDocx(file, (e) => {
+    if (e.total) onStage?.('uploading', Math.round((e.loaded / e.total) * 100))
+  })
+  onStage?.('parsing')
   const parsed = await parseDocx(up.upload_token, 'smart')
+  onStage?.('creating')
   return importProcedure({
     name,
     folder_id: folderId,
