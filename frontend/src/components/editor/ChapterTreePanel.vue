@@ -36,8 +36,12 @@ const reviewFilter = ref(false)
 // ---- 缺标题过滤 + 导航 ---- //
 const missingFilter = ref(false)
 function gotoNextMissing(): void {
-  const id = nextRowId(store.flatRows, store.selectedId, (r) => r.kind === 'chapter' && !r.title.trim())
-  if (id) store.selectNode(id)
+  // 用 chapterDocRows（与折叠无关），并展开祖先把目标滚入可见。
+  const id = nextRowId(store.chapterDocRows, store.selectedId, (r) => r.kind === 'chapter' && !r.title.trim())
+  if (id) {
+    store.expandAncestors(id)
+    store.selectNode(id)
+  }
 }
 
 function keepWithAncestors(rows: FlatRow[], pred: (r: FlatRow) => boolean): FlatRow[] {

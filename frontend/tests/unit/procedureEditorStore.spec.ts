@@ -24,6 +24,7 @@ vi.mock('@/api/procedures', () => ({
 }))
 
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import { nextRowId } from '@/utils/reviewNav'
 import type { EditorChapter, EditorStep } from '@/types/node'
 import type { ProcedureMeta } from '@/types/procedure'
 
@@ -528,6 +529,19 @@ describe('缺标题 + 展开祖先', () => {
     expect(s.expanded.p).toBe(true)
     expect(s.expanded.g).toBe(true)
     expect(s.expanded.c ?? false).toBe(false) // 只展开祖先，不含自身
+  })
+
+  it('chapterDocRows 按文档序、与折叠无关（折叠分支里的缺标题章节仍可命中）', () => {
+    setActivePinia(createPinia())
+    const s = useProcedureEditorStore()
+    s.procedure = meta()
+    const child = chap('c', 'g', 0)
+    child.title = '' // 折叠父级下的缺标题子章节
+    s.chapters = [chap('g', null, 0), child]
+    s.expanded = {} // g 折叠 → flatRows 里没有 c
+    expect(s.flatRows.map((r) => r.id)).toEqual(['g']) // 折叠：c 不在 flatRows
+    expect(s.chapterDocRows.map((r) => r.id)).toEqual(['g', 'c']) // 但 chapterDocRows 含 c
+    expect(nextRowId(s.chapterDocRows, null, (r) => r.kind === 'chapter' && !r.title.trim())).toBe('c')
   })
 })
 

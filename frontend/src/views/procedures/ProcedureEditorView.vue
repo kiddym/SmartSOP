@@ -77,11 +77,13 @@ async function doSave(): Promise<void> {
   if (!store.isDirty) return
   const errors = store.validateForSave()
   if (errors.length) {
-    const firstMissing = store.flatRows.find((r) => r.kind === 'chapter' && !r.title.trim())
-    if (firstMissing) {
-      store.expandAncestors(firstMissing.id)
-      store.selectNode(firstMissing.id)
-      ElMessage.error(`请先补全 ${store.missingTitleCount} 个章节标题，已定位到 ${firstMissing.code}`)
+    // chapterDocRows 与折叠无关，能命中藏在折叠分支里的缺标题章节。
+    const firstMissingId = store.chapterDocRows.find((r) => r.kind === 'chapter' && !r.title.trim())?.id
+    if (firstMissingId) {
+      store.expandAncestors(firstMissingId) // 展开后该行进入 flatRows，可取其 code
+      store.selectNode(firstMissingId)
+      const code = store.flatRows.find((r) => r.id === firstMissingId)?.code ?? ''
+      ElMessage.error(`请先补全 ${store.missingTitleCount} 个章节标题，已定位到 ${code}`)
     } else {
       ElMessage.error(`请先修复：${errors.join('；')}`)
     }

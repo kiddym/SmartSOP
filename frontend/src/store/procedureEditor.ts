@@ -261,6 +261,15 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     missingTitleCount(state): number {
       return state.chapters.filter((c) => c.content_type === 'chapter' && !c.title.trim()).length
     },
+    // 全部「章节/内容」按文档序（与折叠无关，含 title），供缺标题定位/导航——
+    // 不能用 flatRows，它会剔除折叠分支里的节点（漏掉藏在折叠章节里的缺标题章节）。
+    chapterDocRows(): { id: string; kind: 'chapter' | 'content'; title: string }[] {
+      return this.layerRows.map((r) => ({
+        id: r.id,
+        kind: r.content_type === 'content' ? 'content' : 'chapter',
+        title: this.chapterMap.get(r.id)?.title ?? '',
+      }))
+    },
     selectedChapter(state): EditorChapter | null {
       return state.selectedId ? (this.chapterMap.get(state.selectedId) ?? null) : null
     },
@@ -762,7 +771,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       for (const [id, u] of updates) {
         const ch = this.chapterMap.get(id)
         if (!ch) continue
-        // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType/promote/demote 一致）。
+        // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType 一致）。
         if (ch.mark_status === 'review') clearReview.push(id)
         ch.parent_id = u.parent_id
         ch.content_type = u.content_type
