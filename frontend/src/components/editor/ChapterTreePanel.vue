@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import TreeRow from './TreeRow.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { getAddButtonState, isTempId } from '@/utils/editor'
+import { nextReviewId } from '@/utils/reviewNav'
 import type { EditorChapter, EditorStep, FlatRow, NodeKind } from '@/types/node'
 
 const store = useProcedureEditorStore()
@@ -26,14 +27,12 @@ function rowParent(id: string): string | null {
   return store.stepMap.get(id)?.chapter_id ?? null
 }
 
-const visibleRows = computed<FlatRow[]>(() => {
-  const q = debounced.value.trim().toLowerCase()
-  const rows = store.flatRows
-  if (!q) return rows
+// ---- review 过滤 + 导航 ---- //
+const reviewFilter = ref(false)
+
+function keepWithAncestors(rows: FlatRow[], pred: (r: FlatRow) => boolean): FlatRow[] {
   const keep = new Set<string>()
-  for (const r of rows) {
-    if (`${r.code} ${r.title} ${r.fallback}`.toLowerCase().includes(q)) keep.add(r.id)
-  }
+  for (const r of rows) if (pred(r)) keep.add(r.id)
   for (const id of [...keep]) {
     let pid = rowParent(id)
     while (pid) {
@@ -42,6 +41,28 @@ const visibleRows = computed<FlatRow[]>(() => {
     }
   }
   return rows.filter((r) => keep.has(r.id))
+}
+
+function gotoNextReview(): void {
+  const id = nextReviewId(store.flatRows, store.selectedId)
+  if (id) store.selectNode(id)
+}
+
+function acceptAll(): void {
+  if (!reviewCount.value) return
+  ElMessageBox.confirm(`将接受 ${reviewCount.value} 个待确认节点，确认其解析结构无误？`, '全部接受', {
+    type: 'warning',
+  })
+    .then(() => store.acceptAllReviews())
+    .catch(() => {})
+}
+
+const visibleRows = computed<FlatRow[]>(() => {
+  let rows = store.flatRows
+  if (reviewFilter.value) rows = keepWithAncestors(rows, (r) => r.mark_status === 'review')
+  const q = debounced.value.trim().toLowerCase()
+  if (q) rows = keepWithAncestors(rows, (r) => `${r.code} ${r.title} ${r.fallback}`.toLowerCase().includes(q))
+  return rows
 })
 
 const VIRTUAL_THRESHOLD = 50
@@ -315,7 +336,12 @@ defineExpose({ focusSearch })
         placeholder="搜索章节 / 步骤（/ 聚焦）"
         clearable
       />
-      <div v-if="reviewCount" class="review-count" title="解析存疑，待确认">⚠ {{ reviewCount }} 个待确认</div>
+      <div v-if="reviewCount" class="review-bar">
+        <span class="review-count" title="解析存疑，待确认">⚠ {{ reviewCount }} 个待确认</span>
+        <el-button size="small" @click="gotoNextReview">下一个</el-button>
+        <el-button size="small" type="primary" plain @click="acceptAll">全部接受</el-button>
+        <el-checkbox v-model="reviewFilter" size="small">只看待确认</el-checkbox>
+      </div>
       <div v-if="store.editable && !store.markMode" class="root-add">
         <span class="root-add-label">根级：</span>
         <el-button size="small" :disabled="!rootAddState.canAddChapter" @click="onAdd(null, 'chapter')">
@@ -400,10 +426,15 @@ defineExpose({ focusSearch })
   font-size: 12px;
   color: #909399;
 }
+.review-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .review-count {
   font-size: 12px;
   color: #e6a23c;
-  padding: 2px 0;
 }
 .tree-scroll {
   flex: 1;
