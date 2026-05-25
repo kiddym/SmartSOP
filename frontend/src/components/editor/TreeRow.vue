@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { FORM_TYPE_META } from '@/utils/editor'
 import type { AddButtonState, FlatRow } from '@/types/node'
 
@@ -44,9 +44,6 @@ const colorClass = computed(() => {
 const display = computed(() => (props.row.title.trim() ? props.row.title : props.row.fallback))
 const titleFallback = computed(() => !props.row.title.trim())
 const missingTitle = computed(() => props.row.kind === 'chapter' && !props.row.title.trim())
-const moreOpen = ref(false)
-function toggleMore() { moreOpen.value = !moreOpen.value }
-function doRemove() { moreOpen.value = false; emit('remove') }
 const typeColor = computed(() =>
   props.row.kind === 'step' && props.row.form_type ? FORM_TYPE_META[props.row.form_type].color : '',
 )
@@ -109,12 +106,14 @@ const typeLabel = computed(() =>
       </el-dropdown>
       <el-button size="small" text :disabled="!canMoveUp" title="上移" @click="emit('move', 'up')">↑</el-button>
       <el-button size="small" text :disabled="!canMoveDown" title="下移" @click="emit('move', 'down')">↓</el-button>
-      <span class="more-wrap">
-        <el-button size="small" text class="more-trigger" title="更多" @click="toggleMore">⋮</el-button>
-        <ul v-if="moreOpen" class="el-dropdown-menu more-menu" @click.stop>
-          <li class="el-dropdown-menu__item" @click="doRemove">删除</li>
-        </ul>
-      </span>
+      <el-dropdown trigger="click" :persistent="false" @command="() => emit('remove')">
+        <el-button size="small" text class="more-trigger" title="更多">⋮</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="remove">删除</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
     </span>
   </div>
 </template>
@@ -251,24 +250,5 @@ const typeLabel = computed(() =>
   height: 100%;
   display: inline-flex;
   align-items: center;
-}
-.more-wrap {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-}
-.more-menu {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  z-index: 1000;
-  background: #fff;
-  border: 1px solid var(--el-border-color-light, #e4e7ed);
-  border-radius: 4px;
-  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
-  padding: 4px 0;
-  list-style: none;
-  margin: 0;
-  min-width: 80px;
 }
 </style>

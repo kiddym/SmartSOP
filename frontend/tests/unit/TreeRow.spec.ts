@@ -81,14 +81,13 @@ describe('TreeRow', () => {
     expect(wct.find('.tr-missing-tag').exists()).toBe(false)
   })
 
-  it('⋮ 菜单点「删除」派发 remove', async () => {
+  it('⋮ 触发器渲染，且其下拉 command 派发 remove', () => {
     const w = mountRow(row())
-    // 打开 ⋮ 下拉（trigger=click），菜单 teleport 到 body
-    await w.find('.more-trigger').trigger('click')
-    const items = Array.from(document.querySelectorAll('.el-dropdown-menu__item')) as HTMLElement[]
-    const del = items.find((el) => el.textContent?.includes('删除'))
-    expect(del).toBeTruthy()
-    del!.click()
+    expect(w.find('.more-trigger').exists()).toBe(true)
+    // el-dropdown 的弹层经 popper 异步挂载，jsdom 不渲染；直接验证我方接线：
+    // ⋮ 下拉（结构上为末个 el-dropdown）的 @command → emit('remove')。
+    const dropdowns = w.findAllComponents({ name: 'ElDropdown' })
+    dropdowns[dropdowns.length - 1].vm.$emit('command', 'remove')
     expect(w.emitted('remove')).toBeTruthy()
   })
 })
