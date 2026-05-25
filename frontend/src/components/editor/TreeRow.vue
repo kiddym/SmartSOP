@@ -88,7 +88,6 @@ const typeLabel = computed(() =>
 
     <span v-if="row.mark_status === 'review'" class="tr-review" title="解析存疑，待确认">待确认</span>
     <span v-if="typeColor" class="tr-typebar" :class="`bar-${typeColor}`" :title="typeLabel">▮</span>
-    <span v-if="row.require_confirmation" class="tr-flag" title="需操作员确认">⚠</span>
 
     <span v-if="editable && !markMode" class="tr-actions" @click.stop>
       <el-button
@@ -247,10 +246,6 @@ const typeLabel = computed(() =>
 }
 .bar-red {
   color: #f56c6c;
-}
-.tr-flag {
-  color: #e6a23c;
-  flex: none;
 }
 .tr-review {
   flex: none;

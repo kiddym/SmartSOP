@@ -82,6 +82,14 @@ function customValLabels(key: string, opts: { value: string; label: string }[]):
           <el-input :model-value="p.version_update_notes" type="textarea" :rows="2" maxlength="10000" :disabled="ro" @input="(v: string) => store.setMetaField('version_update_notes', v)" />
         </el-form-item>
 
+        <el-form-item label="PDF 签字栏">
+          <el-switch
+            :model-value="p.signoff_enabled"
+            :disabled="ro"
+            @change="(v: string | number | boolean) => store.setMetaField('signoff_enabled', !!v)"
+          />
+        </el-form-item>
+
         <template v-if="store.fields.length">
           <el-divider content-position="left">自定义字段</el-divider>
           <el-form-item v-for="f in store.fields" :key="f.id" :label="f.name" :required="f.required">

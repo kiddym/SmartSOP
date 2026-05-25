@@ -15,7 +15,6 @@ function row(overrides: Partial<FlatRow> = {}): FlatRow {
     skip_numbering: false,
     mark_status: 'unmarked',
     form_type: null,
-    require_confirmation: false,
     has_children: false,
     expanded: false,
     fallback: '(未命名章节)',
@@ -87,7 +86,7 @@ describe('TreeRow', () => {
         id: 'r1', kind, depth: 1, parent_id: 'p1',
         title: '测试', code: '1.0', skip_numbering: false,
         mark_status: 'unmarked', form_type: null,
-        require_confirmation: false, has_children: false,
+        has_children: false,
         expanded: false, fallback: '',
       }
     }

@@ -24,6 +24,7 @@ function meta(): ProcedureMeta {
     level_of_use: 'continuous',
     custom_values: {},
     version_update_notes: '',
+    signoff_enabled: false,
     revision: 3,
     is_read: false,
     read_at: null,

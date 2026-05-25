@@ -12,7 +12,6 @@ const fr = (id: string, kind: FlatRow['kind'], parent: string | null): FlatRow =
   skip_numbering: false,
   mark_status: 'unmarked',
   form_type: null,
-  require_confirmation: false,
   has_children: false,
   expanded: false,
   fallback: '',

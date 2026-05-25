@@ -134,13 +134,6 @@ async function onTypeChange(next: FormType): Promise<void> {
             <div v-if="hasHiddenBody" class="hidden-body-hint">已隐藏正文（切回「通用 / 注意 / 小心 / 警告」可恢复）</div>
           </template>
 
-          <el-checkbox
-            :model-value="step.require_confirmation"
-            :disabled="ro"
-            @change="(v: string | number | boolean) => upd({ require_confirmation: !!v })"
-          >
-            需要操作员确认
-          </el-checkbox>
         </el-form>
       </el-collapse-item>
 

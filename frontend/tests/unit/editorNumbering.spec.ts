@@ -27,7 +27,6 @@ function st(id: string, chapterId: string | null, sort: number, skip = false): E
     title: id,
     content: '',
     input_schema: { type: 'COMMON' },
-    require_confirmation: false,
     attachment_marks: [],
     skip_numbering: skip,
     sort_order: sort,
