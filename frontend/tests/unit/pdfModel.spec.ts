@@ -18,7 +18,7 @@ function step(partial: Partial<StepOut>): StepOut {
   return {
     id: 's1', procedure_id: 'p', chapter_id: 'c1', title: '步骤', code: '1.1', content: '',
     sort_order: 0, skip_numbering: false, input_schema: { type: 'COMMON' },
-    require_confirmation: false, attachment_marks: [],
+    attachment_marks: [],
     ...partial,
   }
 }
@@ -30,6 +30,7 @@ function detail(): ProcedureDetail {
       is_current: true, status: 'PUBLISHED', folder_id: 'f', folder_full_path: '根/质检',
       description: '', risk_level: 3, quality_level: 2, level_of_use: 'continuous',
       custom_values: {}, version_update_notes: '本次新增检查', revision: 0, is_read: false,
+      signoff_enabled: false,
       read_at: null, deprecated_from_folder_id: null, deprecated_at: null, archived_at: null,
       version_change_log: [
         { version: 2, change_type: 'publish', changed_at: '2026-05-20T10:00:00Z', description: '发布 v2' },
@@ -147,6 +148,13 @@ describe('buildModel', () => {
   it('页 label 来自 layout.page_labels', () => {
     const m = buildModel(detail(), layout())
     expect(m.contentPages[0].label).toBe('1')
+  })
+
+  it('exposes signoffEnabled from procedure', () => {
+    const d = detail()
+    d.procedure.signoff_enabled = true
+    const model = buildModel(d, layout())
+    expect(model.signoffEnabled).toBe(true)
   })
 })
 

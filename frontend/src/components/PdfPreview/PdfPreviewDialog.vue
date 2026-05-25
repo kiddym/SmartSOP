@@ -32,8 +32,6 @@ const loading = ref(false)
 const downloading = ref(false)
 const detail = ref<ProcedureDetail | null>(null)
 const model = ref<PreviewModel | null>(null)
-// 勾选 state（仅前端临时，刷新即丢，Q213）
-const checked = ref<Set<string>>(new Set())
 
 const meta = computed(() => detail.value?.procedure ?? null)
 const watermarkText = computed(() => {
@@ -47,7 +45,6 @@ const watermarkClass = computed(() => {
 
 watch(visible, async (open) => {
   if (!open) return
-  checked.value = new Set()
   loading.value = true
   try {
     const [d, l] = await Promise.all([
@@ -63,13 +60,6 @@ watch(visible, async (open) => {
     loading.value = false
   }
 })
-
-function toggle(key: string): void {
-  const next = new Set(checked.value)
-  if (next.has(key)) next.delete(key)
-  else next.add(key)
-  checked.value = next
-}
 
 function levelOfUse(): string {
   const m = meta.value
@@ -242,13 +232,10 @@ function onPreviewClick(e: MouseEvent): void {
               </p>
               <p v-if="execText(b.step)" class="exec">{{ execText(b.step) }}</p>
               <p
-                v-if="b.step.require_confirmation"
+                v-if="model.signoffEnabled && !isAlertType(b.step.input_schema.type)"
                 class="signoff"
-                :class="{ checked: checked.has(b.key) }"
-                @click.stop="toggle(b.key)"
               >
-                <span class="box">{{ checked.has(b.key) ? '☑' : '□' }}</span>
-                已确认完成 签名: __________ 日期: __________
+                签字: __________ 日期: __________
               </p>
             </div>
           </template>
@@ -494,11 +481,7 @@ h3.chapter-title {
   margin: 4px 0;
 }
 .signoff {
-  cursor: pointer;
-  user-select: none;
-}
-.signoff.checked {
-  color: #15803d;
+  text-align: right;
 }
 .muted {
   color: #888;

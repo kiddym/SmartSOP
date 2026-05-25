@@ -63,6 +63,7 @@ export interface PreviewModel {
   attachmentsPage: number | null
   // 附件区段标题：用户自建「附件」章节时为 null（标题已在正文章节渲染），否则为虚拟章节标题
   attachmentChapterTitle: string | null
+  signoffEnabled: boolean
 }
 
 export interface AttachmentRow {
@@ -308,5 +309,6 @@ export function buildModel(detail: ProcedureDetail, layout: PdfLayout): PreviewM
     attachments,
     attachmentsPage: layout.attachments_page,
     attachmentChapterTitle: attachments.length ? attachmentChapterTitle(detail) : null,
+    signoffEnabled: detail.procedure.signoff_enabled,
   }
 }
