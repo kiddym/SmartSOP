@@ -57,3 +57,47 @@ export function sanitizeCols(v: unknown): ColWidths {
   }
   return { ...COL_DEFAULTS }
 }
+
+/** 折叠后竖条宽度，像素。 */
+export const RAIL_PX = 32
+
+/** 左/右栏的折叠状态（中栏不可折叠）。 */
+export interface CollapseState {
+  left: boolean
+  right: boolean
+}
+
+/** 三列的 flex 值与两个分隔条的可见性。 */
+export interface ColFlex {
+  left: string
+  mid: string
+  right: string
+  showLM: boolean
+  showMR: boolean
+}
+
+/**
+ * 由列宽百分比 + 折叠状态算出三列 flex 与分隔条可见性。
+ * 可见列用 `"<pct> 1 0%"`（flex-grow 按比例瓜分剩余空间）；
+ * 折叠列用 `"0 0 ${RAIL_PX}px"` 固定细条；折叠那侧分隔条隐藏。
+ */
+export function colFlex(c: ColWidths, s: CollapseState): ColFlex {
+  const rail = `0 0 ${RAIL_PX}px`
+  return {
+    left: s.left ? rail : `${c.left} 1 0%`,
+    mid: `${c.mid} 1 0%`,
+    right: s.right ? rail : `${rightOf(c)} 1 0%`,
+    showLM: !s.left,
+    showMR: !s.right,
+  }
+}
+
+/** 校验持久化折叠状态；任一字段非布尔即按 false，整体非对象回退全展开。 */
+export function sanitizeCollapsed(v: unknown): CollapseState {
+  if (typeof v !== 'object' || v === null) return { left: false, right: false }
+  const o = v as Record<string, unknown>
+  return {
+    left: o.left === true,
+    right: o.right === true,
+  }
+}
