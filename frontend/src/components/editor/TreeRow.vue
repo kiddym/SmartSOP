@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { FORM_TYPE_META } from '@/utils/editor'
 import type { AddButtonState, FlatRow } from '@/types/node'
 
@@ -13,8 +13,6 @@ interface Props {
   editable: boolean
   canMoveUp: boolean
   canMoveDown: boolean
-  canPromote: boolean
-  canDemote: boolean
   dropHint: '' | 'before' | 'after' | 'inside' | 'invalid'
 }
 const props = defineProps<Props>()
@@ -23,8 +21,6 @@ const emit = defineEmits<{
   (e: 'toggle'): void
   (e: 'add', kind: 'chapter' | 'content' | 'step'): void
   (e: 'move', dir: 'up' | 'down'): void
-  (e: 'promote'): void
-  (e: 'demote'): void
   (e: 'remove'): void
   (e: 'check', shift: boolean): void
   (e: 'dragstart', ev: DragEvent): void
@@ -47,6 +43,10 @@ const colorClass = computed(() => {
 
 const display = computed(() => (props.row.title.trim() ? props.row.title : props.row.fallback))
 const titleFallback = computed(() => !props.row.title.trim())
+const missingTitle = computed(() => props.row.kind === 'chapter' && !props.row.title.trim())
+const moreOpen = ref(false)
+function toggleMore() { moreOpen.value = !moreOpen.value }
+function doRemove() { moreOpen.value = false; emit('remove') }
 const typeColor = computed(() =>
   props.row.kind === 'step' && props.row.form_type ? FORM_TYPE_META[props.row.form_type].color : '',
 )
@@ -58,7 +58,7 @@ const typeLabel = computed(() =>
 <template>
   <div
     class="tr"
-    :class="[{ 'tr--selected': selected }, dropHint ? `tr--drop-${dropHint}` : '']"
+    :class="[{ 'tr--selected': selected, 'tr--missing': missingTitle }, dropHint ? `tr--drop-${dropHint}` : '']"
     :style="{ boxSizing: 'border-box', paddingLeft: `${row.depth * 16 + 6}px` }"
     :draggable="editable && !markMode"
     @click="emit('select')"
@@ -89,63 +89,32 @@ const typeLabel = computed(() =>
     <span v-if="row.mark_status === 'review'" class="tr-review" title="解析存疑，待确认">待确认</span>
     <span v-if="typeColor" class="tr-typebar" :class="`bar-${typeColor}`" :title="typeLabel">▮</span>
 
+    <span v-if="missingTitle" class="tr-missing-tag" title="章节标题为空">缺标题</span>
+
     <span v-if="editable && !markMode" class="tr-actions" @click.stop>
-      <el-button
-        v-if="addState.canAddChapter && row.kind === 'chapter'"
-        size="small"
-        text
-        title="新增子章节"
-        @click="emit('add', 'chapter')"
+      <el-dropdown
+        v-if="addState.canAddChapter || addState.canAddContent || addState.canAddStep"
+        trigger="click"
+        :persistent="false"
+        @command="(c: 'chapter' | 'content' | 'step') => emit('add', c)"
       >
-        +章
-      </el-button>
-      <el-button
-        v-if="addState.canAddContent && row.kind === 'chapter'"
-        size="small"
-        text
-        title="新增内容块"
-        @click="emit('add', 'content')"
-      >
-        +容
-      </el-button>
-      <el-button
-        v-if="addState.canAddStep && row.kind === 'chapter'"
-        size="small"
-        text
-        title="新增步骤"
-        @click="emit('add', 'step')"
-      >
-        +步
-      </el-button>
-      <el-button
-        v-if="row.kind === 'chapter' || row.kind === 'content'"
-        size="small"
-        text
-        :disabled="!canPromote"
-        title="提升层级（Shift+Tab）"
-        @click="emit('promote')"
-      >⇤</el-button>
-      <el-button
-        v-if="row.kind === 'chapter' || row.kind === 'content'"
-        size="small"
-        text
-        :disabled="!canDemote"
-        title="降低层级（Tab）"
-        @click="emit('demote')"
-      >⇥</el-button>
-      <el-button size="small" text :disabled="!canMoveUp" title="上移" @click="emit('move', 'up')">
-        ↑
-      </el-button>
-      <el-button
-        size="small"
-        text
-        :disabled="!canMoveDown"
-        title="下移"
-        @click="emit('move', 'down')"
-      >
-        ↓
-      </el-button>
-      <el-button size="small" text title="删除" @click="emit('remove')">✕</el-button>
+        <el-button size="small" text class="add-trigger">＋新增 ▾</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item :disabled="!addState.canAddChapter" command="chapter">子章节</el-dropdown-item>
+            <el-dropdown-item :disabled="!addState.canAddContent" command="content">内容块</el-dropdown-item>
+            <el-dropdown-item :disabled="!addState.canAddStep" command="step">步骤</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-button size="small" text :disabled="!canMoveUp" title="上移" @click="emit('move', 'up')">↑</el-button>
+      <el-button size="small" text :disabled="!canMoveDown" title="下移" @click="emit('move', 'down')">↓</el-button>
+      <span class="more-wrap">
+        <el-button size="small" text class="more-trigger" title="更多" @click="toggleMore">⋮</el-button>
+        <ul v-if="moreOpen" class="el-dropdown-menu more-menu" @click.stop>
+          <li class="el-dropdown-menu__item" @click="doRemove">删除</li>
+        </ul>
+      </span>
     </span>
   </div>
 </template>
@@ -263,5 +232,43 @@ const typeLabel = computed(() =>
 }
 .tr:hover .tr-actions {
   display: inline-flex;
+}
+.tr--missing {
+  box-shadow: inset 3px 0 0 var(--el-color-warning, #e6a23c);
+  background: #fffaf2;
+}
+.tr-missing-tag {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #b88230;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+}
+.tr-actions .el-dropdown {
+  height: 100%;
+  display: inline-flex;
+  align-items: center;
+}
+.more-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.more-menu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid var(--el-border-color-light, #e4e7ed);
+  border-radius: 4px;
+  box-shadow: 0 2px 12px 0 rgba(0,0,0,.1);
+  padding: 4px 0;
+  list-style: none;
+  margin: 0;
+  min-width: 80px;
 }
 </style>
