@@ -24,6 +24,7 @@ import {
   isTempId,
   recomputeCodes,
 } from '@/utils/editor'
+import { computeLayerUpdates, type LayerRole, type LayerRow } from '@/utils/layerMark'
 import type {
   AddButtonState,
   ChapterTreeNode,
@@ -142,6 +143,7 @@ interface State {
   dirtySteps: Set<string>
   metaDirty: boolean
   markMode: boolean
+  layerMode: boolean
   loading: boolean
   saving: boolean
   loadError: boolean
@@ -163,6 +165,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     dirtySteps: new Set<string>(),
     metaDirty: false,
     markMode: false,
+    layerMode: false,
     loading: false,
     saving: false,
     loadError: false,
@@ -208,6 +211,33 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       }
       walk(null, 1)
       return levels
+    },
+    // 文档序章节/正文行（层级标定面板数据源）。
+    layerRows(): LayerRow[] {
+      const levels = this.levelMap
+      const hasStep = new Set(this.steps.map((s) => s.chapter_id))
+      const byParent = new Map<string | null, EditorChapter[]>()
+      for (const c of this.chapters) {
+        const g = byParent.get(c.parent_id) ?? []
+        g.push(c)
+        byParent.set(c.parent_id, g)
+      }
+      const cmp = (a: EditorChapter, b: EditorChapter): number =>
+        a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1
+      const rows: LayerRow[] = []
+      const walk = (parent: string | null): void => {
+        for (const c of [...(byParent.get(parent) ?? [])].sort(cmp)) {
+          rows.push({
+            id: c.id,
+            content_type: c.content_type,
+            level: levels.get(c.id) ?? 1,
+            hasStepChildren: hasStep.has(c.id),
+          })
+          walk(c.id)
+        }
+      }
+      walk(null)
+      return rows
     },
     // 某 parent 直接子节点的类型集合（Q25）；parentId=null 表示根级。
     childKindsOf(): (parentId: string | null) => NodeKind[] {
@@ -721,9 +751,27 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       if (wasReview) await this.setMark(id, 'unmarked')
     },
 
-    // ---- 标记模式 ---- //
+    // ---- 标记模式 / 层级标定模式（互斥） ---- //
     toggleMarkMode(): void {
       this.markMode = !this.markMode
+      if (this.markMode) this.layerMode = false
+    },
+    toggleLayerMode(): void {
+      this.layerMode = !this.layerMode
+      if (this.layerMode) this.markMode = false
+    },
+    applyLayerRoles(roleMap: Map<string, LayerRole>): void {
+      const updates = computeLayerUpdates(this.layerRows, roleMap)
+      this.pushUndo('layer')
+      for (const [id, u] of updates) {
+        const ch = this.chapterMap.get(id)
+        if (!ch) continue
+        ch.parent_id = u.parent_id
+        ch.content_type = u.content_type
+        ch.sort_order = u.sort_order
+        this.dirtyChapters.add(id)
+      }
+      this.layerMode = false
     },
 
     // 设置单节点 mark_status。调用方须保证 id 为真实 id（临时节点先 ensureSaved 解析）；

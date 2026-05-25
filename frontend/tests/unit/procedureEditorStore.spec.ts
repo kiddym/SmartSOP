@@ -471,3 +471,34 @@ describe('待确认 triage (P2b)', () => {
     expect(markSpy).toHaveBeenCalledWith('a', 'unmarked')
   })
 })
+
+describe('层级标定 (P2c)', () => {
+  it('toggleLayerMode 与 markMode 互斥', () => {
+    const s = seed()
+    s.toggleMarkMode()
+    expect(s.markMode).toBe(true)
+    s.toggleLayerMode()
+    expect(s.layerMode).toBe(true)
+    expect(s.markMode).toBe(false)
+  })
+
+  it('layerRows：文档序含章节/正文、标 hasStepChildren', () => {
+    const s = seed()
+    s.chapters = [chap('a', null, 0), { ...chap('b', 'a', 0), content_type: 'content' }]
+    s.steps = [stp('s1', 'a', 0)]
+    const rows = s.layerRows
+    expect(rows.map((r) => r.id)).toEqual(['a', 'b'])
+    expect(rows.find((r) => r.id === 'a')?.hasStepChildren).toBe(true)
+    expect(rows.find((r) => r.id === 'b')?.content_type).toBe('content')
+  })
+
+  it('applyLayerRoles 把 b 提为一级章节并置脏、退出模式', () => {
+    const s = seed()
+    s.chapters = [chap('a', null, 0), chap('b', 'a', 0)]
+    s.layerMode = true
+    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    expect(s.chapterMap.get('b')?.parent_id).toBeNull()
+    expect(s.dirtyChapters.has('b')).toBe(true)
+    expect(s.layerMode).toBe(false)
+  })
+})
