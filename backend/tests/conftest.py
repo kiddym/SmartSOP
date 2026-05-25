@@ -137,22 +137,18 @@ class Factory:
         procedure_id: str,
         title: str = "章节",
         parent_id: str | None = None,
-        content_type: str = "chapter",
         sort_order: int = 0,
         level: int = 1,
         skip_numbering: bool = False,
-        rich_content: str = "",
         mark_status: str = "unmarked",
     ) -> ProcedureChapter:
         node = ProcedureChapter(
             procedure_id=procedure_id,
             parent_id=parent_id,
             title=title,
-            content_type=content_type,
             sort_order=sort_order,
             level=level,
             skip_numbering=skip_numbering,
-            rich_content=rich_content,
             mark_status=mark_status,
         )
         self.db.add(node)
@@ -168,6 +164,7 @@ class Factory:
         sort_order: int = 0,
         skip_numbering: bool = False,
         input_schema: dict[str, object] | None = None,
+        kind: str = "step",
     ) -> ProcedureStep:
         node = ProcedureStep(
             procedure_id=procedure_id,
@@ -177,6 +174,7 @@ class Factory:
             sort_order=sort_order,
             skip_numbering=skip_numbering,
             input_schema=input_schema if input_schema is not None else {"type": "COMMON"},
+            kind=kind,
         )
         self.db.add(node)
         self.db.commit()

@@ -4,7 +4,7 @@
 
 - chapter，skip_numbering=False：参与编号，code = 父 code + '.' + 连续序号；L1 无父前缀 → 'N'。
 - chapter，skip_numbering=True：自身 code=''，整个子树静默（code 全空），且**不占序号位**（Q306）。
-- content：永远 code=''，**不占序号位**（Q15）。
+- step，kind='content'：永远 code=''，**不占序号位**（Q15）。
 - step，skip_numbering=False：code = 父 chapter.code + '.' + 同级 step 连续序号；
   根级 step（chapter_id 为空）无前缀 → 'N'；可达 4 段 `1.1.1.1`（Q308）。
 - step，skip_numbering=True：code=''，不占序号位。
@@ -57,7 +57,7 @@ def recompute(db: Session, procedure_id: str) -> None:
     def number_steps(chapter_id: str | None, prefix: str, silent: bool) -> None:
         seq = 0
         for st in steps_by_chapter.get(chapter_id, []):
-            if silent or st.skip_numbering:
+            if silent or st.skip_numbering or st.kind == "content":
                 st.code = ""
                 continue
             seq += 1
@@ -66,12 +66,6 @@ def recompute(db: Session, procedure_id: str) -> None:
     def number_chapters(parent_id: str | None, parent_code: str, silent: bool) -> None:
         seq = 0
         for ch in children.get(parent_id, []):
-            if ch.content_type == "content":
-                # content 永远无号、不占位、强制叶子（递归仅作防御）
-                ch.code = ""
-                number_chapters(ch.id, "", True)
-                number_steps(ch.id, "", True)
-                continue
             if silent or ch.skip_numbering:
                 ch.code = ""
                 number_chapters(ch.id, "", True)

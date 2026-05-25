@@ -57,16 +57,18 @@ def test_skip_chapter_not_counted_and_subtree_silent(db: Session, factory: Facto
 
 
 def test_content_nodes_never_numbered_and_dont_consume(db: Session, factory: Factory) -> None:
+    """内容块 step（kind='content'）无号且不占步骤序号位。"""
     pid = _proc(factory)
-    a = factory.chapter(pid, title="一", sort_order=0)
-    x = factory.chapter(pid, content_type="content", rich_content="<p>说明</p>", sort_order=1)
-    b = factory.chapter(pid, title="二", sort_order=2)
+    ch = factory.chapter(pid, title="操作", sort_order=0)
+    s1 = factory.step(pid, chapter_id=ch.id, title="第一步", sort_order=0)
+    x = factory.step(pid, chapter_id=ch.id, content="<p>说明</p>", sort_order=1, kind="content")
+    s2 = factory.step(pid, chapter_id=ch.id, title="第二步", sort_order=2)
     numbering_service.recompute(db, pid)
-    for n in (a, x, b):
+    for n in (s1, x, s2):
         db.refresh(n)
-    assert a.code == "1"
-    assert x.code == ""  # content 永远无号
-    assert b.code == "2"  # content 不占序号位
+    assert s1.code == "1.1"
+    assert x.code == ""   # content 块永远无号
+    assert s2.code == "1.2"  # content 不占序号位
 
 
 def test_step_code_is_parent_chapter_code_plus_seq(db: Session, factory: Factory) -> None:
@@ -124,3 +126,17 @@ def test_steps_under_skip_chapter_are_silent(db: Session, factory: Factory) -> N
     numbering_service.recompute(db, pid)
     db.refresh(s)
     assert s.code == ""
+
+
+def test_content_step_unnumbered_and_not_counted(db: Session, factory: Factory) -> None:
+    pid = _proc(factory)
+    ch = factory.chapter(pid, title="操作", sort_order=0, level=1)
+    s1 = factory.step(pid, chapter_id=ch.id, title="第一步", sort_order=0)
+    c = factory.step(pid, chapter_id=ch.id, content="<p>说明</p>", sort_order=1, kind="content")
+    s2 = factory.step(pid, chapter_id=ch.id, title="第二步", sort_order=2)
+    numbering_service.recompute(db, pid)
+    for s in (s1, c, s2):
+        db.refresh(s)
+    assert s1.code == "1.1"
+    assert c.code == ""        # 内容块不编号
+    assert s2.code == "1.2"    # 内容块不占序号位
