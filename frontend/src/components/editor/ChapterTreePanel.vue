@@ -5,9 +5,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import TreeRow from './TreeRow.vue'
 import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
-import { getAddButtonState, isTempId } from '@/utils/editor'
+import { isTempId } from '@/utils/editor'
 import { nextReviewId } from '@/utils/reviewNav'
-import type { EditorChapter, EditorStep, FlatRow, NodeKind } from '@/types/node'
+import { buildSelection } from '@/utils/batchMark'
+import { computeDrop, validDrop, type DndTree } from '@/utils/treeDnd'
+import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
 
 const store = useProcedureEditorStore()
 
@@ -132,7 +134,12 @@ async function onRemove(row: FlatRow): Promise<void> {
   }
 }
 
-// ---- 拖拽 ---- //
+// ---- 拖拽（纯决策见 utils/treeDnd） ---- //
+const dndTree = computed<DndTree>(() => ({
+  chapters: store.chapters,
+  steps: store.steps,
+  levelMap: store.levelMap,
+}))
 const dragId = ref<string | null>(null)
 const overId = ref<string | null>(null)
 const overHint = ref<'' | 'before' | 'after' | 'inside' | 'invalid'>('')
@@ -140,49 +147,6 @@ function resetDrag(): void {
   dragId.value = null
   overId.value = null
   overHint.value = ''
-}
-function kindOf(id: string): NodeKind {
-  const c = store.chapterMap.get(id)
-  if (c) return c.content_type === 'content' ? 'content' : 'chapter'
-  return 'step'
-}
-function siblingsOf(parentId: string | null, asChapter: boolean): (EditorChapter | EditorStep)[] {
-  const cmp = (a: { sort_order: number; id: string }, b: { sort_order: number; id: string }): number =>
-    a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1
-  return asChapter
-    ? [...store.chapters.filter((c) => c.parent_id === parentId)].sort(cmp)
-    : [...store.steps.filter((s) => s.chapter_id === parentId)].sort(cmp)
-}
-// 被拖章节子树的章节嵌套高度（仅计 content_type==='chapter'；content/step 为叶子不计）。
-function subtreeChapterHeight(id: string): number {
-  const kids = store.chapters.filter((c) => c.parent_id === id && c.content_type === 'chapter')
-  return kids.length ? 1 + Math.max(...kids.map((k) => subtreeChapterHeight(k.id))) : 1
-}
-function validDrop(id: string, target: FlatRow, hint: 'before' | 'after' | 'inside'): boolean {
-  if (id === target.id) return false
-  const parentId = hint === 'inside' ? target.id : target.parent_id
-  const dragged = kindOf(id)
-  // 不得拖入自身子树（章节循环）。
-  if (store.chapterMap.has(id)) {
-    const sub = store.collectSubtree(id)
-    if (parentId && sub.has(parentId)) return false
-  }
-  // 'inside' 仅对 chapter 容器有效。
-  if (hint === 'inside' && target.kind !== 'chapter') return false
-  // 章节最大嵌套 3 级（§2.4 / CHAPTER_DEPTH_EXCEEDED）：新位层级 + 子树高度 - 1 ≤ 3。
-  if (dragged === 'chapter') {
-    const parentLevel = parentId ? (store.levelMap.get(parentId) ?? 1) : 0
-    if (parentLevel + 1 + subtreeChapterHeight(id) - 1 > 3) return false
-  }
-  // Q25：目标 parent 现有子类型（排除被拖节点）+ 被拖类型不得混排。
-  const kinds: NodeKind[] = []
-  for (const c of store.chapters)
-    if (c.parent_id === parentId && c.id !== id) kinds.push(c.content_type === 'content' ? 'content' : 'chapter')
-  for (const s of store.steps) if (s.chapter_id === parentId && s.id !== id) kinds.push('step')
-  const st = getAddButtonState(kinds)
-  if (dragged === 'step') return st.canAddStep
-  if (dragged === 'content') return st.canAddContent
-  return st.canAddChapter
 }
 function onDragStart(row: FlatRow, ev: DragEvent): void {
   dragId.value = row.id
@@ -199,25 +163,14 @@ function onDragOver(row: FlatRow, ev: DragEvent): void {
   const hint: 'before' | 'after' | 'inside' =
     row.kind === 'chapter' && ratio > 0.3 && ratio < 0.7 ? 'inside' : ratio < 0.5 ? 'before' : 'after'
   overId.value = row.id
-  overHint.value = validDrop(dragId.value, row, hint) ? hint : 'invalid'
+  overHint.value = validDrop(dndTree.value, dragId.value, row, hint) ? hint : 'invalid'
 }
 async function onDrop(row: FlatRow): Promise<void> {
   const id = dragId.value
   const hint = overHint.value
   resetDrag()
   if (!id || hint === '' || hint === 'invalid') return
-  const asChapter = store.chapterMap.has(id)
-  const parentId = hint === 'inside' ? row.id : row.parent_id
-  const others = siblingsOf(parentId, asChapter).filter((n) => n.id !== id)
-  let index: number
-  if (hint === 'inside') index = others.length
-  else {
-    const ti = others.findIndex((n) => n.id === row.id)
-    index = (ti < 0 ? others.length : ti) + (hint === 'after' ? 1 : 0)
-  }
-  const currentParent = asChapter
-    ? store.chapterMap.get(id)!.parent_id
-    : store.stepMap.get(id)!.chapter_id
+  const { parentId, index, currentParent } = computeDrop(dndTree.value, id, row, hint)
   if (parentId === currentParent) {
     store.reorderWithin(id, index)
     return
@@ -250,40 +203,16 @@ watch(
   },
 )
 function onCheck(row: FlatRow, shift: boolean): void {
-  const sel = new Set(markSel.value)
-  if (shift && lastChecked.value) {
-    const rows = visibleRows.value
-    const a = rows.findIndex((r) => r.id === lastChecked.value)
-    const b = rows.findIndex((r) => r.id === row.id)
-    if (a >= 0 && b >= 0) {
-      const [lo, hi] = a < b ? [a, b] : [b, a]
-      const anchorParent = rows[a].parent_id
-      let crossed = false
-      for (let i = lo; i <= hi; i++) {
-        const r = rows[i]
-        if (r.kind === 'step') continue
-        if (r.parent_id !== anchorParent) {
-          crossed = true
-          continue
-        }
-        sel.add(r.id)
-      }
-      if (crossed) ElMessage.warning('范围跨越了不同父节点，跨父部分已忽略')
-    }
-  } else {
-    if (sel.has(row.id)) sel.delete(row.id)
-    else sel.add(row.id)
-    lastChecked.value = row.id
-  }
-  if (sel.size > 100) {
-    // 截断到前 100（保留最早选中的），而非整段丢弃；锚点若被截掉则清空，避免与可见选择错位。
-    const trimmed = new Set([...sel].slice(0, 100))
-    markSel.value = trimmed
-    if (lastChecked.value && !trimmed.has(lastChecked.value)) lastChecked.value = null
-    ElMessage.warning('单次最多标记 100 项，已保留前 100 项')
-    return
-  }
-  markSel.value = sel
+  const res = buildSelection({
+    current: markSel.value,
+    anchor: lastChecked.value,
+    rows: visibleRows.value,
+    rowId: row.id,
+    shift,
+  })
+  markSel.value = res.selection
+  lastChecked.value = res.anchor
+  for (const w of res.warnings) ElMessage.warning(w)
 }
 async function applyBatch(status: 'step' | 'content'): Promise<void> {
   const ids = [...markSel.value]
