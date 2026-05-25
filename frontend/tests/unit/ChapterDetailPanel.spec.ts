@@ -40,3 +40,39 @@ describe('ChapterDetailPanel 接受待确认', () => {
     expect(w.findAll('button').some((b) => b.text().includes('接受待确认'))).toBe(false)
   })
 })
+
+describe('ChapterDetailPanel 空标题自动聚焦', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  function seedSelected(title: string) {
+    const store = useProcedureEditorStore()
+    // @ts-expect-error 最小 procedure
+    store.procedure = { id: 'p1', version: 1, status: 'DRAFT', revision: 1, is_current: true }
+    store.chapters = [{
+      id: 'a', parent_id: null, content_type: 'chapter', title, rich_content: '',
+      skip_numbering: false, mark_status: 'unmarked', sort_order: 0,
+    }]
+    store.steps = []
+    store.selectedId = 'a'
+  }
+
+  it('选中标题为空的章节时，标题输入框自动获得焦点', async () => {
+    seedSelected('')
+    const wrapper = mount(ChapterDetailPanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    await new Promise((r) => setTimeout(r, 0))
+    const textarea = wrapper.find('textarea')
+    expect(textarea.exists()).toBe(true)
+    expect(document.activeElement).toBe(textarea.element)
+    wrapper.unmount() // 卸载，避免跨用例 activeElement 污染
+  })
+
+  it('标题非空时不抢焦点', async () => {
+    seedSelected('已有标题')
+    const wrapper = mount(ChapterDetailPanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    await new Promise((r) => setTimeout(r, 0))
+    const textarea = wrapper.find('textarea')
+    expect(textarea.exists()).toBe(true)
+    expect(document.activeElement).not.toBe(textarea.element)
+    wrapper.unmount()
+  })
+})

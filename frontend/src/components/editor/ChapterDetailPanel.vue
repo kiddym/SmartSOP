@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { computeFallback, formatCode } from '@/utils/editor'
 import type { NodeKind } from '@/types/node'
@@ -8,6 +8,11 @@ import type { NodeKind } from '@/types/node'
 const store = useProcedureEditorStore()
 const chapter = computed(() => store.selectedChapter)
 const ro = computed(() => !store.editable)
+
+const titleRef = ref<{ focus: () => void } | null>(null)
+onMounted(() => {
+  if (chapter.value && !chapter.value.title.trim()) titleRef.value?.focus()
+})
 
 function onTitle(value: string): void {
   const id = chapter.value?.id
@@ -81,6 +86,7 @@ const children = computed<ChildRow[]>(() => {
       <el-form-item label="章节标题">
         <div class="title-row">
           <el-input
+            ref="titleRef"
             :model-value="chapter.title"
             type="textarea"
             autosize
