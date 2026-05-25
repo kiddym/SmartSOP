@@ -8,15 +8,20 @@ procedure_id 取回渲染；删除纯草稿时连带清理。与图片中心的 
 from __future__ import annotations
 
 import hashlib
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import storage
+from app.config import settings
 from app.errors import not_found
 from app.models.procedure import Procedure
 from app.models.source_docx import ProcedureSourceDocx
+from app.parser.utils.opc import is_docx_bytes
 from app.services import upload_service
+
+_FILENAME_MAX = 255  # 与 ProcedureSourceDocx.filename String(255) 对齐
 
 _DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
@@ -31,6 +36,11 @@ def store_from_token(
     if read is None:
         return None
     data, filename = read
+    # 永久化边界再校验（深度防御）：临时文件可能在上传后被改。超限/非法 docx → 降级跳过存储、
+    # 不阻断导入（与 token 缺失一致）；文件名截断到列宽，避免 MySQL 上 INSERT DataError。
+    if len(data) > settings.upload_max_size_mb * 1024 * 1024 or not is_docx_bytes(data):
+        return None
+    filename = filename[:_FILENAME_MAX]
     path = storage.source_docx_path(procedure_group_id)
     # 先 flush 行、后落盘：DB 完整性（unique / 列长）先于写文件校验，使任何失败最多残留
     # “有行无文件”（get_for_procedure 优雅降级、delete_for_group 可清），而非“有文件无行”
@@ -53,8 +63,8 @@ def store_from_token(
     return row
 
 
-def get_for_procedure(db: Session, procedure_id: str) -> tuple[bytes, str, str]:
-    """按 procedure_id → group → 返回 (字节, mime, 原始文件名)。无 → 404。"""
+def get_for_procedure(db: Session, procedure_id: str) -> tuple[Path, str, str]:
+    """按 procedure_id → group → 返回 (落盘路径, mime, 原始文件名)，供流式下载。无 → 404。"""
     proc = db.execute(
         select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
     ).scalar_one_or_none()
@@ -70,7 +80,7 @@ def get_for_procedure(db: Session, procedure_id: str) -> tuple[bytes, str, str]:
     path = storage.storage_root() / row.storage_path
     if not path.exists():
         raise not_found("SOURCE_DOCX_NOT_FOUND", "原始 Word 源文件已丢失")
-    return path.read_bytes(), _DOCX_MIME, row.filename
+    return path, _DOCX_MIME, row.filename
 
 
 def delete_for_group(db: Session, procedure_group_id: str) -> None:

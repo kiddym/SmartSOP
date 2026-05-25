@@ -10,7 +10,7 @@ import math
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, File, Header, Query, Response, UploadFile, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta, get_db, get_request_meta
@@ -176,13 +176,18 @@ def serve_asset(procedure_id: str, asset_id: str, db: Session = Depends(get_db))
 
 
 @router.get("/{procedure_id}/source-docx")
-def serve_source_docx(procedure_id: str, db: Session = Depends(get_db)) -> Response:
-    """返回导入程序的原始 .docx 字节（预览栏渲染 / 追溯）。无 → 404。"""
-    data, mime, filename = source_docx_service.get_for_procedure(db, procedure_id)
-    return Response(
-        content=data,
+def serve_source_docx(procedure_id: str, db: Session = Depends(get_db)) -> FileResponse:
+    """流式返回导入程序的原始 .docx（预览栏渲染 / 追溯）。无 → 404。"""
+    path, mime, filename = source_docx_service.get_for_procedure(db, procedure_id)
+    ascii_fallback = filename.encode("ascii", "ignore").decode() or "source.docx"
+    return FileResponse(
+        path,
         media_type=mime,
-        headers={"Content-Disposition": f"inline; filename*=UTF-8''{quote(filename)}"},
+        headers={
+            "Content-Disposition": (
+                f"inline; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
+            )
+        },
     )
 
 

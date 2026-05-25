@@ -207,6 +207,11 @@ def test_import_stores_and_serves_source_docx(client: TestClient, storage_tmp: P
     assert served.status_code == 200
     assert served.headers["content-type"] == DOCX_MIME
     assert served.content
+    # 流式下载头：inline + ASCII fallback + RFC5987（中文名经 quote 编码）。
+    cd = served.headers["content-disposition"]
+    assert cd.startswith("inline;")
+    assert 'filename="' in cd
+    assert "filename*=UTF-8''" in cd
 
 
 def test_import_without_token_has_no_source_docx(client: TestClient, storage_tmp: Path) -> None:
