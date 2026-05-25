@@ -4,8 +4,9 @@
 显式删除列表。新节点带前端临时 id，后端为其分配真实 id 并返回 临时→真实 映射（前端据此换 id）。
 单事务、乐观锁（If-Match → revision）；任一校验失败整体回滚（router 不 commit）。
 
-最终态校验（应用全部 upsert/删除后）：Q25 子节点互斥、章节 ≤3 级、content 强制叶子、
-chapter 节点 rich_content 恒空、执行表单 15 型、正文 ≤5 MB。校验后整树重算编号（§47）。
+最终态校验（应用全部 upsert/删除后）：Q25 章节∕叶子项互斥（子章节与步骤+内容块互斥；步骤与
+内容块可共存）、章节 ≤3 级、内容块=kind='content' 步骤、执行表单 15 型、正文 ≤5 MB。
+校验后整树重算编号（§47）。
 
 事务边界：只 flush，不 commit；由 router 提交。
 """
@@ -101,7 +102,11 @@ def _apply_deletes(
 
 
 def _validate_and_recompute_levels(db: Session, proc_id: str) -> None:
-    """应用后最终态校验：父引用有效、Q25 互斥、content 叶子、章节 ≤3 级。同时回写 level。"""
+    """应用后最终态校验：父引用有效、Q25 互斥、章节 ≤3 级。同时回写 level。
+
+    Q25（选项3）：同一父节点下，子章节与叶子项（步骤+内容块）互斥；
+    步骤（kind='step'）与内容块（kind='content'）之间不互斥，可共存。
+    """
     chapters = list(
         db.execute(
             select(ProcedureChapter).where(
@@ -126,33 +131,24 @@ def _validate_and_recompute_levels(db: Session, proc_id: str) -> None:
 
     # 父 / 章节引用必须指向 active 的 chapter 容器
     for ch in chapters:
-        if ch.parent_id is not None:
-            parent = chapter_by_id.get(ch.parent_id)
-            if parent is None or parent.content_type != "chapter":
-                raise bad_request("SIBLING_TYPE_CONFLICT", "章节的父节点无效")
+        if ch.parent_id is not None and chapter_by_id.get(ch.parent_id) is None:
+            raise bad_request("SIBLING_TYPE_CONFLICT", "章节的父节点无效")
     for st in steps:
-        if st.chapter_id is not None:
-            parent = chapter_by_id.get(st.chapter_id)
-            if parent is None or parent.content_type != "chapter":
-                raise bad_request("SIBLING_TYPE_CONFLICT", "步骤所属章节无效")
+        if st.chapter_id is not None and chapter_by_id.get(st.chapter_id) is None:
+            raise bad_request("SIBLING_TYPE_CONFLICT", "步骤所属章节无效")
 
-    # Q25：同一 parent 下 chapter/content 与 step 互斥
+    # Q25：同一 parent 下 子章节 与 叶子项（步骤+内容块）互斥
     parents = set(by_parent) | set(steps_by_chapter)
     for pid in parents:
         if by_parent.get(pid) and steps_by_chapter.get(pid):
-            raise bad_request("SIBLING_TYPE_CONFLICT", "同级不能同时存在章节 / 内容块与步骤")
-
-    # content 强制叶子
-    for ch in chapters:
-        if ch.content_type == "content" and (by_parent.get(ch.id) or steps_by_chapter.get(ch.id)):
-            raise bad_request("SIBLING_TYPE_CONFLICT", "内容块必须是叶子节点")
+            raise bad_request("SIBLING_TYPE_CONFLICT", "同级不能同时存在章节与步骤/内容块")
 
     # 从根遍历回写 level + 校验章节深度；顺带检测环 / 孤儿
     visited: set[str] = set()
 
     def walk(parent_id: str | None, level: int) -> None:
         for ch in sorted(by_parent.get(parent_id, []), key=lambda c: (c.sort_order, c.id)):
-            if ch.content_type == "chapter" and level > MAX_DEPTH:
+            if level > MAX_DEPTH:
                 raise bad_request("CHAPTER_DEPTH_EXCEEDED", f"章节嵌套不能超过 {MAX_DEPTH} 级")
             ch.level = level
             visited.add(ch.id)
@@ -214,26 +210,21 @@ def save_procedure(
     def resolve(value: str | None) -> str | None:
         return None if value is None else id_map.get(value, value)
 
-    # 4. 章节 upsert
+    # 4. 章节 upsert（章节现为纯标题/分组容器，不含 content 字段）
     for cu in data.chapters:
-        if cu.content_type == "chapter" and cu.rich_content.strip():
-            raise bad_request("CHAPTER_RICH_CONTENT_NOT_ALLOWED", "章节节点不能写入正文")
-        if cu.content_type == "content":
-            _content_size_guard(cu.rich_content, "正文超过 5 MB 上限")
         ch_node = existing_chapters.get(cu.id)
         if ch_node is None:
             ch_node = ProcedureChapter(id=id_map[cu.id], procedure_id=proc.id)
             db.add(ch_node)
-        ch_node.content_type = cu.content_type
         ch_node.parent_id = resolve(cu.parent_id)
         ch_node.title = cu.title
-        ch_node.rich_content = "" if cu.content_type == "chapter" else cu.rich_content
         ch_node.skip_numbering = cu.skip_numbering
         ch_node.sort_order = cu.sort_order
 
-    # 5. 步骤 upsert
+    # 5. 步骤 upsert（含内容块 kind='content'）
+    # 内容块跳过表单类型校验，清空 title/input_schema/attachment_marks
     for su in data.steps:
-        if su.input_schema.get("type") not in FORM_TYPES:
+        if su.kind == "step" and su.input_schema.get("type") not in FORM_TYPES:
             raise unprocessable(
                 "VALIDATION_FAILED", "无效的执行表单类型", field="input_schema.type"
             )
@@ -242,11 +233,13 @@ def save_procedure(
         if st_node is None:
             st_node = ProcedureStep(id=id_map[su.id], procedure_id=proc.id)
             db.add(st_node)
+        is_content = su.kind == "content"
         st_node.chapter_id = resolve(su.chapter_id)
-        st_node.title = su.title
+        st_node.kind = su.kind
+        st_node.title = "" if is_content else su.title
         st_node.content = su.content
-        st_node.input_schema = su.input_schema
-        st_node.attachment_marks = su.attachment_marks
+        st_node.input_schema = {} if is_content else su.input_schema
+        st_node.attachment_marks = [] if is_content else su.attachment_marks
         st_node.skip_numbering = su.skip_numbering
         st_node.sort_order = su.sort_order
 

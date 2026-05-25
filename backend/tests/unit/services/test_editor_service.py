@@ -51,14 +51,8 @@ def test_create_new_chapters_with_temp_ids(db: Session, factory: Factory) -> Non
         proc,
         0,
         chapters=[
-            ChapterUpsert(id="t1", content_type="chapter", title="概述", sort_order=0),
-            ChapterUpsert(
-                id="t2",
-                parent_id="t1",
-                content_type="content",
-                rich_content="<p>x</p>",
-                sort_order=0,
-            ),
+            ChapterUpsert(id="t1", title="概述", sort_order=0),
+            ChapterUpsert(id="t2", parent_id="t1", title="子章节", sort_order=0),
         ],
     )
     assert set(id_map) == {"t1", "t2"}
@@ -68,7 +62,6 @@ def test_create_new_chapters_with_temp_ids(db: Session, factory: Factory) -> Non
     assert root.level == 1
     assert child.parent_id == id_map["t1"]  # 临时 parent_id 已映射
     assert child.level == 2
-    assert child.content_type == "content"
 
 
 def test_new_step_under_new_chapter(db: Session, factory: Factory) -> None:
@@ -77,7 +70,7 @@ def test_new_step_under_new_chapter(db: Session, factory: Factory) -> None:
         db,
         proc,
         0,
-        chapters=[ChapterUpsert(id="c1", content_type="chapter", title="操作", sort_order=0)],
+        chapters=[ChapterUpsert(id="c1", title="操作", sort_order=0)],
         steps=[StepUpsert(id="s1", chapter_id="c1", title="启动", sort_order=0)],
     )
     step = step_service.get_step(db, id_map["s1"])
@@ -87,13 +80,13 @@ def test_new_step_under_new_chapter(db: Session, factory: Factory) -> None:
 
 def test_update_existing_chapter(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
-    ch = chapter_service.create_chapter(db, ChapterCreate(procedure_id=proc.id, title="旧"), META)
+    ch = factory.chapter(proc.id, title="旧")
     db.refresh(proc)
     _save(
         db,
         proc,
         proc.revision,
-        chapters=[ChapterUpsert(id=ch.id, content_type="chapter", title="新标题", sort_order=0)],
+        chapters=[ChapterUpsert(id=ch.id, title="新标题", sort_order=0)],
     )
     db.refresh(ch)
     assert ch.title == "新标题"
@@ -101,7 +94,7 @@ def test_update_existing_chapter(db: Session, factory: Factory) -> None:
 
 def test_delete_chapter_via_save(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
-    a = chapter_service.create_chapter(db, ChapterCreate(procedure_id=proc.id, title="A"), META)
+    a = factory.chapter(proc.id, title="A")
     db.refresh(proc)
     _save(db, proc, proc.revision, deleted_chapter_ids=[a.id])
     db.refresh(a)
@@ -116,10 +109,8 @@ def test_save_q25_conflict(db: Session, factory: Factory) -> None:
             proc,
             0,
             chapters=[
-                ChapterUpsert(id="c1", content_type="chapter", title="父", sort_order=0),
-                ChapterUpsert(
-                    id="c2", parent_id="c1", content_type="chapter", title="子章", sort_order=0
-                ),
+                ChapterUpsert(id="c1", title="父", sort_order=0),
+                ChapterUpsert(id="c2", parent_id="c1", title="子章", sort_order=0),
             ],
             steps=[StepUpsert(id="s1", chapter_id="c1", title="步骤", sort_order=0)],
         )
@@ -134,33 +125,40 @@ def test_save_depth_exceeded(db: Session, factory: Factory) -> None:
             proc,
             0,
             chapters=[
-                ChapterUpsert(id="c1", content_type="chapter", title="1", sort_order=0),
-                ChapterUpsert(
-                    id="c2", parent_id="c1", content_type="chapter", title="2", sort_order=0
-                ),
-                ChapterUpsert(
-                    id="c3", parent_id="c2", content_type="chapter", title="3", sort_order=0
-                ),
-                ChapterUpsert(
-                    id="c4", parent_id="c3", content_type="chapter", title="4", sort_order=0
-                ),
+                ChapterUpsert(id="c1", title="1", sort_order=0),
+                ChapterUpsert(id="c2", parent_id="c1", title="2", sort_order=0),
+                ChapterUpsert(id="c3", parent_id="c2", title="3", sort_order=0),
+                ChapterUpsert(id="c4", parent_id="c3", title="4", sort_order=0),
             ],
         )
     assert exc.value.detail["code"] == "CHAPTER_DEPTH_EXCEEDED"
 
 
-def test_save_chapter_rich_content_rejected(db: Session, factory: Factory) -> None:
+def test_content_block_step_saved_correctly(db: Session, factory: Factory) -> None:
+    """内容块（kind='content'）作为步骤保存，title/input_schema/attachment_marks 清空。"""
     proc = _proc(factory)
-    with pytest.raises(HTTPException) as exc:
-        _save(
-            db,
-            proc,
-            0,
-            chapters=[
-                ChapterUpsert(id="c1", content_type="chapter", title="x", rich_content="<p>y</p>")
-            ],
-        )
-    assert exc.value.detail["code"] == "CHAPTER_RICH_CONTENT_NOT_ALLOWED"
+    _, id_map = _save(
+        db,
+        proc,
+        0,
+        chapters=[ChapterUpsert(id="c1", title="操作", sort_order=0)],
+        steps=[
+            StepUpsert(
+                id="cb1",
+                chapter_id="c1",
+                kind="content",
+                content="<p>系统启动条件</p>",
+                sort_order=0,
+            )
+        ],
+    )
+    assert "cb1" in id_map
+    st = step_service.get_step(db, id_map["cb1"])
+    assert st.kind == "content"
+    assert st.content == "<p>系统启动条件</p>"
+    assert st.title == ""
+    assert st.input_schema == {}
+    assert st.attachment_marks == []
 
 
 def test_readonly_rejected(db: Session, factory: Factory) -> None:
@@ -170,60 +168,70 @@ def test_readonly_rejected(db: Session, factory: Factory) -> None:
     assert exc.value.detail["code"] == "PROCEDURE_READONLY"
 
 
-def test_save_procedure_persists_existing_content_type_change(
+def test_save_procedure_persists_chapter_and_content_step(
     db: Session, factory: Factory
 ) -> None:
+    """章节 + 内容块步骤保存后可正确读取。"""
     proc = _proc(factory)
-    content = chapter_service.create_chapter(
-        db,
-        ChapterCreate(
-            procedure_id=proc.id,
-            content_type="content",
-            rich_content="<p>系统启动条件</p>",
-            sort_order=0,
-        ),
-        META,
-    )
-    db.refresh(proc)
 
-    _save(
+    _, id_map = _save(
         db,
         proc,
-        proc.revision,
+        0,
         chapters=[
             ChapterUpsert(
-                id=content.id,
-                content_type="chapter",
+                id="c-root",
                 title="系统启动条件",
-                rich_content="",
                 skip_numbering=False,
                 sort_order=0,
             ),
-            ChapterUpsert(
-                id="temp-child",
-                parent_id=content.id,
-                content_type="content",
-                title="",
-                rich_content="<p>系统启动条件</p>",
+        ],
+        steps=[
+            StepUpsert(
+                id="cb-child",
+                chapter_id="c-root",
+                kind="content",
+                content="<p>系统启动条件</p>",
                 skip_numbering=True,
                 sort_order=0,
             ),
         ],
     )
 
-    db.refresh(content)
-    children = chapter_service.list_chapters(
-        db,
-        procedure_id=proc.id,
-        parent_id=content.id,
-        content_type=None,
-        mark_status=None,
-    )
+    db.refresh(proc)
+    root = chapter_service.get_chapter(db, id_map["c-root"])
+    content_step = step_service.get_step(db, id_map["cb-child"])
 
-    assert content.content_type == "chapter"
-    assert content.rich_content == ""
-    assert content.skip_numbering is False
-    assert len(children) == 1
-    assert children[0].content_type == "content"
-    assert children[0].parent_id == content.id
-    assert children[0].rich_content == "<p>系统启动条件</p>"
+    assert root.title == "系统启动条件"
+    assert root.skip_numbering is False
+    assert content_step.chapter_id == id_map["c-root"]
+    assert content_step.kind == "content"
+    assert content_step.content == "<p>系统启动条件</p>"
+    assert content_step.skip_numbering is True
+
+
+def test_step_and_content_coexist_under_chapter(db: Session, factory: Factory) -> None:
+    proc = _proc(factory)
+    _, id_map = _save(
+        db, proc, 0,
+        chapters=[ChapterUpsert(id="c1", title="操作", sort_order=0)],
+        steps=[
+            StepUpsert(id="s1", chapter_id="c1", title="做X", kind="step", sort_order=0),
+            StepUpsert(id="c2", chapter_id="c1", content="<p>注</p>", kind="content", sort_order=1),
+            StepUpsert(id="s2", chapter_id="c1", title="做Y", kind="step", sort_order=2),
+        ],
+    )
+    assert set(id_map) == {"c1", "s1", "c2", "s2"}
+
+
+def test_chapter_with_subchapter_cannot_hold_step(db: Session, factory: Factory) -> None:
+    proc = _proc(factory)
+    with pytest.raises(Exception):  # SIBLING_TYPE_CONFLICT
+        _save(
+            db, proc, 0,
+            chapters=[
+                ChapterUpsert(id="c1", title="父", sort_order=0),
+                ChapterUpsert(id="c2", parent_id="c1", title="子", sort_order=0),
+            ],
+            steps=[StepUpsert(id="s1", chapter_id="c1", title="混入", kind="step", sort_order=1)],
+        )
