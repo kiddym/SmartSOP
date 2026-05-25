@@ -2,14 +2,11 @@
 
 转换接口（原子）：
 - chapter → step（convert-to-step / convert-root-to-step）：chapter 必须无子节点（Q4 CHAPTER_HAS_CHILDREN）；
-  转出 step.content 为空让用户补（§19.3）；父级移除该 chapter 后若仍有其他 chapter/content 子节点则
+  转出 step.content 为空让用户补（§19.3）；父级移除该 chapter 后若仍有其他 chapter 子节点则
   违反 Q25 → SIBLING_TYPE_CONFLICT（Q29）。
-- content → steps（content-to-steps / batch-content-to-steps）：按 rich_content 顶层 HTML 块拆分（Q5），
-  每块一个 step（title 留空 Q10、content=块、input_schema={type:COMMON} Q11）；父级互斥同上。
-- step → chapter（convert-to-chapter）：新 chapter 为原 step.chapter 的子节点（§19 调和：chapter 不得有
-  rich_content，故 step.content 转入新 chapter 下的一个 content 子节点）；父级移除 step 后若仍有其他 step 则
+- step → chapter（convert-to-chapter）：新 chapter 为原 step.chapter 的子节点；step 正文转入新 chapter
+  下一个 kind='content' 内容块步骤；父级移除 step 后若仍有其他 step 则
   违反 Q25 → SIBLING_TYPE_CONFLICT（Q29）。
-- chapter → content：§19 后废弃，返 410 CONVERT_TO_CONTENT_DEPRECATED。
 
 事务边界：只 flush，不 commit；结构变更 bump 程序 revision。
 """
@@ -22,7 +19,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
-from app.errors import bad_request, gone, not_found
+from app.errors import bad_request, not_found
 from app.models.base import utcnow
 from app.models.chapter import ProcedureChapter
 from app.models.procedure import Procedure
@@ -255,8 +252,6 @@ def _convert_chapter_to_step_core(
     audit: bool,
     meta: RequestMeta,
 ) -> ProcedureStep:
-    if ch.content_type != "chapter":
-        raise bad_request("SIBLING_TYPE_CONFLICT", "只有章节节点可转为步骤")
     if _chapter_has_children(db, proc.id, ch.id):
         raise bad_request("CHAPTER_HAS_CHILDREN", "章节含子节点，不能转为步骤")
     if _other_chapter_children_count(db, proc.id, ch.parent_id, ch.id) > 0:
@@ -265,6 +260,7 @@ def _convert_chapter_to_step_core(
     step = ProcedureStep(
         procedure_id=proc.id,
         chapter_id=ch.parent_id,
+        kind="step",
         title=ch.title,
         content="",  # §19.3 转出空让用户补
         input_schema={"type": "COMMON"},
@@ -307,95 +303,6 @@ def convert_root_to_step(db: Session, chapter_id: str, meta: RequestMeta) -> Con
 
 
 # --------------------------------------------------------------------------- #
-# content → steps
-# --------------------------------------------------------------------------- #
-def _content_to_steps_core(
-    db: Session,
-    proc: Procedure,
-    content: ProcedureChapter,
-    *,
-    recompute: bool,
-    audit: bool,
-    meta: RequestMeta,
-) -> list[ProcedureStep]:
-    if content.content_type != "content":
-        raise bad_request("SIBLING_TYPE_CONFLICT", "只有内容块可拆为步骤")
-    if _other_chapter_children_count(db, proc.id, content.parent_id, content.id) > 0:
-        raise bad_request("SIBLING_TYPE_CONFLICT", "同级仍有章节 / 内容块，转换会违反互斥规则")
-
-    blocks = split_top_level_blocks(content.rich_content)
-    created: list[ProcedureStep] = []
-    for i, block in enumerate(blocks):
-        step = ProcedureStep(
-            procedure_id=proc.id,
-            chapter_id=content.parent_id,
-            title="",  # Q10 留空让用户填
-            content=block,
-            input_schema={"type": "COMMON"},  # Q11
-            sort_order=i,
-        )
-        db.add(step)
-        created.append(step)
-    content.is_active = False
-    content.deleted_at = utcnow()
-    db.flush()
-    if recompute:
-        numbering_service.recompute(db, proc.id)
-        optimistic_lock.bump(proc)
-        db.flush()
-    if audit:
-        _audit(
-            db,
-            proc,
-            target_id=content.id,
-            action="content-to-steps",
-            meta=meta,
-            old_value={"content_id": content.id},
-            new_value={"step_ids": [s.id for s in created], "count": len(created)},
-        )
-    return created
-
-
-def content_to_steps(db: Session, chapter_id: str, meta: RequestMeta) -> ConversionResult:
-    content = _get_chapter(db, chapter_id)
-    proc = _get_proc_editable(db, content.procedure_id)
-    steps = _content_to_steps_core(db, proc, content, recompute=True, audit=True, meta=meta)
-    return ConversionResult(created=[s.id for s in steps], deleted=[content.id])
-
-
-def batch_content_to_steps(
-    db: Session, chapter_ids: list[str], meta: RequestMeta
-) -> ConversionResult:
-    """原子批量拆分：先全量取节点、统一编辑性校验，逐个转换；任一失败由 router 回滚。"""
-    seen: set[str] = set()
-    nodes: list[ProcedureChapter] = []
-    proc: Procedure | None = None
-    for cid in chapter_ids:
-        if cid in seen:
-            continue
-        seen.add(cid)
-        node = _get_chapter(db, cid)
-        if proc is None:
-            proc = _get_proc_editable(db, node.procedure_id)
-        elif node.procedure_id != proc.id:
-            raise bad_request("SIBLING_TYPE_CONFLICT", "批量转换的节点必须属于同一程序")
-        nodes.append(node)
-
-    assert proc is not None  # min_length=1 保证
-    created: list[str] = []
-    deleted: list[str] = []
-    for node in nodes:
-        steps = _content_to_steps_core(db, proc, node, recompute=False, audit=True, meta=meta)
-        created.extend(s.id for s in steps)
-        deleted.append(node.id)
-
-    numbering_service.recompute(db, proc.id)
-    optimistic_lock.bump(proc)
-    db.flush()
-    return ConversionResult(created=created, deleted=deleted)
-
-
-# --------------------------------------------------------------------------- #
 # step → chapter
 # --------------------------------------------------------------------------- #
 def convert_to_chapter(db: Session, step_id: str, meta: RequestMeta) -> ConversionResult:
@@ -418,9 +325,7 @@ def convert_to_chapter(db: Session, step_id: str, meta: RequestMeta) -> Conversi
     chapter = ProcedureChapter(
         procedure_id=proc.id,
         parent_id=parent_id,
-        content_type="chapter",
         title=st.title or "未命名章节",
-        rich_content="",  # §19：chapter 不承载正文
         sort_order=0,
         level=new_level,
     )
@@ -428,21 +333,20 @@ def convert_to_chapter(db: Session, step_id: str, meta: RequestMeta) -> Conversi
     db.flush()
 
     created = [chapter.id]
-    # §19 调和：step 正文 / 警示转入新 chapter 下的 content 子节点（不入 chapter.rich_content）
     body = _compose_step_body(st)
     if body.strip():
-        content_child = ProcedureChapter(
+        content_step = ProcedureStep(
             procedure_id=proc.id,
-            parent_id=chapter.id,
-            content_type="content",
+            chapter_id=chapter.id,
+            kind="content",
             title="",
-            rich_content=body,
+            content=body,
+            input_schema={},
             sort_order=0,
-            level=new_level + 1,
         )
-        db.add(content_child)
+        db.add(content_step)
         db.flush()
-        created.append(content_child.id)
+        created.append(content_step.id)
 
     st.is_active = False
     st.deleted_at = utcnow()
@@ -466,8 +370,3 @@ def _compose_step_body(st: ProcedureStep) -> str:
     return st.content
 
 
-# --------------------------------------------------------------------------- #
-# chapter → content（已废弃）
-# --------------------------------------------------------------------------- #
-def convert_to_content(db: Session, chapter_id: str, meta: RequestMeta) -> ConversionResult:
-    raise gone("CONVERT_TO_CONTENT_DEPRECATED", "该接口在章节模型重构后不再支持")
