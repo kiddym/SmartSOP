@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ElementPlus from 'element-plus'
@@ -81,5 +81,41 @@ describe('ChapterTreePanel', () => {
 
     expect(store.flatRows).toHaveLength(51)
     expect(wrapper.findAllComponents({ name: 'TreeRow' }).length).toBeLessThan(51)
+  })
+
+  it('章节行＋新增=加子节点；步骤行＋新增=同父级加同级', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    const addChapterSpy = vi.spyOn(store, 'addChapterNode').mockReturnValue('tmp')
+    const addStepSpy = vi.spyOn(store, 'addStepNode').mockReturnValue('tmp')
+
+    const wrapper = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = wrapper.findAllComponents({ name: 'TreeRow' })
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+    const stepRow = rows.find((r) => r.props('row').id === 's1')!
+
+    chapterRow.vm.$emit('add', 'step')
+    expect(addStepSpy).toHaveBeenCalledWith('c1', null) // 章节 → 加子节点
+
+    stepRow.vm.$emit('add', 'step')
+    expect(addStepSpy).toHaveBeenCalledWith('c1', 's1') // 步骤 → 同父级、该行之后
+    expect(addChapterSpy).not.toHaveBeenCalled()
+  })
+
+  it('存在缺标题章节时显示定位条与计数', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '', null, 0), chapter('c2', '有题', null, 1)]
+    store.expanded = {}
+    const wrapper = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    expect(wrapper.find('.missing-bar').exists()).toBe(true)
+    expect(wrapper.find('.missing-bar').text()).toContain('1')
   })
 })

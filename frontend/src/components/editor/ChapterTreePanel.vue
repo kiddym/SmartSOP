@@ -6,7 +6,7 @@ import TreeRow from './TreeRow.vue'
 import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { isTempId } from '@/utils/editor'
-import { nextReviewId } from '@/utils/reviewNav'
+import { nextReviewId, nextRowId } from '@/utils/reviewNav'
 import { buildSelection } from '@/utils/batchMark'
 import { computeDrop, validDrop, type DndTree } from '@/utils/treeDnd'
 import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
@@ -32,6 +32,13 @@ function rowParent(id: string): string | null {
 
 // ---- review 过滤 + 导航 ---- //
 const reviewFilter = ref(false)
+
+// ---- 缺标题过滤 + 导航 ---- //
+const missingFilter = ref(false)
+function gotoNextMissing(): void {
+  const id = nextRowId(store.flatRows, store.selectedId, (r) => r.kind === 'chapter' && !r.title.trim())
+  if (id) store.selectNode(id)
+}
 
 function keepWithAncestors(rows: FlatRow[], pred: (r: FlatRow) => boolean): FlatRow[] {
   const keep = new Set<string>()
@@ -63,6 +70,7 @@ function acceptAll(): void {
 const visibleRows = computed<FlatRow[]>(() => {
   let rows = store.flatRows
   if (reviewFilter.value) rows = keepWithAncestors(rows, (r) => r.mark_status === 'review')
+  if (missingFilter.value) rows = keepWithAncestors(rows, (r) => r.kind === 'chapter' && !r.title.trim())
   const q = debounced.value.trim().toLowerCase()
   if (q) rows = keepWithAncestors(rows, (r) => `${r.code} ${r.title} ${r.fallback}`.toLowerCase().includes(q))
   return rows
@@ -102,8 +110,12 @@ const moveFlags = computed(() => {
   return flags
 })
 
+function addTargetFor(row: FlatRow): { parentId: string | null; afterId: string | null } {
+  if (row.kind === 'chapter') return { parentId: row.id, afterId: null }
+  return { parentId: row.parent_id, afterId: row.id }
+}
 function addStateFor(row: FlatRow) {
-  return store.addButtonStateFor(row.id)
+  return store.addButtonStateFor(addTargetFor(row).parentId)
 }
 const rootAddState = computed(() => store.addButtonStateFor(null))
 
@@ -115,6 +127,11 @@ function onSelect(row: FlatRow): void {
 function onAdd(parentId: string | null, kind: 'chapter' | 'content' | 'step'): void {
   if (kind === 'step') store.addStepNode(parentId)
   else store.addChapterNode(parentId, kind)
+}
+function onAddFromRow(row: FlatRow, kind: 'chapter' | 'content' | 'step'): void {
+  const { parentId, afterId } = addTargetFor(row)
+  if (kind === 'step') store.addStepNode(parentId, afterId)
+  else store.addChapterNode(parentId, kind, afterId)
 }
 async function onRemove(row: FlatRow): Promise<void> {
   if (!isTempId(row.id)) {
@@ -276,6 +293,11 @@ defineExpose({ focusSearch })
         <el-button size="small" type="primary" plain @click="acceptAll">全部接受</el-button>
         <el-checkbox v-model="reviewFilter" size="small">只看待确认</el-checkbox>
       </div>
+      <div v-if="store.editable && store.missingTitleCount" class="missing-bar">
+        <span class="missing-count" title="章节标题为空">⚠ {{ store.missingTitleCount }} 个章节缺标题</span>
+        <el-button size="small" @click="gotoNextMissing">下一个</el-button>
+        <el-checkbox v-model="missingFilter" size="small">只看缺标题</el-checkbox>
+      </div>
       <div v-if="store.editable && !store.markMode" class="root-add">
         <span class="root-add-label">根级：</span>
         <el-button size="small" :disabled="!rootAddState.canAddChapter" @click="onAdd(null, 'chapter')">
@@ -319,15 +341,11 @@ defineExpose({ focusSearch })
           :editable="store.editable"
           :can-move-up="moveFlags.get(row.id)?.up ?? false"
           :can-move-down="moveFlags.get(row.id)?.down ?? false"
-          :can-promote="row.kind !== 'step' && store.canPromoteChapter(row.id)"
-          :can-demote="row.kind !== 'step' && store.canDemoteChapter(row.id)"
           :drop-hint="overId === row.id ? overHint : ''"
           @select="onSelect(row)"
           @toggle="store.toggleExpanded(row.id)"
-          @add="(kind) => onAdd(row.id, kind)"
+          @add="(kind) => onAddFromRow(row, kind)"
           @move="(dir) => store.reorder(row.id, dir)"
-          @promote="void store.promoteChapter(row.id)"
-          @demote="void store.demoteChapter(row.id)"
           @remove="onRemove(row)"
           @check="(shift) => onCheck(row, shift)"
           @dragstart="(ev) => onDragStart(row, ev)"
@@ -376,6 +394,16 @@ defineExpose({ focusSearch })
 .review-count {
   font-size: 12px;
   color: #e6a23c;
+}
+.missing-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.missing-count {
+  font-size: 12px;
+  color: #b8860b;
 }
 .tree-scroll {
   flex: 1;
