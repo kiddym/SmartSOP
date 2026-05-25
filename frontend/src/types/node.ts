@@ -82,7 +82,6 @@ export interface StepOut {
   sort_order: number
   skip_numbering: boolean
   input_schema: InputSchema
-  require_confirmation: boolean
   attachment_marks: AttachmentMark[]
 }
 
@@ -119,7 +118,6 @@ export interface StepUpsert {
   title: string
   content: string
   input_schema: InputSchema
-  require_confirmation: boolean
   attachment_marks: AttachmentMark[]
   skip_numbering: boolean
   sort_order: number
@@ -179,7 +177,6 @@ export interface EditorStep {
   title: string
   content: string
   input_schema: InputSchema
-  require_confirmation: boolean
   attachment_marks: AttachmentMark[]
   skip_numbering: boolean
   sort_order: number
@@ -196,7 +193,6 @@ export interface FlatRow {
   skip_numbering: boolean
   mark_status: MarkStatus // step 恒 'unmarked'（不参与标记模式）
   form_type: FormType | null // 仅 step
-  require_confirmation: boolean // 仅 step
   has_children: boolean
   expanded: boolean
   fallback: string // title 为空时的灰斜体回退文本

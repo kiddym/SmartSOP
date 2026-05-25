@@ -42,6 +42,7 @@ export interface ProcedureMeta {
   level_of_use: LevelOfUse
   custom_values: Record<string, unknown>
   version_update_notes: string
+  signoff_enabled: boolean
   revision: number
   is_read: boolean
   read_at: string | null
@@ -104,6 +105,7 @@ export interface ProcedureUpdate {
   quality_level?: number
   custom_values?: Record<string, unknown>
   version_update_notes?: string
+  signoff_enabled?: boolean
 }
 
 export interface TransitionPayload {

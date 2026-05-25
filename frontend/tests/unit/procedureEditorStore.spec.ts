@@ -44,6 +44,7 @@ function meta(): ProcedureMeta {
     level_of_use: 'continuous',
     custom_values: {},
     version_update_notes: '',
+    signoff_enabled: false,
     revision: 3,
     is_read: false,
     read_at: null,
@@ -76,7 +77,6 @@ function stp(id: string, chapterId: string | null, sort: number): EditorStep {
     title: id,
     content: '',
     input_schema: { type: 'COMMON' },
-    require_confirmation: false,
     attachment_marks: [],
     skip_numbering: false,
     sort_order: sort,
@@ -213,6 +213,15 @@ describe('buildPayload', () => {
     const node = payload.chapters.find((c) => c.id === id)
     expect(node?.content_type).toBe('content')
     expect(node?.rich_content).toBe('<p>正文</p>')
+  })
+
+  it('includes signoff_enabled in payload', () => {
+    // reuse the describe('buildPayload') setup that already loads a procedure before calling buildPayload
+    const s = useProcedureEditorStore()
+    s.procedure = meta()
+    s.procedure!.signoff_enabled = true
+    const payload = s.buildPayload()
+    expect(payload.signoff_enabled).toBe(true)
   })
 })
 
