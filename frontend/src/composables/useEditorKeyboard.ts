@@ -8,8 +8,6 @@ interface Handlers {
   onFocusSearch: () => void
   onDelete: () => void
   onEsc: () => void
-  onPromote: () => void
-  onDemote: () => void
 }
 
 function isTyping(target: EventTarget | null): boolean {
@@ -48,12 +46,6 @@ export function useEditorKeyboard(h: Handlers): void {
     }
     if ((e.key === 'Delete' || e.key === 'Backspace') && !isTyping(e.target)) {
       h.onDelete()
-      return
-    }
-    if (e.key === 'Tab' && !isTyping(e.target)) {
-      e.preventDefault()
-      if (e.shiftKey) h.onPromote()
-      else h.onDemote()
       return
     }
     if (e.key === 'Escape') h.onEsc()

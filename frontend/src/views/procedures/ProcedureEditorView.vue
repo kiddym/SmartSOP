@@ -59,7 +59,14 @@ async function doSave(): Promise<void> {
   if (!store.isDirty) return
   const errors = store.validateForSave()
   if (errors.length) {
-    ElMessage.error(`请先修复：${errors.join('；')}`)
+    const firstMissing = store.flatRows.find((r) => r.kind === 'chapter' && !r.title.trim())
+    if (firstMissing) {
+      store.expandAncestors(firstMissing.id)
+      store.selectNode(firstMissing.id)
+      ElMessage.error(`请先补全 ${store.missingTitleCount} 个章节标题，已定位到 ${firstMissing.code}`)
+    } else {
+      ElMessage.error(`请先修复：${errors.join('；')}`)
+    }
     return
   }
   try {
@@ -192,14 +199,6 @@ useEditorKeyboard({
   onDelete: () => void onDeleteSelected(),
   onEsc: () => {
     if (store.markMode) store.toggleMarkMode()
-  },
-  onPromote: () => {
-    const id = store.selectedId
-    if (id && store.editable) void store.promoteChapter(id)
-  },
-  onDemote: () => {
-    const id = store.selectedId
-    if (id && store.editable) void store.demoteChapter(id)
   },
 })
 
