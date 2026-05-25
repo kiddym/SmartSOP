@@ -4,6 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import WordPreviewPanel from './WordPreviewPanel.vue'
 import ImportTreePanel from './ImportTreePanel.vue'
 import ImportDetailPanel from './ImportDetailPanel.vue'
+import ImportSideRail from './ImportSideRail.vue'
 import { useImportDialog } from '@/composables/useImportDialog'
 import { importProcedure, parseDocx, uploadDocx } from '@/api/parse'
 import { fetchFolderTree } from '@/api/folders'
@@ -13,11 +14,13 @@ import { collectLeafFolders } from '@/utils/folders'
 import { useStorage, useEventListener } from '@vueuse/core'
 import {
   COL_DEFAULTS,
+  colFlex,
   resizeLeftMid,
   resizeMidRight,
-  rightOf,
   sanitizeCols,
+  sanitizeCollapsed,
   type ColWidths,
+  type CollapseState,
 } from '@/utils/importCols'
 
 const props = defineProps<{ modelValue: boolean }>()
@@ -42,7 +45,11 @@ const cols = useStorage<ColWidths>('smartsop.import.cols', { ...COL_DEFAULTS })
 // Guard against dirty/legacy persisted values on load.
 cols.value = sanitizeCols(cols.value)
 
-const rightPct = computed(() => rightOf(cols.value))
+const collapsed = useStorage<CollapseState>('smartsop.import.collapsed', { left: false, right: false })
+// 守卫脏值/旧值
+collapsed.value = sanitizeCollapsed(collapsed.value)
+
+const cf = computed(() => colFlex(cols.value, collapsed.value))
 
 type Handle = 'lm' | 'mr'
 const drag = ref<{ handle: Handle; startX: number; start: ColWidths; containerW: number } | null>(null)
@@ -221,21 +228,53 @@ watch(visible, (on) => {
         </div>
       </div>
       <div v-else ref="colsRef" class="cols">
-        <div class="col" :style="{ width: cols.left + '%' }"><WordPreviewPanel :file="ctx.file.value" /></div>
+        <div class="col" :style="{ flex: cf.left }">
+          <ImportSideRail
+            v-if="collapsed.left"
+            label="Word 原文预览"
+            side="left"
+            @expand="collapsed.left = false"
+          />
+          <WordPreviewPanel v-else :file="ctx.file.value" />
+        </div>
         <div
+          v-if="cf.showLM"
           class="splitter"
           title="拖拽调整列宽，双击重置"
           @pointerdown="onDragStart($event, 'lm')"
           @dblclick="resetCols"
-        />
-        <div class="col" :style="{ width: cols.mid + '%' }"><ImportTreePanel :ctx="ctx" /></div>
+        >
+          <button
+            class="collapse-btn"
+            title="折叠原文预览"
+            @click.stop="collapsed.left = true"
+            @pointerdown.stop
+          >«</button>
+        </div>
+        <div class="col" :style="{ flex: cf.mid }"><ImportTreePanel :ctx="ctx" /></div>
         <div
+          v-if="cf.showMR"
           class="splitter"
           title="拖拽调整列宽，双击重置"
           @pointerdown="onDragStart($event, 'mr')"
           @dblclick="resetCols"
-        />
-        <div class="col" :style="{ width: rightPct + '%' }"><ImportDetailPanel :ctx="ctx" /></div>
+        >
+          <button
+            class="collapse-btn"
+            title="折叠详情"
+            @click.stop="collapsed.right = true"
+            @pointerdown.stop
+          >»</button>
+        </div>
+        <div class="col" :style="{ flex: cf.right }">
+          <ImportSideRail
+            v-if="collapsed.right"
+            label="详情"
+            side="right"
+            @expand="collapsed.right = false"
+          />
+          <ImportDetailPanel v-else :ctx="ctx" />
+        </div>
       </div>
     </div>
   </el-dialog>
@@ -271,4 +310,28 @@ watch(visible, (on) => {
   transition: background 0.15s;
 }
 .splitter:hover::after { background: var(--el-color-primary, #d97757); }
+.collapse-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 18px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--el-border-color, #dcdfe6);
+  border-radius: 4px;
+  background: #fff;
+  color: #909399;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s, color 0.15s;
+}
+.splitter:hover .collapse-btn { opacity: 1; }
+.collapse-btn:hover { color: var(--el-color-primary, #d97757); border-color: var(--el-color-primary, #d97757); }
 </style>
