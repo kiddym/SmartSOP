@@ -26,7 +26,7 @@ describe('EditorPreviewPane', () => {
     vi.mocked(fetchSourceDocx).mockResolvedValue(null)
     const w = mount(EditorPreviewPane, { props: { procedureId: 'p1' }, global: { stubs } })
     await flushPromises()
-    expect(w.find('.preview-col').exists()).toBe(false)
+    expect(w.find('.panel-col').exists()).toBe(false)
     expect(w.find('.stub-preview').exists()).toBe(false)
   })
 
@@ -34,7 +34,7 @@ describe('EditorPreviewPane', () => {
     vi.mocked(fetchSourceDocx).mockResolvedValue({ blob: new Blob(['x']), filename: 'a.docx' })
     const w = mount(EditorPreviewPane, { props: { procedureId: 'p1' }, global: { stubs } })
     await flushPromises()
-    expect(w.find('.preview-col').exists()).toBe(true)
+    expect(w.find('.panel-col').exists()).toBe(true)
     expect(w.find('.stub-preview').exists()).toBe(true)
   })
 
