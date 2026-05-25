@@ -48,3 +48,12 @@ def token_dir(token: str) -> Path:
 
 def token_media_dir(token: str) -> Path:
     return token_dir(token) / "media"
+
+
+def source_docx_root() -> Path:
+    return storage_root() / "source_docx"
+
+
+def source_docx_path(procedure_group_id: str) -> Path:
+    """原始源 docx 物理路径：按 procedure_group 一份。"""
+    return source_docx_root() / procedure_group_id / "source.docx"
