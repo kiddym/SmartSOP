@@ -196,6 +196,7 @@ If-Match: <revision>     # 写操作必须，未带 → 412
     "level_of_use": "continuous",               // reference/continuous/information（Q182）
     "custom_values": {"field_key": "..."},
     "version_update_notes": "...",
+    "signoff_enabled": false,                   // PDF 操作员签字栏总开关（程序级，受控文档属性）
     "revision": 7,                              // 用作 If-Match 来源
     "is_read": false, "read_at": null,
     "deprecated_from_folder_id": null,
@@ -223,10 +224,9 @@ If-Match: <revision>     # 写操作必须，未带 → 412
      "note": "<p>操作前熟悉流程</p>",      // 富文本警示·提示（Q263，蓝）
      "caution": "",                          // 富文本警示·小心（Q263，黄）
      "warning": "<p>高压未泄放可致死</p>",  // 富文本警示·警告（Q263，红）
-     "require_confirmation": false,
      "attachment_marks": [{"name": "demo.mp4", "kind": "video", "note": ""}],    // Q203
      "skip_numbering": false}
-     /* 已移除：mark_status（Q264 执行态→执行模块）、step_alerts（Q263→三字段）、notes（归入 note）、expected_output（无用预留字段）*/
+     /* 已移除：mark_status（Q264 执行态→执行模块）、step_alerts（Q263→三字段）、notes（归入 note）、expected_output（无用预留字段）、require_confirmation（逐步确认改为程序级 signoff_enabled）*/
   ],
   "attachments": [
     {"id": "uuid", "file_name": "...", "size_bytes": 12345, "description": "...",

@@ -139,6 +139,7 @@
 | `level_of_use` | VARCHAR(20) | NOT NULL | **用途级别**（PPA AP-907-005 §4.11 / Q182）：`reference` / `continuous` / `information`，**无 DB 默认值**，创建时必选；PDF 封面强制渲染 |
 | `revision` | INT | NOT NULL DEFAULT 0 | **乐观锁版本字段**（与 version 不同） |
 | `version_update_notes` | TEXT | NOT NULL DEFAULT '' | **用户手填的本版本更新说明**（纯文本，含摘要 + 详细内容），DRAFT 可改；填入 PDF 修订记录页「说明」列 |
+| `signoff_enabled` | BOOLEAN | NOT NULL DEFAULT FALSE | PDF 操作员签字栏总开关（程序级，受控文档属性）|
 | `deprecated_from_folder_id` | CHAR(36) NULL | | deprecate 时记录原 folder_id；restore 时还原；同 group 所有版本共享该值 |
 | `deprecated_at` | DATETIME(6) NULL | | deprecate 操作时间戳（冗存，同 group 所有版本相同；restore 时清空）；Q180 |
 | `deprecated_by` | VARCHAR(128) NULL | | deprecate 操作者标识（冗存，同 group 所有版本相同；restore 时清空）；Q180 |
@@ -232,7 +233,7 @@
 | `warning` | LONGTEXT | NOT NULL DEFAULT '' | **警示·警告（红）富文本**（Q263）|
 | ~~`expected_output`~~ | — | **已移除**：复刻 DPMS 的预留字段，从未被渲染（PDF）/校验/执行消费，确认无用后删除 |
 | `attachment_marks` | JSON | NOT NULL DEFAULT '[]' | **步骤级附件标记**（Q203）：数组，每项 `{name, kind, note}`，仅标记不嵌入文件，见下方 |
-| `require_confirmation` | BOOLEAN | NOT NULL DEFAULT FALSE | |
+| ~~`require_confirmation`~~ | — | **已移除**：逐步确认改为程序级 signoff（见 tb_procedure.signoff_enabled）|
 | `is_active`、时间戳 | | | |
 
 > **本轮 step 字段重构（Q261-Q264，复刻 DPMS V2.0 步骤模型）**：①`input_schema` 三型 → **12 型**（A9 覆盖，Q261）；②新增 `note`/`caution`/`warning` 三个富文本警示字段（方案 A，Q263），**移除** `step_alerts` JSON（Q201 修订）与 `notes`（归入 `note`）；③**移除** `mark_status`（Q264）；④现有 3 型迁移 `text→COMMON` / `pass_fail→CHECK` / `measurement→NUMBER`。
@@ -464,7 +465,7 @@ Word 解析图片不再 base64 内联 rich_content，改抽出为独立资源；
           "title": "示例步骤",
           "input_schema": { "type": "measurement", "unit": "", "upper_limit": null, "lower_limit": null },
           "step_alerts": [{ "level": "caution", "content": "...", "sort_order": 0 }],
-          "require_confirmation": true
+          "skip_numbering": false
         }
       ]
     },
@@ -476,7 +477,7 @@ Word 解析图片不再 base64 内联 rich_content，改抽出为独立资源；
 ```
 
 - 节点 `type` ∈ `chapter` / `content` / `step`，遵守子节点类型互斥（§4.1 / Q25）。
-- step 节点可预置 `input_schema` / `step_alerts` / `attachment_marks` / `require_confirmation` 等字段。
+- step 节点可预置 `input_schema` / `step_alerts` / `attachment_marks` 等字段。
 - `code` 不存模板（创建时由编号引擎重算）。
 
 **索引**：`IX(is_active, sort_order)`
