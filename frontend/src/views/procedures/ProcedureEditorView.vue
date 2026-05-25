@@ -19,6 +19,7 @@ import { useEditorKeyboard } from '@/composables/useEditorKeyboard'
 import { copyProcedure, deleteProcedure, transitionProcedure, upgradeVersion } from '@/api/procedures'
 import { formatDateTime } from '@/utils/format'
 import AttachmentPanel from '@/components/editor/AttachmentPanel.vue'
+import PdfPreviewDialog from '@/components/PdfPreview/PdfPreviewDialog.vue'
 import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 import CollapsiblePanel from '@/components/shared/CollapsiblePanel.vue'
 import { useSidebar } from '@/composables/useSidebar'
@@ -34,6 +35,23 @@ const persistence = useEditorPersistence(store, id.value)
 const activeTab = ref<'node' | 'attach' | 'history'>('node')
 const publishVisible = ref(false)
 const copyVisible = ref(false)
+const pdfPreviewVisible = ref(false)
+async function onPreviewPdf(): Promise<void> {
+  if (store.isDirty) {
+    try {
+      await ElMessageBox.confirm('预览需要先保存当前修改，是否保存并预览？', 'PDF 预览', {
+        confirmButtonText: '保存并预览',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+    } catch {
+      return
+    }
+    await doSave()
+    if (store.isDirty) return // 保存失败（校验/冲突）→ 不打开
+  }
+  pdfPreviewVisible.value = true
+}
 const versionBusy = ref(false)
 const leavingViaAction = ref(false) // 版本动作触发的跳转：绕过未保存守卫
 const treeRef = ref<InstanceType<typeof ChapterTreePanel> | null>(null)
@@ -285,6 +303,7 @@ function goBack(): void {
         @upgrade="onUpgrade"
         @discard="onDiscard"
         @copy="copyVisible = true"
+        @preview-pdf="onPreviewPdf"
       />
 
       <el-alert
@@ -352,6 +371,7 @@ function goBack(): void {
         :loading="versionBusy"
         @confirm="onCopyConfirm"
       />
+      <PdfPreviewDialog v-model="pdfPreviewVisible" :procedure-id="store.procedure.id" />
     </template>
   </div>
 </template>

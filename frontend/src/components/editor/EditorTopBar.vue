@@ -12,6 +12,7 @@ const emit = defineEmits<{
   (e: 'upgrade'): void
   (e: 'discard'): void
   (e: 'copy'): void
+  (e: 'preview-pdf'): void
 }>()
 
 const store = useProcedureEditorStore()
@@ -50,6 +51,7 @@ const showDiscard = computed(
       >
         标记模式
       </el-button>
+      <el-button size="small" @click="emit('preview-pdf')">PDF 预览</el-button>
       <el-button
         size="small"
         type="success"
