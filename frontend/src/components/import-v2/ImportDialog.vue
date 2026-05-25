@@ -330,7 +330,7 @@ watch(visible, (on) => {
   line-height: 1;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 0.15s, color 0.15s;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
 }
 .splitter:hover .collapse-btn { opacity: 1; }
 .collapse-btn:hover { color: var(--el-color-primary, #d97757); border-color: var(--el-color-primary, #d97757); }
