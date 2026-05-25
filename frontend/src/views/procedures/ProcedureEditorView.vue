@@ -19,6 +19,7 @@ import { useEditorKeyboard } from '@/composables/useEditorKeyboard'
 import { copyProcedure, deleteProcedure, transitionProcedure, upgradeVersion } from '@/api/procedures'
 import { formatDateTime } from '@/utils/format'
 import AttachmentPanel from '@/components/editor/AttachmentPanel.vue'
+import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -266,6 +267,7 @@ function goBack(): void {
       />
 
       <div class="body">
+        <EditorPreviewPane :procedure-id="store.procedure.id" />
         <div class="left">
           <ChapterTreePanel ref="treeRef" />
         </div>
