@@ -23,6 +23,8 @@ const checks = computed<Check[]>(() => {
   const list: Check[] = []
   list.push({ label: '程序名称非空', ok: !!p && p.name.trim().length > 0 })
   list.push({ label: '至少包含 1 个章节', ok: store.chapters.some((c) => c.content_type === 'chapter') })
+  const reviewPending = store.chapters.filter((c) => c.mark_status === 'review').length
+  list.push({ label: `无待确认节点${reviewPending ? `（剩 ${reviewPending}）` : ''}`, ok: reviewPending === 0 })
   for (const f of store.fields.filter((f) => f.required)) {
     const v = p?.custom_values?.[f.key]
     list.push({ label: `必填字段「${f.name}」已填写`, ok: v !== undefined && v !== null && String(v).trim() !== '' })
