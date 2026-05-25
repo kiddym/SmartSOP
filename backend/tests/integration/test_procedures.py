@@ -117,12 +117,12 @@ def test_transition_illegal_returns_400(client: TestClient) -> None:
     assert resp.json()["detail"]["code"] == "PROCEDURE_STATUS_INVALID"
 
 
-def test_delete_is_current_returns_400(client: TestClient) -> None:
+def test_delete_v1_draft_current_succeeds(client: TestClient) -> None:
+    # 纯草稿（v1 DRAFT is_current）：P1 relaxation 允许删除（返回 204）
     leaf = _make_leaf(client)
     pid = _make_procedure(client, leaf)["id"]
     resp = client.request("DELETE", f"{PROC}/{pid}", json={"reason": "不要了"})
-    assert resp.status_code == 400
-    assert resp.json()["detail"]["code"] == "PROCEDURE_IS_CURRENT"
+    assert resp.status_code == 204
 
 
 def test_batch_move_endpoint(client: TestClient) -> None:

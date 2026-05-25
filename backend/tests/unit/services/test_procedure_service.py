@@ -180,11 +180,12 @@ def test_transition_revision_mismatch_conflicts(db: Session, factory: Factory) -
 # --------------------------------------------------------------------------- #
 # 删除
 # --------------------------------------------------------------------------- #
-def test_delete_is_current_rejected(db: Session, factory: Factory) -> None:
+def test_delete_v1_draft_current_succeeds(db: Session, factory: Factory) -> None:
+    # 纯草稿（v1 DRAFT is_current）：P1 relaxation 允许删除（返回 None = 204 路径）
     proc = _create(db, _leaf(factory).id)
-    with pytest.raises(HTTPException) as exc:
-        procedure_service.delete_procedure(db, proc.id, "原因", META)
-    assert exc.value.detail["code"] == "PROCEDURE_IS_CURRENT"
+    result = procedure_service.delete_procedure(db, proc.id, "原因", META)
+    assert result is None
+    assert proc.is_active is False
 
 
 def test_delete_non_current_soft_deletes(db: Session, factory: Factory) -> None:

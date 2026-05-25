@@ -221,6 +221,37 @@ def test_import_without_token_has_no_source_docx(client: TestClient, storage_tmp
     assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
 
 
+def test_delete_pure_draft_removes_source_docx(client: TestClient, storage_tmp: Path) -> None:
+    leaf = _leaf(client)
+    token = _upload(client, styled_sop())
+    body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
+    pid = client.post(
+        IMPORT, json={"name": "可删草稿", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]}
+    ).json()["id"]
+    assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 200
+
+    deleted = client.request("DELETE", f"/api/v1/procedures/{pid}", json={"reason": "弃用草稿"})
+    assert deleted.status_code == 204, deleted.text
+    assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
+
+
+def test_delete_published_current_still_rejected(client: TestClient, storage_tmp: Path) -> None:
+    leaf = _leaf(client)
+    pid = client.post(
+        "/api/v1/procedures", json={"folder_id": leaf, "name": "已发布", "level_of_use": "continuous"}
+    ).json()["id"]
+    rev = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["revision"]
+    pub = client.post(
+        f"/api/v1/procedures/{pid}/transition",
+        json={"status": "PUBLISHED"},
+        headers={"If-Match": str(rev)},
+    )
+    assert pub.status_code == 200, pub.text
+    blocked = client.request("DELETE", f"/api/v1/procedures/{pid}", json={"reason": "x"})
+    assert blocked.status_code == 400
+    assert blocked.json()["detail"]["code"] == "PROCEDURE_IS_CURRENT"
+
+
 def _flatten(nodes: list[dict]) -> list[dict]:
     out: list[dict] = []
     for n in nodes:

@@ -295,12 +295,13 @@ def test_discard_draft_promotes_previous_archived(db: Session, factory: Factory)
     assert v1.is_current is True
 
 
-def test_discard_v1_draft_rejected(db: Session, factory: Factory) -> None:
+def test_discard_v1_draft_now_allowed(db: Session, factory: Factory) -> None:
+    # P1 relaxation：v1 DRAFT is_current 现允许删除（返回 None = 204 路径）
     folder = _leaf(factory)
     proc = factory.procedure(folder.id, version=1, status="DRAFT", is_current=True)
-    with pytest.raises(HTTPException) as exc:
-        procedure_service.delete_procedure(db, proc.id, "r", META)
-    assert exc.value.detail["code"] == "PROCEDURE_IS_CURRENT"
+    result = procedure_service.delete_procedure(db, proc.id, "r", META)
+    assert result is None
+    assert proc.is_active is False
 
 
 # --------------------------------------------------------------------------- #

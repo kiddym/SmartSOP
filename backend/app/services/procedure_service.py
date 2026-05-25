@@ -336,6 +336,23 @@ def delete_procedure(
         # 丢弃 DRAFT：v>1 草稿当前版本 → 软删 + 把同 group 最高版本的 ARCHIVED 提升为 current（§22.11）
         if proc.status == "DRAFT" and proc.version > 1:
             return _discard_draft(db, proc, reason, meta)
+        if proc.status == "DRAFT" and proc.version == 1:
+            # 纯草稿（唯一版本、从未发布）：整组丢弃，连带清源 docx（P1 / cleanup=C 手动删）
+            from app.services import source_docx_service  # 局部导入避免循环
+
+            source_docx_service.delete_for_group(db, proc.procedure_group_id)
+            proc.is_current = False
+            _soft_delete(db, proc)
+            audit_service.log_procedure_action(
+                db,
+                target_id=proc.id,
+                procedure_group_id=proc.procedure_group_id,
+                action="delete",
+                meta=meta,
+                old_value={"code": proc.code, "name": proc.name},
+                reason=reason,
+            )
+            return None
         raise bad_request("PROCEDURE_IS_CURRENT", "当前版本不可直接删除")
     _soft_delete(db, proc)
     audit_service.log_procedure_action(
