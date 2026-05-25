@@ -1,6 +1,13 @@
 import axios, { type AxiosInstance } from 'axios'
 import { ElMessage } from 'element-plus'
 
+declare module 'axios' {
+  // 按请求关闭统一错误 toast（用于"预期内"的失败，如可选资源 404）。
+  export interface AxiosRequestConfig {
+    skipErrorToast?: boolean
+  }
+}
+
 export interface ApiErrorDetail {
   code: string
   message: string
@@ -19,8 +26,10 @@ export const http: AxiosInstance = axios.create({
 http.interceptors.response.use(
   (response) => response,
   (error) => {
-    const detail = error?.response?.data?.detail as ApiErrorDetail | undefined
-    ElMessage.error(detail?.message ?? '请求失败，请稍后重试')
+    if (!error?.config?.skipErrorToast) {
+      const detail = error?.response?.data?.detail as ApiErrorDetail | undefined
+      ElMessage.error(detail?.message ?? '请求失败，请稍后重试')
+    }
     return Promise.reject(error)
   },
 )

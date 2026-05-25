@@ -174,3 +174,21 @@ export const downloadPdf = async (id: string): Promise<void> => {
   a.remove()
   URL.revokeObjectURL(url)
 }
+
+// 取回导入程序的原始 .docx（供编辑器预览栏渲染）。无原文 / 取回失败 → null（非关键，不弹错）。
+export const fetchSourceDocx = async (
+  id: string,
+): Promise<{ blob: Blob; filename: string } | null> => {
+  try {
+    const resp = await http.get(`/procedures/${id}/source-docx`, {
+      responseType: 'blob',
+      skipErrorToast: true,
+    })
+    const cd = String(resp.headers['content-disposition'] ?? '')
+    const m = /filename\*=UTF-8''([^;]+)/.exec(cd)
+    const filename = m ? decodeURIComponent(m[1]) : 'source.docx'
+    return { blob: resp.data as Blob, filename }
+  } catch {
+    return null
+  }
+}
