@@ -87,6 +87,7 @@ class ProcedureData:
     archived_at: datetime | None
     deprecated_at: datetime | None
     folder_full_path: str
+    signoff_enabled: bool
 
 
 @dataclass
@@ -254,6 +255,7 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
         archived_at=proc.archived_at,
         deprecated_at=proc.deprecated_at,
         folder_full_path=folder_path,
+        signoff_enabled=proc.signoff_enabled,
     )
     return RenderData(
         procedure=procedure,

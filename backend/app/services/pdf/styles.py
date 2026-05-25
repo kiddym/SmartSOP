@@ -85,6 +85,8 @@ def stylesheet() -> StyleSheet1:
     add("step_title", fontName=hei, fontSize=14, spaceBefore=10, spaceAfter=4)
     add("step_placeholder", fontName=song, fontSize=12, spaceBefore=2)
     add("step_mark", fontName=song, fontSize=11, textColor=Color(0.25, 0.25, 0.25))
+    # 操作员签字栏：右对齐（程序级 signoff，§6.3）
+    add("step_signoff", fontName=song, fontSize=12, alignment=TA_RIGHT, spaceBefore=4)
 
     # 警示 / hold-point（§7）
     add("alert_title", fontName=hei, fontSize=12, spaceAfter=2)

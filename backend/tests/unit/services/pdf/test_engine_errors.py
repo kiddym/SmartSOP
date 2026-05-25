@@ -34,6 +34,7 @@ def _data() -> RenderData:
         archived_at=None,
         deprecated_at=None,
         folder_full_path="x",
+        signoff_enabled=False,
     )
     return RenderData(proc, [], [], [], [], {})
 

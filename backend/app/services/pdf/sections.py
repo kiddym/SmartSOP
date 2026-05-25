@@ -298,12 +298,12 @@ def _render_step(st: StepData, data: RenderData, out: list[Flowable]) -> None:
         placeholder = _form_placeholder(st.input_schema)
         if placeholder:
             out.append(placeholder)
-    # 确认行
-    if st.require_confirmation:
+    # 签字栏：程序级开关开启 且 非警示型（右对齐手写签字，§6.3 顺序 6）
+    if data.procedure.signoff_enabled and ftype not in ("NOTE", "CAUTION", "WARNING"):
         out.append(
             Paragraph(
-                f"{CHECKBOX_GLYPH} 已确认完成    签名: __________  日期: __________",
-                s("step_placeholder"),
+                "签字: __________   日期: __________",
+                s("step_signoff"),
             )
         )
 

@@ -37,6 +37,7 @@ def _proc(**kw: object) -> ProcedureData:
         archived_at=None,
         deprecated_at=None,
         folder_full_path="根/质检",
+        signoff_enabled=False,
     )
     base.update(kw)
     return ProcedureData(**base)  # type: ignore[arg-type]
@@ -131,7 +132,7 @@ def test_human_size() -> None:
 # 步骤渲染（§6.3）
 # --------------------------------------------------------------------------- #
 def test_step_renders_content_marks_confirmation() -> None:
-    """COMMON 步骤：正文渲染 + 附件标记 + 确认行 + 执行占位符。"""
+    """COMMON 步骤：正文渲染 + 附件标记 + 执行占位符。"""
     step = _step(
         content="<p>正文</p>",
         # 编辑器真实字段形态：filename + kind=video
@@ -143,7 +144,27 @@ def test_step_renders_content_marks_confirmation() -> None:
     sections._render_step(step, _data(_proc()), out)
     texts = " ".join(_text(f) for f in out if isinstance(f, Paragraph))
     assert "demo.mp4" in texts and "视频" in texts
-    assert "已确认完成" in texts
+
+
+def test_signoff_renders_for_non_alert_when_enabled() -> None:
+    step = _step(input_schema={"type": "CHECK"})
+    out: list = []
+    sections._render_step(step, _data(_proc(signoff_enabled=True)), out)
+    assert any("签字" in _text(f) for f in out)
+
+
+def test_signoff_absent_when_disabled() -> None:
+    step = _step(input_schema={"type": "CHECK"})
+    out: list = []
+    sections._render_step(step, _data(_proc(signoff_enabled=False)), out)
+    assert not any("签字" in _text(f) for f in out)
+
+
+def test_signoff_absent_for_alert_type_even_when_enabled() -> None:
+    step = _step(input_schema={"type": "WARNING"}, content="<p>危险</p>")
+    out: list = []
+    sections._render_step(step, _data(_proc(signoff_enabled=True)), out)
+    assert not any("签字" in _text(f) for f in out)
 
 
 def test_attachment_mark_kind_document() -> None:
