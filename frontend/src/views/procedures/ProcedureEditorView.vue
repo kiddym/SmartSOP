@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { AxiosError } from 'axios'
@@ -20,6 +20,10 @@ import { copyProcedure, deleteProcedure, transitionProcedure, upgradeVersion } f
 import { formatDateTime } from '@/utils/format'
 import AttachmentPanel from '@/components/editor/AttachmentPanel.vue'
 import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
+import CollapsiblePanel from '@/components/shared/CollapsiblePanel.vue'
+import { useSidebar } from '@/composables/useSidebar'
+import { shouldAutoCollapse } from '@/utils/editorFocus'
+import type { PanelConfig } from '@/utils/collapsiblePanel'
 
 const route = useRoute()
 const router = useRouter()
@@ -33,6 +37,11 @@ const copyVisible = ref(false)
 const versionBusy = ref(false)
 const leavingViaAction = ref(false) // 版本动作触发的跳转：绕过未保存守卫
 const treeRef = ref<InstanceType<typeof ChapterTreePanel> | null>(null)
+
+const sidebar = useSidebar()
+const autoCollapsed = ref(false)
+const priorCollapsed = ref<boolean | null>(null)
+const DETAIL_CFG: PanelConfig = { defaultWidth: 360, min: 300, max: 700 }
 
 const kind = computed<'chapter' | 'content' | 'step' | null>(() => {
   const sid = store.selectedId
@@ -204,6 +213,28 @@ onMounted(async () => {
   }
   await persistence.tryRestore()
   persistence.start()
+
+  // Word 导入进入 → 专注模式：自动折叠侧边栏（离开恢复）。
+  if (shouldAutoCollapse(route.query.from, sidebar.collapsed.value)) {
+    priorCollapsed.value = sidebar.collapsed.value
+    sidebar.collapsed.value = true
+    autoCollapsed.value = true
+    void router.replace({ path: route.path, query: {} }) // 抹掉 from，防刷新重触发
+  }
+  // 在自动折叠之后建立 watch：用户编辑中手动切换即「接管」，离开不再恢复。
+  watch(
+    () => sidebar.collapsed.value,
+    () => {
+      autoCollapsed.value = false
+    },
+  )
+})
+
+onUnmounted(() => {
+  // 仅当本页自动折叠且用户未手动接管时，离开恢复进来前的状态。
+  if (autoCollapsed.value) {
+    sidebar.collapsed.value = priorCollapsed.value ?? false
+  }
 })
 
 onBeforeRouteLeave(async () => {
@@ -271,38 +302,45 @@ function goBack(): void {
         <div class="left">
           <ChapterTreePanel ref="treeRef" />
         </div>
-        <div class="right">
-          <ProcedureDetailsPanel />
-          <el-tabs v-model="activeTab" class="tabs">
-            <el-tab-pane label="节点详情" name="node">
-              <div class="pane">
-                <ChapterDetailPanel v-if="kind === 'chapter'" :key="store.selectedId ?? 'none'" />
-                <ContentDetailPanel v-else-if="kind === 'content'" :key="store.selectedId ?? 'none'" />
-                <StepDetailPanel v-else-if="kind === 'step'" :key="store.selectedId ?? 'none'" />
-                <el-empty v-else description="选择左侧节点进行编辑" />
-              </div>
-            </el-tab-pane>
-            <el-tab-pane label="附件" name="attach">
-              <AttachmentPanel
-                :procedure-id="store.procedure.id"
-                :editable="store.editable"
-                class="pane"
-              />
-            </el-tab-pane>
-            <el-tab-pane label="版本历史" name="history">
-              <el-timeline v-if="store.procedure.version_change_log.length" class="pane">
-                <el-timeline-item
-                  v-for="(entry, i) in store.procedure.version_change_log"
-                  :key="i"
-                  :timestamp="formatDateTime(String(entry.changed_at ?? ''))"
-                >
-                  {{ entry.change_type }} — {{ entry.description || '' }}
-                </el-timeline-item>
-              </el-timeline>
-              <el-empty v-else description="暂无版本记录（回退 / 升级见 Phase 7）" />
-            </el-tab-pane>
-          </el-tabs>
-        </div>
+        <CollapsiblePanel
+          label="节点详情"
+          side="right"
+          storage-key="smartsop.editor.detail"
+          :config="DETAIL_CFG"
+        >
+          <div class="right-scroll">
+            <ProcedureDetailsPanel />
+            <el-tabs v-model="activeTab" class="tabs">
+              <el-tab-pane label="节点详情" name="node">
+                <div class="pane">
+                  <ChapterDetailPanel v-if="kind === 'chapter'" :key="store.selectedId ?? 'none'" />
+                  <ContentDetailPanel v-else-if="kind === 'content'" :key="store.selectedId ?? 'none'" />
+                  <StepDetailPanel v-else-if="kind === 'step'" :key="store.selectedId ?? 'none'" />
+                  <el-empty v-else description="选择左侧节点进行编辑" />
+                </div>
+              </el-tab-pane>
+              <el-tab-pane label="附件" name="attach">
+                <AttachmentPanel
+                  :procedure-id="store.procedure.id"
+                  :editable="store.editable"
+                  class="pane"
+                />
+              </el-tab-pane>
+              <el-tab-pane label="版本历史" name="history">
+                <el-timeline v-if="store.procedure.version_change_log.length" class="pane">
+                  <el-timeline-item
+                    v-for="(entry, i) in store.procedure.version_change_log"
+                    :key="i"
+                    :timestamp="formatDateTime(String(entry.changed_at ?? ''))"
+                  >
+                    {{ entry.change_type }} — {{ entry.description || '' }}
+                  </el-timeline-item>
+                </el-timeline>
+                <el-empty v-else description="暂无版本记录（回退 / 升级见 Phase 7）" />
+              </el-tab-pane>
+            </el-tabs>
+          </div>
+        </CollapsiblePanel>
       </div>
 
       <PublishChecklistDialog v-model="publishVisible" @confirm="onPublishConfirm" />
@@ -335,15 +373,15 @@ function goBack(): void {
   min-height: 0;
 }
 .left {
-  width: 340px;
-  flex: none;
+  flex: 1;
+  min-width: 280px;
   min-height: 0;
 }
-.right {
+.right-scroll {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  min-width: 0;
   overflow-y: auto;
 }
 .tabs {
