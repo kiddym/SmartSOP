@@ -9,7 +9,6 @@ from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta, get_db, get_request_meta
-
 from app.schemas.node import (
     ChapterCreate,
     ChapterMoveIn,

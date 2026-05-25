@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
 from app.models.procedure import Procedure
-from app.schemas.node import ChapterCreate, ChapterUpsert, StepUpsert
+from app.schemas.node import ChapterUpsert, StepUpsert
 from app.schemas.procedure import ProcedureSaveIn
 from app.services import chapter_service, editor_service, step_service
 from tests.conftest import Factory
@@ -226,7 +226,7 @@ def test_step_and_content_coexist_under_chapter(db: Session, factory: Factory) -
 
 def test_chapter_with_subchapter_cannot_hold_step(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
-    with pytest.raises(Exception):  # SIBLING_TYPE_CONFLICT
+    with pytest.raises(HTTPException):  # SIBLING_TYPE_CONFLICT
         _save(
             db, proc, 0,
             chapters=[
