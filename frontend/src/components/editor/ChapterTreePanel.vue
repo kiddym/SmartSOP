@@ -9,6 +9,8 @@ import type { EditorChapter, EditorStep, FlatRow, NodeKind } from '@/types/node'
 
 const store = useProcedureEditorStore()
 
+const reviewCount = computed(() => store.chapters.filter((c) => c.mark_status === 'review').length)
+
 // ---- 搜索（debounce 200ms，匹配保留 ancestor，非空时展开全部） ---- //
 const search = ref('')
 const debounced = ref('')
@@ -313,6 +315,7 @@ defineExpose({ focusSearch })
         placeholder="搜索章节 / 步骤（/ 聚焦）"
         clearable
       />
+      <div v-if="reviewCount" class="review-count" title="解析存疑，待确认">⚠ {{ reviewCount }} 个待确认</div>
       <div v-if="store.editable && !store.markMode" class="root-add">
         <span class="root-add-label">根级：</span>
         <el-button size="small" :disabled="!rootAddState.canAddChapter" @click="onAdd(null, 'chapter')">
@@ -396,6 +399,11 @@ defineExpose({ focusSearch })
 .root-add-label {
   font-size: 12px;
   color: #909399;
+}
+.review-count {
+  font-size: 12px;
+  color: #e6a23c;
+  padding: 2px 0;
 }
 .tree-scroll {
   flex: 1;

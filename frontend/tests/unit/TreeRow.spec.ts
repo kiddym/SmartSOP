@@ -69,6 +69,18 @@ describe('TreeRow', () => {
     expect(w.find('.tr-typebar').exists()).toBe(true)
   })
 
+  describe('review badge', () => {
+    it('mark_status=review 显示「待确认」徽标', () => {
+      const w = mountRow(row({ mark_status: 'review' }))
+      expect(w.find('.tr-review').exists()).toBe(true)
+      expect(w.find('.tr-review').text()).toContain('待确认')
+    })
+    it('非 review 不显示徽标', () => {
+      const w = mountRow(row({ mark_status: 'unmarked' }))
+      expect(w.find('.tr-review').exists()).toBe(false)
+    })
+  })
+
   describe('promote/demote buttons', () => {
     function makeRow(kind: 'chapter' | 'content' | 'step'): FlatRow {
       return {

@@ -86,6 +86,7 @@ const typeLabel = computed(() =>
     <span class="tr-code" :class="{ 'tr-code--skip': row.code === '#' }">{{ row.code }}</span>
     <span class="tr-title" :class="{ 'tr-title--fallback': titleFallback }">{{ display }}</span>
 
+    <span v-if="row.mark_status === 'review'" class="tr-review" title="解析存疑，待确认">待确认</span>
     <span v-if="typeColor" class="tr-typebar" :class="`bar-${typeColor}`" :title="typeLabel">▮</span>
     <span v-if="row.require_confirmation" class="tr-flag" title="需操作员确认">⚠</span>
 
@@ -250,6 +251,16 @@ const typeLabel = computed(() =>
 .tr-flag {
   color: #e6a23c;
   flex: none;
+}
+.tr-review {
+  flex: none;
+  font-size: 11px;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 3px;
+  color: #b88230;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
 }
 .tr-actions {
   display: none;
