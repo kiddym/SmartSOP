@@ -521,7 +521,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       return siblings.reduce((m, s) => Math.max(m, s.sort_order), -1) + 1
     },
 
-    addChapterNode(parentId: string | null, contentType: ContentType): string {
+    addChapterNode(parentId: string | null, contentType: ContentType, afterId: string | null = null): string {
       this.pushUndo()
       const siblings = this.chapters.filter((c) => c.parent_id === parentId)
       const node: EditorChapter = {
@@ -536,17 +536,41 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       }
       this.chapters.push(node)
       this.dirtyChapters.add(node.id)
+      if (afterId) {
+        const after = this.chapterMap.get(afterId)
+        if (after && after.parent_id === parentId) {
+          for (const c of this.chapters) {
+            if (c.parent_id === parentId && c.id !== node.id && c.sort_order > after.sort_order) {
+              c.sort_order += 1
+              this.dirtyChapters.add(c.id)
+            }
+          }
+          node.sort_order = after.sort_order + 1
+        }
+      }
       if (parentId) this.setExpanded(parentId, true)
       this.selectedId = node.id
       return node.id
     },
 
-    addStepNode(chapterId: string | null): string {
+    addStepNode(chapterId: string | null, afterId: string | null = null): string {
       this.pushUndo()
       const siblings = this.steps.filter((s) => s.chapter_id === chapterId)
       const node = emptyStep(chapterId, this.nextSortOrder(siblings))
       this.steps.push(node)
       this.dirtySteps.add(node.id)
+      if (afterId) {
+        const after = this.stepMap.get(afterId)
+        if (after && after.chapter_id === chapterId) {
+          for (const st of this.steps) {
+            if (st.chapter_id === chapterId && st.id !== node.id && st.sort_order > after.sort_order) {
+              st.sort_order += 1
+              this.dirtySteps.add(st.id)
+            }
+          }
+          node.sort_order = after.sort_order + 1
+        }
+      }
       if (chapterId) this.setExpanded(chapterId, true)
       this.selectedId = node.id
       return node.id

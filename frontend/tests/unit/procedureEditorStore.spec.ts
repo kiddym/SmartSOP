@@ -116,6 +116,27 @@ describe('新增节点', () => {
     expect(s.dirtySteps.has(id)).toBe(true)
     expect(s.stepMap.get(id)?.chapter_id).toBe('a')
   })
+
+  it('addChapterNode 带 afterId：插到该兄弟之后并重排 sort_order', () => {
+    const s = seed() // 根级已有 a(0), b(1)
+    const id = s.addChapterNode(null, 'chapter', 'a') // 期望落在 a 与 b 之间
+    const order = s.chapters
+      .filter((c) => c.parent_id === null)
+      .sort((x, y) => x.sort_order - y.sort_order)
+      .map((c) => c.id)
+    expect(order).toEqual(['a', id, 'b'])
+  })
+
+  it('addStepNode 带 afterId：在同章节内插到该步骤之后', () => {
+    const s = seed()
+    s.steps = [stp('s1', 'a', 0), stp('s2', 'a', 1)]
+    const id = s.addStepNode('a', 's1') // 期望落在 s1 与 s2 之间
+    const order = s.steps
+      .filter((st) => st.chapter_id === 'a')
+      .sort((x, y) => x.sort_order - y.sort_order)
+      .map((st) => st.id)
+    expect(order).toEqual(['s1', id, 's2'])
+  })
 })
 
 describe('编辑与脏追踪', () => {
