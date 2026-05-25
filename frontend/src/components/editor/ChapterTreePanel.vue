@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useDebounceFn, useVirtualList } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TreeRow from './TreeRow.vue'
+import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { getAddButtonState, isTempId } from '@/utils/editor'
 import { nextReviewId } from '@/utils/reviewNav'
@@ -354,6 +355,11 @@ defineExpose({ focusSearch })
           +步骤
         </el-button>
       </div>
+      <div v-if="store.editable" class="layer-entry">
+        <el-button size="small" :type="store.layerMode ? 'primary' : ''" @click="store.toggleLayerMode()">
+          {{ store.layerMode ? '退出层级标定' : '层级标定' }}
+        </el-button>
+      </div>
       <div v-if="store.markMode" class="mark-bar">
         <el-button size="small" type="success" :disabled="markSel.size === 0" @click="applyBatch('step')">
           标记为步骤
@@ -366,7 +372,8 @@ defineExpose({ focusSearch })
       </div>
     </div>
 
-    <div v-bind="containerProps" class="tree-scroll">
+    <EditorLayerMarking v-if="store.layerMode" />
+    <div v-else v-bind="containerProps" class="tree-scroll">
       <div v-bind="useVirtualRows ? wrapperProps : {}">
         <TreeRow
           v-for="row in renderedRows"
@@ -415,6 +422,7 @@ defineExpose({ focusSearch })
   gap: 6px;
   border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
 }
+.layer-entry,
 .root-add,
 .mark-bar {
   display: flex;
