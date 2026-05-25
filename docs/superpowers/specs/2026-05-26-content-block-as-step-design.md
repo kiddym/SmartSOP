@@ -117,16 +117,15 @@
 - `TreeRow`：下拉新增「内容块」入口（按 Q25 启停）；新增「内容块 ↔ 步骤」互转菜单项。图标沿用 📘章节 / 📄内容块 / ☐步骤。jsdom 下 el-dropdown 菜单不渲染，测 `@command` 走组件 `$emit`，不手搓菜单。
 - `ChapterTreePanel`：`addTargetFor` 的可选项纳入「内容块」；`onAdd` 对内容块走 `addStepNode(..., 'content')`。
 
-### 6. 待确认点：`promoteContentToChapter` /「提升为章节」
+### 6. 移除 `promoteContentToChapter` /「提升为章节」入口
 
 现状：`ChapterDetailPanel` 有「提升为章节」按钮调 `store.promoteContentToChapter(id)`，把 content 章节行就地改为 chapter（同表转换）。
 
-新模型下内容块是步骤行，「内容块 → 章节」变为**跨表 + 跨层级**转换。本设计的处置：
+新模型下内容块是步骤行，「内容块 → 章节」会变成跨表 + 跨层级转换。**本设计直接移除此入口**：
 
-- 改为 `convertContentToChapter(stepId)`：在内容块步骤所在父级、同位序处新建一个空标题章节，删除该内容块步骤；因章节不承载正文，**原富文本正文随转换丢弃**（与旧实现「转章节后正文清空」的净效果一致）。
-- 按钮从 `ChapterDetailPanel` 迁到 `ContentDetailPanel`（内容块自己的面板）。
-
-> 这是一处行为取舍（正文丢弃）。若更希望「转章节时保留正文」或「干脆移除此入口、让用户走 内容块→步骤→重排」，请在评审时指出。
+- 删除 `ChapterDetailPanel` 的「提升为章节」按钮。
+- 删除 `store.promoteContentToChapter`。
+- 用户若要把一段内容块改成章节结构，走「内容块 → 步骤」互转 + 拖拽重排，或直接新增章节后移动既有内容。
 
 ---
 
@@ -148,9 +147,9 @@
 | `backend/app/routers/chapters.py` | 转换端点：保留 章节→步骤/内容块；内容块↔步骤改客户端 |
 | `backend/alembic/versions/<new>.py` | 加 step.kind、删章节两列、1:1 数据搬运 |
 | `frontend/src/types/node.ts` | 删 `ContentType`/章节 content 字段；step 系列加 `kind` |
-| `frontend/src/store/procedureEditor.ts` | ingest/flatRows 交替；addStepNode(kind)；内容块↔步骤互转；promoteContentToChapter 跨表化 |
+| `frontend/src/store/procedureEditor.ts` | ingest/flatRows 交替；addStepNode(kind)；内容块↔步骤互转；删除 promoteContentToChapter |
 | `frontend/src/utils/editor.ts` | numberSteps 跳过 content；getAddButtonState 重写；formatCode 改判 kind |
-| `frontend/src/components/editor/ContentDetailPanel.vue` | 绑定内容块步骤、仅富文本；移除 review 横幅；承接「转为章节」按钮 |
+| `frontend/src/components/editor/ContentDetailPanel.vue` | 绑定内容块步骤、仅富文本；移除 review 横幅 |
 | `frontend/src/components/editor/ChapterDetailPanel.vue` | 移除「提升为章节」按钮；章节仅标题 |
 | `frontend/src/components/editor/TreeRow.vue` | 新增「内容块」入口 + 内容块↔步骤互转菜单 |
 | `frontend/src/components/editor/ChapterTreePanel.vue` | addTargetFor 纳入内容块；onAdd 走 addStepNode('content') |
@@ -172,7 +171,7 @@
 - `recomputeCodes` 与后端 `numbering_service` 等价（含内容块穿插场景）。
 - `getAddButtonState` 新规则全分支（步骤+内容块可加、与章节互斥）。
 - `flatRows` 交替顺序正确（按 sort_order）。
-- store：addStepNode 两种 kind；内容块↔步骤互转标脏；convertContentToChapter。
+- store：addStepNode 两种 kind；内容块↔步骤互转标脏；确认 promoteContentToChapter 已移除。
 - `ContentDetailPanel` 只渲染富文本、无 review 横幅。
 - `TreeRow` 菜单按 Q25 启停、互转命令（走 `$emit`，不手搓 el-dropdown 菜单）。
 
@@ -180,5 +179,5 @@
 
 - **改动面大**：横跨模型/迁移/解析/保存/编号/PDF/前端。缓解：执行运行时未实现、数据可重建，且内容块行为（不编号/无标题/叶子）与现状一致，多为「换数据来源」而非「换行为」。
 - **`recomputeCodes` 与后端编号必须保持等价**：单测锁定；内容块跳过逻辑两端对齐。
-- **「提升为章节」正文丢弃**：见 §6 待确认点。
+- **移除「提升为章节」入口**：见 §6。用户已确认接受。
 - **解析侧仍用 `content_type` 分类**：仅落库语义改变，避免改动解析器本体，降低风险。
