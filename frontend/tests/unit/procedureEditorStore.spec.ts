@@ -501,4 +501,14 @@ describe('层级标定 (P2c)', () => {
     expect(s.dirtyChapters.has('b')).toBe(true)
     expect(s.layerMode).toBe(false)
   })
+
+  it('applyLayerRoles 连带清被触及节点的 review', async () => {
+    const s = seed()
+    s.chapters = [{ ...chap('a', null, 0), mark_status: 'review' }, chap('b', 'a', 0)]
+    s.layerMode = true
+    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    await flushPromises()
+    expect(s.chapterMap.get('a')?.mark_status).toBe('unmarked')
+    expect(markSpy).toHaveBeenCalledWith('a', 'unmarked')
+  })
 })

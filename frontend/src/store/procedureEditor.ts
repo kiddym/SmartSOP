@@ -763,15 +763,19 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     applyLayerRoles(roleMap: Map<string, LayerRole>): void {
       const updates = computeLayerUpdates(this.layerRows, roleMap)
       this.pushUndo('layer')
+      const clearReview: string[] = []
       for (const [id, u] of updates) {
         const ch = this.chapterMap.get(id)
         if (!ch) continue
+        // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType/promote/demote 一致）。
+        if (ch.mark_status === 'review') clearReview.push(id)
         ch.parent_id = u.parent_id
         ch.content_type = u.content_type
         ch.sort_order = u.sort_order
         this.dirtyChapters.add(id)
       }
       this.layerMode = false
+      for (const id of clearReview) void this.setMark(id, 'unmarked')
     },
 
     // 设置单节点 mark_status。调用方须保证 id 为真实 id（临时节点先 ensureSaved 解析）；
