@@ -251,6 +251,38 @@ def test_delete_published_current_still_rejected(client: TestClient, storage_tmp
     assert blocked.json()["detail"]["code"] == "PROCEDURE_IS_CURRENT"
 
 
+def test_publish_blocked_while_review_pending(client: TestClient, storage_tmp: Path) -> None:
+    leaf = _leaf(client)
+    token = _upload(client, unstyled_numbered_sop())
+    parsed = client.post(PARSE, json={"upload_token": token, "parse_mode": "smart"}).json()
+    pid = client.post(
+        IMPORT, json={"name": "待发布", "folder_id": leaf, "chapters": parsed["chapters"]}
+    ).json()["id"]
+    detail = client.get(f"/api/v1/procedures/{pid}").json()
+    rev = detail["procedure"]["revision"]
+
+    # 仍有 review → 发布被拦
+    blocked = client.post(
+        f"/api/v1/procedures/{pid}/transition",
+        json={"status": "PUBLISHED"},
+        headers={"If-Match": str(rev)},
+    )
+    assert blocked.status_code == 400
+    assert blocked.json()["detail"]["code"] == "REVIEW_PENDING"
+
+    # 清掉所有 review 后可发布
+    for n in _flatten(detail["chapters"]):
+        if n["mark_status"] == "review":
+            client.post(f"/api/v1/chapters/{n['id']}/mark-status", json={"mark_status": "unmarked"})
+    rev2 = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["revision"]
+    ok = client.post(
+        f"/api/v1/procedures/{pid}/transition",
+        json={"status": "PUBLISHED"},
+        headers={"If-Match": str(rev2)},
+    )
+    assert ok.status_code == 200, ok.text
+
+
 def _flatten(nodes: list[dict]) -> list[dict]:
     out: list[dict] = []
     for n in nodes:

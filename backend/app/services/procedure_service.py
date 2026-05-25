@@ -302,6 +302,17 @@ def transition(
     # 发布前强制必填自定义字段（Q367/Q368）
     if target == "PUBLISHED":
         field_service.validate_values(db, proc.custom_values, require_check=True)
+        pending = db.execute(
+            select(func.count())
+            .select_from(ProcedureChapter)
+            .where(
+                ProcedureChapter.procedure_id == proc.id,
+                ProcedureChapter.is_active.is_(True),
+                ProcedureChapter.mark_status == "review",
+            )
+        ).scalar_one()
+        if pending:
+            raise bad_request("REVIEW_PENDING", f"仍有 {pending} 个待确认节点，请先全部处理")
 
     proc.status = target
     if target == "ARCHIVED":
