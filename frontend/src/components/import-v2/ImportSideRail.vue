@@ -9,7 +9,7 @@ const arrow = computed(() => (props.side === 'left' ? '»' : '«'))
 </script>
 
 <template>
-  <div class="rail" :title="`展开${label}`" @click="emit('expand')">
+  <div :class="['rail', side === 'left' ? 'rail-left' : 'rail-right']" :title="`展开${label}`" @click="emit('expand')">
     <span class="rail-expand">{{ arrow }}</span>
     <span class="rail-label">{{ label }}</span>
   </div>
@@ -22,14 +22,15 @@ const arrow = computed(() => (props.side === 'left' ? '»' : '«'))
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
-  padding-top: 10px;
+  gap: 8px;
+  padding-top: 8px;
   cursor: pointer;
   background: var(--el-fill-color-light, #f5f7fa);
-  border-right: 1px solid var(--el-border-color-lighter, #ebeef5);
   user-select: none;
   color: #606266;
 }
+.rail-left { border-right: 1px solid var(--el-border-color-lighter, #ebeef5); }
+.rail-right { border-left: 1px solid var(--el-border-color-lighter, #ebeef5); }
 .rail:hover { background: var(--el-fill-color, #f0f2f5); color: var(--el-color-primary, #d97757); }
 .rail-expand { font-size: 14px; line-height: 1; }
 .rail-label {

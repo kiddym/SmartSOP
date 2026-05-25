@@ -23,4 +23,9 @@ describe('ImportSideRail', () => {
     await w.get('.rail').trigger('click')
     expect(w.emitted('expand')).toHaveLength(1)
   })
+
+  it('title 提示包含 label', () => {
+    const w = mount(ImportSideRail, { props: { label: 'Word 原文预览', side: 'left' } })
+    expect(w.get('.rail').attributes('title')).toBe('展开Word 原文预览')
+  })
 })
