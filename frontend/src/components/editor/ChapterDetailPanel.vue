@@ -51,6 +51,10 @@ const children = computed<ChildRow[]>(() => {
 
 <template>
   <div v-if="chapter" class="chapter-detail">
+    <div v-if="chapter.mark_status === 'review' && !ro" class="review-banner">
+      <span>⚠ 解析存疑（待确认）——确认结构无误后接受</span>
+      <el-button size="small" type="warning" plain @click="store.acceptReview(chapter.id)">接受待确认</el-button>
+    </div>
     <el-form label-position="top">
       <el-form-item label="节点类型">
         <el-radio-group
@@ -113,6 +117,19 @@ const children = computed<ChildRow[]>(() => {
 </template>
 
 <style scoped>
+.review-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: #b88230;
+  background: #fdf6ec;
+  border: 1px solid #f5dab1;
+  border-radius: 4px;
+}
 .title-row {
   display: flex;
   gap: 12px;
