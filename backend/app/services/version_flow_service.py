@@ -35,16 +35,14 @@ from app.services import (
 from app.services.sequence_generator import next_sequence_value
 
 # 深拷贝时一并复制的章节 / 步骤字段（id / parent 关系单独重映射）。
-_CHAPTER_COPY = ("title", "content_type", "rich_content", "sort_order", "level", "skip_numbering")
+_CHAPTER_COPY = ("title", "sort_order", "level", "skip_numbering")
 _STEP_COPY = (
+    "kind",
     "title",
     "content",
     "sort_order",
     "skip_numbering",
     "input_schema",
-    "note",
-    "caution",
-    "warning",
     "attachment_marks",
 )
 
@@ -499,7 +497,7 @@ def delete_group(db: Session, group_id: str, reason: str, meta: RequestMeta) -> 
     # FK RESTRICT + 无 cascade → 手动按依赖顺序物理删除。
     db.execute(delete(ProcedureStep).where(ProcedureStep.procedure_id == proc.id))
     # 章节自引用：按真实树深拓扑删（叶先于父），不可依赖 level 列（仅 1-3 显示层级，
-    # content 节点可与父同 level → 同批删会触发自引用 FK RESTRICT 冲突，评审 H3）。
+    # 同批删父子会触发自引用 FK RESTRICT 冲突，评审 H3）。
     rows = db.execute(
         select(ProcedureChapter.id, ProcedureChapter.parent_id).where(
             ProcedureChapter.procedure_id == proc.id

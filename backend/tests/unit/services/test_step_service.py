@@ -56,19 +56,23 @@ def test_step_sibling_conflict_with_chapter_children(db: Session, factory: Facto
     assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
 
 
-def test_step_under_content_rejected(db: Session, factory: Factory) -> None:
+def test_step_and_content_coexist_in_chapter(db: Session, factory: Factory) -> None:
+    # 新模型 Q25：步骤与内容块（kind='content'）可在同一章节下共存交替
     proc = _proc(factory)
     ch = _chapter(db, proc.id)
-    content = chapter_service.create_chapter(
-        db,
-        ChapterCreate(
-            procedure_id=proc.id, content_type="content", rich_content="<p>x</p>", parent_id=ch.id
-        ),
-        META,
+    s1 = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="步骤一"), META)
+    c1 = step_service.create_step(
+        db, _sc(proc.id, chapter_id=ch.id, kind="content", content="<p>说明</p>"), META
     )
-    with pytest.raises(HTTPException) as exc:
-        step_service.create_step(db, _sc(proc.id, chapter_id=content.id), META)
-    assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
+    s2 = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="步骤二"), META)
+    db.refresh(s1)
+    db.refresh(c1)
+    db.refresh(s2)
+    assert c1.kind == "content"
+    # 内容块不参与编号；步骤连续编号
+    assert s1.code == "1.1"
+    assert c1.code == ""
+    assert s2.code == "1.2"
 
 
 def test_invalid_input_schema_type(db: Session, factory: Factory) -> None:

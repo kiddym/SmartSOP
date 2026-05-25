@@ -611,14 +611,12 @@ def _build_chapter_tree(db: Session, proc_id: str) -> list[ChapterTreeNode]:
         return [
             ChapterTreeNode(
                 id=ch.id,
-                content_type=ch.content_type,
                 title=ch.title,
                 code=ch.code,
                 level=ch.level,
                 sort_order=ch.sort_order,
                 skip_numbering=ch.skip_numbering,
                 mark_status=ch.mark_status,
-                rich_content=ch.rich_content,
                 children=build(ch.id),
             )
             for ch in children.get(parent_id, [])

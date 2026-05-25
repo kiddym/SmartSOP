@@ -1,10 +1,10 @@
-"""章节 / 内容节点业务逻辑（api-specification §5.4 / data-model §3.4 / §19 / §47）。
+"""章节业务逻辑（api-specification §5.4 / data-model §3.4 / §19 / §47）。
 
 约束：
-- Q25 子节点类型互斥：同一 parent 下 {子 chapter+content 混排} XOR {step} XOR 空。
-- 章节最多 3 级嵌套（C7/Q190 二次修订回 3）；3 级上限仅约束 chapter，step 为叶子。
-- §19 章节模型重构：content_type='chapter' 节点 rich_content 恒空（CHAPTER_RICH_CONTENT_NOT_ALLOWED）；
-  content 节点承载富文本、强制叶子。
+- 章节为纯标题 / 分组容器（§19 重构：content_type/rich_content 两列已删）；
+  内容块已迁至 ProcedureStep（kind='content'），与步骤同表共存。
+- Q25 子节点类型互斥：同一 parent 下 {子 chapter} XOR {叶子项=step+content} XOR 空。
+- 章节最多 3 级嵌套（C7/Q190 二次修订回 3）；step / content 为叶子。
 - 编号 code 全自动整树重算（§47），每次结构变更即时调用 numbering_service（Q310）。
 - 仅 is_current=true 且 status=DRAFT 的程序可编辑（Q14，PROCEDURE_READONLY）。
 
@@ -17,7 +17,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
-from app.errors import bad_request, not_found, payload_too_large
+from app.errors import bad_request, not_found
 from app.models.base import utcnow
 from app.models.chapter import ProcedureChapter
 from app.models.procedure import Procedure
@@ -26,7 +26,6 @@ from app.schemas.node import ChapterCreate, ChapterMoveIn, ChapterUpdate
 from app.services import audit_service, numbering_service, optimistic_lock
 
 MAX_DEPTH = 3
-CONTENT_MAX_BYTES = 5 * 1024 * 1024  # rich_content ≤ 5 MB（Q30，图片已外置为 URL）
 
 
 # --------------------------------------------------------------------------- #
@@ -55,7 +54,7 @@ def _get_chapter(db: Session, chapter_id: str) -> ProcedureChapter:
 
 
 def _chapter_siblings(db: Session, proc_id: str, parent_id: str | None) -> list[ProcedureChapter]:
-    """同 parent 下的 active chapter/content 节点，按 sort_order 排序。"""
+    """同 parent 下的 active 章节，按 sort_order 排序。"""
     return list(
         db.execute(
             select(ProcedureChapter)
@@ -87,26 +86,19 @@ def _has_step_children(db: Session, proc_id: str, parent_id: str | None) -> bool
 
 
 def _assert_can_hold_chapter_children(db: Session, proc_id: str, parent_id: str | None) -> None:
-    """新增 chapter/content 子节点前，parent 下不得已有 step（Q25 互斥）。"""
+    """新增子章节前，parent 下不得已有叶子项（step / content，Q25 互斥）。"""
     if _has_step_children(db, proc_id, parent_id):
-        raise bad_request("SIBLING_TYPE_CONFLICT", "该位置已有步骤，不能再加章节 / 内容块")
+        raise bad_request("SIBLING_TYPE_CONFLICT", "该位置已有步骤 / 内容块，不能再加章节")
 
 
 def _resolve_parent(db: Session, proc_id: str, parent_id: str | None) -> ProcedureChapter | None:
-    """校验 parent 存在、同程序、且为可容纳子节点的 chapter 节点（content 为叶子）。"""
+    """校验 parent 存在且同程序（章节均为分组容器，可挂子章节）。"""
     if parent_id is None:
         return None
     parent = _get_chapter(db, parent_id)
     if parent.procedure_id != proc_id:
         raise bad_request("SIBLING_TYPE_CONFLICT", "父节点不属于该程序")
-    if parent.content_type != "chapter":
-        raise bad_request("SIBLING_TYPE_CONFLICT", "内容块为叶子节点，不能添加子节点")
     return parent
-
-
-def _content_size_guard(rich_content: str) -> None:
-    if len(rich_content.encode("utf-8")) > CONTENT_MAX_BYTES:
-        raise payload_too_large("CONTENT_TOO_LARGE", "正文超过 5 MB 上限")
 
 
 def _children_map(db: Session, proc_id: str) -> dict[str | None, list[ProcedureChapter]]:
@@ -124,11 +116,9 @@ def _children_map(db: Session, proc_id: str) -> dict[str | None, list[ProcedureC
 
 
 def _subtree_chapter_height(cmap: dict[str | None, list[ProcedureChapter]], root_id: str) -> int:
-    """以 root 为顶的子树中 chapter 节点的最大相对深度（root 自身=0）。content 不计层。"""
+    """以 root 为顶的子树中章节的最大相对深度（root 自身=0）。"""
     best = 0
     for child in cmap.get(root_id, []):
-        if child.content_type != "chapter":
-            continue
         best = max(best, 1 + _subtree_chapter_height(cmap, child.id))
     return best
 
@@ -180,12 +170,8 @@ def create_chapter(db: Session, data: ChapterCreate, meta: RequestMeta) -> Proce
     parent = _resolve_parent(db, proc.id, data.parent_id)
     level = (parent.level + 1) if parent is not None else 1
 
-    if data.content_type == "chapter" and level > MAX_DEPTH:
+    if level > MAX_DEPTH:
         raise bad_request("CHAPTER_DEPTH_EXCEEDED", f"章节嵌套不能超过 {MAX_DEPTH} 级")
-    if data.content_type == "chapter" and data.rich_content.strip():
-        raise bad_request("CHAPTER_RICH_CONTENT_NOT_ALLOWED", "章节节点不能写入正文")
-    if data.content_type == "content":
-        _content_size_guard(data.rich_content)
     _assert_can_hold_chapter_children(db, proc.id, data.parent_id)
 
     siblings = _chapter_siblings(db, proc.id, data.parent_id)
@@ -194,9 +180,7 @@ def create_chapter(db: Session, data: ChapterCreate, meta: RequestMeta) -> Proce
     node = ProcedureChapter(
         procedure_id=proc.id,
         parent_id=data.parent_id,
-        content_type=data.content_type,
         title=data.title,
-        rich_content="" if data.content_type == "chapter" else data.rich_content,
         skip_numbering=data.skip_numbering,
         sort_order=sort_order,
         level=level,
@@ -213,7 +197,6 @@ def create_chapter(db: Session, data: ChapterCreate, meta: RequestMeta) -> Proce
         action="create",
         meta=meta,
         new_value={
-            "content_type": node.content_type,
             "title": node.title,
             "parent_id": node.parent_id,
         },
@@ -227,16 +210,8 @@ def update_chapter(
     ch = _get_chapter(db, chapter_id)
     proc = _get_proc_editable(db, ch.procedure_id)
 
-    if ch.content_type == "chapter":
-        if data.rich_content.strip():
-            raise bad_request("CHAPTER_RICH_CONTENT_NOT_ALLOWED", "章节节点不能写入正文")
-        before = {"title": ch.title, "skip_numbering": ch.skip_numbering}
-        ch.title = data.title
-    else:
-        _content_size_guard(data.rich_content)
-        before = {"rich_content_len": len(ch.rich_content), "skip_numbering": ch.skip_numbering}
-        ch.rich_content = data.rich_content
-        ch.title = data.title
+    before = {"title": ch.title, "skip_numbering": ch.skip_numbering}
+    ch.title = data.title
     skip_changed = ch.skip_numbering != data.skip_numbering
     ch.skip_numbering = data.skip_numbering
 
@@ -245,11 +220,7 @@ def update_chapter(
         numbering_service.recompute(db, proc.id)
     _touch(proc)
     db.flush()
-    after = (
-        {"title": ch.title, "skip_numbering": ch.skip_numbering}
-        if ch.content_type == "chapter"
-        else {"rich_content_len": len(ch.rich_content), "skip_numbering": ch.skip_numbering}
-    )
+    after = {"title": ch.title, "skip_numbering": ch.skip_numbering}
     old_value, new_value = audit_service.compute_diff(before, after)
     _audit(
         db,
@@ -332,11 +303,10 @@ def move_chapter(
 
     parent = _resolve_parent(db, proc.id, target_parent_id)
     base_level = (parent.level + 1) if parent is not None else 1
-    # 深度校验：仅约束 chapter 子树
-    if ch.content_type == "chapter":
-        new_max = base_level + _subtree_chapter_height(cmap, ch.id)
-        if new_max > MAX_DEPTH:
-            raise bad_request("CHAPTER_DEPTH_EXCEEDED", f"移动后章节嵌套超过 {MAX_DEPTH} 级")
+    # 深度校验：移动后子树最深章节不得超过 MAX_DEPTH
+    new_max = base_level + _subtree_chapter_height(cmap, ch.id)
+    if new_max > MAX_DEPTH:
+        raise bad_request("CHAPTER_DEPTH_EXCEEDED", f"移动后章节嵌套超过 {MAX_DEPTH} 级")
     _assert_can_hold_chapter_children(db, proc.id, target_parent_id)
 
     old_parent_id = ch.parent_id
@@ -430,7 +400,6 @@ def list_chapters(
     *,
     procedure_id: str | None,
     parent_id: str | None,
-    content_type: str | None,
     mark_status: str | None,
 ) -> list[ProcedureChapter]:
     stmt = select(ProcedureChapter).where(ProcedureChapter.is_active.is_(True))
@@ -438,8 +407,6 @@ def list_chapters(
         stmt = stmt.where(ProcedureChapter.procedure_id == procedure_id)
     if parent_id:
         stmt = stmt.where(ProcedureChapter.parent_id == parent_id)
-    if content_type:
-        stmt = stmt.where(ProcedureChapter.content_type == content_type)
     if mark_status:
         stmt = stmt.where(ProcedureChapter.mark_status == mark_status)
     stmt = stmt.order_by(ProcedureChapter.sort_order, ProcedureChapter.id)

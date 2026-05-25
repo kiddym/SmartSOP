@@ -67,12 +67,11 @@ def test_full_standard_flow(client: TestClient, storage_tmp: Path) -> None:
     chapter_titles = [c["title"] for c in detail["chapters"]]
     assert "目的" in chapter_titles
 
-    # 临时图已提升为永久 asset，rich_content 指向永久 URL，可被服务
-    flat = _flatten(detail["chapters"])
+    # 临时图已提升为永久 asset，内容块（步骤 kind='content'）content 指向永久 URL，可被服务
     asset_urls = [
         m.group(0)
-        for n in flat
-        for m in [re.search(r"/api/v1/procedures/[^/\"]+/assets/[0-9a-f-]{36}", n["rich_content"])]
+        for s in detail["steps"]
+        for m in [re.search(r"/api/v1/procedures/[^/\"]+/assets/[0-9a-f-]{36}", s["content"])]
         if m
     ]
     assert asset_urls, "导入后应有永久 asset URL"
@@ -166,10 +165,10 @@ def test_import_rejects_over_deep_tree(client: TestClient, storage_tmp: Path) ->
     assert resp.json()["detail"]["code"] == "CHAPTER_DEPTH_EXCEEDED"
 
 
-def test_import_rejects_content_with_children(client: TestClient, storage_tmp: Path) -> None:
-    """content 节点必须是叶子（H1 评审修复）。"""
+def test_import_content_with_children_dropped(client: TestClient, storage_tmp: Path) -> None:
+    """content 节点为叶子：导入时其子内容块被静默丢弃，正常落库（§19 重构）。"""
     leaf = _leaf(client)
-    bad = [
+    tree = [
         {
             "title": "ch",
             "content_type": "chapter",
@@ -182,9 +181,14 @@ def test_import_rejects_content_with_children(client: TestClient, storage_tmp: P
             ],
         }
     ]
-    resp = client.post(IMPORT, json={"name": "坏树", "folder_id": leaf, "chapters": bad})
-    assert resp.status_code == 400
-    assert resp.json()["detail"]["code"] == "SIBLING_TYPE_CONFLICT"
+    resp = client.post(IMPORT, json={"name": "内容子节点", "folder_id": leaf, "chapters": tree})
+    assert resp.status_code == 201, resp.text
+    pid = resp.json()["id"]
+    detail = client.get(f"/api/v1/procedures/{pid}").json()
+    # 章节为纯标题容器；内容块落成步骤（kind='content'），孙级被丢弃 → 仅 1 个内容步骤
+    contents = [s for s in detail["steps"] if s["kind"] == "content"]
+    assert len(contents) == 1
+    assert contents[0]["content"] == "<p>x</p>"
 
 
 def test_temp_media_404_for_unknown_token(client: TestClient, storage_tmp: Path) -> None:

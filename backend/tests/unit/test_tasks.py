@@ -53,12 +53,12 @@ def test_asset_gc_keeps_referenced(db: Session, factory: Factory, storage_tmp: P
     factory.sequence(leaf.id)
     proc = factory.procedure(leaf.id)
     asset = asset_service.find_or_create_asset(db, tiny_png(), ext=".png")
-    ch = factory.chapter(proc.id, content_type="chapter")
-    factory.chapter(
+    ch = factory.chapter(proc.id)
+    factory.step(
         proc.id,
-        parent_id=ch.id,
-        content_type="content",
-        rich_content=f'<img src="{asset_service.asset_url(proc.id, asset.id)}">',
+        chapter_id=ch.id,
+        kind="content",
+        content=f'<img src="{asset_service.asset_url(proc.id, asset.id)}">',
     )
     asset_service.rebuild_references(db, proc.id)
     asset.updated_at = utcnow() - timedelta(hours=25)

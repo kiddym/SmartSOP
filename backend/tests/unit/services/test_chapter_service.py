@@ -45,28 +45,6 @@ def test_create_child_chapter_level_and_code(db: Session, factory: Factory) -> N
     assert l2.code == "1.1"
 
 
-def test_create_content_node_under_chapter(db: Session, factory: Factory) -> None:
-    proc = _proc(factory)
-    ch = chapter_service.create_chapter(db, _mk(proc.id, title="章"), META)
-    content = chapter_service.create_chapter(
-        db,
-        _mk(proc.id, content_type="content", rich_content="<p>说明</p>", parent_id=ch.id),
-        META,
-    )
-    assert content.content_type == "content"
-    assert content.code == ""
-    assert content.rich_content == "<p>说明</p>"
-
-
-def test_chapter_rich_content_rejected(db: Session, factory: Factory) -> None:
-    proc = _proc(factory)
-    with pytest.raises(HTTPException) as exc:
-        chapter_service.create_chapter(
-            db, _mk(proc.id, content_type="chapter", rich_content="<p>x</p>"), META
-        )
-    assert exc.value.detail["code"] == "CHAPTER_RICH_CONTENT_NOT_ALLOWED"
-
-
 def test_depth_exceeded_at_level_four(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
     l1 = chapter_service.create_chapter(db, _mk(proc.id, title="1"), META)
@@ -75,17 +53,6 @@ def test_depth_exceeded_at_level_four(db: Session, factory: Factory) -> None:
     with pytest.raises(HTTPException) as exc:
         chapter_service.create_chapter(db, _mk(proc.id, title="4", parent_id=l3.id), META)
     assert exc.value.detail["code"] == "CHAPTER_DEPTH_EXCEEDED"
-
-
-def test_content_under_l3_chapter_allowed(db: Session, factory: Factory) -> None:
-    proc = _proc(factory)
-    l1 = chapter_service.create_chapter(db, _mk(proc.id, title="1"), META)
-    l2 = chapter_service.create_chapter(db, _mk(proc.id, title="2", parent_id=l1.id), META)
-    l3 = chapter_service.create_chapter(db, _mk(proc.id, title="3", parent_id=l2.id), META)
-    content = chapter_service.create_chapter(
-        db, _mk(proc.id, content_type="content", rich_content="<p>x</p>", parent_id=l3.id), META
-    )
-    assert content.content_type == "content"
 
 
 # --------------------------------------------------------------------------- #
@@ -100,41 +67,25 @@ def test_sibling_conflict_chapter_then_step(db: Session, factory: Factory) -> No
     assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
 
 
-def test_create_under_content_rejected(db: Session, factory: Factory) -> None:
+def test_sibling_conflict_content_then_chapter(db: Session, factory: Factory) -> None:
+    # 内容块=步骤（kind='content'），同样触发 Q25 互斥
     proc = _proc(factory)
-    ch = chapter_service.create_chapter(db, _mk(proc.id, title="章"), META)
-    content = chapter_service.create_chapter(
-        db, _mk(proc.id, content_type="content", rich_content="<p>x</p>", parent_id=ch.id), META
-    )
+    ch = chapter_service.create_chapter(db, _mk(proc.id, title="父"), META)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", content="<p>x</p>", sort_order=0)
     with pytest.raises(HTTPException) as exc:
-        chapter_service.create_chapter(db, _mk(proc.id, title="子", parent_id=content.id), META)
+        chapter_service.create_chapter(db, _mk(proc.id, title="子章", parent_id=ch.id), META)
     assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
 
 
 # --------------------------------------------------------------------------- #
 # 更新 / 跳号
 # --------------------------------------------------------------------------- #
-def test_update_content_rich(db: Session, factory: Factory) -> None:
+def test_update_chapter_title(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
     ch = chapter_service.create_chapter(db, _mk(proc.id, title="章"), META)
-    content = chapter_service.create_chapter(
-        db, _mk(proc.id, content_type="content", rich_content="<p>a</p>", parent_id=ch.id), META
-    )
-    chapter_service.update_chapter(
-        db, content.id, ChapterUpdate(title="", rich_content="<p>b</p>"), META
-    )
-    db.refresh(content)
-    assert content.rich_content == "<p>b</p>"
-
-
-def test_update_chapter_rich_rejected(db: Session, factory: Factory) -> None:
-    proc = _proc(factory)
-    ch = chapter_service.create_chapter(db, _mk(proc.id, title="章"), META)
-    with pytest.raises(HTTPException) as exc:
-        chapter_service.update_chapter(
-            db, ch.id, ChapterUpdate(title="章", rich_content="<p>x</p>"), META
-        )
-    assert exc.value.detail["code"] == "CHAPTER_RICH_CONTENT_NOT_ALLOWED"
+    chapter_service.update_chapter(db, ch.id, ChapterUpdate(title="新标题"), META)
+    db.refresh(ch)
+    assert ch.title == "新标题"
 
 
 def test_toggle_skip_recomputes(db: Session, factory: Factory) -> None:
@@ -240,21 +191,10 @@ def test_delete_renumbers_remaining_siblings(db: Session, factory: Factory) -> N
 
 
 # --------------------------------------------------------------------------- #
-# 只读 / 大小
+# 只读
 # --------------------------------------------------------------------------- #
 def test_readonly_procedure_rejected(db: Session, factory: Factory) -> None:
     proc = _proc(factory, status="PUBLISHED")
     with pytest.raises(HTTPException) as exc:
         chapter_service.create_chapter(db, _mk(proc.id, title="x"), META)
     assert exc.value.detail["code"] == "PROCEDURE_READONLY"
-
-
-def test_content_too_large(db: Session, factory: Factory) -> None:
-    proc = _proc(factory)
-    ch = chapter_service.create_chapter(db, _mk(proc.id, title="章"), META)
-    big = "x" * (5 * 1024 * 1024 + 1)
-    with pytest.raises(HTTPException) as exc:
-        chapter_service.create_chapter(
-            db, _mk(proc.id, content_type="content", rich_content=big, parent_id=ch.id), META
-        )
-    assert exc.value.detail["code"] == "CONTENT_TOO_LARGE"

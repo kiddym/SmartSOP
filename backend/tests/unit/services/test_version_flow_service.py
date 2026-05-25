@@ -342,8 +342,8 @@ def test_delete_group_topological_chapter_delete(db: Session, factory: Factory) 
     proc = factory.procedure(folder.id, version=1, status="DRAFT", is_current=True)
     l1 = factory.chapter(proc.id, title="L1", level=1)
     l2 = factory.chapter(proc.id, title="L2", parent_id=l1.id, level=2)
-    # content 子节点与 L2 同 level（level 仅展示层级，会暴露按 level 删的缺陷）
-    factory.chapter(proc.id, title="正文", parent_id=l2.id, content_type="content", level=2)
+    # 叶子项（内容块=步骤 kind='content'）挂在最深章节下
+    factory.step(proc.id, chapter_id=l2.id, kind="content", content="<p>正文</p>")
     version_flow_service.delete_group(db, proc.procedure_group_id, "删", META)
     assert version_flow_service._group_records(db, proc.procedure_group_id) == []
 

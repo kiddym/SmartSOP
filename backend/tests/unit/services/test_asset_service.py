@@ -64,19 +64,20 @@ def test_rebuild_references_tracks_and_releases(
     proc = _proc(factory)
     asset = asset_service.find_or_create_asset(db, tiny_png(), ext=".png")
     url = asset_service.asset_url(proc.id, asset.id)
-    chapter = factory.chapter(proc.id, content_type="chapter")
-    content = factory.chapter(
+    chapter = factory.chapter(proc.id)
+    # 内容块=步骤（kind='content'），图片引用嵌在步骤 content
+    content = factory.step(
         proc.id,
-        parent_id=chapter.id,
-        content_type="content",
-        rich_content=f'<p><img src="{url}"></p>',
+        chapter_id=chapter.id,
+        kind="content",
+        content=f'<p><img src="{url}"></p>',
     )
     asset_service.rebuild_references(db, proc.id)
     db.flush()
     assert asset_service.ref_count(db, asset.id) == 1
 
     # 移除引用 → ref_count 归零 + updated_at bump
-    content.rich_content = "<p>无图</p>"
+    content.content = "<p>无图</p>"
     db.flush()
     asset_service.rebuild_references(db, proc.id)
     db.flush()
@@ -108,12 +109,12 @@ def test_gc_skips_recent_and_referenced(db: Session, factory: Factory, storage_t
     assert asset.id not in asset_service.gc_candidates(db, grace_hours=24, now=now)
     # 加引用后即使过期也不删
     url = asset_service.asset_url(proc.id, asset.id)
-    ch = factory.chapter(proc.id, content_type="chapter")
-    factory.chapter(
+    ch = factory.chapter(proc.id)
+    factory.step(
         proc.id,
-        parent_id=ch.id,
-        content_type="content",
-        rich_content=f'<img src="{url}">',
+        chapter_id=ch.id,
+        kind="content",
+        content=f'<img src="{url}">',
     )
     asset_service.rebuild_references(db, proc.id)
     asset.updated_at = utcnow() - timedelta(hours=25)

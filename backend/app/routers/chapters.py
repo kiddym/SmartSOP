@@ -28,14 +28,12 @@ def list_chapters(
     db: Session = Depends(get_db),
     procedure_id: str | None = None,
     parent_id: str | None = None,
-    content_type: str | None = None,
     mark_status: str | None = None,
 ) -> list[ChapterOut]:
     rows = chapter_service.list_chapters(
         db,
         procedure_id=procedure_id,
         parent_id=parent_id,
-        content_type=content_type,
         mark_status=mark_status,
     )
     return [ChapterOut.model_validate(r) for r in rows]

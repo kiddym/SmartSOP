@@ -1,7 +1,7 @@
 """步骤业务逻辑（api-specification §5.4 / data-model §3.5 / §40 / §47）。
 
 约束：
-- Q25 互斥：step 只能挂在「不含 chapter/content 子节点」的 chapter 下，或根级（与根 chapter 互斥）。
+- step（含内容块 kind='content'）只能挂在「不含子章节」的 chapter 下，或根级（与根 chapter 互斥，Q25）。
 - step 为叶子（无子步骤，Q308）；编号 code = 父 chapter.code + 序号，全自动（§47）。
 - 执行表单 15 型（input_schema.type 大写枚举，Q261）；step.content ≤ 5 MB（CONTENT_TOO_LARGE）。
 - 仅 is_current=true 且 status=DRAFT 可编辑（PROCEDURE_READONLY）。
@@ -84,7 +84,7 @@ def _assert_can_hold_steps(db: Session, proc_id: str, chapter_id: str | None) ->
 
 
 def _resolve_chapter(db: Session, proc_id: str, chapter_id: str | None) -> None:
-    """目标 chapter 必须存在、同程序、且为 chapter 容器（content 为叶子，不可挂 step）。"""
+    """目标 chapter 必须存在、同程序（章节均为分组容器，可挂叶子项）。"""
     if chapter_id is None:
         return
     parent = db.execute(
@@ -96,8 +96,6 @@ def _resolve_chapter(db: Session, proc_id: str, chapter_id: str | None) -> None:
         raise not_found("NOT_FOUND", "目标章节不存在")
     if parent.procedure_id != proc_id:
         raise bad_request("SIBLING_TYPE_CONFLICT", "目标章节不属于该程序")
-    if parent.content_type != "chapter":
-        raise bad_request("SIBLING_TYPE_CONFLICT", "内容块为叶子节点，不能挂步骤")
 
 
 def _validate_input_schema(input_schema: dict[str, object]) -> None:
@@ -153,6 +151,7 @@ def create_step(db: Session, data: StepCreate, meta: RequestMeta) -> ProcedureSt
     st = ProcedureStep(
         procedure_id=proc.id,
         chapter_id=data.chapter_id,
+        kind=data.kind,
         title=data.title,
         content=data.content,
         input_schema=data.input_schema,
@@ -188,6 +187,7 @@ def update_step(db: Session, step_id: str, data: StepUpdate, meta: RequestMeta) 
         "type": st.input_schema.get("type"),
     }
     skip_changed = st.skip_numbering != data.skip_numbering
+    st.kind = data.kind
     st.title = data.title
     st.content = data.content
     st.input_schema = data.input_schema
