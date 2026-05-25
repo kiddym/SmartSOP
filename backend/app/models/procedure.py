@@ -51,6 +51,8 @@ class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     deprecated_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     deprecated_by: Mapped[str | None] = mapped_column(String(128), default=None)
     archived_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
+    # PDF 操作员签字栏总开关（程序级，受控文档属性）
+    signoff_enabled: Mapped[bool] = mapped_column(default=False, server_default="0")
 
     # 不用 delete-orphan / cascade delete：本项目全软删（database-spec §9）+ FK RESTRICT
     # （§8），子节点生命周期由 service 层软删管理，避免 ORM 触发硬 DELETE。

@@ -378,3 +378,11 @@ def test_delete_group_rejects_multi_version(db: Session, factory: Factory) -> No
     with pytest.raises(HTTPException) as exc:
         version_flow_service.delete_group(db, gid, "r", META)
     assert exc.value.detail["code"] == "PROCEDURE_GROUP_DELETE_FORBIDDEN"
+
+
+def test_upgrade_propagates_signoff_enabled(db: Session, factory: Factory) -> None:
+    factory.settings()
+    folder = _leaf(factory)
+    proc = _published(factory, folder, signoff_enabled=True)
+    new = version_flow_service.upgrade_version(db, proc.id, META)
+    assert new.signoff_enabled is True

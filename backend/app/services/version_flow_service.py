@@ -187,6 +187,7 @@ def _fork(
         risk_level=source.risk_level,
         quality_level=source.quality_level,
         custom_values=dict(source.custom_values),
+        signoff_enabled=source.signoff_enabled,
         version=version,
         is_current=True,
         status="DRAFT",

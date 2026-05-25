@@ -40,6 +40,7 @@ class ProcedureUpdate(BaseModel):
     quality_level: int = Field(default=1, ge=1, le=5)
     custom_values: dict[str, Any] = Field(default_factory=dict)
     version_update_notes: str = Field(default="", max_length=10000)
+    signoff_enabled: bool = Field(default=False)
 
 
 class ProcedureSaveIn(ProcedureUpdate):
@@ -176,6 +177,7 @@ class ProcedureOut(BaseModel):
     risk_level: int
     quality_level: int
     description: str
+    signoff_enabled: bool
     revision: int
     version_count_in_group: int
     created_at: datetime
@@ -202,6 +204,7 @@ class ProcedureMeta(BaseModel):
     level_of_use: str
     custom_values: dict[str, Any]
     version_update_notes: str
+    signoff_enabled: bool
     revision: int
     is_read: bool
     read_at: datetime | None

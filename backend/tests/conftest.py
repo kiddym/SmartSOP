@@ -115,6 +115,7 @@ class Factory:
         version: int = 1,
         status: str = "DRAFT",
         is_current: bool = True,
+        **kw: object,
     ) -> Procedure:
         proc = Procedure(
             procedure_group_id=procedure_group_id or str(uuid.uuid4()),
@@ -125,6 +126,7 @@ class Factory:
             version=version,
             status=status,
             is_current=is_current,
+            **kw,
         )
         self.db.add(proc)
         self.db.commit()
