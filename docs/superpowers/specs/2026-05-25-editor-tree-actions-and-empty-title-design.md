@@ -40,21 +40,36 @@
 [＋新增 ▾]   [↑]   [↓]   [⋮]
 ```
 
-- **＋新增 ▾**：`el-dropdown`，菜单项「子章节 / 内容块 / 步骤」。可用性由
-  `store.addButtonStateFor(row.id)`（`AddButtonState`）决定——不可用的项 `disabled`。
+**每种节点行都有相同的四个控件**（视觉与交互一致）：
+
+- **＋新增 ▾**：`el-dropdown`，菜单项「子章节 / 内容块 / 步骤」。可用项的菜单由该行的
+  **新增目标父级**经 `addButtonStateFor(targetParentId)` 决定，不可用项 `disabled`。
   取代原先的 +章 / +容 / +步 三个独立按钮。
 - **↑ / ↓**：上移 / 下移，保留（高频，且与拖拽互补），`disabled` 沿用 `canMoveUp/canMoveDown`。
 - **⋮ 更多**：`el-dropdown`，当前仅含「删除」（`emit('remove')`）。作为今后低频操作的归处。
-- 按节点类型差异化：
-  - 章节行：＋新增 ▾ + ↑ + ↓ + ⋮
-  - 内容块行：＋新增 ▾（仅当 `addButtonStateFor` 允许，通常无可加项则整组隐藏） + ↑ + ↓ + ⋮
-  - 步骤行：↑ + ↓ + ⋮（步骤不能加子节点，无 ＋新增）
+
+**新增语义（叶子加同级，章节加子节点）** —— 新节点的目标父级与位置由行类型决定：
+
+| 行类型 | 目标父级 | 位置 | 可选项来源 |
+| --- | --- | --- | --- |
+| 章节 | 该行自身（`row.id`） | 放进该章节（子节点） | `addButtonStateFor(row.id)` |
+| 内容块 | 该行的父级（`parent_id`） | 同一父级、该行之后（同级） | `addButtonStateFor(parent_id)` |
+| 步骤 | 该行的父级（`chapter_id`） | 同一父级、该行之后（同级） | `addButtonStateFor(chapter_id)` |
+
+> 由此每行（含内容块 / 步骤）都有 ＋新增 ▾，与章节完全一致；章节行额外保留「加子节点」能力，
+> 因此空章节仍能加进第一个子节点。
 
 行内动作仍只在 hover / 选中该行时出现（`.tr:hover .tr-actions`）。所有动作控件保持
 `@click.stop`，点击行本身始终用于选中 + 右侧预览。
 
-**影响文件**：`TreeRow.vue`（模板 + 样式重写动作区；移除 +章/+容/+步 文本按钮，
-引入两个 `el-dropdown`）。`ChapterTreePanel.vue` 的 `@add`/`@move`/`@remove` 透传逻辑不变。
+**实现要点**：
+- `ChapterTreePanel.vue` 新增 `addTargetFor(row)` → `{ parentId, afterId }`（章节：`{ row.id, null }`；
+  内容块 / 步骤：`{ 父级, row.id }`）。传给 `TreeRow` 的 `addState` 改用 `addButtonStateFor(parentId)`。
+- `onAdd` 改为向 `parentId` 新增，并在 `afterId` 之后定位（可在 `addChapterNode`/`addStepNode`
+  增加可选 `afterId`，按其 `sort_order` 之后插入；或新增后调用一次重排）。
+- **影响文件**：`TreeRow.vue`（模板 + 样式重写动作区，引入两个 `el-dropdown`，三种行统一渲染）；
+  `ChapterTreePanel.vue`（`addTargetFor` + `onAdd` 调整）；`store/procedureEditor.ts`
+  （`addChapterNode`/`addStepNode` 支持同级定位）。
 
 ### 2. 话题2 — 彻底移除升级/降级
 
@@ -110,8 +125,8 @@
 
 ### 4. 话题4 — PDF 预览按钮
 
-- `EditorTopBar.vue`：新增「PDF 预览」按钮，`is_current` 时显示（与详情页 `canPdf` 一致），
-  `emit('preview-pdf')`。位置：放在主动作区，read-only 时仍可见（PDF 预览对只读也有用）。
+- `EditorTopBar.vue`：在**可编辑**时（`store.editable`，即现有右侧动作区内）新增「PDF 预览」按钮，
+  `emit('preview-pdf')`。只读模式不显示（只读看 PDF 走详情页，避免为此重构顶栏）。
 - `ProcedureEditorView.vue`：
   - 引入并挂载 `PdfPreviewDialog`（`v-model` + `:procedure-id`）。
   - `onPreviewPdf`：若 `store.isDirty` → `ElMessageBox.confirm`「预览需先保存，是否保存并预览？」
@@ -125,22 +140,24 @@
 
 | 文件 | 改动 |
 | --- | --- |
-| `components/editor/TreeRow.vue` | 动作区重写为 ＋新增▾/↑/↓/⋮；移除 promote/demote；空标题行标记 |
-| `components/editor/ChapterTreePanel.vue` | 缺标题定位条 + 过滤；移除 promote/demote 绑定 |
-| `components/editor/EditorTopBar.vue` | 新增 PDF 预览按钮 |
+| `components/editor/TreeRow.vue` | 动作区重写为 ＋新增▾/↑/↓/⋮（三种行统一）；移除 promote/demote；空标题行标记 |
+| `components/editor/ChapterTreePanel.vue` | `addTargetFor` + onAdd 同级/子节点语义；缺标题定位条 + 过滤；移除 promote/demote 绑定 |
+| `components/editor/EditorTopBar.vue` | 可编辑时新增 PDF 预览按钮 |
 | `components/editor/ChapterDetailPanel.vue` | 空标题章节标题框自动聚焦 |
 | `views/procedures/ProcedureEditorView.vue` | PDF 预览挂载 + dirty 保存流程；保存拦截定位；移除 promote/demote handler |
 | `composables/useEditorKeyboard.ts` | 移除 Tab/Shift+Tab 与 onPromote/onDemote |
 | `utils/reviewNav.ts` | 抽出通用 `nextRowId(rows, currentId, predicate)` |
-| `store/procedureEditor.ts` | 删除 promote/demote/canPromote/canDemote；新增缺标题相关 getter |
+| `store/procedureEditor.ts` | `addChapterNode`/`addStepNode` 支持同级定位；删除 promote/demote/canPromote/canDemote；新增缺标题 getter |
 
 ## 测试
 
 - **单元（`reviewNav`）**：`nextRowId` 的环绕、空集、currentId 不存在；`nextReviewId` 回归。
 - **单元（store）**：`missingTitleCount`/缺标题列表的判定（章节 vs 内容块 vs 步骤）；
   确认 `promoteChapter`/`demoteChapter` 已移除而 `promoteContentToChapter` 保留。
-- **组件（TreeRow）**：章节行渲染 4 控件；＋新增▾ 菜单项随 `addButtonStateFor` 禁用；
-  空标题章节行显示「缺标题」标记；步骤行无 ＋新增。
+- **组件（TreeRow）**：章节 / 内容块 / 步骤行均渲染 4 控件（含 ＋新增▾）；菜单项随
+  `addButtonStateFor` 禁用；空标题章节行显示「缺标题」标记。
+- **单元（ChapterTreePanel `addTargetFor`）**：章节 → 加子节点；内容块 / 步骤 → 同父级、该行之后加同级；
+  各自可选项来自正确父级。
 - **组件（ChapterTreePanel）**：缺标题条计数 / 下一个 / 只看缺标题过滤。
 - **集成（ProcedureEditorView）**：保存空标题被拦截并定位到第一个；PDF 预览 dirty 时先提示保存；
   无 Tab/Shift+Tab 缩进行为。
