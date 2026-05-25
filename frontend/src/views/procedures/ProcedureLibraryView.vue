@@ -48,7 +48,7 @@ function onCreated(proc: ProcedureMeta): void {
 }
 
 function onImported(id: string): void {
-  void router.push(`/procedures/${id}/edit`)
+  void router.push({ path: `/procedures/${id}/edit`, query: { from: 'import' } })
 }
 </script>
 
