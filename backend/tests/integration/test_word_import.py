@@ -193,6 +193,34 @@ def test_temp_media_404_for_unknown_token(client: TestClient, storage_tmp: Path)
     assert resp.status_code == 404
 
 
+def test_import_stores_and_serves_source_docx(client: TestClient, storage_tmp: Path) -> None:
+    leaf = _leaf(client)
+    token = _upload(client, styled_sop(), name="源文件.docx")
+    body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
+    imported = client.post(
+        IMPORT,
+        json={"name": "带源文件", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]},
+    )
+    assert imported.status_code == 201, imported.text
+    pid = imported.json()["id"]
+
+    served = client.get(f"/api/v1/procedures/{pid}/source-docx")
+    assert served.status_code == 200
+    assert served.headers["content-type"] == DOCX_MIME
+    assert served.content
+
+
+def test_import_without_token_has_no_source_docx(client: TestClient, storage_tmp: Path) -> None:
+    leaf = _leaf(client)
+    token = _upload(client, styled_sop())
+    body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
+    imported = client.post(
+        IMPORT, json={"name": "无源文件", "folder_id": leaf, "chapters": body["chapters"]}
+    )
+    pid = imported.json()["id"]
+    assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
+
+
 def _flatten(nodes: list[dict]) -> list[dict]:
     out: list[dict] = []
     for n in nodes:

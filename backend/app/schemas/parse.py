@@ -146,6 +146,7 @@ class ImportRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     folder_id: str
     description: str = Field(default="", max_length=10000)
+    upload_token: str | None = None
     chapters: list[ImportNodeIn] = Field(default_factory=list)
 
 

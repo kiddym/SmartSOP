@@ -17,7 +17,13 @@ from app.models.chapter import ProcedureChapter
 from app.models.procedure import Procedure
 from app.schemas.parse import ImportNodeIn
 from app.schemas.procedure import LevelOfUse, ProcedureCreate
-from app.services import asset_service, editor_service, numbering_service, procedure_service
+from app.services import (
+    asset_service,
+    editor_service,
+    numbering_service,
+    procedure_service,
+    source_docx_service,
+)
 
 # import 默认 level_of_use（向导 step5 仅收 name+folder，Q182 必填字段取默认，建后详情面板可改）
 _DEFAULT_LEVEL_OF_USE: LevelOfUse = "reference"
@@ -32,6 +38,7 @@ def import_procedure(
     folder_id: str,
     description: str,
     chapters: list[ImportNodeIn],
+    upload_token: str | None = None,
     meta: RequestMeta,
 ) -> Procedure:
     name = name.strip()
@@ -63,6 +70,7 @@ def import_procedure(
     editor_service._validate_and_recompute_levels(db, proc.id)
     numbering_service.recompute(db, proc.id)
     asset_service.rebuild_references(db, proc.id)
+    source_docx_service.store_from_token(db, procedure_group_id=proc.procedure_group_id, upload_token=upload_token)
     db.flush()
     return proc
 
