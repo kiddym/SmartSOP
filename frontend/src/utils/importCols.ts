@@ -58,16 +58,16 @@ export function sanitizeCols(v: unknown): ColWidths {
   return { ...COL_DEFAULTS }
 }
 
-/** 折叠后竖条宽度，像素。 */
+/** Width of a collapsed column's rail, in pixels. */
 export const RAIL_PX = 32
 
-/** 左/右栏的折叠状态（中栏不可折叠）。 */
+/** Collapse state of the left/right columns (mid is never collapsible). */
 export interface CollapseState {
   left: boolean
   right: boolean
 }
 
-/** 三列的 flex 值与两个分隔条的可见性。 */
+/** Per-column CSS flex values plus splitter visibility. */
 export interface ColFlex {
   left: string
   mid: string
@@ -77,22 +77,23 @@ export interface ColFlex {
 }
 
 /**
- * 由列宽百分比 + 折叠状态算出三列 flex 与分隔条可见性。
- * 可见列用 `"<pct> 1 0%"`（flex-grow 按比例瓜分剩余空间）；
- * 折叠列用 `"0 0 ${RAIL_PX}px"` 固定细条；折叠那侧分隔条隐藏。
+ * Derives each column's flex value and splitter visibility from widths + collapse state.
+ * Visible columns use `"<pct> 1 0%"` (flex-grow weighted to share remaining space);
+ * a collapsed column uses `"0 0 ${RAIL_PX}px"`; the splitter on a collapsed side is hidden.
  */
 export function colFlex(c: ColWidths, s: CollapseState): ColFlex {
   const rail = `0 0 ${RAIL_PX}px`
+  const grow = (n: number): string => `${n} 1 0%`
   return {
-    left: s.left ? rail : `${c.left} 1 0%`,
-    mid: `${c.mid} 1 0%`,
-    right: s.right ? rail : `${rightOf(c)} 1 0%`,
+    left: s.left ? rail : grow(c.left),
+    mid: grow(c.mid),
+    right: s.right ? rail : grow(rightOf(c)),
     showLM: !s.left,
     showMR: !s.right,
   }
 }
 
-/** 校验持久化折叠状态；任一字段非布尔即按 false，整体非对象回退全展开。 */
+/** Validate a persisted collapse value; any non-boolean field becomes false, a non-object falls back to all-expanded. */
 export function sanitizeCollapsed(v: unknown): CollapseState {
   if (typeof v !== 'object' || v === null) return { left: false, right: false }
   const o = v as Record<string, unknown>

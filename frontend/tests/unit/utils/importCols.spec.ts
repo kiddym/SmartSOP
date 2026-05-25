@@ -84,10 +84,10 @@ describe('importCols', () => {
     })
   })
 
-  describe('colFlex (列 flex + 分隔条可见性)', () => {
+  describe('colFlex (column flex + splitter visibility)', () => {
     const cols = { left: 38, mid: 28 } // rightOf = 34
 
-    it('都不折叠：三列按百分比权重，两个分隔条都显示', () => {
+    it('neither collapsed: three columns weighted by percentage, both splitters shown', () => {
       const cf = colFlex(cols, { left: false, right: false })
       expect(cf).toEqual({
         left: '38 1 0%', mid: '28 1 0%', right: '34 1 0%',
@@ -95,7 +95,7 @@ describe('importCols', () => {
       })
     })
 
-    it('仅左折叠：左列变细条、左分隔条隐藏，中右保持权重', () => {
+    it('left only: left becomes a rail, left splitter hidden, mid/right keep weights', () => {
       const cf = colFlex(cols, { left: true, right: false })
       expect(cf.left).toBe(`0 0 ${RAIL_PX}px`)
       expect(cf.mid).toBe('28 1 0%')
@@ -104,7 +104,7 @@ describe('importCols', () => {
       expect(cf.showMR).toBe(true)
     })
 
-    it('仅右折叠：右列变细条、右分隔条隐藏，左中保持权重', () => {
+    it('right only: right becomes a rail, right splitter hidden, left/mid keep weights', () => {
       const cf = colFlex(cols, { left: false, right: true })
       expect(cf.left).toBe('38 1 0%')
       expect(cf.mid).toBe('28 1 0%')
@@ -113,7 +113,7 @@ describe('importCols', () => {
       expect(cf.showMR).toBe(false)
     })
 
-    it('两侧都折叠：左右细条、两分隔条都隐藏，中列仍是唯一增长列', () => {
+    it('both collapsed: left/right rails, both splitters hidden, mid is the sole growing column', () => {
       const cf = colFlex(cols, { left: true, right: true })
       expect(cf.left).toBe(`0 0 ${RAIL_PX}px`)
       expect(cf.mid).toBe('28 1 0%')
@@ -123,17 +123,18 @@ describe('importCols', () => {
     })
   })
 
-  describe('sanitizeCollapsed (守卫持久化折叠状态)', () => {
-    it('透传合法布尔对象', () => {
+  describe('sanitizeCollapsed (guards persisted collapse state)', () => {
+    it('passes through a valid boolean object', () => {
       expect(sanitizeCollapsed({ left: true, right: false })).toEqual({ left: true, right: false })
     })
 
-    it('非对象 / null 回退全展开', () => {
+    it('falls back to all-expanded on non-object / null', () => {
       expect(sanitizeCollapsed(null)).toEqual({ left: false, right: false })
       expect(sanitizeCollapsed('x')).toEqual({ left: false, right: false })
+      expect(sanitizeCollapsed(undefined)).toEqual({ left: false, right: false })
     })
 
-    it('字段非布尔或缺失：该字段按 false 处理', () => {
+    it('coerces non-boolean or missing fields to false', () => {
       expect(sanitizeCollapsed({ left: 'yes', right: 1 })).toEqual({ left: false, right: false })
       expect(sanitizeCollapsed({ left: true })).toEqual({ left: true, right: false })
     })
