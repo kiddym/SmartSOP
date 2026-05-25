@@ -124,13 +124,12 @@ def apply_marks(db: Session, proc_id: str, meta: RequestMeta) -> ApplyMarksResul
         if _has_children(db, n.id):
             raise bad_request("CHAPTER_HAS_CHILDREN", f"章节「{n.title}」含子节点，不能转换")
 
-    # 2. 最终态互斥：某 parent 下若有转换，其余未转章节必须为空（否则 chapter+step 混）
-    # 'review' 节点不参与转换且不被移除，排除在外（不算"遗留"sibling）
+    # 2. 最终态互斥：某 parent 下若有转换，其余未转章节必须为空（否则 chapter+step 混）。
+    # review 章节也算遗留 sibling：留它在原地会让该 parent 变成 chapter+step，违反 Q25。
     target_ids = {n.id for n in targets}
     for parent_id in {n.parent_id for n in targets}:
         remaining = [
-            c for c in _active_children(db, proc.id, parent_id)
-            if c.id not in target_ids and c.mark_status != "review"
+            c for c in _active_children(db, proc.id, parent_id) if c.id not in target_ids
         ]
         if remaining:
             raise bad_request("SIBLING_TYPE_CONFLICT", "同级仍有未转换的章节，应用会违反互斥规则")

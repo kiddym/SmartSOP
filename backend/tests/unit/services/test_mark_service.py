@@ -104,8 +104,10 @@ def test_apply_marks_chapter_step_with_children_rejected(db: Session, factory: F
 def test_apply_marks_preserves_review_marks(db: Session, factory: Factory) -> None:
     # 评审 M1：apply-marks 不得清除 Word 智能解析留下的 'review' 标记
     proc = _proc(factory)
+    # review 章节在根级；被转换的步骤在另一个父章节下（二者非同级，互斥校验不牵连）。
     review = factory.chapter(proc.id, title="待核实", sort_order=0, mark_status="review")
-    ch = _chapter(factory, proc.id, title="动作")
+    parent = _chapter(factory, proc.id, title="父", sort_order=1)
+    ch = _chapter(factory, proc.id, title="动作", parent_id=parent.id)
     mark_service.set_mark_status(db, ch.id, "step", META)
     mark_service.apply_marks(db, proc.id, META)
     db.refresh(review)
