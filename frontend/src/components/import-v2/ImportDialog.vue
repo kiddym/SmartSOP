@@ -132,6 +132,7 @@ async function onSubmit(): Promise<void> {
       name: ctx.form.name.trim(),
       folder_id: ctx.form.folder_id,
       description: '',
+      upload_token: ctx.uploadToken.value,
       chapters: toImportNodes(ctx.tree.value),
     })
     ElMessage.success(`已导入 ${proc.code}`)

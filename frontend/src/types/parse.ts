@@ -129,6 +129,7 @@ export interface ImportRequest {
   name: string
   folder_id: string
   description?: string
+  upload_token?: string
   chapters: ImportNode[]
 }
 
