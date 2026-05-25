@@ -44,3 +44,20 @@ describe('ImportMarkingRow', () => {
     expect(w.emitted('set')?.[0]).toEqual(['chapter_3'])
   })
 })
+
+describe('ImportMarkingRow disableContent', () => {
+  it('disableContent=true 时「正文」单选被禁用', () => {
+    const w = mount(ImportMarkingRow, {
+      props: { label: 'X', role: 'chapter_1', indent: 0, disableContent: true },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(w.find('input[value="content"]').attributes('disabled')).toBeDefined()
+  })
+  it('默认不禁用「正文」', () => {
+    const w = mount(ImportMarkingRow, {
+      props: { label: 'X', role: 'chapter_1', indent: 0 },
+      global: { plugins: [ElementPlus] },
+    })
+    expect(w.find('input[value="content"]').attributes('disabled')).toBeUndefined()
+  })
+})

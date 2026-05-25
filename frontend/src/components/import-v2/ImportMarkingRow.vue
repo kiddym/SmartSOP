@@ -5,6 +5,7 @@ defineProps<{
   label: string
   role: LayerRole
   indent: number
+  disableContent?: boolean
 }>()
 const emit = defineEmits<{ (e: 'set', role: LayerRole): void }>()
 
@@ -23,7 +24,7 @@ function onChange(v: string | number | boolean): void {
 <template>
   <div class="mr" :style="{ paddingLeft: `${indent * 16 + 8}px` }">
     <el-radio-group :model-value="role" size="small" class="mr-roles" @change="onChange">
-      <el-radio-button v-for="o in OPTIONS" :key="o.value" :value="o.value">{{ o.text }}</el-radio-button>
+      <el-radio-button v-for="o in OPTIONS" :key="o.value" :value="o.value" :disabled="o.value === 'content' && disableContent">{{ o.text }}</el-radio-button>
     </el-radio-group>
     <span class="mr-title">{{ label }}</span>
   </div>
