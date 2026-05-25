@@ -8,8 +8,8 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
-from app.services import asset_service, upload_service
-from app.tasks import asset_gc, cleanup_attachments, cleanup_uploads, scheduler
+from app.services import asset_service, source_docx_service, upload_service
+from app.tasks import asset_gc, cleanup_attachments, cleanup_uploads, scheduler, sweep_source_docx
 from tests.conftest import Factory
 from tests.unit.parser._docx_builder import styled_sop, tiny_png
 
@@ -110,6 +110,33 @@ def test_cleanup_attachments_keeps_recent(db: Session, factory: Factory, storage
     summary = cleanup_attachments.run(db, now=utcnow())
     assert summary["deleted"] == 0
     assert (storage_tmp / att.storage_path).exists()
+
+
+def test_sweep_source_docx_reports_then_deletes(db: Session, storage_tmp: Path) -> None:
+    from app import storage
+
+    up = upload_service.save_upload(styled_sop(), "ok.docx")
+    source_docx_service.store_from_token(
+        db, procedure_group_id="legit", upload_token=up.upload_token
+    )
+    db.flush()
+    orphan = storage.source_docx_root() / "orphan"
+    orphan.mkdir(parents=True)
+    (orphan / "source.docx").write_bytes(b"x")
+
+    # dry-run：仅报告
+    assert sweep_source_docx.run(db, delete=False) == {"orphans": 1, "removed": 0}
+    assert orphan.exists()
+    assert (storage.source_docx_root() / "legit").exists()
+
+    # delete：删孤儿、留合法
+    assert sweep_source_docx.run(db, delete=True) == {"orphans": 1, "removed": 1}
+    assert not orphan.exists()
+    assert (storage.source_docx_root() / "legit").exists()
+
+
+def test_sweep_source_docx_cli(storage_tmp: Path) -> None:
+    assert sweep_source_docx.main([]) == 0
 
 
 def test_scheduler_has_three_jobs() -> None:

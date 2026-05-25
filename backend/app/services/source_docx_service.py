@@ -8,6 +8,7 @@ procedure_id 取回渲染；删除纯草稿时连带清理。与图片中心的 
 from __future__ import annotations
 
 import hashlib
+import shutil
 from pathlib import Path
 
 from sqlalchemy import select
@@ -95,3 +96,21 @@ def delete_for_group(db: Session, procedure_group_id: str) -> None:
     (storage.storage_root() / row.storage_path).unlink(missing_ok=True)
     db.delete(row)
     db.flush()
+
+
+def orphan_group_ids(db: Session) -> list[str]:
+    """source_docx/ 下无对应 DB 行的 group 目录名（落盘孤儿：历史缺陷遗留 / 删组后空目录）。"""
+    root = storage.source_docx_root()
+    if not root.exists():
+        return []
+    known = {gid for (gid,) in db.execute(select(ProcedureSourceDocx.procedure_group_id)).all()}
+    return sorted(d.name for d in root.iterdir() if d.is_dir() and d.name not in known)
+
+
+def delete_group_dir(procedure_group_id: str) -> bool:
+    """物理删除某 group 的落盘目录（孤儿清理用，不碰 DB）。返回是否实际删除。"""
+    d = storage.source_docx_root() / procedure_group_id
+    if not d.exists():
+        return False
+    shutil.rmtree(d, ignore_errors=True)
+    return True
