@@ -276,7 +276,11 @@ function onCheck(row: FlatRow, shift: boolean): void {
     lastChecked.value = row.id
   }
   if (sel.size > 100) {
-    ElMessage.warning('单次最多标记 100 项，请分批操作')
+    // 截断到前 100（保留最早选中的），而非整段丢弃；锚点若被截掉则清空，避免与可见选择错位。
+    const trimmed = new Set([...sel].slice(0, 100))
+    markSel.value = trimmed
+    if (lastChecked.value && !trimmed.has(lastChecked.value)) lastChecked.value = null
+    ElMessage.warning('单次最多标记 100 项，已保留前 100 项')
     return
   }
   markSel.value = sel

@@ -29,6 +29,7 @@ from app.services import (
     audit_service,
     numbering_service,
     procedure_service,
+    source_docx_service,
     version_service,
 )
 from app.services.sequence_generator import next_sequence_value
@@ -518,5 +519,7 @@ def delete_group(db: Session, group_id: str, reason: str, meta: RequestMeta) -> 
         delete(ProcedureAssetReference).where(ProcedureAssetReference.procedure_id == proc.id)
     )
     db.execute(delete(ProcedureAttachment).where(ProcedureAttachment.procedure_id == proc.id))
+    # 原始 Word 源文件按 group 一份（行 + 落盘），随整组硬删一并清理（模型契约：随版本组删除即物理清理）。
+    source_docx_service.delete_for_group(db, group_id)
     db.execute(delete(Procedure).where(Procedure.id == proc.id))
     db.flush()

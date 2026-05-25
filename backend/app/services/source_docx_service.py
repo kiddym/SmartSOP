@@ -32,8 +32,9 @@ def store_from_token(
         return None
     data, filename = read
     path = storage.source_docx_path(procedure_group_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
+    # 先 flush 行、后落盘：DB 完整性（unique / 列长）先于写文件校验，使任何失败最多残留
+    # “有行无文件”（get_for_procedure 优雅降级、delete_for_group 可清），而非“有文件无行”
+    # 的静默磁盘泄漏（source_docx/ 无 GC）。
     row = ProcedureSourceDocx(
         procedure_group_id=procedure_group_id,
         filename=filename,
@@ -43,6 +44,12 @@ def store_from_token(
     )
     db.add(row)
     db.flush()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        path.write_bytes(data)
+    except OSError:
+        path.unlink(missing_ok=True)  # 清半截文件；行随事务回滚消失
+        raise
     return row
 
 

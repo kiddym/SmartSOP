@@ -234,6 +234,27 @@ def test_delete_pure_draft_removes_source_docx(client: TestClient, storage_tmp: 
     assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
 
 
+def test_delete_group_removes_source_docx(client: TestClient, storage_tmp: Path) -> None:
+    """C1 回归：整组硬删（DELETE /procedure-groups/{id}）也清理源 docx，不留孤儿文件/行。"""
+    from app import storage
+
+    leaf = _leaf(client)
+    token = _upload(client, styled_sop())
+    body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
+    imported = client.post(
+        IMPORT,
+        json={"name": "整组删草稿", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]},
+    ).json()
+    pid, gid = imported["id"], imported["procedure_group_id"]
+    assert storage.source_docx_path(gid).exists()
+    assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 200
+
+    deleted = client.request("DELETE", f"/api/v1/procedure-groups/{gid}", json={"reason": "完全删除"})
+    assert deleted.status_code == 204, deleted.text
+    assert not storage.source_docx_path(gid).exists()  # 落盘文件已清，无孤儿
+    assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
+
+
 def test_delete_published_current_still_rejected(client: TestClient, storage_tmp: Path) -> None:
     leaf = _leaf(client)
     pid = client.post(
