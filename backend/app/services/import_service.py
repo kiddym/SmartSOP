@@ -1,8 +1,9 @@
 """导入编排（§9.1 / §19 / §25.2 / Q193）。
 
 把 /parse 返回（用户审查后）的 chapters[] 落库为新程序：创建程序骨架 → 递归建
-章节树（§19：chapter 标题容器 + content 子节点）→ 临时图按 sha256 提升为永久
-asset 并改写 URL → 整树重算编号 → 重建 asset 引用。review 节点直接带入草稿。
+章节树（§19：chapter 标题容器 + content 子节点落成 ProcedureStep kind='content'）
+→ 临时图按 sha256 提升为永久 asset 并改写 URL → 整树重算编号 → 重建 asset 引用。
+review 节点直接带入草稿。导入前执行严格互斥归一化：正文下沉至相邻子标题。
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from app.deps import RequestMeta
 from app.errors import unprocessable
 from app.models.chapter import ProcedureChapter
 from app.models.procedure import Procedure
+from app.models.step import ProcedureStep
 from app.schemas.parse import ImportNodeIn
 from app.schemas.procedure import LevelOfUse, ProcedureCreate
 from app.services import (
@@ -56,6 +58,7 @@ def import_procedure(
         meta,
     )
 
+    _normalize_for_exclusion(chapters)
     for i, node in enumerate(chapters):
         _create_node(db, proc, node, parent_id=None, parent_level=0, sort_order=i)
 
@@ -69,6 +72,35 @@ def import_procedure(
     return proc
 
 
+def _normalize_for_exclusion(nodes: list[ImportNodeIn]) -> None:
+    """保证每个标题节点的直接孩子要么全是子标题、要么全是正文（严格互斥）。
+    标题下若同时有正文与子标题，正文下沉为相邻子标题的前置/后置内容块。"""
+    for n in nodes:
+        _relocate_stray_content(n)
+        _normalize_for_exclusion(n.children)
+
+
+def _relocate_stray_content(node: ImportNodeIn) -> None:
+    children = node.children
+    if not any(c.content_type == "chapter" for c in children):
+        return  # 叶子（纯正文）或纯分组：合法
+    new_children: list[ImportNodeIn] = []
+    pending_leading: list[ImportNodeIn] = []
+    last_chapter: ImportNodeIn | None = None
+    for c in children:
+        if c.content_type == "chapter":
+            if pending_leading:
+                c.children = pending_leading + c.children
+                pending_leading = []
+            new_children.append(c)
+            last_chapter = c
+        elif last_chapter is None:
+            pending_leading.append(c)        # 第一个子标题之前的正文 → 前置
+        else:
+            last_chapter.children.append(c)  # 某子标题之后的正文 → 该子标题后置
+    node.children = new_children
+
+
 def _create_node(
     db: Session,
     proc: Procedure,
@@ -78,15 +110,27 @@ def _create_node(
     parent_level: int,
     sort_order: int,
 ) -> None:
+    if node.content_type == "content":
+        content = _promote_temp_urls(db, proc.id, node.rich_content)
+        step = ProcedureStep(
+            procedure_id=proc.id,
+            chapter_id=parent_id,
+            kind="content",
+            title="",
+            content=content,
+            input_schema={},
+            attachment_marks=[],
+            sort_order=sort_order,
+            skip_numbering=node.skip_numbering,
+        )
+        db.add(step)
+        db.flush()
+        return
     level = parent_level + 1
-    is_chapter = node.content_type == "chapter"
-    rich = "" if is_chapter else _promote_temp_urls(db, proc.id, node.rich_content)
     row = ProcedureChapter(
         procedure_id=proc.id,
         parent_id=parent_id,
-        content_type=node.content_type,
-        title=node.title if is_chapter else "",
-        rich_content=rich,
+        title=node.title,
         level=level,
         sort_order=sort_order,
         skip_numbering=node.skip_numbering,
