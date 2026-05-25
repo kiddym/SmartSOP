@@ -3,12 +3,14 @@ import { onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import ProcedureTable from '@/components/ProcedureTable.vue'
 import CreateProcedureDialog from '@/components/CreateProcedureDialog.vue'
+import CreateFromWordDialog from '@/components/CreateFromWordDialog.vue'
 import { useProcedureStore } from '@/store/procedures'
 import type { ProcedureMeta, ProcedureStatus } from '@/types/procedure'
 
 const router = useRouter()
 const store = useProcedureStore()
 const createVisible = ref(false)
+const wordVisible = ref(false)
 
 const query = reactive<{ search: string; status: string; page: number }>({
   search: '',
@@ -42,7 +44,11 @@ function open(id: string): void {
 }
 
 function onCreated(proc: ProcedureMeta): void {
-  open(proc.id)
+  void router.push(`/procedures/${proc.id}/edit`)
+}
+
+function onImported(id: string): void {
+  void router.push(`/procedures/${id}/edit`)
 }
 </script>
 
@@ -51,9 +57,15 @@ function onCreated(proc: ProcedureMeta): void {
     <div class="toolbar">
       <h2 class="title">程序库</h2>
       <div class="toolbar-actions">
-        <el-button @click="router.push({ name: 'procedure-import' })">从 Word 导入</el-button>
-        <el-button type="primary" plain @click="router.push({ name: 'procedure-import-v2' })">导入 v2 (Beta)</el-button>
-        <el-button type="primary" @click="createVisible = true">新建程序</el-button>
+        <el-dropdown trigger="click" @command="(c: string) => (c === 'word' ? (wordVisible = true) : (createVisible = true))">
+          <el-button type="primary">新建</el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="blank">空白程序</el-dropdown-item>
+              <el-dropdown-item command="word">从 Word 导入</el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -92,6 +104,7 @@ function onCreated(proc: ProcedureMeta): void {
     />
 
     <CreateProcedureDialog v-model="createVisible" @created="onCreated" />
+    <CreateFromWordDialog v-model="wordVisible" @imported="onImported" />
   </div>
 </template>
 

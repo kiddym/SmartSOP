@@ -48,6 +48,22 @@ export const parseDocx = async (
 export const importProcedure = async (payload: ImportRequest): Promise<ProcedureMeta> =>
   (await http.post<ProcedureMeta>('/procedures/import', payload)).data
 
+// 从 Word 一步创建草稿：upload→parse→import（triage 移到编辑器，故此处无标定）。
+export const importFromWord = async (
+  file: File,
+  folderId: string,
+  name: string,
+): Promise<ProcedureMeta> => {
+  const up = await uploadDocx(file)
+  const parsed = await parseDocx(up.upload_token, 'smart')
+  return importProcedure({
+    name,
+    folder_id: folderId,
+    upload_token: up.upload_token,
+    chapters: parsed.chapters,
+  })
+}
+
 // 编辑器图片直传（Q214）：sha256 去重即时入库，返回永久 asset URL。
 export const uploadAsset = async (
   procedureId: string,
