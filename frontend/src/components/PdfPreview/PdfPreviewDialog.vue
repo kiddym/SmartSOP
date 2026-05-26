@@ -308,7 +308,9 @@ function onPreviewClick(e: MouseEvent): void {
   min-height: 297mm;
   padding: 1.27cm 2.03cm;
   background: #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  /* 纸面孤岛：与 docs/design-system.md §3.8「桌上一张文件」语义对齐。
+     单一来源 --shadow-paper（tokens.css）；任何幅度调整请回填 §2.4。 */
+  box-shadow: var(--shadow-paper);
   box-sizing: border-box;
   font-family: 'SimSun', 'Noto Serif SC', serif;
   font-size: 12pt;

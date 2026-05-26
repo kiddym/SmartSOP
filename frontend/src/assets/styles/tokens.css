@@ -23,6 +23,11 @@
     'JetBrains Mono', 'Sarasa Mono SC', ui-monospace, SFMono-Regular, Menlo, Consolas,
     'Liberation Mono', 'Courier New', monospace;
 
+  /* 阴影：纸面孤岛（PDF 预览、文档画布）"桌上一张文件"的投影。
+     与 design-system.md §3.8「亮纸孤岛」 + §2.4 阴影规范 保持一致；
+     绝非通用层级阴影 —— 应用壳分隔仍走"线不靠影"（§2.4）。 */
+  --shadow-paper: 0 2px 12px rgba(0, 0, 0, 0.4);
+
   /* Element Plus 主题色覆盖（赤陶梯度，单一来源）
      tokens.css 在 element-plus/dist/index.css 之后加载，故此覆盖生效，
      并级联到所有引用 var(--el-color-primary*) 的组件。 */
