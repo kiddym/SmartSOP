@@ -142,7 +142,9 @@ def create_step(db: Session, data: StepCreate, meta: RequestMeta) -> ProcedureSt
     proc = _get_proc_editable(db, data.procedure_id)
     _resolve_chapter(db, proc.id, data.chapter_id)
     _assert_can_hold_steps(db, proc.id, data.chapter_id)
-    _validate_input_schema(data.input_schema)
+    # content 块无执行表单，input_schema={} 是合法状态；与 editor_service 批量保存路径对齐。
+    if data.kind == "step":
+        _validate_input_schema(data.input_schema)
     _content_size_guard(data.content)
 
     siblings = _step_siblings(db, proc.id, data.chapter_id)
@@ -178,7 +180,9 @@ def create_step(db: Session, data: StepCreate, meta: RequestMeta) -> ProcedureSt
 def update_step(db: Session, step_id: str, data: StepUpdate, meta: RequestMeta) -> ProcedureStep:
     st = _get_step(db, step_id)
     proc = _get_proc_editable(db, st.procedure_id)
-    _validate_input_schema(data.input_schema)
+    # content 块无执行表单，input_schema={} 是合法状态；与 editor_service 批量保存路径对齐。
+    if data.kind == "step":
+        _validate_input_schema(data.input_schema)
     _content_size_guard(data.content)
 
     before = {

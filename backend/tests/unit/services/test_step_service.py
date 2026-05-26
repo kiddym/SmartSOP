@@ -173,3 +173,32 @@ def test_create_step_accepts_warning_type(db: Session, factory: Factory) -> None
         META,
     )
     assert st.input_schema["type"] == "WARNING"
+
+
+def test_create_content_step_skips_input_schema_validation(db: Session, factory: Factory) -> None:
+    """kind='content' 时 input_schema={} 合法（内容块无表单），不应触发校验。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    st = step_service.create_step(
+        db,
+        _sc(proc.id, chapter_id=ch.id, kind="content", content="<p>说明</p>", input_schema={}),
+        META,
+    )
+    assert st.kind == "content"
+    assert st.input_schema == {}
+
+
+def test_update_step_to_content_skips_input_schema_validation(db: Session, factory: Factory) -> None:
+    """step→content 的字段切换：input_schema={} 应被接受。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    st = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="原步骤"), META)
+    step_service.update_step(
+        db,
+        st.id,
+        StepUpdate(kind="content", title="", content="<p>内容</p>", input_schema={}),
+        META,
+    )
+    db.refresh(st)
+    assert st.kind == "content"
+    assert st.input_schema == {}
