@@ -55,6 +55,8 @@ interface Snapshot {
   steps: EditorStep[]
   dirtyChapters: string[]
   dirtySteps: string[]
+  deletedChapterIds: string[]
+  deletedStepIds: string[]
   metaDirty: boolean
 }
 
@@ -67,6 +69,8 @@ export interface EditorDraftState {
   expanded: Record<string, boolean>
   dirtyChapters: string[]
   dirtySteps: string[]
+  deletedChapterIds: string[]
+  deletedStepIds: string[]
   metaDirty: boolean
 }
 
@@ -140,6 +144,8 @@ interface State {
   expanded: Record<string, boolean>
   dirtyChapters: Set<string>
   dirtySteps: Set<string>
+  deletedChapterIds: Set<string>
+  deletedStepIds: Set<string>
   metaDirty: boolean
   markMode: boolean
   layerMode: boolean
@@ -163,6 +169,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     expanded: {},
     dirtyChapters: new Set<string>(),
     dirtySteps: new Set<string>(),
+    deletedChapterIds: new Set<string>(),
+    deletedStepIds: new Set<string>(),
     metaDirty: false,
     markMode: false,
     layerMode: false,
@@ -369,6 +377,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     resetEditState(): void {
       this.dirtyChapters = new Set()
       this.dirtySteps = new Set()
+      this.deletedChapterIds = new Set()
+      this.deletedStepIds = new Set()
       this.metaDirty = false
       this.undoStack = []
       this.redoStack = []
@@ -426,6 +436,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         steps: clone(this.steps),
         dirtyChapters: [...this.dirtyChapters],
         dirtySteps: [...this.dirtySteps],
+        deletedChapterIds: [...this.deletedChapterIds],
+        deletedStepIds: [...this.deletedStepIds],
         metaDirty: this.metaDirty,
       }
     },
@@ -435,6 +447,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       this.steps = clone(snap.steps)
       this.dirtyChapters = new Set(snap.dirtyChapters)
       this.dirtySteps = new Set(snap.dirtySteps)
+      this.deletedChapterIds = new Set(snap.deletedChapterIds)
+      this.deletedStepIds = new Set(snap.deletedStepIds)
       this.metaDirty = snap.metaDirty
       if (this.selectedId && !this.chapterMap.has(this.selectedId) && !this.stepMap.has(this.selectedId)) {
         this.selectedId = this.firstNodeId()

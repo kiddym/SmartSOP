@@ -566,3 +566,26 @@ describe('移除树层级 / 内容块旧 action 不再存在', () => {
     expect(s.contentToSteps).toBeUndefined()
   })
 })
+
+describe('snapshot / restore 包含删除集合', () => {
+  it('snapshot 拷贝 deletedChapterIds / deletedStepIds；restore 恢复', () => {
+    const s = seed()
+    s.deletedChapterIds = new Set(['x', 'y'])
+    s.deletedStepIds = new Set(['s'])
+    const snap = s.snapshot()
+    s.deletedChapterIds = new Set()
+    s.deletedStepIds = new Set()
+    s.restore(snap)
+    expect([...s.deletedChapterIds].sort()).toEqual(['x', 'y'])
+    expect([...s.deletedStepIds]).toEqual(['s'])
+  })
+
+  it('resetEditState 清空删除集合', () => {
+    const s = seed()
+    s.deletedChapterIds = new Set(['x'])
+    s.deletedStepIds = new Set(['s'])
+    s.resetEditState()
+    expect(s.deletedChapterIds.size).toBe(0)
+    expect(s.deletedStepIds.size).toBe(0)
+  })
+})
