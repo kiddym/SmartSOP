@@ -305,10 +305,24 @@ function onCheck(row: FlatRow, shift: boolean): void {
 }
 async function applyBatch(status: 'step' | 'content'): Promise<void> {
   const ids = [...markSel.value]
-  // 先保存待存改动，把临时 id 解析为真实 id，再逐个写后端（避免 404 + 标记静默丢失）。
+  // 先保存待存改动并拿到 temp→real id 映射；再按行 kind 分发。
   const map = await store.ensureSaved()
-  for (const id of ids) await store.setMark(map[id] ?? id, status)
-  ElMessage.success(`已标记 ${ids.length} 项`)
+  let inplace = 0
+  for (const id of ids) {
+    const real = map[id] ?? id
+    const ch = store.chapterMap.get(real)
+    if (ch) {
+      await store.setMark(real, status)
+      continue
+    }
+    const st = store.stepMap.get(real)
+    if (st && st.kind !== status) {
+      store.setStepKind(real, status)
+      inplace++
+    }
+    // 已是目标 kind 的 step/content：跳过
+  }
+  ElMessage.success(`已标记 ${ids.length} 项${inplace ? `（${inplace} 项就地转换）` : ''}`)
   markSel.value = new Set()
 }
 async function clearMarks(): Promise<void> {

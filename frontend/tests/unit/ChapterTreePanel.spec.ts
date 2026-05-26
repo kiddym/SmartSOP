@@ -314,4 +314,66 @@ describe('ChapterTreePanel · 标记模式级联', () => {
       expect(rows.find((r) => r.props('row').id === sid)!.props('selectedForMark')).toBe(true)
     }
   })
+
+  it('applyBatch(content) 混合选择：chapter→setMark / step→setStepKind / content 跳过', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0), chapter('c2', '章二', null, 1)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 'ct1', chapter_id: 'c2', kind: 'content', title: '', content: '', input_schema: {} as never, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true, c2: true }
+    store.markMode = true
+    vi.spyOn(store, 'ensureSaved').mockResolvedValue({})
+    const setMarkSpy = vi.spyOn(store, 'setMark').mockResolvedValue()
+    const setStepKindSpy = vi.spyOn(store, 'setStepKind')
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    // 手动构造混合选择（避免依赖 cascade 的展开/折叠细节）
+    rows.find((r) => r.props('row').id === 'c1')!.vm.$emit('check', false)  // c1 cascade → c1+s1
+    rows.find((r) => r.props('row').id === 'ct1')!.vm.$emit('check', false) // ct1 单选
+    await w.vm.$nextTick()
+
+    // 触发"标记为内容"
+    const markBar = w.find('.mark-bar')
+    const contentBtn = markBar.findAll('button').find((b) => b.text().includes('标记为内容'))!
+    await contentBtn.trigger('click')
+    await w.vm.$nextTick()
+    await new Promise((r) => setTimeout(r, 0)) // 让 await ensureSaved 的 microtask 结算
+
+    // c1 → setMark(c1, 'content')；ct1（已是 content）跳过；s1 → setStepKind(s1, 'content')
+    expect(setMarkSpy).toHaveBeenCalledWith('c1', 'content')
+    expect(setStepKindSpy).toHaveBeenCalledWith('s1', 'content')
+    expect(setStepKindSpy).not.toHaveBeenCalledWith('ct1', expect.anything())
+  })
+
+  it('applyBatch(step) 对已是 step 的行跳过', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    store.markMode = true
+    vi.spyOn(store, 'ensureSaved').mockResolvedValue({})
+    const setStepKindSpy = vi.spyOn(store, 'setStepKind')
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    rows.find((r) => r.props('row').id === 's1')!.vm.$emit('check', false)
+    await w.vm.$nextTick()
+
+    const markBar = w.find('.mark-bar')
+    const stepBtn = markBar.findAll('button').find((b) => b.text().includes('标记为步骤'))!
+    await stepBtn.trigger('click')
+    await w.vm.$nextTick()
+    await new Promise((r) => setTimeout(r, 0))
+
+    expect(setStepKindSpy).not.toHaveBeenCalled()
+  })
 })
