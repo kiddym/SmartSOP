@@ -1,7 +1,7 @@
 # 顶栏 IA + 标准文件库 → 文件夹配置 设计
 
 **日期：** 2026-05-26
-**状态：** 待批准
+**状态：** 已修订（参见末尾「修订日志」）
 **作者：** 协作设计（cui_yuming + Claude）
 
 ## 背景与目标
@@ -21,7 +21,8 @@
 1. 把外壳从二段式（侧栏 + 主区）升级到三段式（顶栏 + 侧栏 + 主区），并按 Q321 切分入口。
 2. 重命名「标准文件库」→「文件夹配置」并归入 ⚙ 配置组（UI 三处 + 现行文档四份同步）。
 3. 把顶栏 / 侧栏拆成独立组件 `AppTopBar.vue` / `AppSidebar.vue`，让 `AppLayout.vue` 退回纯编排；为后续顶栏功能演化（待阅读真值、profile、通知）腾位。
-4. 新增 `/procedures/deprecated` 路由——复用 `ProcedureLibraryView` + `meta.forceStatus='DEPRECATED'`，承担侧栏「废止」入口。
+
+> **本轮不含侧栏「系统区 / 废止」入口**——见 §修订日志 R1。
 
 ## 范围
 
@@ -29,16 +30,16 @@
 
 - 新组件 `AppTopBar.vue` + `AppSidebar.vue`，按下述决策矩阵实现。
 - `AppLayout.vue` 重构：剥掉 brand row / menu，退回纯编排（`<AppTopBar/> + <AppSidebar/> + <RouterView/>`）。
-- 路由新增 `/procedures/deprecated`；`/folders` 的 `meta.title` 改「文件夹配置」。
-- `ProcedureLibraryView` 读 `route.meta.forceStatus`，在场景内强制状态筛 + 锁定 status 下拉。
+- 路由：`/folders` 的 `meta.title` 改「文件夹配置」（其他不动）。
 - 「标准文件库」→「文件夹配置」UI 三处 + 现行文档四份同步（详见 §5）。
-- 新增单测：`AppTopBar.spec.ts`、`AppSidebar.spec.ts`、router 扩展。
+- 新增单测：`AppTopBar.spec.ts`、`AppSidebar.spec.ts`。
 - design-system.md §3.1 加注「标准文件库 / 文件夹配置」术语演变 + 把 ASCII 中"标准文件库 ▸ QC ▸ QA"树状结构标注为「未落地，独立 topic」。
 
 **不做（YAGNI）：**
 
 - 全库搜索的真功能（API、SearchView、命中高亮）。本设计只放占位。
 - 待阅读跟踪（read_state 表、unread count 端点）。本设计只预留 `unreadCount` prop。
+- **侧栏「系统区 / 废止」入口（R1 修订延后）**——backend `GET /procedures` 已支持 `folder_id` 过滤，技术上零 backend 改动可做，但需要 ProcedureLibraryView 加 folder_id 过滤 + 系统文件夹查找 + UI 锁定，留作独立 topic。本轮侧栏仅含「内容」组。
 - 响应式 `<1024px` 断点。`min-width` 隐含假设，工业内网工具不上手机。
 - 顶栏品牌图形 logo（仅文字 "Smart SOP"）。
 - 暗壳 / 亮壳决策（独立 topic，未启动）。
@@ -55,7 +56,6 @@
 | Q3 | 搜索 / 待阅读占位 | **β** 搜索框 `disabled + title="即将上线"`；待阅读徽标 `v-if="unreadCount>0"`（目前永假） | 把"我们要做但还没做"诚实占位；把"我们没数据可显示"的隐藏。各取其义：占位的占位，隐藏的隐藏。避免显示"0"造成"已读 0 条未读"的伪信息 |
 | ✚ | 标准文件库归位 | **重命名「文件夹配置」+ 移入 ⚙ 配置组** | 实测代码是 CRUD 配置页，不是导航树；design-system §3.1 那种 tree-in-sidebar 是未落地未来工作 |
 | 默认 | 侧栏宽度 | 240px（展开）/ 64px（折叠） | design-system §3.1 文字版规范即为 240；现状 220 是历史遗留 |
-| 默认 | 废止入口实现 | `/procedures/deprecated` 路由 → 复用 `ProcedureLibraryView`，`meta.forceStatus='DEPRECATED'` | 比 `?status=DEPRECATED` query 参数更利于侧栏 active 高亮；零新视图组件 |
 | 默认 | 顶栏高度令牌 | 新增 `--topbar-height: 48px` 到 tokens.css | 单一来源，便于将来调整 |
 
 ## 架构
@@ -72,7 +72,7 @@ AppLayout.vue (重构, ~50 行)
 | 文件 | 状态 | 职责 |
 |---|---|---|
 | `frontend/src/components/AppTopBar.vue` | 新建 | 48px 顶栏。布局：≡ 折叠按钮（图标随 `collapsed` 切换 `Fold`/`Expand`）/ 品牌文字 "Smart SOP" / 搜索框（disabled，`title="全库搜索 · 即将上线"`） / 未读徽标（`v-if="unreadCount > 0"`，mono 字体）/ ⚙▾ `el-dropdown` |
-| `frontend/src/components/AppSidebar.vue` | 新建 | 240/64 双态侧栏。布局：[内容]组（程序库 / 草稿箱）→ flex spacer → 1px `border-subtle` → [系统区]组（废止） |
+| `frontend/src/components/AppSidebar.vue` | 新建 | 240/64 双态侧栏。布局：[内容]组（程序库 / 草稿箱）。**本轮不含「系统区 / 废止」**（见 R1） |
 | `frontend/src/layouts/AppLayout.vue` | 重构 | 持有 `useSidebar()`，把 `collapsed/toggle` 下传；剥掉所有内部 brand / menu / aside 样式 |
 | `frontend/src/composables/useSidebar.ts` | 不动 | 现有单例 composable 继续使用 |
 
@@ -170,13 +170,6 @@ defineProps<{
     <el-menu-item index="/procedures/drafts">
       <el-icon><EditPen /></el-icon><template #title>草稿箱</template>
     </el-menu-item>
-
-    <div class="menu-spacer" />
-
-    <div class="menu-group-label" v-if="!collapsed">系统区</div>
-    <el-menu-item index="/procedures/deprecated">
-      <el-icon><Delete /></el-icon><template #title>废止</template>
-    </el-menu-item>
   </el-menu>
 </aside>
 ```
@@ -186,7 +179,6 @@ defineProps<{
 ```ts
 const route = useRoute()
 const activeMenu = computed(() => {
-  if (route.path.startsWith('/procedures/deprecated')) return '/procedures/deprecated'
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   // /procedures/library, /procedures/:id, /procedures/:id/edit 均归"程序库"
   if (route.path.startsWith('/procedures')) return '/procedures/library'
@@ -196,7 +188,7 @@ const activeMenu = computed(() => {
 
 > ⚙ 下的 4 个页面在侧栏**无高亮**，是符合 IA 的——它们不属于侧栏菜单空间。
 
-**`menu-spacer` 实现**：`flex: 1` 占满中间空隙，把"系统区"压到底部。`menu-group-label` 折叠态隐藏（图标轨没法承载文本标题）。
+**`menu-group-label` 折叠态隐藏**：图标轨没法承载文本标题，`v-if="!collapsed"` 控制。
 
 ### D. `AppLayout.vue` 重构后骨架
 
@@ -238,39 +230,21 @@ const { collapsed, toggle } = useSidebar()
 
 ### E. 路由变更（`router/index.ts`）
 
-**新增**
-
-```ts
-{
-  path: '/procedures/deprecated',
-  name: 'procedure-deprecated',
-  component: () => import('@/views/procedures/ProcedureLibraryView.vue'),
-  meta: { title: '废止程序', forceStatus: 'DEPRECATED' },
-},
-```
-
 **修改**
 
 `/folders` 路由的 `meta.title` 从 `'标准文件库'` → `'文件夹配置'`。
 
-其他 8 条路由全部保留，URL 不动。
+其他 8 条路由全部保留、不动。本轮不新增路由（废止入口延后，见 R1）。
 
-### F. `ProcedureLibraryView` 适配
-
-`onMounted` 读 `route.meta.forceStatus`：
-
-- 若存在：在视图本地 state 里强制 `statusFilter = meta.forceStatus`；把状态筛选下拉 `disabled` 并加 tooltip「当前在'废止'视图，按状态过滤已锁定」；页面标题用 `meta.title`。
-- 若不存在：现状行为不变。
-
-实现挂在 setup 顶部读 `useRoute().meta`，避免引入 watcher（路由切换会重新 mount 因为 RouterView 用 `<Transition mode="out-in">`，组件实例重建，onMounted 重新跑）。
-
-### G. tokens.css 新增
+### F. tokens.css 新增
 
 ```css
 --topbar-height: 48px;
 ```
 
 `AppTopBar.vue` 的 `.app-topbar` 高度引用 `var(--topbar-height)`，不硬编码。
+
+> ⚠ 节号变更：原 §G 已退化为本 §F；原 §E 中的"新增路由"段已删除。
 
 ## 标准文件库 → 文件夹配置 重命名落地
 
@@ -315,15 +289,11 @@ const { collapsed, toggle } = useSidebar()
 
 **`frontend/tests/components/AppSidebar.spec.ts`**
 
-1. `collapsed=false`：渲染 2 个 group-label（内容 / 系统区） + 3 个 menu-item（程序库 / 草稿箱 / 废止）
+1. `collapsed=false`：渲染 1 个 group-label（内容） + 2 个 menu-item（程序库 / 草稿箱）
 2. `collapsed=true`：group-label 不渲染，menu-item 渲染图标
-3. `activeMenu` 在不同 route 下的归类：mock `useRoute()` 返回 `/procedures/deprecated` → `activeMenu === '/procedures/deprecated'`；`/procedures/abc123/edit` → `'/procedures/library'`；`/settings` → `''`
-4. menu-spacer 把"系统区"组压到底部（quick DOM 顺序断言：`[内容] → [spacer] → [系统区]`）
+3. `activeMenu` 在不同 route 下的归类：mock `useRoute()` 返回 `/procedures/drafts` → `activeMenu === '/procedures/drafts'`；`/procedures/abc123/edit` → `'/procedures/library'`；`/settings` → `''`
 
-**`frontend/tests/router.spec.ts`**（如不存在则新建）
-
-1. `/procedures/deprecated` 路由存在；`meta.forceStatus === 'DEPRECATED'`；component lazy 指 `ProcedureLibraryView`
-2. `/folders` 的 `meta.title === '文件夹配置'`
+> 路由层面 `/folders` 的 `meta.title === '文件夹配置'` 在本轮无新增路由，作为重命名子句在 Task 中 grep 校验即可，不开新 router.spec.ts。
 
 ### 已有不需改
 
@@ -336,7 +306,7 @@ const { collapsed, toggle } = useSidebar()
 |---|---|---|
 | `el-dropdown` 在 jsdom 下打不开 | 测试覆盖不足 | 既知问题，按 [memory: el-dropdown jsdom test] 测 `@command` 派发本身，不模拟打开 |
 | ⚙ 下拉中 `el-dropdown-item disabled` 作为 group label | EP 默认 disabled 样式可能被误读成"已禁用配置项" | 用自定义 class `.group-label` 覆盖：小字、uppercase、灰色，不带 hover；视觉上明显区别 |
-| `/procedures/deprecated` 复用 LibraryView 状态锁定 | 用户混淆"我现在到底在哪个视图" | 锁状态下拉 + tooltip + 用 `meta.title` 改页面标题 |
+| 侧栏过空（仅 2 项：程序库 / 草稿箱） | 视觉单薄 | R1 决策接受；若将来加回废止，仍能塞进现有结构 |
 | design-system.md §3.1 ASCII 与现实背离 | 未来读者照 ASCII 实现"侧栏树"会重新撞墙 | 本设计同步加注「未落地」；如要真正实现，是另一个 topic |
 | feature-clarifications.md §50.2 是"决策权威"，重命名改动该文需谨慎 | 改原决策正文等于改历史 | 不改原文，只在该节末加一行**修订注**：「2026-05-26 起，"标准文件库"改名"文件夹配置"，并归入 ⚙ 配置组」 |
 
@@ -345,3 +315,44 @@ const { collapsed, toggle } = useSidebar()
 - [`docs/design-system.md`](../../design-system.md) §3.1（外壳）/ §2.4（阴影规范）/ §3.8（亮纸孤岛）
 - [`docs/feature-clarifications.md`](../../feature-clarifications.md) §49（Q313–Q319 视觉立意）/ §50（Q320–Q321 IA 归位）
 - 内存提示：`[[el-dropdown jsdom test]]` - EP dropdown 在 jsdom 不渲染，测 `$emit('command')`
+
+## 修订日志
+
+### R1 — 2026-05-26：撤回侧栏「废止」入口
+
+**原计划**：新增 `/procedures/deprecated` 路由 → 复用 `ProcedureLibraryView` + `meta.forceStatus='DEPRECATED'`；侧栏底部「系统区」放「废止」入口。
+
+**问题**：写 plan 前核验数据模型时发现「废止」**不是 status**，而是 **`folder.name='废止' AND folder.system=true` 的系统文件夹**。证据：
+
+- `frontend/src/types/procedure.ts`：`type ProcedureStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'`——**无 DEPRECATED**
+- `backend/app/seed.py:22`：`DEPRECATED_FOLDER_NAME = "废止"`，seed 为 `system=true` 的根文件夹
+- `feature-clarifications.md` §13 列表条件表："`「废止」` = `is_active=true AND folder.system=true AND is_current=true`"
+- `deprecate` 操作：整 group 转 `ARCHIVED` + `folder_id` 改 → 废止文件夹
+
+**Backend 能力现状**：`GET /procedures` 已支持 `folder_id` 过滤（`procedure_service.list_procedures` 第 561-563 行），技术上零 backend 改动可实现。**所缺为前端工作**：
+
+1. `ProcedureLibraryView.query` 加 `folder_id?: string`
+2. `useProcedureStore.loadList` 接受 `folder_id` 并串到 API
+3. 路由 meta 改 `forceSystemFolderName: '废止'`（避免硬编码 DB 主键）
+4. onMounted 解析 meta → 用 folders store 查 `system=true && name='废止'` 的文件夹 ID → 设 `query.folder_id` → 锁 UI
+5. 视图层不渲染状态过滤器（仅搜索框 + 锁定提示）
+
+估算 ~80–120 LoC（含测试）。
+
+**决策**：本轮**不含**该入口。理由：
+
+- 与"顶栏 IA + 重命名"是不同语义的功能，捆绑会让本轮 PR 变臃肿
+- 留作独立 topic，能让"废止 = 文件夹"这套模型在前端的呈现得到专门讨论（比如"系统区"是否应该展示所有 `system=true` 文件夹而不仅是废止？）
+
+**spec 影响**：
+
+- 「目标 4」删除
+- 「范围/做」中相关条目删除；「范围/不做 YAGNI」新增条目
+- 决策矩阵「废止入口实现」行删除
+- §A AppSidebar 职责描述简化
+- §C AppSidebar 模板删除「系统区」组、`menu-spacer`、`/procedures/deprecated` menu-item；`activeMenu` 删除 deprecated 分支
+- §E 路由变更删除「新增」段，仅保留「修改 `/folders` meta.title」
+- §F「ProcedureLibraryView 适配」整段删除（原 §G 升为 §F：tokens.css 新增）
+- §测试 AppSidebar.spec 用例数下调（1 group + 2 items）；router 单测取消
+- §风险表移除 "废止视图状态锁定" 条
+
