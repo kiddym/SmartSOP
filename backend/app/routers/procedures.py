@@ -322,6 +322,17 @@ def deprecate(
     db.commit()
     return procedure_service.to_meta(db, proc)
 
+@router.post("/{procedure_id}/archive", response_model=ProcedureMeta)
+def archive(
+    procedure_id: str,
+    payload: ReasonIn,
+    db: Session = Depends(get_db),
+    meta: RequestMeta = Depends(get_request_meta),
+) -> ProcedureMeta:
+    proc = version_flow_service.archive_group(db, procedure_id, payload.reason, meta)
+    db.commit()
+    return procedure_service.to_meta(db, proc)
+
 
 @router.get("/{procedure_id}/restore-preview", response_model=RestorePreviewOut)
 def restore_preview(procedure_id: str, db: Session = Depends(get_db)) -> RestorePreviewOut:

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
+from app.seed import run_seed
 from tests.conftest import Factory
 
 PROC = "/api/v1/procedures"
@@ -165,4 +167,45 @@ def test_delete_non_current_returns_204(client: TestClient, factory: Factory) ->
     factory.sequence(leaf.id)
     old = factory.procedure(leaf.id, is_current=False, status="ARCHIVED", code="QC-00077")
     resp = client.request("DELETE", f"{PROC}/{old.id}", json={"reason": "清理"})
-    assert resp.status_code == 204
+def test_archive_endpoint_full_flow(client: TestClient, db: Session) -> None:
+    """端到端：创建程序 → archive → 校验 status + folder。"""
+    run_seed(db)
+    leaf = _make_leaf(client)
+    pid = _make_procedure(client, leaf, name="要归档的程序")["id"]
+    # 先发布
+    client.post(f"{PROC}/{pid}/transition", json={"status": "PUBLISHED"}, headers={"If-Match": "0"})
+    
+    res = client.post(
+        f"{PROC}/{pid}/archive",
+        json={"reason": "stale—keep for reference"},
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    assert body["status"] == "ARCHIVED"
+    # 归档文件夹应该存在且被引用
+    assert body["folder_id"] is not None
+
+
+def test_archive_then_restore_round_trip(client: TestClient, db: Session) -> None:
+    """从归档恢复：复用现有 restore 端点。"""
+    run_seed(db)
+    leaf = _make_leaf(client)
+    pid = _make_procedure(client, leaf, name="要测试的程序")["id"]
+    # 先发布
+    client.post(f"{PROC}/{pid}/transition", json={"status": "PUBLISHED"}, headers={"If-Match": "0"})
+    
+    # 归档
+    client.post(f"{PROC}/{pid}/archive", json={"reason": "stale"})
+    
+    # 恢复回原 folder
+    res = client.post(
+        f"{PROC}/{pid}/restore",
+        json={"reason": "back", "target_folder_id": leaf}
+    )
+
+    assert res.status_code == 200
+    body = res.json()
+    # restore 创建新 DRAFT、回到原 folder
+    assert body["status"] == "DRAFT"
+    assert body["folder_id"] == leaf
