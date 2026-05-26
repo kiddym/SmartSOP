@@ -106,4 +106,17 @@ describe('TreeRow', () => {
     expect(w.emitted('convert')).toBeTruthy()
     expect(w.emitted('convert')![0]).toEqual(['to-content'])
   })
+
+  it('markMode 下三种 kind 都渲染 checkbox', () => {
+    for (const kind of ['chapter', 'content', 'step'] as const) {
+      const w = mountRow(row({ id: kind, kind, code: '1.1' }), { markMode: true })
+      expect(w.findComponent({ name: 'ElCheckbox' }).exists()).toBe(true)
+    }
+  })
+
+  it('markMode chapter checkbox 透传 indeterminate prop', () => {
+    const w = mountRow(row({ id: 'c1', kind: 'chapter' }), { markMode: true, indeterminate: true })
+    const cb = w.findComponent({ name: 'ElCheckbox' })
+    expect(cb.props('indeterminate')).toBe(true)
+  })
 })

@@ -14,6 +14,7 @@ interface Props {
   canMoveUp: boolean
   canMoveDown: boolean
   dropHint: '' | 'before' | 'after' | 'inside' | 'invalid'
+  indeterminate?: boolean
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -79,8 +80,9 @@ const typeLabel = computed(() =>
     </span>
 
     <el-checkbox
-      v-if="markMode && row.kind === 'chapter'"
+      v-if="markMode"
       :model-value="selectedForMark"
+      :indeterminate="row.kind === 'chapter' ? !!indeterminate : false"
       class="tr-check"
       @click.stop="emit('check', ($event as MouseEvent).shiftKey)"
     />
