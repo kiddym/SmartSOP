@@ -231,4 +231,87 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
     expect(chapterRow.props('indeterminate')).toBe(true)
   })
+
+  it('章节 checkbox 未选 → 点击级联选 root + 全部后代', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0), chapter('c1a', '子章', 'c1', 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true, c1a: true }
+    store.markMode = true
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+
+    chapterRow.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    // root c1 + 子章 c1a + 步 s1 全入选
+    expect(chapterRow.props('selectedForMark')).toBe(true)
+    const subRow = rows.find((r) => r.props('row').id === 'c1a')!
+    const stepRow = rows.find((r) => r.props('row').id === 's1')!
+    expect(subRow.props('selectedForMark')).toBe(true)
+    expect(stepRow.props('selectedForMark')).toBe(true)
+  })
+
+  it('章节 checkbox 已全选 → 点击级联取消 root + 全部后代', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    store.markMode = true
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+
+    // 先级联选中
+    chapterRow.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    // 再点击 → 全部取消
+    chapterRow.vm.$emit('check', false)
+    await w.vm.$nextTick()
+
+    expect(chapterRow.props('selectedForMark')).toBe(false)
+    const stepRow = rows.find((r) => r.props('row').id === 's1')!
+    expect(stepRow.props('selectedForMark')).toBe(false)
+  })
+
+  it('章节 indeterminate → 点击 = 级联选所有剩余', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 's2', chapter_id: 'c1', kind: 'step', title: '二', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 1 },
+      { id: 's3', chapter_id: 'c1', kind: 'step', title: '三', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 2 },
+    ]
+    store.expanded = { c1: true }
+    store.markMode = true
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    const s1 = rows.find((r) => r.props('row').id === 's1')!
+    s1.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+    expect(chapterRow.props('indeterminate')).toBe(true)
+
+    // 点 indeterminate 章节 → 选所有剩余
+    chapterRow.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    expect(chapterRow.props('selectedForMark')).toBe(true)
+    expect(chapterRow.props('indeterminate')).toBe(false)
+    for (const sid of ['s1', 's2', 's3']) {
+      expect(rows.find((r) => r.props('row').id === sid)!.props('selectedForMark')).toBe(true)
+    }
+  })
 })

@@ -7,7 +7,7 @@ import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { isTempId } from '@/utils/editor'
 import { nextReviewId, nextRowId } from '@/utils/reviewNav'
-import { buildSelection } from '@/utils/batchMark'
+import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { computeDrop, validDrop, type DndTree } from '@/utils/treeDnd'
 import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
 
@@ -274,6 +274,24 @@ watch(
   },
 )
 function onCheck(row: FlatRow, shift: boolean): void {
+  // 章节 + 非 shift：级联。action 由当前状态判定——checked → deselect；其它（unchecked / indeterminate）→ select。
+  if (row.kind === 'chapter' && !shift) {
+    const desc = descendantsByChapter.value.get(row.id) ?? []
+    const isChecked = markSel.value.has(row.id) && !indeterminateSet.value.has(row.id)
+    const action: 'select' | 'deselect' = isChecked ? 'deselect' : 'select'
+    const res = buildCascadeSelection({
+      current: markSel.value,
+      anchor: lastChecked.value,
+      rootId: row.id,
+      descendantIds: desc,
+      action,
+    })
+    markSel.value = res.selection
+    lastChecked.value = res.anchor
+    for (const w of res.warnings) ElMessage.warning(w)
+    return
+  }
+  // 其它情况（叶子 / shift）：走原 buildSelection
   const res = buildSelection({
     current: markSel.value,
     anchor: lastChecked.value,
