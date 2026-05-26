@@ -102,6 +102,7 @@ onMounted(loadSettings)
 <style scoped>
 .settings-page {
   max-width: 700px;
+  padding: 20px 24px;
 }
 .page-title {
   font-size: 20px;

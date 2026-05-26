@@ -57,6 +57,9 @@ function open(id: string): void {
 </template>
 
 <style scoped>
+.drafts {
+  padding: 20px 24px;
+}
 .title {
   margin: 0 0 16px;
   font-size: 18px;

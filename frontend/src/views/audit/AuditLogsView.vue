@@ -324,6 +324,7 @@ onMounted(() => {
 <style scoped>
 .audit-logs-page {
   max-width: 1200px;
+  padding: 20px 24px;
 }
 
 .page-title {

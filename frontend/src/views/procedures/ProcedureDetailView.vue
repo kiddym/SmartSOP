@@ -494,6 +494,9 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
 </template>
 
 <style scoped>
+.detail {
+  padding: 20px 24px;
+}
 .header {
   display: flex;
   justify-content: space-between;

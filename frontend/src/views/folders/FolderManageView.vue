@@ -169,6 +169,9 @@ async function remove(): Promise<void> {
 </template>
 
 <style scoped>
+.folder-manage {
+  padding: 20px 24px;
+}
 .toolbar {
   display: flex;
   align-items: center;

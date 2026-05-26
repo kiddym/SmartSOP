@@ -487,6 +487,7 @@ async function moveField(index: number, direction: 'up' | 'down') {
 <style scoped>
 .field-manage {
   max-width: 1100px;
+  padding: 20px 24px;
 }
 .page-title {
   font-size: 20px;
