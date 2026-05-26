@@ -174,3 +174,34 @@ describe('ChapterTreePanel', () => {
     expect(wrapper.find('.missing-bar').text()).toContain('1')
   })
 })
+
+describe('ChapterTreePanel · 结构工具行（标记模式 + 层级标定）', () => {
+  it('渲染两枚互斥按钮：标记模式 + 层级标定', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '总则', null, 0)]
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] } })
+    const tools = w.find('.structure-tools')
+    expect(tools.exists()).toBe(true)
+    expect(tools.text()).toContain('标记模式')
+    expect(tools.text()).toContain('层级标定')
+  })
+
+  it('点击「标记模式」进入 markMode；再点「层级标定」自动退出 markMode 进入 layerMode', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '总则', null, 0)]
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] } })
+    const tools = w.find('.structure-tools')
+    const markBtn = tools.findAll('button').find((b) => b.text().includes('标记模式'))!
+    const layerBtn = tools.findAll('button').find((b) => b.text().includes('层级标定'))!
+    await markBtn.trigger('click')
+    expect(store.markMode).toBe(true)
+    expect(store.layerMode).toBe(false)
+    await layerBtn.trigger('click')
+    expect(store.markMode).toBe(false)
+    expect(store.layerMode).toBe(true)
+  })
+})

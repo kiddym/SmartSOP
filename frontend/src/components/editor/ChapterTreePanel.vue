@@ -318,8 +318,20 @@ defineExpose({ focusSearch })
           +步骤
         </el-button>
       </div>
-      <div v-if="store.editable" class="layer-entry">
-        <el-button size="small" :type="store.layerMode ? 'primary' : ''" @click="store.toggleLayerMode()">
+      <div v-if="store.editable" class="structure-tools">
+        <span class="structure-tools-label">结构工具：</span>
+        <el-button
+          size="small"
+          :type="store.markMode ? 'primary' : 'default'"
+          @click="store.toggleMarkMode()"
+        >
+          {{ store.markMode ? '退出标记模式' : '标记模式' }}
+        </el-button>
+        <el-button
+          size="small"
+          :type="store.layerMode ? 'primary' : 'default'"
+          @click="store.toggleLayerMode()"
+        >
           {{ store.layerMode ? '退出层级标定' : '层级标定' }}
         </el-button>
       </div>
@@ -382,13 +394,17 @@ defineExpose({ focusSearch })
   gap: 6px;
   border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
 }
-.layer-entry,
+.structure-tools,
 .root-add,
 .mark-bar {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
+}
+.structure-tools-label {
+  font-size: 12px;
+  color: #909399;
 }
 .root-add-label {
   font-size: 12px;
