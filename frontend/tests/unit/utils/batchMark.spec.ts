@@ -82,7 +82,7 @@ describe('buildSelection', () => {
 })
 
 describe('buildCascadeSelection', () => {
-  it('select：空集合 + 章节级联 → rootId + 所有 descendantIds 入选；anchor=rootId', () => {
+  it('select：空集合 + 章节级联 → 仅 descendantIds 入选（rootId 不入），anchor=rootId', () => {
     const r = buildCascadeSelection({
       current: new Set(),
       anchor: null,
@@ -90,12 +90,14 @@ describe('buildCascadeSelection', () => {
       descendantIds: ['a', 'b', 's1'],
       action: 'select',
     })
-    expect([...r.selection].sort()).toEqual(['a', 'b', 'c1', 's1'])
+    expect([...r.selection].sort()).toEqual(['a', 'b', 's1']) // c1 自己不在
     expect(r.anchor).toBe('c1')
     expect(r.warnings).toEqual([])
   })
 
-  it('deselect：含 root + descendants → 全部移除；anchor=rootId', () => {
+  it('deselect：仅移除 descendants；rootId 即使已在 current 也保持不动', () => {
+    // c1 在 current 中是异常前置状态（章节本不该进 selection）；deselect 应只动 descendants，
+    // 把 c1 留给上层逻辑自己清——这里验证 buildCascadeSelection 不擅自处理 rootId。
     const r = buildCascadeSelection({
       current: new Set(['c1', 'a', 'b', 's1', 'other']),
       anchor: 'c1',
@@ -103,11 +105,11 @@ describe('buildCascadeSelection', () => {
       descendantIds: ['a', 'b', 's1'],
       action: 'deselect',
     })
-    expect([...r.selection].sort()).toEqual(['other'])
+    expect([...r.selection].sort()).toEqual(['c1', 'other']) // c1 没被动
     expect(r.anchor).toBe('c1')
   })
 
-  it('select 部分命中：未在集合的后代被补齐', () => {
+  it('select 部分命中：未在集合的后代被补齐（rootId 仍不入）', () => {
     const r = buildCascadeSelection({
       current: new Set(['a']),
       anchor: 'a',
@@ -115,10 +117,10 @@ describe('buildCascadeSelection', () => {
       descendantIds: ['a', 'b', 's1'],
       action: 'select',
     })
-    expect([...r.selection].sort()).toEqual(['a', 'b', 'c1', 's1'])
+    expect([...r.selection].sort()).toEqual(['a', 'b', 's1'])
   })
 
-  it('超 100：截断到前 100 并告警；锚点若不在裁后集合则置 null', () => {
+  it('超 100：截断到前 100 并告警；anchor 恒为 rootId（不受截断影响）', () => {
     const descendantIds = Array.from({ length: 150 }, (_, i) => `d${i}`)
     const r = buildCascadeSelection({
       current: new Set(),
@@ -129,8 +131,8 @@ describe('buildCascadeSelection', () => {
     })
     expect(r.selection.size).toBe(MAX_BATCH_MARK)
     expect(r.warnings.some((w) => w.includes('最多标记'))).toBe(true)
-    // 截断按"集合插入顺序"：rootId 先插，descendantIds 依序插。前 100 必含 root。
-    expect(r.selection.has('root')).toBe(true)
-    expect(r.anchor).toBe('root')
+    expect(r.selection.has('root')).toBe(false) // rootId 从不入选
+    expect(r.selection.has('d0')).toBe(true) // 截断按插入序保留前 100 个 descendants
+    expect(r.anchor).toBe('root') // anchor 不受截断影响
   })
 })

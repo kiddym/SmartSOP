@@ -126,8 +126,10 @@ const rootAddState = computed(() => store.addButtonStateFor(null))
 
 // ---- 节点操作 ---- //
 function onSelect(row: FlatRow): void {
-  if (store.markMode && row.kind !== 'step') void store.cycleMark(row.id)
-  else store.selectNode(row.id)
+  // mark mode 下：章节行整体不可交互（章节是纯容器，不可被标记/转换；checkbox 单独承担级联触发）。
+  // step / content 行：照常导航到详情面板。
+  if (store.markMode && row.kind === 'chapter') return
+  store.selectNode(row.id)
 }
 function onAdd(parentId: string | null, kind: 'chapter' | 'content' | 'step'): void {
   if (kind === 'chapter') store.addChapterNode(parentId)
@@ -221,8 +223,9 @@ async function onDrop(row: FlatRow): Promise<void> {
 const markSel = ref<Set<string>>(new Set())
 const lastChecked = ref<string | null>(null)
 
-// ---- 标记模式：后代映射（DFS 全子树，忽略折叠/过滤） ---- //
-// 每个 chapter id → 其全部后代 id（含 chapter / content / step）。
+// ---- 标记模式：后代映射（DFS 全子树，仅收 step/content 叶子；忽略折叠/过滤） ---- //
+// 每个 chapter id → 其子树下所有 step+content 叶子 id（中间穿过的子章节不入列）。
+// §Q25 保证父节点的孩子要么全是 chapter 要么全是 step/content；DFS 自然递归到"叶子章节"那一层取走 step/content。
 // rebuild 触发：chapters / steps 任意属性变（结构 + 非结构，Pinia 响应式追踪）。
 const descendantsByChapter = computed<Map<string, string[]>>(() => {
   const childChapters = new Map<string | null, string[]>()
@@ -241,7 +244,8 @@ const descendantsByChapter = computed<Map<string, string[]>>(() => {
   const dfs = (id: string): string[] => {
     const acc: string[] = []
     for (const cid of childChapters.get(id) ?? []) {
-      acc.push(cid, ...dfs(cid))
+      // 子章节本身不入列；只递归进去取它的 step/content 叶子。
+      acc.push(...dfs(cid))
     }
     for (const sid of childSteps.get(id) ?? []) {
       acc.push(sid)
@@ -252,7 +256,7 @@ const descendantsByChapter = computed<Map<string, string[]>>(() => {
   return out
 })
 
-// 半选集合：descendant 命中数 ∈ (0, total) 的 chapter id。chapter 自身是否在 selection 不影响半选判定。
+// 半选集合：descendant 命中数 ∈ (0, total) 的 chapter id。chapter 自身从不进 selection。
 const indeterminateSet = computed<Set<string>>(() => {
   const out = new Set<string>()
   for (const [chId, desc] of descendantsByChapter.value) {
@@ -260,6 +264,17 @@ const indeterminateSet = computed<Set<string>>(() => {
     let hit = 0
     for (const id of desc) if (markSel.value.has(id)) hit++
     if (hit > 0 && hit < desc.length) out.add(chId)
+  }
+  return out
+})
+
+// 章节 checkbox 的"已勾选"视觉态：当且仅当其所有 step/content 后代都在 markSel 中。
+// 章节本身从不进 markSel，所以纯由后代派生。
+const fullySelectedChapters = computed<Set<string>>(() => {
+  const out = new Set<string>()
+  for (const [chId, desc] of descendantsByChapter.value) {
+    if (desc.length === 0) continue
+    if (desc.every((id) => markSel.value.has(id))) out.add(chId)
   }
   return out
 })
@@ -274,11 +289,12 @@ watch(
   },
 )
 function onCheck(row: FlatRow, shift: boolean): void {
-  // 章节 + 非 shift：级联。action 由当前状态判定——checked → deselect；其它（unchecked / indeterminate）→ select。
-  if (row.kind === 'chapter' && !shift) {
+  // 章节 checkbox 永远走级联（章节本身不可标记；shift 修饰键对章节无意义，忽略）。
+  // action 由章节当前的视觉态判定：fully-checked → deselect；unchecked / indeterminate → select。
+  if (row.kind === 'chapter') {
+    void shift // shift 在章节上无效，标记 unused 避免 lint
     const desc = descendantsByChapter.value.get(row.id) ?? []
-    const isChecked = markSel.value.has(row.id) && !indeterminateSet.value.has(row.id)
-    const action: 'select' | 'deselect' = isChecked ? 'deselect' : 'select'
+    const action: 'select' | 'deselect' = fullySelectedChapters.value.has(row.id) ? 'deselect' : 'select'
     const res = buildCascadeSelection({
       current: markSel.value,
       anchor: lastChecked.value,
@@ -432,7 +448,7 @@ defineExpose({ focusSearch })
           :row="row"
           :selected="store.selectedId === row.id"
           :mark-mode="store.markMode"
-          :selected-for-mark="markSel.has(row.id)"
+          :selected-for-mark="row.kind === 'chapter' ? fullySelectedChapters.has(row.id) : markSel.has(row.id)"
           :indeterminate="indeterminateSet.has(row.id)"
           :add-state="addStateFor(row)"
           :editable="store.editable"

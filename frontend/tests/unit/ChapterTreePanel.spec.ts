@@ -232,13 +232,14 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     expect(chapterRow.props('indeterminate')).toBe(true)
   })
 
-  it('章节 checkbox 未选 → 点击级联选 root + 全部后代', async () => {
+  it('章节 checkbox 未选 → 点击级联选所有 step/content 后代（章节自身不入选，但视觉态为已勾选）', async () => {
     setActivePinia(createPinia())
     const store = useProcedureEditorStore()
     store.procedure = meta()
+    // §Q25-conformant 树：c1 只有 chapter 子节点（c1a）；c1a 只有 step 子节点（s1）
     store.chapters = [chapter('c1', '章一', null, 0), chapter('c1a', '子章', 'c1', 0)]
     store.steps = [
-      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 's1', chapter_id: 'c1a', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
     ]
     store.expanded = { c1: true, c1a: true }
     store.markMode = true
@@ -249,7 +250,7 @@ describe('ChapterTreePanel · 标记模式级联', () => {
 
     chapterRow.vm.$emit('check', false)
     await w.vm.$nextTick()
-    // root c1 + 子章 c1a + 步 s1 全入选
+    // c1 与 c1a 都"视觉上全选"（fullySelectedChapters 包含），s1 真在 markSel 里
     expect(chapterRow.props('selectedForMark')).toBe(true)
     const subRow = rows.find((r) => r.props('row').id === 'c1a')!
     const stepRow = rows.find((r) => r.props('row').id === 's1')!
@@ -257,7 +258,7 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     expect(stepRow.props('selectedForMark')).toBe(true)
   })
 
-  it('章节 checkbox 已全选 → 点击级联取消 root + 全部后代', async () => {
+  it('章节 checkbox 已全选 → 点击级联取消所有 step/content 后代', async () => {
     setActivePinia(createPinia())
     const store = useProcedureEditorStore()
     store.procedure = meta()
@@ -315,7 +316,7 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     }
   })
 
-  it('applyBatch(content) 混合选择：chapter→setMark / step→setStepKind / content 跳过', async () => {
+  it('applyBatch(content) 混合选择：step→setStepKind / content 跳过；setMark 永不被调（章节不进 markSel）', async () => {
     setActivePinia(createPinia())
     const store = useProcedureEditorStore()
     store.procedure = meta()
@@ -332,20 +333,20 @@ describe('ChapterTreePanel · 标记模式级联', () => {
 
     const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
     const rows = w.findAllComponents({ name: 'TreeRow' })
-    // 手动构造混合选择（避免依赖 cascade 的展开/折叠细节）
-    rows.find((r) => r.props('row').id === 'c1')!.vm.$emit('check', false)  // c1 cascade → c1+s1
-    rows.find((r) => r.props('row').id === 'ct1')!.vm.$emit('check', false) // ct1 单选
+    // c1 cascade → markSel = {s1}（c1 自己不入）；ct1 单选 → markSel = {s1, ct1}
+    rows.find((r) => r.props('row').id === 'c1')!.vm.$emit('check', false)
+    rows.find((r) => r.props('row').id === 'ct1')!.vm.$emit('check', false)
     await w.vm.$nextTick()
 
-    // 触发"标记为内容"
     const markBar = w.find('.mark-bar')
     const contentBtn = markBar.findAll('button').find((b) => b.text().includes('标记为内容'))!
     await contentBtn.trigger('click')
     await w.vm.$nextTick()
-    await new Promise((r) => setTimeout(r, 0)) // 让 await ensureSaved 的 microtask 结算
+    await new Promise((r) => setTimeout(r, 0))
 
-    // c1 → setMark(c1, 'content')；ct1（已是 content）跳过；s1 → setStepKind(s1, 'content')
-    expect(setMarkSpy).toHaveBeenCalledWith('c1', 'content')
+    // 章节永不进 markSel，setMark 不应被调到任何 id
+    expect(setMarkSpy).not.toHaveBeenCalled()
+    // s1 (step) → setStepKind(s1, 'content')；ct1 (content) 已是目标 kind → 跳过
     expect(setStepKindSpy).toHaveBeenCalledWith('s1', 'content')
     expect(setStepKindSpy).not.toHaveBeenCalledWith('ct1', expect.anything())
   })
@@ -377,12 +378,13 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     expect(setStepKindSpy).not.toHaveBeenCalled()
   })
 
-  it('章节 + shift → 走 range 而非级联（不选第二个章节的后代）', async () => {
+  it('章节 + shift → shift 在章节上被忽略，仍走级联', async () => {
     setActivePinia(createPinia())
     const store = useProcedureEditorStore()
     store.procedure = meta()
     store.chapters = [chapter('c1', '章一', null, 0), chapter('c2', '章二', null, 1)]
     store.steps = [
+      { id: 's1a', chapter_id: 'c1', kind: 'step', title: 'a', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
       { id: 's2a', chapter_id: 'c2', kind: 'step', title: 'a', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
     ]
     store.expanded = { c1: true, c2: true }
@@ -391,17 +393,37 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
     const rows = w.findAllComponents({ name: 'TreeRow' })
 
-    // 单击 c1 建立锚点（非 shift → 级联，但 c1 没有后代，所以只选自身）
+    // 单击 c1（cascade → markSel = {s1a}）
     rows.find((r) => r.props('row').id === 'c1')!.vm.$emit('check', false)
     await w.vm.$nextTick()
+    expect(rows.find((r) => r.props('row').id === 's1a')!.props('selectedForMark')).toBe(true)
 
-    // shift 点 c2 → 走 buildSelection 的 range 路径（同父 null），不级联到 c2 的后代 s2a
+    // shift 点 c2 → 章节永远走级联，不走 buildSelection range；c2 自身不入 markSel，s2a 入
     rows.find((r) => r.props('row').id === 'c2')!.vm.$emit('check', true)
     await w.vm.$nextTick()
 
-    expect(rows.find((r) => r.props('row').id === 'c1')!.props('selectedForMark')).toBe(true)
-    expect(rows.find((r) => r.props('row').id === 'c2')!.props('selectedForMark')).toBe(true)
-    // 关键断言：c2 的 step 后代不在选择中（否则就是 cascade 行为了）
-    expect(rows.find((r) => r.props('row').id === 's2a')!.props('selectedForMark')).toBe(false)
+    expect(rows.find((r) => r.props('row').id === 'c1')!.props('selectedForMark')).toBe(true) // c1 视觉态仍全选
+    expect(rows.find((r) => r.props('row').id === 'c2')!.props('selectedForMark')).toBe(true) // c2 视觉态全选（cascade 而非 range）
+    expect(rows.find((r) => r.props('row').id === 's2a')!.props('selectedForMark')).toBe(true) // 关键：cascade 了 s2a
+  })
+
+  it('mark mode 下点击 chapter 行（非 checkbox）不切换 selectedId（章节交互被锁）', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    store.selectedId = 's1' // 起始：step 被选中
+    store.markMode = true
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    rows.find((r) => r.props('row').id === 'c1')!.vm.$emit('select')
+    await w.vm.$nextTick()
+
+    expect(store.selectedId).toBe('s1') // 未被切换到 c1
   })
 })
