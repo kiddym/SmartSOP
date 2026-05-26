@@ -127,6 +127,9 @@ export const rollbackVersion = async (
 export const deprecateGroup = async (id: string, reason: string): Promise<ProcedureMeta> =>
   (await http.post<ProcedureMeta>(`/procedures/${id}/deprecate`, { reason })).data
 
+export const archiveGroup = async (id: string, reason: string): Promise<ProcedureMeta> =>
+  (await http.post<ProcedureMeta>(`/procedures/${id}/archive`, { reason })).data
+
 export const restorePreview = async (id: string): Promise<RestorePreview> =>
   (await http.get<RestorePreview>(`/procedures/${id}/restore-preview`)).data
 

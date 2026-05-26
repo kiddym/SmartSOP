@@ -9,6 +9,7 @@ import VersionActionDialog, {
 } from '@/components/version/VersionActionDialog.vue'
 import PdfPreviewDialog from '@/components/PdfPreview/PdfPreviewDialog.vue'
 import {
+  archiveGroup,
   copyProcedure,
   deleteGroup,
   deleteProcedure,
@@ -56,6 +57,13 @@ const editable = computed(
 const deprecated = computed(() => !!meta.value?.deprecated_at)
 const canUpgrade = computed(
   () => !!meta.value && meta.value.is_current && meta.value.status === 'PUBLISHED' && !deprecated.value,
+)
+const canArchive = computed(
+  () =>
+    !!meta.value &&
+    meta.value.is_current &&
+    meta.value.status === 'PUBLISHED' &&
+    !deprecated.value,
 )
 // 删除可见性（对齐后端 delete_procedure）：非当前版可软删；当前版仅 DRAFT 可删
 //（v1→整组硬删，v>1→丢弃草稿）；当前 PUBLISHED/ARCHIVED 一律不可直接删。
@@ -229,6 +237,7 @@ async function onUpgrade(): Promise<void> {
 // ---- 版本动作统一弹框 ---- //
 type PendingAction =
   | { kind: 'deprecate' }
+  | { kind: 'archive' }
   | { kind: 'restore'; needFolder: boolean }
   | { kind: 'copy' }
   | { kind: 'rollback'; currentId: string; targetVersion: number }
@@ -240,6 +249,9 @@ const dialogConfig = computed(() => {
   const p = pending.value
   if (p?.kind === 'deprecate') {
     return { title: '废弃整个版本族', needReason: true, needFolder: false, needName: false, reasonHint: '废弃原因（整组所有版本将移入「废止」）' }
+  }
+  if (p?.kind === 'archive') {
+    return { title: '归档整个版本族', needReason: true, needFolder: false, needName: false, reasonHint: '归档原因（整组所有版本将移入「归档」，保留备查）' }
   }
   if (p?.kind === 'restore') {
     return { title: '从废止恢复', needReason: true, needFolder: p.needFolder, needName: false, reasonHint: '恢复原因' }
@@ -255,6 +267,10 @@ const dialogConfig = computed(() => {
 
 function openDeprecate(): void {
   pending.value = { kind: 'deprecate' }
+  dialogVisible.value = true
+}
+function openArchive(): void {
+  pending.value = { kind: 'archive' }
   dialogVisible.value = true
 }
 async function openRestore(): Promise<void> {
@@ -288,6 +304,12 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
       await deprecateGroup(meta.value.id, payload.reason)
       dialogVisible.value = false
       ElMessage.success('已废弃整个版本族')
+      await load()
+      panelRef.value?.reload()
+    } else if (p.kind === 'archive') {
+      await archiveGroup(meta.value.id, payload.reason)
+      dialogVisible.value = false
+      ElMessage.success('已归档整版本族')
       await load()
       panelRef.value?.reload()
     } else if (p.kind === 'restore') {
@@ -359,6 +381,9 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
           <el-button :disabled="busy" @click="openCopy">复制为新程序</el-button>
           <el-button v-if="!deprecated" type="warning" plain :disabled="busy" @click="openDeprecate">
             废弃
+          </el-button>
+          <el-button v-if="canArchive" type="warning" link :disabled="busy" @click="openArchive">
+            归档整版本族
           </el-button>
           <el-button v-if="deprecated" type="success" plain :disabled="busy" @click="openRestore">
             恢复
