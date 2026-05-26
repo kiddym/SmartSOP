@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ElDropdown,
@@ -32,6 +33,9 @@ const MENU_COMMANDS: readonly MenuCommand[] = [
   { group: '历史', label: '审计日志', path: '/audit-logs' },
 ]
 
+const configCommands = computed(() => MENU_COMMANDS.filter((c) => c.group === '配置'))
+const historyCommands = computed(() => MENU_COMMANDS.filter((c) => c.group === '历史'))
+
 const router = useRouter()
 function onCommand(path: string): void {
   void router.push(path)
@@ -59,12 +63,12 @@ defineExpose({ MENU_COMMANDS, onCommand })
     />
     <span class="topbar-spacer" />
     <span
-      v-if="unreadCount && unreadCount > 0"
+      v-if="(unreadCount ?? 0) > 0"
       class="topbar-unread font-mono"
     >
       待阅读 <span class="badge">{{ unreadCount }}</span>
     </span>
-    <el-dropdown trigger="click" @command="onCommand">
+    <el-dropdown trigger="click" popper-class="app-topbar-cog-popper" @command="onCommand">
       <button class="topbar-cog" aria-label="设置菜单">
         <el-icon><Setting /></el-icon><span class="caret">▾</span>
       </button>
@@ -72,7 +76,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
         <el-dropdown-menu>
           <el-dropdown-item disabled class="group-label">配置</el-dropdown-item>
           <el-dropdown-item
-            v-for="cmd in MENU_COMMANDS.filter((c) => c.group === '配置')"
+            v-for="cmd in configCommands"
             :key="cmd.path"
             :command="cmd.path"
           >
@@ -80,7 +84,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
           </el-dropdown-item>
           <el-dropdown-item disabled divided class="group-label">历史</el-dropdown-item>
           <el-dropdown-item
-            v-for="cmd in MENU_COMMANDS.filter((c) => c.group === '历史')"
+            v-for="cmd in historyCommands"
             :key="cmd.path"
             :command="cmd.path"
           >
@@ -149,7 +153,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
 }
 .topbar-unread .badge {
   padding: 1px 7px;
-  background: #d97757;
+  background: var(--accent);
   color: #fff;
   border-radius: 9px;
   font-size: 10px;
@@ -175,8 +179,9 @@ defineExpose({ MENU_COMMANDS, onCommand })
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* ⚙ 下拉菜单中作为分组标题的 disabled item。 */
-:global(.el-dropdown-menu__item.group-label.is-disabled) {
+/* ⚙ 下拉菜单中作为分组标题的 disabled item。
+   通过 popper-class 命名空间隔离，避免污染其它 el-dropdown。 */
+:global(.app-topbar-cog-popper .el-dropdown-menu__item.group-label.is-disabled) {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -187,7 +192,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
   /* 抑制 EP 默认的 disabled hover 视觉 */
   pointer-events: none;
 }
-:global(.el-dropdown-menu__item.group-label.is-disabled:hover) {
+:global(.app-topbar-cog-popper .el-dropdown-menu__item.group-label.is-disabled:hover) {
   background: transparent;
 }
 </style>
