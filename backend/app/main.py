@@ -16,8 +16,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import settings
-from app.db import engine
+from app.db import SessionLocal, engine
 from app.logging_config import configure_logging
+from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
 from app.routers import (
     attachments,
@@ -39,6 +40,10 @@ logger = logging.getLogger(__name__)
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     logger.info("Smart SOP API starting env=%s", settings.app_env)
+    # 启动时幂等 seed 系统种子数据（system folders / settings / sample field）。
+    # seed.run_seed 自身幂等，重复运行不会重复插入。
+    with SessionLocal() as db:
+        run_seed(db)
     yield
     logger.info("Smart SOP API shutting down")
 
