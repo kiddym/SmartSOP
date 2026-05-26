@@ -41,7 +41,7 @@ const showDiscard = computed(
 
     <div v-if="store.editable" class="right">
       <el-button-group>
-        <el-button size="small" :disabled="!canUndo" title="撤销 (Ctrl+Z)" @click="store.undo()">↶</el-button>
+        <el-button size="small" :disabled="!canUndo" title="撤销大纲结构 (Ctrl+Z) · 类型转换 / 标记应用 不在范围内" @click="store.undo()">↶</el-button>
         <el-button size="small" :disabled="!canRedo" title="重做 (Ctrl+Shift+Z)" @click="store.redo()">↷</el-button>
       </el-button-group>
       <el-button

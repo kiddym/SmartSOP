@@ -14,6 +14,21 @@ function seedEditable() {
   }
 }
 
+describe('EditorTopBar · 撤销按钮 tooltip', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('title 标明范围限于大纲结构', () => {
+    seedEditable()
+    const w = mount(EditorTopBar, { global: { plugins: [ElementPlus] } })
+    const undoBtn = w.findAll('button').find((b) => b.text() === '↶')
+    expect(undoBtn).toBeTruthy()
+    const title = undoBtn!.attributes('title') ?? ''
+    expect(title).toContain('撤销')
+    expect(title).toContain('Ctrl+Z')
+    expect(title).toContain('大纲结构')
+  })
+})
+
 describe('EditorTopBar · PDF 预览按钮', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
