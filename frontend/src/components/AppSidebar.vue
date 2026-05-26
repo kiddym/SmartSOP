@@ -30,8 +30,8 @@ defineExpose({ activeMenu })
       :collapse-transition="false"
       router
       text-color="#3a3530"
-      :active-text-color="'var(--accent)'"
       background-color="transparent"
+      :style="{ '--el-menu-active-color': 'var(--accent)' }"
     >
       <div v-if="!collapsed" class="menu-group-label">内容</div>
       <el-menu-item index="/procedures/library">
