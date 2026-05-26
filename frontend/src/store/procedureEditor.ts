@@ -188,7 +188,13 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       return !!state.procedure && state.procedure.is_current && state.procedure.status === 'DRAFT'
     },
     isDirty(state): boolean {
-      return state.dirtyChapters.size > 0 || state.dirtySteps.size > 0 || state.metaDirty
+      return (
+        state.dirtyChapters.size > 0
+        || state.dirtySteps.size > 0
+        || state.deletedChapterIds.size > 0
+        || state.deletedStepIds.size > 0
+        || state.metaDirty
+      )
     },
     revision(state): number {
       return state.procedure?.revision ?? 0

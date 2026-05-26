@@ -589,3 +589,18 @@ describe('snapshot / restore 包含删除集合', () => {
     expect(s.deletedStepIds.size).toBe(0)
   })
 })
+
+describe('isDirty 含待删除', () => {
+  it('deletedChapterIds 非空时 isDirty 为 true', () => {
+    const s = seed()
+    expect(s.isDirty).toBe(false)
+    s.deletedChapterIds = new Set(['x'])
+    expect(s.isDirty).toBe(true)
+  })
+
+  it('deletedStepIds 非空时 isDirty 为 true', () => {
+    const s = seed()
+    s.deletedStepIds = new Set(['s'])
+    expect(s.isDirty).toBe(true)
+  })
+})
