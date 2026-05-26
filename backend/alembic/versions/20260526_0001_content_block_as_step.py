@@ -3,10 +3,13 @@
 把 tb_procedure_chapter.content_type='content' 行搬到 tb_procedure_step
 (kind='content')；step 加 kind 列；chapter 删 content_type/rich_content。
 开发数据可重建，数据搬运为尽力而为的 1:1 直搬。
+
+id 处理：迁出的 step.id 复用源 chapter.id（保持引用稳定——审计日志、版本快照
+等外部表里 target_id 指向该 id 的记录在迁移后仍解析到等价实体）。downgrade
+反向同理。
 """
 from __future__ import annotations
 
-import uuid
 from datetime import datetime
 
 import sqlalchemy as sa
@@ -45,7 +48,7 @@ def upgrade() -> None:
                 " :skip, '{}', '[]', :active, :deleted_at, :now, :now)"
             ),
             {
-                "id": str(uuid.uuid4()),
+                "id": r.id,  # 复用源 chapter.id，保持外部引用稳定
                 "pid": r.procedure_id,
                 "cid": r.parent_id,
                 "content": r.rich_content or "",
@@ -95,7 +98,7 @@ def downgrade() -> None:
                 " 'unmarked', :skip, 'applied', :active, :deleted_at, :now, :now)"
             ),
             {
-                "id": str(uuid.uuid4()),
+                "id": r.id,  # 复用源 step.id，对称于 upgrade
                 "pid": r.procedure_id,
                 "cid": r.chapter_id,
                 "content": r.content or "",
