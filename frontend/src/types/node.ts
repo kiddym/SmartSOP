@@ -182,7 +182,7 @@ export interface FlatRow {
   title: string
   code: string // 已应用 .0 / # 渲染规则的显示串
   skip_numbering: boolean
-  mark_status: MarkStatus // step 恒 'unmarked'（不参与标记模式）
+  mark_status: MarkStatus // step 上恒 'unmarked'（后端无此列）；step 行本身可参与标记模式
   form_type: FormType | null // 仅 step
   has_children: boolean
   expanded: boolean
