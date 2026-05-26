@@ -385,4 +385,72 @@ def test_upgrade_propagates_signoff_enabled(db: Session, factory: Factory) -> No
     folder = _leaf(factory)
     proc = _published(factory, folder, signoff_enabled=True)
     new = version_flow_service.upgrade_version(db, proc.id, META)
+
     assert new.signoff_enabled is True
+
+
+# --------------------------------------------------------------------------- #
+# archive_group / restore-from-archive
+# --------------------------------------------------------------------------- #
+def _archive_folder(factory: Factory) -> Folder:
+    return factory.folder(name="归档", system=True, full_path="归档")
+
+
+def test_archive_group_moves_to_archive_folder(db: Session, factory: Factory) -> None:
+    """归档：整 group 转 ARCHIVED + folder_id 改归档 + 记原 folder。"""
+    archive_folder = _archive_folder(factory)
+    normal_folder = _leaf(factory, name="QC")
+    proc = _published(factory, normal_folder)
+
+    version_flow_service.archive_group(db, proc.id, "已过时不再推广", META)
+
+    db.refresh(proc)
+    assert proc.status == "ARCHIVED"
+    assert proc.folder_id == archive_folder.id
+    assert proc.deprecated_from_folder_id == normal_folder.id  # 复用字段记原 folder
+
+
+def test_archive_group_rejects_system_folder(db: Session, factory: Factory) -> None:
+    """禁止归档系统文件夹下的程序。"""
+    archive_folder = _archive_folder(factory)
+    proc = factory.procedure(archive_folder.id, status="ARCHIVED")
+
+    with pytest.raises(HTTPException) as exc:
+        version_flow_service.archive_group(db, proc.id, "再次归档", META)
+    assert exc.value.detail["code"] == "PROCEDURE_ARCHIVE_SYSTEM_FOLDER"
+
+
+def test_archive_group_rejects_already_archived(db: Session, factory: Factory) -> None:
+    """禁止归档已 ARCHIVED 的程序（无论 folder）。"""
+    _archive_folder(factory)
+    normal_folder = _leaf(factory, name="QC2")
+    proc = factory.procedure(normal_folder.id, status="ARCHIVED")
+
+    with pytest.raises(HTTPException) as exc:
+        version_flow_service.archive_group(db, proc.id, "归档", META)
+    assert exc.value.detail["code"] == "PROCEDURE_ALREADY_ARCHIVED_OR_DEPRECATED"
+
+
+def test_archive_group_requires_reason(db: Session, factory: Factory) -> None:
+    """归档 reason 必填。"""
+    _archive_folder(factory)
+    normal_folder = _leaf(factory, name="QC3")
+    proc = _published(factory, normal_folder)
+
+    with pytest.raises(HTTPException) as exc:
+        version_flow_service.archive_group(db, proc.id, "", META)
+    assert exc.value.detail["code"] == "REASON_REQUIRED"
+
+
+def test_restore_from_archive(db: Session, factory: Factory) -> None:
+    """restore 通用：从归档恢复路径同从废止恢复（同函数、同字段）。"""
+    factory.settings()
+    _archive_folder(factory)
+    normal_folder = _leaf(factory, name="QC4")
+    proc = _published(factory, normal_folder, version=1)
+    version_flow_service.archive_group(db, proc.id, "归档", META)
+
+    new_proc = version_flow_service.restore(db, proc.id, "重新启用", None, META)
+
+    assert new_proc.status == "DRAFT"
+    assert new_proc.folder_id == normal_folder.id  # 恢复到原 folder

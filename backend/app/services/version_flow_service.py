@@ -23,7 +23,7 @@ from app.models.folder import Folder
 from app.models.procedure import Procedure
 from app.models.settings import ProcedureSettings
 from app.models.step import ProcedureStep
-from app.seed import DEPRECATED_FOLDER_NAME
+from app.seed import ARCHIVED_FOLDER_NAME, DEPRECATED_FOLDER_NAME
 from app.services import (
     attachment_service,
     audit_service,
@@ -111,6 +111,19 @@ def _deprecated_folder(db: Session) -> Folder:
     ).scalar_one_or_none()
     if folder is None:
         raise not_found("NOT_FOUND", "「废止」系统文件夹缺失")
+    return folder
+
+
+def _archived_folder(db: Session) -> Folder:
+    folder = db.execute(
+        select(Folder).where(
+            Folder.name == ARCHIVED_FOLDER_NAME,
+            Folder.system.is_(True),
+            Folder.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
+    if folder is None:
+        raise not_found("NOT_FOUND", "「归档」系统文件夹缺失")
     return folder
 
 
@@ -344,6 +357,38 @@ def deprecate(db: Session, proc_id: str, reason: str, meta: RequestMeta) -> Proc
                 rec.archived_at = now
     db.flush()
     _audit(db, proc, "deprecate", meta, new_value={"version_count": len(records)}, reason=reason)
+    return proc
+
+
+def archive_group(db: Session, proc_id: str, reason: str, meta: RequestMeta) -> Procedure:
+    """归档整 group：与 deprecate 平行，语义差别在 folder（归档 vs 废止）。
+
+    复用 deprecated_at / deprecated_from_folder_id 两个字段，让 restore 流程
+    通用、不区分来源（spec §F §风险表）。字段重命名作为独立 topic。
+    """
+    proc = procedure_service.get_or_404(db, proc_id)
+    proc_folder = db.get(Folder, proc.folder_id)
+    if proc_folder is not None and proc_folder.system:
+        raise bad_request("PROCEDURE_ARCHIVE_SYSTEM_FOLDER", "系统文件夹下的程序不可归档")
+    if proc.status == "ARCHIVED":
+        raise bad_request("PROCEDURE_ALREADY_ARCHIVED_OR_DEPRECATED", "该程序已归档或已废止")
+    if not reason.strip():
+        raise bad_request("REASON_REQUIRED", "请填写归档原因")
+
+    archive_folder = _archived_folder(db)
+    now = utcnow()
+    records = _group_records(db, proc.procedure_group_id)
+    # 与 deprecate 一致：deprecated_by 恒 NULL（Q322 全匿名）
+    for rec in records:
+        rec.deprecated_from_folder_id = rec.folder_id  # 复用字段记原 folder
+        rec.folder_id = archive_folder.id
+        rec.deprecated_at = now  # 复用 deprecated_at 让 restore 流程通用
+        if rec.status != "ARCHIVED":
+            rec.status = "ARCHIVED"
+            if rec.archived_at is None:
+                rec.archived_at = now
+    db.flush()
+    _audit(db, proc, "archive", meta, new_value={"version_count": len(records)}, reason=reason)
     return proc
 
 
