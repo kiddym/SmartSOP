@@ -20,6 +20,7 @@ from app.models.settings import ProcedureSettings
 logger = logging.getLogger(__name__)
 
 DEPRECATED_FOLDER_NAME = "废止"
+ARCHIVED_FOLDER_NAME = "归档"
 SAMPLE_FIELD_KEY = "example_risk_grade"
 
 
@@ -34,19 +35,19 @@ def _get_root_folder(db: Session, name: str) -> Folder | None:
 
 
 def seed_system_folders(db: Session) -> None:
-    """创建「废止」系统文件夹（唯一系统文件夹；模板库已废，§56/Q340）。"""
-    if _get_root_folder(db, DEPRECATED_FOLDER_NAME) is None:
-        # 废止：接收被废止程序（保留原 code，不生成新号），故无 prefix / 序列
-        db.add(
-            Folder(
-                name=DEPRECATED_FOLDER_NAME,
-                system=True,
-                parent_id=None,
-                prefix="",
-                full_path=DEPRECATED_FOLDER_NAME,
+    """创建「废止」「归档」系统文件夹（两个 system folder；模板库已废，§56/Q340）。"""
+    for name in (DEPRECATED_FOLDER_NAME, ARCHIVED_FOLDER_NAME):
+        if _get_root_folder(db, name) is None:
+            db.add(
+                Folder(
+                    name=name,
+                    system=True,
+                    parent_id=None,
+                    prefix="",
+                    full_path=name,
+                )
             )
-        )
-        logger.info("seed: created system folder %s", DEPRECATED_FOLDER_NAME)
+            logger.info("seed: created system folder %s", name)
 
 
 def seed_settings(db: Session) -> None:
