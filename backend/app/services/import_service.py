@@ -134,6 +134,10 @@ def _create_node(
         level=level,
         sort_order=sort_order,
         skip_numbering=node.skip_numbering,
+        # 护栏：parser 当前只产 unmarked | review（见 app/parser/result.py:26），
+        # 且 UI 不再有 chapter→step/content 路径（章节是纯容器，标记模式不触达）。
+        # 这条三元当前等价于 node.mark_status，但留着是为了：若未来 parser 扩展或
+        # 上游污染输入，dirty 值会被静默夹紧到 unmarked，而非写脏到 DB。
         mark_status="review" if node.mark_status == "review" else "unmarked",
     )
     db.add(row)
