@@ -86,8 +86,9 @@ const activeMenu = computed(() => {
   background: var(--bg-surface);
   display: flex;
   flex-direction: column;
+  /* 工业风：分隔靠线不靠影（docs/design-system.md §2.4）。
+     原 box-shadow 已移除，单边 1px border 接管分隔。 */
   border-right: 1px solid #e0dbd3;
-  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.04);
   transition: width 0.2s ease;
 }
 .app-brand {
