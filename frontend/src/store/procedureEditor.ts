@@ -46,6 +46,10 @@ function byteLength(s: string): number {
   return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : s.length
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+}
+
 interface Snapshot {
   chapters: EditorChapter[]
   steps: EditorStep[]
@@ -225,10 +229,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         for (const c of [...(byParent.get(parent) ?? [])].sort(cmp)) {
           rows.push({
             id: c.id,
-            // TODO B6：内容块已迁到步骤行，章节恒为 'chapter'；层级标定真正重构在 B6。
-            content_type: 'chapter' as const,
             level: levels.get(c.id) ?? 1,
-            hasStepChildren: hasStep.has(c.id),
+            hasLeafChildren: hasStep.has(c.id),
           })
           walk(c.id)
         }
@@ -735,15 +737,38 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       const updates = computeLayerUpdates(this.layerRows, roleMap)
       this.pushUndo('layer')
       const clearReview: string[] = []
+      const toContent: { id: string; parent_id: string | null; sort_order: number; title: string }[] = []
+      // 第一遍：先把所有「仍是章节」的行重排（parent_id/sort_order），并收集要转 content 的行。
       for (const [id, u] of updates) {
         const ch = this.chapterMap.get(id)
         if (!ch) continue
         // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType 一致）。
         if (ch.mark_status === 'review') clearReview.push(id)
+        if (u.toContentStep) {
+          toContent.push({ id, parent_id: u.parent_id, sort_order: u.sort_order, title: ch.title })
+          continue
+        }
         ch.parent_id = u.parent_id
-        // TODO B6：章节不再有 content_type；层级标定真正重构在 B6（此处暂不写 content_type）。
         ch.sort_order = u.sort_order
         this.dirtyChapters.add(id)
+      }
+      // 第二遍：把 content 角色的章节转成内容块步骤。此时其原子节点已在第一遍被重排到各自新父级
+      // （content 行不更新 l1/l2/l3，故其后代会挂到上一个标题上下文），该章节已无子节点，可安全删除。
+      for (const t of toContent) {
+        this.removeNodeLocal(t.id)
+        const sid = genTempId()
+        this.steps.push({
+          id: sid,
+          chapter_id: t.parent_id,
+          kind: 'content',
+          title: '',
+          content: t.title.trim() ? `<p>${escapeHtml(t.title)}</p>` : '',
+          input_schema: {} as InputSchema,
+          attachment_marks: [],
+          skip_numbering: false,
+          sort_order: t.sort_order,
+        })
+        this.dirtySteps.add(sid)
       }
       this.layerMode = false
       for (const id of clearReview) void this.setMark(id, 'unmarked')

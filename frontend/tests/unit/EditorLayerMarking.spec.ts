@@ -19,8 +19,8 @@ const stubs = {
 function setup() {
   const store = useProcedureEditorStore()
   store.chapters = [
-    { id: 'a', parent_id: null, content_type: 'chapter', title: '甲', rich_content: '', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
-    { id: 'b', parent_id: 'a', content_type: 'chapter', title: '乙', rich_content: '', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
+    { id: 'a', parent_id: null, title: '甲', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
+    { id: 'b', parent_id: 'a', title: '乙', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
   ]
   store.steps = []
   store.layerMode = true

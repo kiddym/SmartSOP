@@ -3,14 +3,13 @@ import { computed, ref, watch } from 'vue'
 import ImportMarkingRow from '@/components/shared/ImportMarkingRow.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { computeLayerIndents, defaultLayerRole, type LayerRole } from '@/utils/layerMark'
-import { computeFallback } from '@/utils/editor'
 
 const store = useProcedureEditorStore()
 const roleMap = ref<Map<string, LayerRole>>(new Map())
 
 function seed(): void {
   const m = new Map<string, LayerRole>()
-  for (const r of store.layerRows) m.set(r.id, defaultLayerRole(r.content_type, r.level))
+  for (const r of store.layerRows) m.set(r.id, defaultLayerRole(r.level))
   roleMap.value = m
 }
 watch(() => store.layerMode, (on) => { if (on) seed() }, { immediate: true })
@@ -21,16 +20,12 @@ interface RenderRow { id: string; label: string; role: LayerRole; indent: number
 const rows = computed<RenderRow[]>(() =>
   store.layerRows.map((r) => {
     const ch = store.chapterMap.get(r.id)
-    const label =
-      r.content_type === 'content'
-        ? computeFallback('content', ch?.rich_content ?? '')
-        : ch?.title.trim() || '（无标题）'
     return {
       id: r.id,
-      label,
-      role: roleMap.value.get(r.id) ?? defaultLayerRole(r.content_type, r.level),
+      label: ch?.title.trim() || '（无标题）',
+      role: roleMap.value.get(r.id) ?? defaultLayerRole(r.level),
       indent: indents.value.get(r.id) ?? 0,
-      disableContent: r.hasStepChildren,
+      disableContent: r.hasLeafChildren,
     }
   }),
 )
