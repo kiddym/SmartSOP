@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSelection, MAX_BATCH_MARK } from '@/utils/batchMark'
+import { buildSelection, buildCascadeSelection, MAX_BATCH_MARK } from '@/utils/batchMark'
 import type { FlatRow } from '@/types/node'
 
 const fr = (id: string, kind: FlatRow['kind'], parent: string | null): FlatRow => ({
@@ -78,5 +78,59 @@ describe('buildSelection', () => {
     const r = buildSelection({ current: new Set(['a']), anchor: 'a', rows, rowId: 's1', shift: true })
     expect([...r.selection].sort()).toEqual(['a', 'b', 's1'])
     expect(r.warnings).toEqual([])
+  })
+})
+
+describe('buildCascadeSelection', () => {
+  it('select：空集合 + 章节级联 → rootId + 所有 descendantIds 入选；anchor=rootId', () => {
+    const r = buildCascadeSelection({
+      current: new Set(),
+      anchor: null,
+      rootId: 'c1',
+      descendantIds: ['a', 'b', 's1'],
+      action: 'select',
+    })
+    expect([...r.selection].sort()).toEqual(['a', 'b', 'c1', 's1'])
+    expect(r.anchor).toBe('c1')
+    expect(r.warnings).toEqual([])
+  })
+
+  it('deselect：含 root + descendants → 全部移除；anchor=rootId', () => {
+    const r = buildCascadeSelection({
+      current: new Set(['c1', 'a', 'b', 's1', 'other']),
+      anchor: 'c1',
+      rootId: 'c1',
+      descendantIds: ['a', 'b', 's1'],
+      action: 'deselect',
+    })
+    expect([...r.selection].sort()).toEqual(['other'])
+    expect(r.anchor).toBe('c1')
+  })
+
+  it('select 部分命中：未在集合的后代被补齐', () => {
+    const r = buildCascadeSelection({
+      current: new Set(['a']),
+      anchor: 'a',
+      rootId: 'c1',
+      descendantIds: ['a', 'b', 's1'],
+      action: 'select',
+    })
+    expect([...r.selection].sort()).toEqual(['a', 'b', 'c1', 's1'])
+  })
+
+  it('超 100：截断到前 100 并告警；锚点若不在裁后集合则置 null', () => {
+    const descendantIds = Array.from({ length: 150 }, (_, i) => `d${i}`)
+    const r = buildCascadeSelection({
+      current: new Set(),
+      anchor: null,
+      rootId: 'root',
+      descendantIds,
+      action: 'select',
+    })
+    expect(r.selection.size).toBe(MAX_BATCH_MARK)
+    expect(r.warnings.some((w) => w.includes('最多标记'))).toBe(true)
+    // 截断按"集合插入顺序"：rootId 先插，descendantIds 依序插。前 100 必含 root。
+    expect(r.selection.has('root')).toBe(true)
+    expect(r.anchor).toBe('root')
   })
 })
