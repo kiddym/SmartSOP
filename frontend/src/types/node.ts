@@ -1,8 +1,6 @@
 // 章节 / 内容 / 步骤（节点）类型，与后端 app/schemas/node.py 对齐。
 // 编号 code 全自动（§47），不接受手填；编辑器内用 utils/editor.ts 客户端镜像实时预览。
 
-export type ContentType = 'chapter' | 'content'
-
 // 标记态：编辑器三态 + Word 智能解析留下的持久 'review' 态（apply-marks 不碰，M1 修复）。
 export type MarkStatus = 'unmarked' | 'step' | 'content' | 'review'
 
@@ -60,14 +58,12 @@ export interface AttachmentMark {
 // GET /procedures/{id}.chapters 的嵌套树节点。
 export interface ChapterTreeNode {
   id: string
-  content_type: ContentType
   title: string
   code: string
   level: number
   sort_order: number
   skip_numbering: boolean
   mark_status: MarkStatus
-  rich_content: string
   children: ChapterTreeNode[]
 }
 
@@ -76,6 +72,7 @@ export interface StepOut {
   id: string
   procedure_id: string
   chapter_id: string | null
+  kind: 'step' | 'content'
   title: string
   code: string
   content: string
@@ -90,14 +87,12 @@ export interface ChapterOut {
   id: string
   procedure_id: string
   parent_id: string | null
-  content_type: ContentType
   title: string
   code: string
   level: number
   sort_order: number
   skip_numbering: boolean
   mark_status: MarkStatus
-  rich_content: string
 }
 
 // ---- 批量保存入参（PUT /procedures/{id}，§17.2） ---- //
@@ -105,9 +100,7 @@ export interface ChapterOut {
 export interface ChapterUpsert {
   id: string
   parent_id: string | null
-  content_type: ContentType
   title: string
-  rich_content: string
   skip_numbering: boolean
   sort_order: number
 }
@@ -115,6 +108,7 @@ export interface ChapterUpsert {
 export interface StepUpsert {
   id: string
   chapter_id: string | null
+  kind: 'step' | 'content'
   title: string
   content: string
   input_schema: InputSchema
@@ -128,9 +122,7 @@ export interface StepUpsert {
 export interface ChapterCreate {
   procedure_id: string
   parent_id?: string | null
-  content_type?: ContentType
   title?: string
-  rich_content?: string
   skip_numbering?: boolean
   sort_order?: number | null
 }
@@ -162,18 +154,17 @@ export type NodeKind = 'chapter' | 'content' | 'step'
 export interface EditorChapter {
   id: string
   parent_id: string | null
-  content_type: ContentType
   title: string
-  rich_content: string
   skip_numbering: boolean
   mark_status: MarkStatus
   sort_order: number
 }
 
-// 步骤节点（扁平存储）。
+// 步骤节点（扁平存储）；内容块 = kind='content' 的步骤（仅 content 富文本）。
 export interface EditorStep {
   id: string
   chapter_id: string | null
+  kind: 'step' | 'content'
   title: string
   content: string
   input_schema: InputSchema
