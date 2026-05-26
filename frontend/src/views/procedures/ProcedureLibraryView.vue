@@ -25,7 +25,7 @@ interface LibraryQuery {
 
 const query = reactive<LibraryQuery>({
   search: '',
-  status: 'PUBLISHED' as ProcedureStatus,
+  status: 'PUBLISHED',
   folder_id: undefined,
   page: 1,
 })
@@ -45,7 +45,7 @@ onMounted(load)
 function onSelectFolder(node: FolderTreeNode | null): void {
   selectedFolder.value = node
   query.folder_id = node?.id
-  query.status = (node?.system ? 'ARCHIVED' : 'PUBLISHED') as ProcedureStatus
+  query.status = node?.system ? 'ARCHIVED' : 'PUBLISHED'
   query.page = 1
   void load()
 }
@@ -101,7 +101,7 @@ function onImported(id: string): void {
       <div class="filters">
         <el-input
           v-model="query.search"
-          placeholder="搜索编码 / 名称 / 描述（跨全库）"
+          :placeholder="`搜索编码 / 名称 / 描述${selectedFolder ? '' : '（跨全库）'}`"
           clearable
           class="search"
           @keyup.enter="onSearch"
@@ -146,6 +146,10 @@ function onImported(id: string): void {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 16px;
+}
+.toolbar-actions {
+  display: flex;
+  gap: 8px;
 }
 .title {
   margin: 0;

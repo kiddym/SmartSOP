@@ -51,7 +51,7 @@ async function mountView() {
       plugins: [router],
       stubs: {
         // FolderTreePane / ProcedureTable / 对话框 stub，避免拉真数据
-        FolderTreePane: { name: 'FolderTreePane', props: ['data'], template: '<div class="ft-stub"/>', emits: ['select'] },
+        FolderTreePane: { name: 'FolderTreePane', template: '<div class="ft-stub"/>', emits: ['select'] },
         ProcedureTable: { props: ['rows', 'loading'], template: '<div class="pt-stub"/>', emits: ['open'] },
         CreateProcedureDialog: true,
         CreateFromWordDialog: true,
