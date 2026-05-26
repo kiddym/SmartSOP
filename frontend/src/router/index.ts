@@ -36,7 +36,7 @@ const routes: RouteRecordRaw[] = [
     path: '/folders',
     name: 'folder-manage',
     component: () => import('@/views/folders/FolderManageView.vue'),
-    meta: { title: '标准文件库' },
+    meta: { title: '文件夹配置' },
   },
   {
     path: '/audit-logs',

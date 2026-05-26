@@ -112,7 +112,7 @@ async function remove(): Promise<void> {
 <template>
   <div class="folder-manage">
     <div class="toolbar">
-      <h2 class="title">标准文件库</h2>
+      <h2 class="title">文件夹配置</h2>
       <div class="actions">
         <el-button type="primary" @click="openCreate">新建文件夹</el-button>
         <el-button :disabled="!selected || selected.system" @click="openEdit"
