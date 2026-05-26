@@ -27,6 +27,8 @@ const klass = computed(() => `status-${props.status.toLowerCase()}`)
   align-items: center;
   gap: 6px;
   font-size: 13px;
+  /* 状态枚举属于数据字段，走等宽（docs/design-system.md §2.2）。 */
+  font-family: var(--font-mono);
 }
 .dot {
   width: 8px;

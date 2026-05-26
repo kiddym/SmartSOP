@@ -15,6 +15,13 @@
 
   /* 字体 */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* 等宽数据字体：编号 / 版本 / 日期 / 测量值 / 状态枚举 走 mono，强化工业风性格。
+     首选 JetBrains Mono（需自备 webfont，未引入时回落到系统 mono 上仍可读）；
+     中文回退 Sarasa Mono SC（更纱黑体），系统兜底 ui-monospace（macOS=SF Mono / Win=Cascadia）。
+     权威定义见 docs/design-system.md §2.2。 */
+  --font-mono:
+    'JetBrains Mono', 'Sarasa Mono SC', ui-monospace, SFMono-Regular, Menlo, Consolas,
+    'Liberation Mono', 'Courier New', monospace;
 
   /* Element Plus 主题色覆盖（赤陶梯度，单一来源）
      tokens.css 在 element-plus/dist/index.css 之后加载，故此覆盖生效，
