@@ -763,3 +763,30 @@ describe('moveCrossParent 本地化（Tier 1）', () => {
     expect(s.dirtySteps.has('s3')).toBe(true)
   })
 })
+
+describe('buildPayload + save 链路含删除集合', () => {
+  it('buildPayload 输出 deleted_chapter_ids / deleted_step_ids', () => {
+    const s = seed()
+    s.deletedChapterIds = new Set(['x', 'y'])
+    s.deletedStepIds = new Set(['s'])
+    const payload = s.buildPayload()
+    expect([...payload.deleted_chapter_ids].sort()).toEqual(['x', 'y'])
+    expect(payload.deleted_step_ids).toEqual(['s'])
+  })
+
+  it('save 成功后删除集合清空', async () => {
+    const s = seed()
+    // 触发 isDirty 让 save 真正发起：先标一笔 dirty
+    s.updateChapterFields('a', { title: '改名' })
+    s.deletedChapterIds = new Set(['x'])
+    s.deletedStepIds = new Set(['s'])
+    saveSpy.mockResolvedValue({ ...meta(), revision: 4, id_map: {} })
+    await s.save()
+    expect(s.deletedChapterIds.size).toBe(0)
+    expect(s.deletedStepIds.size).toBe(0)
+    // 同时 payload 在 save 调用时确实带了删除 id
+    const calledPayload = saveSpy.mock.calls[0][1]
+    expect(calledPayload.deleted_chapter_ids).toEqual(['x'])
+    expect(calledPayload.deleted_step_ids).toEqual(['s'])
+  })
+})

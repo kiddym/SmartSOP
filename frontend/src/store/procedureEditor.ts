@@ -989,8 +989,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         signoff_enabled: p.signoff_enabled,
         chapters,
         steps,
-        deleted_chapter_ids: [],
-        deleted_step_ids: [],
+        deleted_chapter_ids: [...this.deletedChapterIds],
+        deleted_step_ids: [...this.deletedStepIds],
       }
     },
 
