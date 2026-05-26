@@ -10,7 +10,6 @@ import { fetchProcedureDetail, saveProcedure, applyMarks } from '@/api/procedure
 import {
   convertChapterToStep,
   convertRootToStep,
-  contentToSteps as contentToStepsApi,
   deleteChapter as deleteChapterApi,
   moveChapter as moveChapterApi,
   setChapterMarkStatus,
@@ -28,7 +27,6 @@ import { computeLayerUpdates, type LayerRole, type LayerRow } from '@/utils/laye
 import type {
   AddButtonState,
   ChapterTreeNode,
-  ContentType,
   EditorChapter,
   EditorStep,
   FlatRow,
@@ -46,15 +44,6 @@ const CONTENT_MAX_BYTES = 5 * 1024 * 1024 // 富文本总量上限（CONTENT_TOO
 
 function byteLength(s: string): number {
   return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : s.length
-}
-
-function titleFromHtml(html: string): string {
-  const text = html
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return text.slice(0, 80) || '未命名章节'
 }
 
 interface Snapshot {
@@ -81,13 +70,18 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
-function emptyStep(chapterId: string | null, sortOrder: number): EditorStep {
+function emptyStep(
+  chapterId: string | null,
+  sortOrder: number,
+  kind: 'step' | 'content' = 'step',
+): EditorStep {
   return {
     id: genTempId(),
     chapter_id: chapterId,
+    kind,
     title: '',
     content: '',
-    input_schema: { type: 'COMMON' },
+    input_schema: kind === 'content' ? ({} as InputSchema) : { type: 'COMMON' },
     attachment_marks: [],
     skip_numbering: false,
     sort_order: sortOrder,
@@ -101,9 +95,7 @@ function ingestChapters(tree: ChapterTreeNode[]): EditorChapter[] {
       out.push({
         id: n.id,
         parent_id: parentId,
-        content_type: n.content_type,
         title: n.title,
-        rich_content: n.rich_content,
         skip_numbering: n.skip_numbering,
         mark_status: n.mark_status,
         sort_order: n.sort_order,
@@ -119,6 +111,7 @@ function ingestStep(s: StepOut): EditorStep {
   return {
     id: s.id,
     chapter_id: s.chapter_id,
+    kind: s.kind,
     title: s.title,
     content: s.content,
     input_schema: s.input_schema,
@@ -232,7 +225,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         for (const c of [...(byParent.get(parent) ?? [])].sort(cmp)) {
           rows.push({
             id: c.id,
-            content_type: c.content_type,
+            // TODO B6：内容块已迁到步骤行，章节恒为 'chapter'；层级标定真正重构在 B6。
+            content_type: 'chapter' as const,
             level: levels.get(c.id) ?? 1,
             hasStepChildren: hasStep.has(c.id),
           })
@@ -247,10 +241,10 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       return (parentId: string | null): NodeKind[] => {
         const kinds: NodeKind[] = []
         for (const c of this.chapters) {
-          if (c.parent_id === parentId) kinds.push(c.content_type === 'content' ? 'content' : 'chapter')
+          if (c.parent_id === parentId) kinds.push('chapter')
         }
         for (const s of this.steps) {
-          if (s.chapter_id === parentId) kinds.push('step')
+          if (s.chapter_id === parentId) kinds.push(s.kind === 'content' ? 'content' : 'step')
         }
         return kinds
       }
@@ -259,14 +253,14 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       return (parentId: string | null): AddButtonState => getAddButtonState(this.childKindsOf(parentId))
     },
     missingTitleCount(state): number {
-      return state.chapters.filter((c) => c.content_type === 'chapter' && !c.title.trim()).length
+      return state.chapters.filter((c) => !c.title.trim()).length
     },
     // 全部「章节/内容」按文档序（与折叠无关，含 title），供缺标题定位/导航——
     // 不能用 flatRows，它会剔除折叠分支里的节点（漏掉藏在折叠章节里的缺标题章节）。
     chapterDocRows(): { id: string; kind: 'chapter' | 'content'; title: string }[] {
       return this.layerRows.map((r) => ({
         id: r.id,
-        kind: r.content_type === 'content' ? 'content' : 'chapter',
+        kind: 'chapter' as const,
         title: this.chapterMap.get(r.id)?.title ?? '',
       }))
     },
@@ -304,11 +298,11 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
 
       const walk = (parentId: string | null, depth: number): void => {
         for (const ch of chByParent.get(parentId) ?? []) {
-          const kind: NodeKind = ch.content_type === 'content' ? 'content' : 'chapter'
+          const kind: NodeKind = 'chapter'
           const level = levels.get(ch.id) ?? 1
           const hasChildChapters = (chByParent.get(ch.id)?.length ?? 0) > 0
           const hasChildSteps = (stByChapter.get(ch.id)?.length ?? 0) > 0
-          const hasChildren = kind === 'chapter' && (hasChildChapters || hasChildSteps)
+          const hasChildren = hasChildChapters || hasChildSteps
           rows.push({
             id: ch.id,
             kind,
@@ -321,24 +315,25 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
             form_type: null,
             has_children: hasChildren,
             expanded: state.expanded[ch.id] ?? false,
-            fallback: computeFallback(kind, ch.rich_content),
+            fallback: computeFallback('chapter', ''),
           })
           if (hasChildren && (state.expanded[ch.id] ?? false)) walk(ch.id, depth + 1)
         }
         for (const st of stByChapter.get(parentId) ?? []) {
+          const stKind: NodeKind = st.kind === 'content' ? 'content' : 'step'
           rows.push({
             id: st.id,
-            kind: 'step',
+            kind: stKind,
             depth,
             parent_id: st.chapter_id,
             title: st.title,
-            code: formatCode({ kind: 'step', level: 0, code: stepCodes.get(st.id) ?? '', skipNumbering: st.skip_numbering }),
+            code: formatCode({ kind: stKind, level: 0, code: stepCodes.get(st.id) ?? '', skipNumbering: st.skip_numbering }),
             skip_numbering: st.skip_numbering,
             mark_status: 'unmarked',
-            form_type: (st.input_schema?.type ?? 'COMMON') as FormType,
+            form_type: st.kind === 'content' ? null : ((st.input_schema?.type ?? 'COMMON') as FormType),
             has_children: false,
             expanded: false,
-            fallback: computeFallback('step', st.content),
+            fallback: computeFallback(stKind, st.content),
           })
         }
       }
@@ -384,7 +379,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
 
     expandAll(): void {
       const next: Record<string, boolean> = {}
-      for (const c of this.chapters) if (c.content_type === 'chapter') next[c.id] = true
+      for (const c of this.chapters) next[c.id] = true
       this.expanded = next
     },
 
@@ -497,60 +492,17 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       if (st) this.updateStepFields(id, { skip_numbering: !st.skip_numbering })
     },
 
-    toggleContentType(id: string): void {
-      const ch = this.chapterMap.get(id)
-      if (!ch) return
-      const wasReview = ch.mark_status === 'review'
-      const next: ContentType = ch.content_type === 'chapter' ? 'content' : 'chapter'
-      this.updateChapterFields(id, { content_type: next }, `content_type:${id}`)
-      if (wasReview) void this.setMark(id, 'unmarked')
-    },
-
-    promoteContentToChapter(id: string): void {
-      const ch = this.chapterMap.get(id)
-      if (!ch || ch.content_type !== 'content') return
-      const hasChildren =
-        this.chapters.some((c) => c.parent_id === id) ||
-        this.steps.some((s) => s.chapter_id === id)
-      if (hasChildren) return
-
-      this.pushUndo()
-      const originalHtml = ch.rich_content
-      const childId = genTempId()
-      const child: EditorChapter = {
-        id: childId,
-        parent_id: id,
-        content_type: 'content',
-        title: '',
-        rich_content: originalHtml,
-        skip_numbering: true,
-        mark_status: 'unmarked',
-        sort_order: 0,
-      }
-      ch.content_type = 'chapter'
-      ch.title = ch.title.trim() || titleFromHtml(originalHtml)
-      ch.rich_content = ''
-      ch.skip_numbering = false
-      this.chapters.push(child)
-      this.dirtyChapters.add(id)
-      this.dirtyChapters.add(childId)
-      this.setExpanded(id, true)
-      this.selectedId = id
-    },
-
     nextSortOrder(siblings: { sort_order: number }[]): number {
       return siblings.reduce((m, s) => Math.max(m, s.sort_order), -1) + 1
     },
 
-    addChapterNode(parentId: string | null, contentType: ContentType, afterId: string | null = null): string {
+    addChapterNode(parentId: string | null, afterId: string | null = null): string {
       this.pushUndo()
       const siblings = this.chapters.filter((c) => c.parent_id === parentId)
       const node: EditorChapter = {
         id: genTempId(),
         parent_id: parentId,
-        content_type: contentType,
         title: '',
-        rich_content: '',
         skip_numbering: false,
         mark_status: 'unmarked',
         sort_order: this.nextSortOrder(siblings),
@@ -574,10 +526,14 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       return node.id
     },
 
-    addStepNode(chapterId: string | null, afterId: string | null = null): string {
+    addStepNode(
+      chapterId: string | null,
+      afterId: string | null = null,
+      kind: 'step' | 'content' = 'step',
+    ): string {
       this.pushUndo()
       const siblings = this.steps.filter((s) => s.chapter_id === chapterId)
-      const node = emptyStep(chapterId, this.nextSortOrder(siblings))
+      const node = emptyStep(chapterId, this.nextSortOrder(siblings), kind)
       this.steps.push(node)
       this.dirtySteps.add(node.id)
       if (afterId) {
@@ -595,6 +551,22 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       if (chapterId) this.setExpanded(chapterId, true)
       this.selectedId = node.id
       return node.id
+    },
+
+    // 步骤行类型翻转（'step' ↔ 'content'）；content 行不承载执行表单，清空 input_schema/标题/附件标记。
+    setStepKind(id: string, kind: 'step' | 'content'): void {
+      const st = this.stepMap.get(id)
+      if (!st || st.kind === kind) return
+      this.pushUndo()
+      st.kind = kind
+      if (kind === 'content') {
+        st.input_schema = {} as InputSchema // content 不用执行表单，与后端一致置空对象
+        st.attachment_marks = []
+        st.title = ''
+      } else {
+        st.input_schema = { type: 'COMMON' } as InputSchema
+      }
+      this.dirtySteps.add(id)
     },
 
     // 同级上下移（reorder）：在节点所属分组内交换 sort_order。
@@ -732,11 +704,6 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       await convertRootToStep(map[id] ?? id)
       await this.reload()
     },
-    async contentToSteps(id: string): Promise<void> {
-      const map = await this.ensureSaved()
-      await contentToStepsApi(map[id] ?? id)
-      await this.reload()
-    },
     async convertToChapter(id: string): Promise<void> {
       const map = await this.ensureSaved()
       await convertStepToChapter(map[id] ?? id)
@@ -774,7 +741,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType 一致）。
         if (ch.mark_status === 'review') clearReview.push(id)
         ch.parent_id = u.parent_id
-        ch.content_type = u.content_type
+        // TODO B6：章节不再有 content_type；层级标定真正重构在 B6（此处暂不写 content_type）。
         ch.sort_order = u.sort_order
         this.dirtyChapters.add(id)
       }
@@ -865,13 +832,9 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     // ---- 客户端保存预校验（§8.2） ---- //
     validateForSave(): string[] {
       const errors: string[] = []
-      const emptyChapters = this.chapters.filter(
-        (c) => c.content_type === 'chapter' && !c.title.trim(),
-      ).length
+      const emptyChapters = this.chapters.filter((c) => !c.title.trim()).length
       if (emptyChapters > 0) errors.push(`有 ${emptyChapters} 个章节标题为空`)
-      const oversized = [...this.chapters.filter((c) => c.content_type === 'content'), ...this.steps].filter(
-        (n) => byteLength('rich_content' in n ? n.rich_content : n.content) > CONTENT_MAX_BYTES,
-      ).length
+      const oversized = this.steps.filter((s) => byteLength(s.content) > CONTENT_MAX_BYTES).length
       if (oversized > 0) errors.push(`有 ${oversized} 个节点正文超过 5MB`)
       return errors
     },
@@ -885,9 +848,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         .map((c) => ({
           id: c.id,
           parent_id: c.parent_id,
-          content_type: c.content_type,
           title: c.title,
-          rich_content: c.content_type === 'content' ? c.rich_content : '',
           skip_numbering: c.skip_numbering,
           sort_order: c.sort_order,
         }))
@@ -897,6 +858,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         .map((s) => ({
           id: s.id,
           chapter_id: s.chapter_id,
+          kind: s.kind,
           title: s.title,
           content: s.content,
           input_schema: s.input_schema,

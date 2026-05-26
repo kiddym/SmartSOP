@@ -13,8 +13,6 @@ vi.mock('@/api/chapters', () => ({
   moveChapter: vi.fn(),
   convertChapterToStep: vi.fn(),
   convertRootToStep: vi.fn(),
-  contentToSteps: vi.fn(),
-  batchContentToSteps: vi.fn(),
 }))
 vi.mock('@/api/steps', () => ({ deleteStep: vi.fn(), moveStep: vi.fn(), convertStepToChapter: vi.fn() }))
 vi.mock('@/api/procedures', () => ({
@@ -62,9 +60,19 @@ function chap(id: string, parentId: string | null, sort: number): EditorChapter 
   return {
     id,
     parent_id: parentId,
-    content_type: 'chapter',
     title: id,
-    rich_content: '',
+    skip_numbering: false,
+    mark_status: 'unmarked',
+    sort_order: sort,
+  }
+}
+
+// 新签名 helper（题面新增用例使用）：(id, title, parentId, sort)。
+function chapter(id: string, title: string, parentId: string | null, sort: number): EditorChapter {
+  return {
+    id,
+    parent_id: parentId,
+    title,
     skip_numbering: false,
     mark_status: 'unmarked',
     sort_order: sort,
@@ -75,6 +83,7 @@ function stp(id: string, chapterId: string | null, sort: number): EditorStep {
   return {
     id,
     chapter_id: chapterId,
+    kind: 'step',
     title: id,
     content: '',
     input_schema: { type: 'COMMON' },
@@ -104,7 +113,7 @@ beforeEach(() => {
 describe('新增节点', () => {
   it('addChapterNode 建临时节点、置脏、选中', () => {
     const s = seed()
-    const id = s.addChapterNode('a', 'chapter')
+    const id = s.addChapterNode('a')
     expect(id.startsWith('temp-')).toBe(true)
     expect(s.dirtyChapters.has(id)).toBe(true)
     expect(s.selectedId).toBe(id)
@@ -120,7 +129,7 @@ describe('新增节点', () => {
 
   it('addChapterNode 带 afterId：插到该兄弟之后并重排 sort_order', () => {
     const s = seed() // 根级已有 a(0), b(1)
-    const id = s.addChapterNode(null, 'chapter', 'a') // 期望落在 a 与 b 之间
+    const id = s.addChapterNode(null, 'a') // 期望落在 a 与 b 之间
     const order = s.chapters
       .filter((c) => c.parent_id === null)
       .sort((x, y) => x.sort_order - y.sort_order)
@@ -137,6 +146,39 @@ describe('新增节点', () => {
       .sort((x, y) => x.sort_order - y.sort_order)
       .map((st) => st.id)
     expect(order).toEqual(['s1', id, 's2'])
+  })
+
+  it('addStepNode 可建 content kind 并置脏', () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '操作', null, 0)]
+    store.steps = []
+    const id = store.addStepNode('c1', null, 'content')
+    expect(store.stepMap.get(id)!.kind).toBe('content')
+    expect(store.dirtySteps.has(id)).toBe(true)
+  })
+})
+
+describe('setStepKind', () => {
+  it('setStepKind 翻转 kind 并置脏', () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.steps = [
+      {
+        id: 's1',
+        chapter_id: 'c1',
+        title: 'x',
+        content: '',
+        kind: 'step',
+        input_schema: { type: 'COMMON' },
+        attachment_marks: [],
+        skip_numbering: false,
+        sort_order: 0,
+      },
+    ]
+    store.setStepKind('s1', 'content')
+    expect(store.stepMap.get('s1')!.kind).toBe('content')
+    expect(store.dirtySteps.has('s1')).toBe(true)
   })
 })
 
@@ -195,7 +237,7 @@ describe('上下移 reorder', () => {
 describe('undo / redo', () => {
   it('undo 还原新增，redo 复原', () => {
     const s = seed()
-    const id = s.addChapterNode('a', 'chapter')
+    const id = s.addChapterNode('a')
     expect(s.chapterMap.has(id)).toBe(true)
     s.undo()
     expect(s.chapterMap.has(id)).toBe(false)
@@ -215,26 +257,24 @@ describe('undo / redo', () => {
 })
 
 describe('buildPayload', () => {
-  it('仅含脏节点；chapter 的 rich_content 强制空', () => {
+  it('仅含脏节点；章节不再承载正文字段', () => {
     const s = seed()
     s.chapters = [chap('a', null, 0), chap('b', null, 1)]
-    // 给 a 写非法 rich_content（章节不该承载），buildPayload 须清空
-    s.updateChapterFields('a', { rich_content: '<p>x</p>' })
+    s.updateChapterFields('a', { title: '改名' })
     const payload = s.buildPayload()
     expect(payload.chapters.map((c) => c.id)).toEqual(['a'])
-    expect(payload.chapters[0].rich_content).toBe('')
+    expect(payload.chapters[0]).not.toHaveProperty('content_type')
+    expect(payload.chapters[0]).not.toHaveProperty('rich_content')
     expect(payload.steps).toEqual([])
     expect(payload.name).toBe('测试程序')
   })
 
-  it('content 节点保留 rich_content', () => {
+  it('步骤 payload 含 kind（content 步骤）', () => {
     const s = seed()
-    const id = s.addChapterNode('a', 'content')
-    s.updateChapterFields(id, { rich_content: '<p>正文</p>' }, 'x')
+    const id = s.addStepNode('a', null, 'content')
     const payload = s.buildPayload()
-    const node = payload.chapters.find((c) => c.id === id)
-    expect(node?.content_type).toBe('content')
-    expect(node?.rich_content).toBe('<p>正文</p>')
+    const node = payload.steps.find((st) => st.id === id)
+    expect(node?.kind).toBe('content')
   })
 
   it('includes signoff_enabled in payload', () => {
@@ -250,7 +290,7 @@ describe('buildPayload', () => {
 describe('applyIdMap', () => {
   it('临时 id 改名并修正父引用 / 选中 / 展开', () => {
     const s = seed()
-    const cid = s.addChapterNode('a', 'chapter')
+    const cid = s.addChapterNode('a')
     const sid = s.addStepNode(cid)
     s.selectedId = sid
     s.applyIdMap({ [cid]: 'real-c', [sid]: 'real-s' })
@@ -284,12 +324,35 @@ describe('flatRows 与 Q25', () => {
     const row = s.flatRows.find((r) => r.id === 'a')
     expect(row?.code).toBe('1.0')
   })
+
+  it('flatRows 把 content 步骤渲染为 content 行、无号', () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '操作', null, 0)]
+    store.expanded = { c1: true }
+    store.steps = [
+      {
+        id: 'k',
+        chapter_id: 'c1',
+        title: '',
+        content: '<p>x</p>',
+        kind: 'content',
+        input_schema: {} as never,
+        attachment_marks: [],
+        skip_numbering: false,
+        sort_order: 0,
+      },
+    ]
+    const row = store.flatRows.find((r) => r.id === 'k')!
+    expect(row.kind).toBe('content')
+    expect(row.code).toBe('')
+  })
 })
 
 describe('标记模式 temp-id 安全（评审 C1/C2）', () => {
   it('临时节点 setMark 只改本地、不发后端请求', async () => {
     const s = seed()
-    const id = s.addChapterNode('a', 'content')
+    const id = s.addChapterNode('a')
     await s.setMark(id, 'step')
     expect(s.chapterMap.get(id)?.mark_status).toBe('step')
     expect(markSpy).not.toHaveBeenCalled()
@@ -304,7 +367,7 @@ describe('标记模式 temp-id 安全（评审 C1/C2）', () => {
 
   it('cycleMark 先保存把临时 id 解析为真实 id 再写后端', async () => {
     const s = seed()
-    const tmp = s.addChapterNode('a', 'content')
+    const tmp = s.addChapterNode('a')
     saveSpy.mockResolvedValue({ ...meta(), revision: 4, id_map: { [tmp]: 'real-x' } })
     await s.cycleMark(tmp)
     expect(saveSpy).toHaveBeenCalledTimes(1)
@@ -316,54 +379,13 @@ describe('标记模式 temp-id 安全（评审 C1/C2）', () => {
 describe('validateForSave（评审 H2 / §8.2）', () => {
   it('空标题章节被拦截', () => {
     const s = seed()
-    s.addChapterNode('a', 'chapter') // 空标题
+    s.addChapterNode('a') // 空标题
     expect(s.validateForSave().some((e) => e.includes('标题为空'))).toBe(true)
   })
 
   it('标题齐全则通过', () => {
     const s = seed()
     expect(s.validateForSave()).toEqual([])
-  })
-})
-
-describe('toggleContentType', () => {
-  it('switches chapter → content and marks dirty', () => {
-    const store = useProcedureEditorStore()
-    store.$patch((state) => {
-      state.procedure = meta()
-      state.chapters = [chap('c1', null, 0)]
-      state.steps = []
-    })
-    expect(store.chapterMap.get('c1')!.content_type).toBe('chapter')
-
-    store.toggleContentType('c1')
-
-    expect(store.chapterMap.get('c1')!.content_type).toBe('content')
-    expect(store.dirtyChapters.has('c1')).toBe(true)
-  })
-
-  it('switches content → chapter', () => {
-    const store = useProcedureEditorStore()
-    const c: EditorChapter = { ...chap('c1', null, 0), content_type: 'content' }
-    store.$patch((state) => {
-      state.procedure = meta()
-      state.chapters = [c]
-      state.steps = []
-    })
-
-    store.toggleContentType('c1')
-
-    expect(store.chapterMap.get('c1')!.content_type).toBe('chapter')
-  })
-
-  it('ignores unknown id', () => {
-    const store = useProcedureEditorStore()
-    store.$patch((state) => {
-      state.procedure = meta()
-      state.chapters = []
-      state.steps = []
-    })
-    expect(() => store.toggleContentType('nonexistent')).not.toThrow()
   })
 })
 
@@ -375,59 +397,6 @@ describe('setStepFormType 非破坏性切换', () => {
     s.setStepFormType(id, 'NUMBER')
     expect(s.stepMap.get(id)!.content).toBe('<p>说明</p>')
     expect(s.stepMap.get(id)!.input_schema).toEqual({ type: 'NUMBER' })
-  })
-})
-
-describe('内容提升为章节', () => {
-  it('promoteContentToChapter 把内容节点变章节并保留正文为子内容', () => {
-    const s = seed()
-    s.chapters = [
-      {
-        id: 'c1',
-        parent_id: null,
-        content_type: 'content',
-        title: '',
-        rich_content: '<p>系统启动条件</p><p>正文</p>',
-        skip_numbering: true,
-        mark_status: 'unmarked',
-        sort_order: 0,
-      },
-    ]
-
-    s.promoteContentToChapter('c1')
-
-    const promoted = s.chapterMap.get('c1')
-    expect(promoted?.content_type).toBe('chapter')
-    expect(promoted?.title).toBe('系统启动条件 正文')
-    expect(promoted?.rich_content).toBe('')
-    expect(promoted?.skip_numbering).toBe(false)
-
-    const child = s.chapters.find((c) => c.parent_id === 'c1')
-    expect(child?.content_type).toBe('content')
-    expect(child?.rich_content).toBe('<p>系统启动条件</p><p>正文</p>')
-    expect(s.dirtyChapters.has('c1')).toBe(true)
-    expect(child && s.dirtyChapters.has(child.id)).toBe(true)
-  })
-
-  it('promoteContentToChapter 忽略已有子节点的内容节点', () => {
-    const s = seed()
-    s.chapters = [
-      {
-        id: 'c1',
-        parent_id: null,
-        content_type: 'content',
-        title: '',
-        rich_content: '<p>正文</p>',
-        skip_numbering: true,
-        mark_status: 'unmarked',
-        sort_order: 0,
-      },
-      chap('child', 'c1', 0),
-    ]
-
-    s.promoteContentToChapter('c1')
-
-    expect(s.chapterMap.get('c1')?.content_type).toBe('content')
   })
 })
 
@@ -452,15 +421,6 @@ describe('待确认 triage (P2b)', () => {
     expect(markSpy).toHaveBeenCalledTimes(2)
   })
 
-  it('toggleContentType 在 review 节点上自动清 review', async () => {
-    const s = seed()
-    s.chapters = [{ ...chap('a', null, 0), mark_status: 'review' }]
-    s.toggleContentType('a')
-    await flushPromises()
-    expect(s.chapterMap.get('a')?.content_type).toBe('content')
-    expect(s.chapterMap.get('a')?.mark_status).toBe('unmarked')
-    expect(markSpy).toHaveBeenCalledWith('a', 'unmarked')
-  })
 })
 
 describe('层级标定 (P2c)', () => {
@@ -473,14 +433,15 @@ describe('层级标定 (P2c)', () => {
     expect(s.markMode).toBe(false)
   })
 
-  it('layerRows：文档序含章节/正文、标 hasStepChildren', () => {
+  it('layerRows：文档序含章节、标 hasStepChildren', () => {
     const s = seed()
-    s.chapters = [chap('a', null, 0), { ...chap('b', 'a', 0), content_type: 'content' }]
+    s.chapters = [chap('a', null, 0), chap('b', 'a', 0)]
     s.steps = [stp('s1', 'a', 0)]
     const rows = s.layerRows
     expect(rows.map((r) => r.id)).toEqual(['a', 'b'])
     expect(rows.find((r) => r.id === 'a')?.hasStepChildren).toBe(true)
-    expect(rows.find((r) => r.id === 'b')?.content_type).toBe('content')
+    // B6 占位：章节恒为 'chapter'（内容块已迁到步骤行）。
+    expect(rows.find((r) => r.id === 'b')?.content_type).toBe('chapter')
   })
 
   it('applyLayerRoles 把 b 提为一级章节并置脏、退出模式', () => {
@@ -505,17 +466,14 @@ describe('层级标定 (P2c)', () => {
 })
 
 describe('缺标题 + 展开祖先', () => {
-  it('missingTitleCount 只统计标题为空的「章节」（不含内容块/步骤）', () => {
+  it('missingTitleCount 统计所有标题为空的章节（步骤不计入）', () => {
     setActivePinia(createPinia())
     const s = useProcedureEditorStore()
     s.procedure = meta()
     const empty = chap('e', null, 0)
     empty.title = '   ' // 纯空白
-    const content = chap('ct', null, 1)
-    content.content_type = 'content'
-    content.title = '' // 内容块空标题不计入
-    s.chapters = [chap('a', null, 2), empty, content]
-    s.steps = [stp('s', 'a', 0)] // s 的 title 由 stp() 设为 's'
+    s.chapters = [chap('a', null, 1), empty]
+    s.steps = [{ ...stp('s', 'a', 0), title: '' }] // 空标题步骤不计入
     expect(s.missingTitleCount).toBe(1)
   })
 
@@ -545,7 +503,7 @@ describe('缺标题 + 展开祖先', () => {
   })
 })
 
-describe('移除树层级 promote/demote（保留 promoteContentToChapter）', () => {
+describe('移除树层级 / 内容块旧 action 不再存在', () => {
   it('promoteChapter/demoteChapter/canPromoteChapter/canDemoteChapter 不再存在', () => {
     setActivePinia(createPinia())
     const s = useProcedureEditorStore() as unknown as Record<string, unknown>
@@ -554,9 +512,11 @@ describe('移除树层级 promote/demote（保留 promoteContentToChapter）', (
     expect(s.canPromoteChapter).toBeUndefined()
     expect(s.canDemoteChapter).toBeUndefined()
   })
-  it('promoteContentToChapter 仍保留', () => {
+  it('toggleContentType/promoteContentToChapter/contentToSteps 已删除', () => {
     setActivePinia(createPinia())
-    const s = useProcedureEditorStore()
-    expect(typeof s.promoteContentToChapter).toBe('function')
+    const s = useProcedureEditorStore() as unknown as Record<string, unknown>
+    expect(s.toggleContentType).toBeUndefined()
+    expect(s.promoteContentToChapter).toBeUndefined()
+    expect(s.contentToSteps).toBeUndefined()
   })
 })
