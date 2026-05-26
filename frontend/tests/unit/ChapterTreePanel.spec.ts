@@ -205,3 +205,30 @@ describe('ChapterTreePanel · 结构工具行（标记模式 + 层级标定）',
     expect(store.layerMode).toBe(true)
   })
 })
+
+describe('ChapterTreePanel · 标记模式级联', () => {
+  it('部分子节点入选时，章节 checkbox 为 indeterminate', async () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 's2', chapter_id: 'c1', kind: 'step', title: '步二', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 1 },
+      { id: 's3', chapter_id: 'c1', kind: 'step', title: '步三', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 2 },
+    ]
+    store.expanded = { c1: true }
+    store.markMode = true
+
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = w.findAllComponents({ name: 'TreeRow' })
+    const stepRow = rows.find((r) => r.props('row').id === 's1')!
+
+    // 勾选 1/3 子节点
+    stepRow.vm.$emit('check', false)
+    await w.vm.$nextTick()
+
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+    expect(chapterRow.props('indeterminate')).toBe(true)
+  })
+})

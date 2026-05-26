@@ -220,6 +220,50 @@ async function onDrop(row: FlatRow): Promise<void> {
 // ---- 标记模式批量选择 ---- //
 const markSel = ref<Set<string>>(new Set())
 const lastChecked = ref<string | null>(null)
+
+// ---- 标记模式：后代映射（DFS 全子树，忽略折叠/过滤） ---- //
+// 每个 chapter id → 其全部后代 id（含 chapter / content / step）。
+// rebuild 触发：chapters / steps 形状变。
+const descendantsByChapter = computed<Map<string, string[]>>(() => {
+  const childChapters = new Map<string | null, string[]>()
+  for (const c of store.chapters) {
+    const g = childChapters.get(c.parent_id) ?? []
+    g.push(c.id)
+    childChapters.set(c.parent_id, g)
+  }
+  const childSteps = new Map<string | null, string[]>()
+  for (const s of store.steps) {
+    const g = childSteps.get(s.chapter_id) ?? []
+    g.push(s.id)
+    childSteps.set(s.chapter_id, g)
+  }
+  const out = new Map<string, string[]>()
+  const dfs = (id: string): string[] => {
+    const acc: string[] = []
+    for (const cid of childChapters.get(id) ?? []) {
+      acc.push(cid, ...dfs(cid))
+    }
+    for (const sid of childSteps.get(id) ?? []) {
+      acc.push(sid)
+    }
+    return acc
+  }
+  for (const c of store.chapters) out.set(c.id, dfs(c.id))
+  return out
+})
+
+// 半选集合：descendant 命中数 ∈ (0, total) 的 chapter id。chapter 自身是否在 selection 不影响半选判定。
+const indeterminateSet = computed<Set<string>>(() => {
+  const out = new Set<string>()
+  for (const [chId, desc] of descendantsByChapter.value) {
+    if (desc.length === 0) continue
+    let hit = 0
+    for (const id of desc) if (markSel.value.has(id)) hit++
+    if (hit > 0 && hit < desc.length) out.add(chId)
+  }
+  return out
+})
+
 watch(
   () => store.markMode,
   (on) => {
@@ -357,6 +401,7 @@ defineExpose({ focusSearch })
           :selected="store.selectedId === row.id"
           :mark-mode="store.markMode"
           :selected-for-mark="markSel.has(row.id)"
+          :indeterminate="indeterminateSet.has(row.id)"
           :add-state="addStateFor(row)"
           :editable="store.editable"
           :can-move-up="moveFlags.get(row.id)?.up ?? false"
