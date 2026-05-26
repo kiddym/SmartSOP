@@ -42,6 +42,8 @@ export function buildSelection(params: {
           crossed = true
           continue
         }
+        // 章节是纯容器，不可被标记/转换；shift-range 跨过时不入选。
+        if (r.kind === 'chapter') continue
         sel.add(r.id)
       }
       if (crossed) warnings.push('范围跨越了不同父节点，跨父部分已忽略')
@@ -62,10 +64,12 @@ export function buildSelection(params: {
 }
 
 /** 章节级联选择参数。
- * - rootId：被点击的章节 id（自身也会被加入/移除）。
- * - descendantIds：rootId 的全部后代 id（含 chapter / content / step；DFS 顺序由调用方决定）。
+ * - rootId：被点击的章节，仅作为锚点参与 shift-range 计算，**不**进入 selection。
+ * - descendantIds：rootId 子树里所有 step / content 叶子 id（DFS 顺序由调用方决定）。
+ *   章节本身（含 rootId 与中间子章节）不在此列：章节是纯容器，不可被标记/转换。
  * - action：select 加入；deselect 移除。半选/未选/全选的判定在调用方，这里只执行结果。
- * - 100 项上限沿用 buildSelection 的策略：按 Set 插入顺序保留前 100，告警；锚点若被截则 null。
+ * - 100 项上限沿用 buildSelection 的策略：按 Set 插入顺序保留前 100，告警。
+ * - anchor 恒为 rootId（不受截断影响，章节本身从不进 selection）。
  */
 export interface CascadeParams {
   current: ReadonlySet<string>
@@ -81,19 +85,15 @@ export function buildCascadeSelection(p: CascadeParams): SelectionUpdate {
   const warnings: string[] = []
 
   if (action === 'select') {
-    sel.add(rootId)
     for (const id of descendantIds) sel.add(id)
   } else {
-    sel.delete(rootId)
     for (const id of descendantIds) sel.delete(id)
   }
 
-  let nextAnchor: string | null = rootId
   if (sel.size > MAX_BATCH_MARK) {
     const trimmed = new Set([...sel].slice(0, MAX_BATCH_MARK))
-    if (!trimmed.has(nextAnchor)) nextAnchor = null
     warnings.push(`单次最多标记 ${MAX_BATCH_MARK} 项，已保留前 ${MAX_BATCH_MARK} 项`)
-    return { selection: trimmed, anchor: nextAnchor, warnings }
+    return { selection: trimmed, anchor: rootId, warnings }
   }
-  return { selection: sel, anchor: nextAnchor, warnings }
+  return { selection: sel, anchor: rootId, warnings }
 }
