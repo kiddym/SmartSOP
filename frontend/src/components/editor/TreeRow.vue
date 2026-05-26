@@ -22,12 +22,18 @@ const emit = defineEmits<{
   (e: 'add', kind: 'chapter' | 'content' | 'step'): void
   (e: 'move', dir: 'up' | 'down'): void
   (e: 'remove'): void
+  (e: 'convert', dir: 'to-step' | 'to-content'): void
   (e: 'check', shift: boolean): void
   (e: 'dragstart', ev: DragEvent): void
   (e: 'dragover', ev: DragEvent): void
   (e: 'drop', ev: DragEvent): void
   (e: 'dragend'): void
 }>()
+
+function onMore(c: 'to-step' | 'to-content' | 'remove'): void {
+  if (c === 'remove') emit('remove')
+  else emit('convert', c)
+}
 
 const icon = computed(() => (props.row.kind === 'step' ? '☐' : props.row.kind === 'content' ? '📄' : '📘'))
 
@@ -73,7 +79,7 @@ const typeLabel = computed(() =>
     </span>
 
     <el-checkbox
-      v-if="markMode && row.kind !== 'step'"
+      v-if="markMode && row.kind === 'chapter'"
       :model-value="selectedForMark"
       class="tr-check"
       @click.stop="emit('check', ($event as MouseEvent).shiftKey)"
@@ -106,11 +112,13 @@ const typeLabel = computed(() =>
       </el-dropdown>
       <el-button size="small" text :disabled="!canMoveUp" title="上移" @click="emit('move', 'up')">↑</el-button>
       <el-button size="small" text :disabled="!canMoveDown" title="下移" @click="emit('move', 'down')">↓</el-button>
-      <el-dropdown trigger="click" :persistent="false" @command="() => emit('remove')">
+      <el-dropdown trigger="click" :persistent="false" @command="onMore">
         <el-button size="small" text class="more-trigger" title="更多">⋮</el-button>
         <template #dropdown>
           <el-dropdown-menu>
-            <el-dropdown-item command="remove">删除</el-dropdown-item>
+            <el-dropdown-item v-if="row.kind === 'content'" command="to-step">转为步骤</el-dropdown-item>
+            <el-dropdown-item v-if="row.kind === 'step'" command="to-content">转为内容块</el-dropdown-item>
+            <el-dropdown-item command="remove" divided>删除</el-dropdown-item>
           </el-dropdown-menu>
         </template>
       </el-dropdown>

@@ -116,6 +116,7 @@ const moveFlags = computed(() => {
 
 function addTargetFor(row: FlatRow): { parentId: string | null; afterId: string | null } {
   if (row.kind === 'chapter') return { parentId: row.id, afterId: null }
+  // step 行和 content 行都在所属 chapter 的同级插入，位置在该行之后
   return { parentId: row.parent_id, afterId: row.id }
 }
 function addStateFor(row: FlatRow) {
@@ -129,13 +130,18 @@ function onSelect(row: FlatRow): void {
   else store.selectNode(row.id)
 }
 function onAdd(parentId: string | null, kind: 'chapter' | 'content' | 'step'): void {
-  if (kind === 'step') store.addStepNode(parentId)
-  else store.addChapterNode(parentId, kind)
+  if (kind === 'chapter') store.addChapterNode(parentId)
+  else if (kind === 'step') store.addStepNode(parentId, null, 'step')
+  else store.addStepNode(parentId, null, 'content')
 }
 function onAddFromRow(row: FlatRow, kind: 'chapter' | 'content' | 'step'): void {
   const { parentId, afterId } = addTargetFor(row)
-  if (kind === 'step') store.addStepNode(parentId, afterId)
-  else store.addChapterNode(parentId, kind, afterId)
+  if (kind === 'chapter') store.addChapterNode(parentId, afterId)
+  else if (kind === 'step') store.addStepNode(parentId, afterId, 'step')
+  else store.addStepNode(parentId, afterId, 'content')
+}
+function onConvert(row: FlatRow, dir: 'to-step' | 'to-content'): void {
+  store.setStepKind(row.id, dir === 'to-step' ? 'step' : 'content')
 }
 async function onRemove(row: FlatRow): Promise<void> {
   if (!isTempId(row.id)) {
@@ -254,12 +260,10 @@ async function applyMarks(): Promise<void> {
     ElMessage.warning('没有需要应用的标记')
     return
   }
-  const stepMarks = marked.filter((m) => m.mark_status === 'step')
-  const chToStep = stepMarks.filter((m) => m.content_type !== 'content').length
-  const ctToSteps = stepMarks.filter((m) => m.content_type === 'content').length
+  const chToStep = marked.filter((m) => m.mark_status === 'step').length
   try {
     await ElMessageBox.confirm(
-      `将转换 ${chToStep} 个章节为步骤、拆分 ${ctToSteps} 个内容块为步骤。该操作原子执行且不可撤销，是否继续？`,
+      `将转换 ${chToStep} 个章节为步骤。该操作原子执行且不可撤销，是否继续？`,
       '应用标记',
       { type: 'warning' },
     )
@@ -351,6 +355,7 @@ defineExpose({ focusSearch })
           @add="(kind) => onAddFromRow(row, kind)"
           @move="(dir) => store.reorder(row.id, dir)"
           @remove="onRemove(row)"
+          @convert="(dir) => onConvert(row, dir)"
           @check="(shift) => onCheck(row, shift)"
           @dragstart="(ev) => onDragStart(row, ev)"
           @dragover="(ev) => onDragOver(row, ev)"

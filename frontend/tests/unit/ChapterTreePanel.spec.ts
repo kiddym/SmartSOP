@@ -41,9 +41,7 @@ function chapter(id: string, title: string, parentId: string | null, sortOrder: 
   return {
     id,
     parent_id: parentId,
-    content_type: 'chapter',
     title,
-    rich_content: '',
     skip_numbering: false,
     mark_status: 'unmarked',
     sort_order: sortOrder,
@@ -89,7 +87,7 @@ describe('ChapterTreePanel', () => {
     store.procedure = meta()
     store.chapters = [chapter('c1', '章一', null, 0)]
     store.steps = [
-      { id: 's1', chapter_id: 'c1', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
     ]
     store.expanded = { c1: true }
     const addChapterSpy = vi.spyOn(store, 'addChapterNode').mockReturnValue('tmp')
@@ -101,11 +99,68 @@ describe('ChapterTreePanel', () => {
     const stepRow = rows.find((r) => r.props('row').id === 's1')!
 
     chapterRow.vm.$emit('add', 'step')
-    expect(addStepSpy).toHaveBeenCalledWith('c1', null) // 章节 → 加子节点
+    expect(addStepSpy).toHaveBeenCalledWith('c1', null, 'step') // 章节 → 加子节点
 
     stepRow.vm.$emit('add', 'step')
-    expect(addStepSpy).toHaveBeenCalledWith('c1', 's1') // 步骤 → 同父级、该行之后
+    expect(addStepSpy).toHaveBeenCalledWith('c1', 's1', 'step') // 步骤 → 同父级、该行之后
     expect(addChapterSpy).not.toHaveBeenCalled()
+  })
+
+  it('onAdd content 调用 addStepNode(..., content)', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    const addStepSpy = vi.spyOn(store, 'addStepNode').mockReturnValue('tmp')
+
+    const wrapper = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = wrapper.findAllComponents({ name: 'TreeRow' })
+    const chapterRow = rows.find((r) => r.props('row').id === 'c1')!
+
+    chapterRow.vm.$emit('add', 'content')
+    expect(addStepSpy).toHaveBeenCalledWith('c1', null, 'content')
+  })
+
+  it('@convert to-step 调用 store.setStepKind(id, step)', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'content', title: '', content: '', input_schema: {}, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    const setStepKindSpy = vi.spyOn(store, 'setStepKind')
+
+    const wrapper = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = wrapper.findAllComponents({ name: 'TreeRow' })
+    const contentRow = rows.find((r) => r.props('row').id === 's1')!
+
+    contentRow.vm.$emit('convert', 'to-step')
+    expect(setStepKindSpy).toHaveBeenCalledWith('s1', 'step')
+  })
+
+  it('@convert to-content 调用 store.setStepKind(id, content)', () => {
+    setActivePinia(createPinia())
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chapter('c1', '章一', null, 0)]
+    store.steps = [
+      { id: 's1', chapter_id: 'c1', kind: 'step', title: '步一', content: '', input_schema: { type: 'COMMON' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+    ]
+    store.expanded = { c1: true }
+    const setStepKindSpy = vi.spyOn(store, 'setStepKind')
+
+    const wrapper = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+    const rows = wrapper.findAllComponents({ name: 'TreeRow' })
+    const stepRow = rows.find((r) => r.props('row').id === 's1')!
+
+    stepRow.vm.$emit('convert', 'to-content')
+    expect(setStepKindSpy).toHaveBeenCalledWith('s1', 'content')
   })
 
   it('存在缺标题章节时显示定位条与计数', () => {

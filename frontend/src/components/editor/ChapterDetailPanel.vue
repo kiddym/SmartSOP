@@ -32,22 +32,23 @@ const children = computed<ChildRow[]>(() => {
   const levels = store.levelMap
   const rows: (ChildRow & { sort: number })[] = []
   for (const c of store.chapters.filter((c) => c.parent_id === ch.id)) {
-    const kind: NodeKind = c.content_type === 'content' ? 'content' : 'chapter'
+    const kind: NodeKind = 'chapter'
     rows.push({
       id: c.id,
       kind,
       sort: c.sort_order,
       code: formatCode({ kind, level: levels.get(c.id) ?? 1, code: chapterCodes.get(c.id) ?? '', skipNumbering: c.skip_numbering }),
-      text: c.title.trim() || computeFallback(kind, c.rich_content),
+      text: c.title.trim() || computeFallback('chapter', ''),
     })
   }
   for (const s of store.steps.filter((s) => s.chapter_id === ch.id)) {
+    const kind: NodeKind = s.kind === 'content' ? 'content' : 'step'
     rows.push({
       id: s.id,
-      kind: 'step',
+      kind,
       sort: s.sort_order,
-      code: formatCode({ kind: 'step', level: 0, code: stepCodes.get(s.id) ?? '', skipNumbering: s.skip_numbering }),
-      text: s.title.trim() || computeFallback('step', s.content),
+      code: formatCode({ kind, level: 0, code: stepCodes.get(s.id) ?? '', skipNumbering: s.skip_numbering }),
+      text: s.title.trim() || computeFallback(kind, s.content),
     })
   }
   return rows.sort((a, b) => a.sort - b.sort).map(({ sort: _sort, ...r }) => r)
@@ -61,28 +62,6 @@ const children = computed<ChildRow[]>(() => {
       <el-button size="small" type="warning" plain @click="store.acceptReview(chapter.id)">接受待确认</el-button>
     </div>
     <el-form label-position="top">
-      <el-form-item label="节点类型">
-        <el-radio-group
-          :model-value="chapter.content_type"
-          :disabled="ro"
-          size="small"
-          @change="store.toggleContentType(chapter.id)"
-        >
-          <el-radio-button value="chapter">章节</el-radio-button>
-          <el-radio-button value="content">内容块</el-radio-button>
-        </el-radio-group>
-        <el-button
-          v-if="chapter.content_type === 'content' && !ro"
-          size="small"
-          type="primary"
-          plain
-          style="margin-left: 8px"
-          @click="store.promoteContentToChapter(chapter.id)"
-        >
-          提升为章节
-        </el-button>
-      </el-form-item>
-
       <el-form-item label="章节标题">
         <div class="title-row">
           <el-input

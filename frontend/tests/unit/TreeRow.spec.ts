@@ -90,4 +90,20 @@ describe('TreeRow', () => {
     dropdowns[dropdowns.length - 1].vm.$emit('command', 'remove')
     expect(w.emitted('remove')).toBeTruthy()
   })
+
+  it('content 行 ⋮ command to-step 触发 convert(to-step)', () => {
+    const w = mountRow(row({ id: 'c1', kind: 'content', title: '内容块', fallback: '(空内容)' }))
+    const dropdowns = w.findAllComponents({ name: 'ElDropdown' })
+    dropdowns[dropdowns.length - 1].vm.$emit('command', 'to-step')
+    expect(w.emitted('convert')).toBeTruthy()
+    expect(w.emitted('convert')![0]).toEqual(['to-step'])
+  })
+
+  it('step 行 ⋮ command to-content 触发 convert(to-content)', () => {
+    const w = mountRow(row({ id: 's1', kind: 'step', title: '步骤', code: '1.1' }))
+    const dropdowns = w.findAllComponents({ name: 'ElDropdown' })
+    dropdowns[dropdowns.length - 1].vm.$emit('command', 'to-content')
+    expect(w.emitted('convert')).toBeTruthy()
+    expect(w.emitted('convert')![0]).toEqual(['to-content'])
+  })
 })
