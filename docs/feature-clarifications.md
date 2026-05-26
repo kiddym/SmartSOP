@@ -3505,6 +3505,8 @@ PDF **只渲染附件的元数据**（文件名 / 大小 / MIME / 上传日期 /
 
 > **修订 (2026-05-26)**：「文件夹配置」（原称「标准文件库」）实际是 admin 配置页（定义文件夹分类与编号规则），归 ⚙ 配置组而非侧栏内容容器；同时撤回"侧栏底部系统区放废止入口"的 §3.1 设想——「废止」按 §13 的逻辑应当走 `folder.system=true` 文件夹过滤，需要 ProcedureLibraryView 加 folder_id 支持，留作独立 topic。Q321 原决策"内容容器 vs 管理类"两分法仍然成立。
 
+> **R2 修订 (2026-05-26)**：上述"废止入口留作独立 topic"已落地——通过 ProcedureLibraryView 双栏重构（左 FolderTreePane + 右 ListPane）原生承载，"废止"成为文件夹树中的一员、无需独立路由或侧栏入口。同时新增"归档"系统文件夹与之同级（语义：保留备查 / 废止：不再使用）。详见 [`docs/superpowers/specs/2026-05-26-library-ia-archive-folder-design.md`]。
+
 ### 50.3 本节落地/影响
 
 | 项 | 落地 |

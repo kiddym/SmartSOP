@@ -356,3 +356,5 @@ const { collapsed, toggle } = useSidebar()
 - §测试 AppSidebar.spec 用例数下调（1 group + 2 items）；router 单测取消
 - §风险表移除 "废止视图状态锁定" 条
 
+> **R1 决策的后续 (2026-05-26)**：该撤回决策被 [`2026-05-26-library-ia-archive-folder-design.md`] 永久取代——"废止入口"的最终实现路径是 ProcedureLibraryView 双栏重构（文件夹树导航 + 归档同级系统文件夹），既不需要 `/procedures/deprecated` 路由也不需要侧栏系统区。
+
