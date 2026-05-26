@@ -604,3 +604,36 @@ describe('isDirty 含待删除', () => {
     expect(s.isDirty).toBe(true)
   })
 })
+
+describe('exportDraft / importDraft 含删除集合', () => {
+  it('exportDraft 导出 deletedChapterIds / deletedStepIds', () => {
+    const s = seed()
+    s.deletedChapterIds = new Set(['x', 'y'])
+    s.deletedStepIds = new Set(['s'])
+    const draft = s.exportDraft()
+    expect([...draft.deletedChapterIds].sort()).toEqual(['x', 'y'])
+    expect(draft.deletedStepIds).toEqual(['s'])
+  })
+
+  it('importDraft 还原 deletedChapterIds / deletedStepIds', () => {
+    const s = seed()
+    const s2 = useProcedureEditorStore()
+    s2.importDraft({
+      procedure: meta(),
+      chapters: [chap('a', null, 0)],
+      steps: [],
+      selectedId: null,
+      expanded: {},
+      dirtyChapters: [],
+      dirtySteps: [],
+      deletedChapterIds: ['x'],
+      deletedStepIds: ['s'],
+      metaDirty: false,
+    })
+    expect([...s2.deletedChapterIds]).toEqual(['x'])
+    expect([...s2.deletedStepIds]).toEqual(['s'])
+    // importDraft 历来清 undo 栈：保持原有契约
+    expect(s2.undoStack).toEqual([])
+    expect(s2.redoStack).toEqual([])
+  })
+})

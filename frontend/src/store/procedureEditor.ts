@@ -856,6 +856,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         expanded: { ...this.expanded },
         dirtyChapters: [...this.dirtyChapters],
         dirtySteps: [...this.dirtySteps],
+        deletedChapterIds: [...this.deletedChapterIds],
+        deletedStepIds: [...this.deletedStepIds],
         metaDirty: this.metaDirty,
       }
     },
@@ -868,6 +870,8 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       this.expanded = { ...d.expanded }
       this.dirtyChapters = new Set(d.dirtyChapters)
       this.dirtySteps = new Set(d.dirtySteps)
+      this.deletedChapterIds = new Set(d.deletedChapterIds)
+      this.deletedStepIds = new Set(d.deletedStepIds)
       this.metaDirty = d.metaDirty
       this.undoStack = []
       this.redoStack = []
