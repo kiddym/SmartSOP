@@ -14,7 +14,7 @@ function mountWith(markStatus: 'review' | 'unmarked') {
   // @ts-expect-error 最小 procedure
   store.procedure = { id: 'p1', version: 1, status: 'DRAFT', revision: 1, is_current: true }
   store.chapters = [{
-    id: 'a', parent_id: null, content_type: 'chapter', title: '章', rich_content: '',
+    id: 'a', parent_id: null, title: '章',
     skip_numbering: false, mark_status: markStatus, sort_order: 0,
   }]
   store.steps = []
@@ -49,7 +49,7 @@ describe('ChapterDetailPanel 空标题自动聚焦', () => {
     // @ts-expect-error 最小 procedure
     store.procedure = { id: 'p1', version: 1, status: 'DRAFT', revision: 1, is_current: true }
     store.chapters = [{
-      id: 'a', parent_id: null, content_type: 'chapter', title, rich_content: '',
+      id: 'a', parent_id: null, title,
       skip_numbering: false, mark_status: 'unmarked', sort_order: 0,
     }]
     store.steps = []

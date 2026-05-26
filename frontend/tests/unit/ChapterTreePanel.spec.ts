@@ -131,7 +131,7 @@ describe('ChapterTreePanel', () => {
     store.procedure = meta()
     store.chapters = [chapter('c1', '章一', null, 0)]
     store.steps = [
-      { id: 's1', chapter_id: 'c1', kind: 'content', title: '', content: '', input_schema: {}, attachment_marks: [], skip_numbering: false, sort_order: 0 },
+      { id: 's1', chapter_id: 'c1', kind: 'content', title: '', content: '', input_schema: { type: 'NONE' }, attachment_marks: [], skip_numbering: false, sort_order: 0 },
     ]
     store.expanded = { c1: true }
     const setStepKindSpy = vi.spyOn(store, 'setStepKind')

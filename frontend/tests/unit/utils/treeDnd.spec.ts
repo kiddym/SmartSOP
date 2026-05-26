@@ -10,25 +10,25 @@ import {
 } from '@/utils/treeDnd'
 import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
 
-const ch = (
-  id: string,
-  parent: string | null,
-  ct: 'chapter' | 'content' = 'chapter',
-  sort = 0,
-): EditorChapter => ({
+const ch = (id: string, parent: string | null, sort = 0): EditorChapter => ({
   id,
   parent_id: parent,
-  content_type: ct,
   title: id,
-  rich_content: '',
   skip_numbering: false,
   mark_status: 'unmarked',
   sort_order: sort,
 })
 
-const st = (id: string, chapterId: string | null, sort = 0): EditorStep => ({
+// 步骤 / 内容块（内容块 = kind='content' 的步骤）。
+const st = (
+  id: string,
+  chapterId: string | null,
+  sort = 0,
+  kind: 'step' | 'content' = 'step',
+): EditorStep => ({
   id,
   chapter_id: chapterId,
+  kind,
   title: id,
   content: '',
   input_schema: { type: 'NONE' },
@@ -36,6 +36,10 @@ const st = (id: string, chapterId: string | null, sort = 0): EditorStep => ({
   skip_numbering: false,
   sort_order: sort,
 })
+
+// 内容块步骤的便捷构造。
+const content = (id: string, chapterId: string | null, sort = 0): EditorStep =>
+  st(id, chapterId, sort, 'content')
 
 const fr = (id: string, kind: FlatRow['kind'], parent: string | null): FlatRow => ({
   id,
@@ -74,8 +78,8 @@ function tree(chapters: EditorChapter[], steps: EditorStep[] = []): DndTree {
 const chain = tree([ch('c1', null), ch('c2', 'c1'), ch('c3', 'c2')])
 
 describe('kindOf', () => {
-  it('章节 / 正文 / 步骤', () => {
-    const t = tree([ch('c', null), ch('x', 'c', 'content')], [st('s', 'c')])
+  it('章节 / 内容块 / 步骤', () => {
+    const t = tree([ch('c', null)], [content('x', 'c'), st('s', 'c')])
     expect(kindOf(t, 'c')).toBe('chapter')
     expect(kindOf(t, 'x')).toBe('content')
     expect(kindOf(t, 's')).toBe('step')
@@ -90,16 +94,16 @@ describe('subtreeChapterIds', () => {
 })
 
 describe('subtreeChapterHeight', () => {
-  it('仅计章节嵌套，content 为叶', () => {
-    const t = tree([ch('c1', null), ch('c2', 'c1'), ch('x', 'c1', 'content')])
-    expect(subtreeChapterHeight(t.chapters, 'c1')).toBe(2) // c1>c2；x 不计
+  it('仅计章节嵌套，内容块/步骤为叶（不在 chapters 中）', () => {
+    const t = tree([ch('c1', null), ch('c2', 'c1')], [content('x', 'c1')])
+    expect(subtreeChapterHeight(t.chapters, 'c1')).toBe(2) // c1>c2；内容块 x 是步骤行，不计
     expect(subtreeChapterHeight(t.chapters, 'c2')).toBe(1)
   })
 })
 
 describe('siblingsOf', () => {
   it('按 sort_order 排序', () => {
-    const t = tree([ch('c1', null), ch('b', 'c1', 'chapter', 1), ch('a', 'c1', 'chapter', 0)])
+    const t = tree([ch('c1', null), ch('b', 'c1', 1), ch('a', 'c1', 0)])
     expect(siblingsOf(t, 'c1', true).map((n) => n.id)).toEqual(['a', 'b'])
   })
 })
@@ -114,7 +118,7 @@ describe('validDrop', () => {
   })
 
   it('inside 非章节目标 → false', () => {
-    const t = tree([ch('c1', null), ch('x', 'c1', 'content')], [st('s', 'c1')])
+    const t = tree([ch('c1', null)], [content('x', 'c1'), st('s', 'c1')])
     expect(validDrop(t, 's', fr('x', 'content', 'c1'), 'inside')).toBe(false)
   })
 
@@ -142,13 +146,16 @@ describe('validDrop', () => {
 
 describe('computeDrop', () => {
   it('inside → 追加到末尾、跨父', () => {
-    const t = tree([ch('c1', null), ch('a', 'c1', 'content'), ch('c2', null), ch('d', 'c2', 'content')])
+    const t = tree(
+      [ch('c1', null), ch('c2', null)],
+      [content('a', 'c1'), content('d', 'c2')],
+    )
     const plan = computeDrop(t, 'a', fr('c2', 'chapter', null), 'inside')
     expect(plan).toEqual({ parentId: 'c2', index: 1, currentParent: 'c1' })
   })
 
   it('after → 目标之后、同父重排', () => {
-    const t = tree([ch('c1', null), ch('a', 'c1', 'content', 0), ch('b', 'c1', 'content', 1)])
+    const t = tree([ch('c1', null)], [content('a', 'c1', 0), content('b', 'c1', 1)])
     const plan = computeDrop(t, 'a', fr('b', 'content', 'c1'), 'after')
     expect(plan).toEqual({ parentId: 'c1', index: 1, currentParent: 'c1' })
   })

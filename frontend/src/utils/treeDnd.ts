@@ -17,9 +17,9 @@ const byOrder = (a: Sortable, b: Sortable): number =>
   a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1
 
 export function kindOf(tree: DndTree, id: string): NodeKind {
-  const c = tree.chapters.find((x) => x.id === id)
-  if (c) return c.content_type === 'content' ? 'content' : 'chapter'
-  return 'step'
+  if (tree.chapters.some((x) => x.id === id)) return 'chapter'
+  const s = tree.steps.find((x) => x.id === id)
+  return s?.kind === 'content' ? 'content' : 'step'
 }
 
 /** 含 root 的章节子树 id 集合（与 store.collectSubtree 同义：沿章节 parent_id 闭包）。 */
@@ -38,9 +38,9 @@ export function subtreeChapterIds(chapters: EditorChapter[], rootId: string): Se
   return ids
 }
 
-/** 章节子树的章节嵌套高度（仅计 content_type==='chapter'；content/step 为叶子不计）。 */
+/** 章节子树的章节嵌套高度（章节才计；步骤/内容块同属叶子项不计）。 */
 export function subtreeChapterHeight(chapters: EditorChapter[], id: string): number {
-  const kids = chapters.filter((c) => c.parent_id === id && c.content_type === 'chapter')
+  const kids = chapters.filter((c) => c.parent_id === id)
   return kids.length ? 1 + Math.max(...kids.map((k) => subtreeChapterHeight(chapters, k.id))) : 1
 }
 
@@ -73,12 +73,11 @@ export function validDrop(tree: DndTree, id: string, target: FlatRow, hint: Drop
     const parentLevel = parentId ? (tree.levelMap.get(parentId) ?? 1) : 0
     if (parentLevel + 1 + subtreeChapterHeight(tree.chapters, id) - 1 > 3) return false
   }
-  // Q25：目标 parent 现有子类型（排除被拖节点）+ 被拖类型不得混排。
+  // Q25：目标 parent 现有子类型（排除被拖节点）+ 被拖类型不得混排（与 store.childKindsOf 同义）。
   const kinds: NodeKind[] = []
-  for (const c of tree.chapters)
-    if (c.parent_id === parentId && c.id !== id)
-      kinds.push(c.content_type === 'content' ? 'content' : 'chapter')
-  for (const s of tree.steps) if (s.chapter_id === parentId && s.id !== id) kinds.push('step')
+  for (const c of tree.chapters) if (c.parent_id === parentId && c.id !== id) kinds.push('chapter')
+  for (const s of tree.steps)
+    if (s.chapter_id === parentId && s.id !== id) kinds.push(s.kind === 'content' ? 'content' : 'step')
   const st = getAddButtonState(kinds)
   if (dragged === 'step') return st.canAddStep
   if (dragged === 'content') return st.canAddContent

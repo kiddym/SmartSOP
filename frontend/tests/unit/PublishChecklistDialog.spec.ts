@@ -8,6 +8,7 @@ vi.mock('@/api/http', () => ({ http: { get: vi.fn(), post: vi.fn(), put: vi.fn()
 
 import PublishChecklistDialog from '@/components/editor/PublishChecklistDialog.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import type { MarkStatus } from '@/types/node'
 
 let mountDiv: HTMLDivElement | null = null
 let wrapper: ReturnType<typeof mount> | null = null
@@ -18,8 +19,8 @@ function setup(reviewCount: number) {
   store.procedure = { id: 'p1', version: 1, name: 'X', custom_values: {}, version_update_notes: '' }
   store.fields = []
   store.chapters = Array.from({ length: reviewCount + 1 }, (_, i) => ({
-    id: `c${i}`, parent_id: null, content_type: 'chapter', title: 'c', rich_content: '',
-    skip_numbering: false, mark_status: i < reviewCount ? 'review' : 'unmarked', sort_order: i,
+    id: `c${i}`, parent_id: null, title: 'c',
+    skip_numbering: false, mark_status: (i < reviewCount ? 'review' : 'unmarked') as MarkStatus, sort_order: i,
   }))
   store.steps = []
   mountDiv = document.createElement('div')

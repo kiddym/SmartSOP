@@ -30,13 +30,3 @@ export const convertChapterToStep = async (id: string): Promise<ConversionResult
 
 export const convertRootToStep = async (id: string): Promise<ConversionResult> =>
   (await http.post<ConversionResult>(`/chapters/${id}/convert-root-to-step`)).data
-
-export const contentToSteps = async (id: string): Promise<ConversionResult> =>
-  (await http.post<ConversionResult>(`/chapters/${id}/content-to-steps`)).data
-
-export const batchContentToSteps = async (chapterIds: string[]): Promise<ConversionResult> =>
-  (
-    await http.post<ConversionResult>('/chapters/batch-content-to-steps', {
-      chapter_ids: chapterIds,
-    })
-  ).data

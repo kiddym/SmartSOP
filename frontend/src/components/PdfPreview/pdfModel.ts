@@ -80,8 +80,9 @@ export interface CoverFieldRow {
   value: string
 }
 
-export function displayCode(code: string, level: number, contentType: string, skip: boolean): string {
-  if (skip || contentType === 'content' || !code) return ''
+// 渲染编号（与后端 sections.display_code 对齐）：skip / 空 code → ''；L1 章节追加 .0（§47/Q305）。
+export function displayCode(code: string, level: number, skip: boolean): string {
+  if (skip || !code) return ''
   return level === 1 ? `${code}.0` : code
 }
 
@@ -175,7 +176,9 @@ export function buildRevision(detail: ProcedureDetail): RevisionRow[] {
     })
 }
 
-// 内容区块按 backend 顺序遍历并据 layout 映射页号（chapter/step 取映射，content 继承当前页）。
+// 内容区块按 backend 顺序遍历并据 layout 映射页号（与 sections._render_chapter/_render_step 对齐）。
+// 章节只是容器（只出标题）；其子步骤按 sort_order：kind==='content' 走内联富文本（无编号无标题），
+// kind==='step' 走步骤渲染。chapter/step 取 layout 映射，content 继承当前页。
 function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[] {
   const blocks: PreviewBlock[] = []
   const stepsByChapter = new Map<string | null, StepOut[]>()
@@ -190,17 +193,13 @@ function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[]
   let current = contentStart
 
   const renderChapter = (ch: ChapterTreeNode): void => {
-    if (ch.content_type === 'content') {
-      blocks.push({ key: `c-${ch.id}`, kind: 'content', page: current, html: ch.rich_content })
-      return
-    }
     current = layout.chapters[ch.id] ?? current
     blocks.push({
       key: `ch-${ch.id}`,
       kind: 'chapter',
       page: current,
       level: ch.level,
-      code: displayCode(ch.code, ch.level, ch.content_type, ch.skip_numbering),
+      code: displayCode(ch.code, ch.level, ch.skip_numbering),
       title: ch.title,
     })
     for (const child of ch.children) renderChapter(child)
@@ -208,6 +207,11 @@ function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[]
   }
 
   const renderStep = (st: StepOut): void => {
+    if (st.kind === 'content') {
+      // 内容块：内联富文本，无编号、无标题（继承当前页，不取 layout.steps 映射）。
+      blocks.push({ key: `c-${st.id}`, kind: 'content', page: current, html: st.content })
+      return
+    }
     current = layout.steps[st.id] ?? current
     blocks.push({
       key: `st-${st.id}`,
@@ -266,13 +270,11 @@ export function coverFieldRows(detail: ProcedureDetail): CoverFieldRow[] {
 // 附件区段标题：用户自建「附件」章节 → null（标题在正文章节已渲染）；否则虚拟章节 {n}.0（§6.6）。
 function attachmentChapterTitle(detail: ProcedureDetail): string | null {
   const top = detail.chapters ?? []
-  const hasUserChapter = top.some(
-    (c) => c.content_type === 'chapter' && ATTACHMENT_CHAPTER_NAMES.includes(c.title.trim()),
-  )
+  const hasUserChapter = top.some((c) => ATTACHMENT_CHAPTER_NAMES.includes(c.title.trim()))
   if (hasUserChapter) return null
   let maxSeq = 0
   for (const c of top) {
-    if (c.content_type === 'chapter' && !c.skip_numbering && /^\d+$/.test(c.code)) {
+    if (!c.skip_numbering && /^\d+$/.test(c.code)) {
       maxSeq = Math.max(maxSeq, Number(c.code))
     }
   }

@@ -16,7 +16,7 @@ import type { StepOut } from '@/types/node'
 
 function step(partial: Partial<StepOut>): StepOut {
   return {
-    id: 's1', procedure_id: 'p', chapter_id: 'c1', title: '步骤', code: '1.1', content: '',
+    id: 's1', procedure_id: 'p', chapter_id: 'c1', kind: 'step', title: '步骤', code: '1.1', content: '',
     sort_order: 0, skip_numbering: false, input_schema: { type: 'COMMON' },
     attachment_marks: [],
     ...partial,
@@ -39,16 +39,17 @@ function detail(): ProcedureDetail {
       created_at: '2026-05-01T00:00:00Z', updated_at: '2026-05-02T00:00:00Z',
     },
     chapters: [
-      { id: 'c1', content_type: 'chapter', title: '目的', code: '1', level: 1, sort_order: 0,
-        skip_numbering: false, mark_status: 'unmarked', rich_content: '',
-        children: [
-          { id: 'cc1', content_type: 'content', title: '', code: '', level: 2, sort_order: 0,
-            skip_numbering: false, mark_status: 'unmarked', rich_content: '<p>用于规范启动</p>', children: [] },
-        ] },
-      { id: 'c2', content_type: 'chapter', title: '操作', code: '2', level: 1, sort_order: 1,
-        skip_numbering: false, mark_status: 'unmarked', rich_content: '', children: [] },
+      { id: 'c1', title: '目的', code: '1', level: 1, sort_order: 0,
+        skip_numbering: false, mark_status: 'unmarked', children: [] },
+      { id: 'c2', title: '操作', code: '2', level: 1, sort_order: 1,
+        skip_numbering: false, mark_status: 'unmarked', children: [] },
     ],
-    steps: [step({ id: 's1', chapter_id: 'c2', code: '2.1', title: '启动电源', sort_order: 0 })],
+    steps: [
+      // 内容块 = kind='content' 的步骤（正文在 content 字段，无编号无标题）。
+      step({ id: 'cc1', chapter_id: 'c1', kind: 'content', code: '', title: '',
+        content: '<p>用于规范启动</p>', sort_order: 0 }),
+      step({ id: 's1', chapter_id: 'c2', code: '2.1', title: '启动电源', sort_order: 0 }),
+    ],
     attachments: [],
     fields: [],
     has_source_docx: false,
@@ -76,11 +77,11 @@ function layout(): PdfLayout {
 }
 
 describe('displayCode', () => {
-  it('L1 章节追加 .0（Q305）', () => expect(displayCode('1', 1, 'chapter', false)).toBe('1.0'))
-  it('L2 不加 .0', () => expect(displayCode('1.2', 2, 'chapter', false)).toBe('1.2'))
-  it('content / skip / 空 → 空串', () => {
-    expect(displayCode('', 1, 'content', false)).toBe('')
-    expect(displayCode('1', 1, 'chapter', true)).toBe('')
+  it('L1 章节追加 .0（Q305）', () => expect(displayCode('1', 1, false)).toBe('1.0'))
+  it('L2 不加 .0', () => expect(displayCode('1.2', 2, false)).toBe('1.2'))
+  it('skip / 空 → 空串', () => {
+    expect(displayCode('', 1, false)).toBe('')
+    expect(displayCode('1', 1, true)).toBe('')
   })
 })
 
@@ -216,8 +217,8 @@ describe('buildModel 附件区段', () => {
   it('用户自建「附件」章节 → 标题为 null（不重复）', () => {
     const d = detail()
     d.chapters.push({
-      id: 'c3', content_type: 'chapter', title: '附件', code: '3', level: 1, sort_order: 2,
-      skip_numbering: false, mark_status: 'unmarked', rich_content: '', children: [],
+      id: 'c3', title: '附件', code: '3', level: 1, sort_order: 2,
+      skip_numbering: false, mark_status: 'unmarked', children: [],
     })
     d.attachments = [
       { id: 'a1', file_name: '图.pdf', size_bytes: 2048, mime_type: 'application/pdf', created_at: '2026-05-01T00:00:00Z', description: '' },
