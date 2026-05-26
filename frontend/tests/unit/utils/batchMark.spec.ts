@@ -40,7 +40,7 @@ describe('buildSelection', () => {
     expect(r.anchor).toBe('a')
   })
 
-  it('shift 区间：选同父章节/正文，跳过步骤', () => {
+  it('shift 区间：选同父章节/正文/步骤', () => {
     const r = buildSelection({ current: new Set(['a']), anchor: 'a', rows, rowId: 'b', shift: true })
     expect([...r.selection].sort()).toEqual(['a', 'b'])
     expect(r.warnings).toEqual([])
@@ -48,7 +48,7 @@ describe('buildSelection', () => {
 
   it('shift 跨父：仅同父部分入选，跨父忽略并告警', () => {
     const r = buildSelection({ current: new Set(), anchor: 'a', rows, rowId: 'd', shift: true })
-    expect([...r.selection].sort()).toEqual(['a', 'b']) // d 跨父忽略、s1 步骤跳过
+    expect([...r.selection].sort()).toEqual(['a', 'b', 's1']) // d 跨父忽略；s1 现在算同父入选（B 方案）
     expect(r.warnings).toContain('范围跨越了不同父节点，跨父部分已忽略')
   })
 
@@ -71,5 +71,12 @@ describe('buildSelection', () => {
     const current = new Set(Array.from({ length: 100 }, (_, i) => `n${i}`))
     const r = buildSelection({ current, anchor: 'n0', rows, rowId: 'extra', shift: false })
     expect(r.anchor).toBeNull() // 单击把锚点设为 extra，但 extra 被截掉
+  })
+
+  it('shift 区间：同父范围现在包含 step（B 方案）', () => {
+    // a(idx 1) → s1(idx 3) 之间含 b(idx 2)。三者同父 c1，全部入选。
+    const r = buildSelection({ current: new Set(['a']), anchor: 'a', rows, rowId: 's1', shift: true })
+    expect([...r.selection].sort()).toEqual(['a', 'b', 's1'])
+    expect(r.warnings).toEqual([])
   })
 })

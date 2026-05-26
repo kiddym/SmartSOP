@@ -38,7 +38,6 @@ export function buildSelection(params: {
       let crossed = false
       for (let i = lo; i <= hi; i++) {
         const r = rows[i]
-        if (r.kind === 'step') continue
         if (r.parent_id !== anchorParent) {
           crossed = true
           continue
