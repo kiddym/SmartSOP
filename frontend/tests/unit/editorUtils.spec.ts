@@ -12,30 +12,16 @@ import { FORM_TYPES } from '@/types/node'
 
 describe('getAddButtonState — Q25 互斥', () => {
   it('空 parent 三种皆可加', () => {
-    expect(getAddButtonState([])).toEqual({
-      canAddChapter: true,
-      canAddContent: true,
-      canAddStep: true,
-    })
+    expect(getAddButtonState([])).toEqual({ canAddChapter: true, canAddContent: true, canAddStep: true })
   })
-  it('已有 step → 只能加 step', () => {
-    expect(getAddButtonState(['step'])).toEqual({
-      canAddChapter: false,
-      canAddContent: false,
-      canAddStep: true,
-    })
+  it('已有 content → 不能加章节，但能加 step/content', () => {
+    expect(getAddButtonState(['content'])).toEqual({ canAddChapter: false, canAddContent: true, canAddStep: true })
   })
-  it('已有 chapter → 不能加 step', () => {
-    const s = getAddButtonState(['chapter'])
-    expect(s.canAddStep).toBe(false)
-    expect(s.canAddChapter).toBe(true)
-    expect(s.canAddContent).toBe(true)
+  it('已有 step → 不能加章节，能加 step/content', () => {
+    expect(getAddButtonState(['step'])).toEqual({ canAddChapter: false, canAddContent: true, canAddStep: true })
   })
-  it('已有 content → 不能加 step', () => {
-    expect(getAddButtonState(['content']).canAddStep).toBe(false)
-  })
-  it('chapter + content 混排 → 不能加 step', () => {
-    expect(getAddButtonState(['chapter', 'content']).canAddStep).toBe(false)
+  it('已有 chapter → 不能加 step/content', () => {
+    expect(getAddButtonState(['chapter'])).toEqual({ canAddChapter: true, canAddContent: false, canAddStep: false })
   })
 })
 

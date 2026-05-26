@@ -57,7 +57,7 @@ export function recomputeCodes(chapters: EditorChapter[], steps: EditorStep[]): 
   function numberSteps(chapterId: string | null, prefix: string, silent: boolean): void {
     let seq = 0
     for (const st of stepsByChapter.get(chapterId) ?? []) {
-      if (silent || st.skip_numbering) {
+      if (silent || st.skip_numbering || st.kind === 'content') {
         stepCodes.set(st.id, '')
         continue
       }
@@ -69,12 +69,6 @@ export function recomputeCodes(chapters: EditorChapter[], steps: EditorStep[]): 
   function numberChapters(parentId: string | null, parentCode: string, silent: boolean): void {
     let seq = 0
     for (const ch of children.get(parentId) ?? []) {
-      if (ch.content_type === 'content') {
-        chapterCodes.set(ch.id, '')
-        numberChapters(ch.id, '', true)
-        numberSteps(ch.id, '', true)
-        continue
-      }
       if (silent || ch.skip_numbering) {
         chapterCodes.set(ch.id, '')
         numberChapters(ch.id, '', true)
@@ -101,6 +95,7 @@ export function formatCode(params: {
   code: string
   skipNumbering: boolean
 }): string {
+  if (params.kind === 'content') return ''
   if (params.skipNumbering) return '#'
   if (params.code === '') return ''
   if (params.kind === 'chapter' && params.level === 1) return `${params.code}.0`
@@ -112,9 +107,9 @@ export function formatCode(params: {
 export function getAddButtonState(childKinds: NodeKind[]): AddButtonState {
   const types = new Set(childKinds)
   return {
-    canAddChapter: !types.has('step'),
-    canAddContent: !types.has('step'),
-    canAddStep: !types.has('chapter') && !types.has('content'),
+    canAddChapter: !types.has('step') && !types.has('content'),
+    canAddContent: !types.has('chapter'),
+    canAddStep: !types.has('chapter'),
   }
 }
 

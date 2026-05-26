@@ -1,19 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import { formatCode, recomputeCodes } from '@/utils/editor'
-import type { ContentType, EditorChapter, EditorStep } from '@/types/node'
+import type { EditorChapter, EditorStep } from '@/types/node'
 
 function ch(
   id: string,
   parentId: string | null,
   sort: number,
-  opts: { ct?: ContentType; skip?: boolean } = {},
+  opts: { skip?: boolean } = {},
 ): EditorChapter {
   return {
     id,
     parent_id: parentId,
-    content_type: opts.ct ?? 'chapter',
     title: id,
-    rich_content: '',
     skip_numbering: opts.skip ?? false,
     mark_status: 'unmarked',
     sort_order: sort,
@@ -24,6 +22,7 @@ function st(id: string, chapterId: string | null, sort: number, skip = false): E
   return {
     id,
     chapter_id: chapterId,
+    kind: 'step',
     title: id,
     content: '',
     input_schema: { type: 'COMMON' },
@@ -31,6 +30,10 @@ function st(id: string, chapterId: string | null, sort: number, skip = false): E
     skip_numbering: skip,
     sort_order: sort,
   }
+}
+
+function stc(id: string, chapterId: string | null, sort: number): EditorStep {
+  return { ...st(id, chapterId, sort), kind: 'content', content: '<p>x</p>' }
 }
 
 describe('recomputeCodes — §47 客户端镜像', () => {
@@ -48,13 +51,11 @@ describe('recomputeCodes — §47 客户端镜像', () => {
     expect(chapterCodes.get('a1x')).toBe('1.1.1')
   })
 
-  it('content 永远无号且不占序号位', () => {
-    // a(0) / content(1) / b(2) → a=1, content='', b=2
-    const chapters = [ch('a', null, 0), ch('c', null, 1, { ct: 'content' }), ch('b', null, 2)]
-    const { chapterCodes } = recomputeCodes(chapters, [])
-    expect(chapterCodes.get('a')).toBe('1')
-    expect(chapterCodes.get('c')).toBe('')
-    expect(chapterCodes.get('b')).toBe('2')
+  it('内容块步骤无号、不占步骤序号位', () => {
+    const { stepCodes } = recomputeCodes([ch('a', null, 0)], [st('s1', 'a', 0), stc('c', 'a', 1), st('s2', 'a', 2)])
+    expect(stepCodes.get('s1')).toBe('1.1')
+    expect(stepCodes.get('c')).toBe('')
+    expect(stepCodes.get('s2')).toBe('1.2')
   })
 
   it('skip_numbering 章节不计序号 + 子树静默', () => {
