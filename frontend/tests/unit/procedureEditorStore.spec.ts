@@ -5,21 +5,23 @@ import { createPinia, setActivePinia } from 'pinia'
 // 隔离 axios / element-plus 副作用：store 经 api 层间接依赖 http。
 vi.mock('@/api/http', () => ({ http: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
 
-const { markSpy, saveSpy, deleteChapterSpy, deleteStepSpy } = vi.hoisted(() => ({
+const { markSpy, saveSpy, deleteChapterSpy, deleteStepSpy, moveChapterSpy, moveStepSpy } = vi.hoisted(() => ({
   markSpy: vi.fn(),
   saveSpy: vi.fn(),
   deleteChapterSpy: vi.fn(),
   deleteStepSpy: vi.fn(),
+  moveChapterSpy: vi.fn(),
+  moveStepSpy: vi.fn(),
 }))
 vi.mock('@/api/chapters', () => ({
   setChapterMarkStatus: markSpy,
   createChapter: vi.fn(),
   deleteChapter: deleteChapterSpy,
-  moveChapter: vi.fn(),
+  moveChapter: moveChapterSpy,
   convertChapterToStep: vi.fn(),
   convertRootToStep: vi.fn(),
 }))
-vi.mock('@/api/steps', () => ({ deleteStep: deleteStepSpy, moveStep: vi.fn(), convertStepToChapter: vi.fn() }))
+vi.mock('@/api/steps', () => ({ deleteStep: deleteStepSpy, moveStep: moveStepSpy, convertStepToChapter: vi.fn() }))
 vi.mock('@/api/procedures', () => ({
   fetchProcedureDetail: vi.fn(),
   saveProcedure: saveSpy,
@@ -115,6 +117,8 @@ beforeEach(() => {
   saveSpy.mockReset()
   deleteChapterSpy.mockReset().mockResolvedValue({})
   deleteStepSpy.mockReset().mockResolvedValue({})
+  moveChapterSpy.mockReset().mockResolvedValue({})
+  moveStepSpy.mockReset().mockResolvedValue({})
 })
 
 describe('新增节点', () => {
@@ -697,5 +701,65 @@ describe('deleteNode 本地化（Tier 1）', () => {
     expect([...s.deletedStepIds]).toEqual(['s1'])
     expect(deleteStepSpy).not.toHaveBeenCalled()
     expect(s.stepMap.has('s1')).toBe(false)
+  })
+})
+
+describe('moveCrossParent 本地化（Tier 1）', () => {
+  it('章节跨父：parent_id 与两侧 sort_order 重排，置脏，不发请求', async () => {
+    const s = seed()
+    // 两个根：a（含 a1, a2）、b（含 b1）
+    s.chapters = [
+      chap('a', null, 0),
+      chap('b', null, 1),
+      chap('a1', 'a', 0),
+      chap('a2', 'a', 1),
+      chap('b1', 'b', 0),
+    ]
+    // 把 a1 移到 b 下，索引 0（变成 b 的首子）
+    await s.moveCrossParent('a1', 'b', 0)
+    expect(moveChapterSpy).not.toHaveBeenCalled()
+    expect(s.chapterMap.get('a1')!.parent_id).toBe('b')
+    // 新父组 (b 下) 应为 [a1, b1]，sort_order 0..1
+    const bGroup = s.chapters.filter((c) => c.parent_id === 'b').sort((x, y) => x.sort_order - y.sort_order)
+    expect(bGroup.map((c) => c.id)).toEqual(['a1', 'b1'])
+    expect(bGroup.map((c) => c.sort_order)).toEqual([0, 1])
+    // 原父组 (a 下) 应只剩 a2，sort_order 重排为 0
+    const aGroup = s.chapters.filter((c) => c.parent_id === 'a').sort((x, y) => x.sort_order - y.sort_order)
+    expect(aGroup.map((c) => c.id)).toEqual(['a2'])
+    expect(aGroup.map((c) => c.sort_order)).toEqual([0])
+    // 三个被触碰的章节都进入 dirty
+    expect(s.dirtyChapters.has('a1')).toBe(true)
+    expect(s.dirtyChapters.has('a2')).toBe(true)
+    expect(s.dirtyChapters.has('b1')).toBe(true)
+  })
+
+  it('章节跨父可撤销', async () => {
+    const s = seed()
+    s.chapters = [
+      chap('a', null, 0),
+      chap('b', null, 1),
+      chap('a1', 'a', 0),
+    ]
+    await s.moveCrossParent('a1', 'b', 0)
+    s.undo()
+    expect(s.chapterMap.get('a1')!.parent_id).toBe('a')
+    expect(s.chapterMap.get('a1')!.sort_order).toBe(0)
+  })
+
+  it('步骤跨父：chapter_id 与两侧 sort_order 重排，置脏，不发请求', async () => {
+    const s = seed()
+    s.steps = [stp('s1', 'a', 0), stp('s2', 'a', 1), stp('s3', 'b', 0)]
+    await s.moveCrossParent('s1', 'b', 1)
+    expect(moveStepSpy).not.toHaveBeenCalled()
+    expect(s.stepMap.get('s1')!.chapter_id).toBe('b')
+    const bSteps = s.steps.filter((x) => x.chapter_id === 'b').sort((x, y) => x.sort_order - y.sort_order)
+    expect(bSteps.map((x) => x.id)).toEqual(['s3', 's1'])
+    expect(bSteps.map((x) => x.sort_order)).toEqual([0, 1])
+    const aSteps = s.steps.filter((x) => x.chapter_id === 'a').sort((x, y) => x.sort_order - y.sort_order)
+    expect(aSteps.map((x) => x.id)).toEqual(['s2'])
+    expect(aSteps.map((x) => x.sort_order)).toEqual([0])
+    expect(s.dirtySteps.has('s1')).toBe(true)
+    expect(s.dirtySteps.has('s2')).toBe(true)
+    expect(s.dirtySteps.has('s3')).toBe(true)
   })
 })

@@ -10,10 +10,9 @@ import { fetchProcedureDetail, saveProcedure, applyMarks } from '@/api/procedure
 import {
   convertChapterToStep,
   convertRootToStep,
-  moveChapter as moveChapterApi,
   setChapterMarkStatus,
 } from '@/api/chapters'
-import { convertStepToChapter, moveStep as moveStepApi } from '@/api/steps'
+import { convertStepToChapter } from '@/api/steps'
 import {
   computeFallback,
   formatCode,
@@ -738,16 +737,74 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       await this.reload()
     },
 
-    async moveCrossParent(id: string, targetParentId: string | null, targetIndex: number): Promise<void> {
-      const map = await this.ensureSaved()
-      const realId = map[id] ?? id
-      const realParent = targetParentId ? (map[targetParentId] ?? targetParentId) : null
-      if (this.chapterMap.has(realId)) {
-        await moveChapterApi(realId, { target_parent_id: realParent, target_index: targetIndex })
+    // 跨父移动：本地写 parent_id (或 chapter_id) + 两侧组重排 sort_order，置脏，可撤销。
+    // 客户端 DnD 层（utils/treeDnd.ts）已挡住环 / 三级深度 / Q25 同父类型互斥，store 不再二次校验。
+    moveCrossParent(id: string, targetParentId: string | null, targetIndex: number): void {
+      const ch = this.chapterMap.get(id)
+      const st = ch ? null : this.stepMap.get(id)
+      if (!ch && !st) return
+      this.pushUndo()
+      if (ch) {
+        const oldParent = ch.parent_id
+        ch.parent_id = targetParentId
+        this.resequenceChapterGroup(oldParent)
+        this.resequenceChapterGroupWithInsert(targetParentId, id, targetIndex)
       } else {
-        await moveStepApi(realId, { target_chapter_id: realParent, target_index: targetIndex })
+        const oldChapter = st!.chapter_id
+        st!.chapter_id = targetParentId
+        this.resequenceStepGroup(oldChapter)
+        this.resequenceStepGroupWithInsert(targetParentId, id, targetIndex)
       }
-      await this.reload()
+    },
+
+    // 把指定 parent_id 下的章节按当前顺序重写 sort_order = 0..n，全部置脏。
+    resequenceChapterGroup(parentId: string | null): void {
+      const group = this.chapters
+        .filter((c) => c.parent_id === parentId)
+        .sort((a, b) => (a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1))
+      group.forEach((c, i) => {
+        c.sort_order = i
+        this.dirtyChapters.add(c.id)
+      })
+    },
+
+    // 把指定 parent_id 下的章节排序后，将 movedId 插入到 targetIndex，重写 sort_order = 0..n，全部置脏。
+    resequenceChapterGroupWithInsert(parentId: string | null, movedId: string, targetIndex: number): void {
+      const cmp = (a: EditorChapter, b: EditorChapter): number =>
+        a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1
+      const others = this.chapters.filter((c) => c.parent_id === parentId && c.id !== movedId).sort(cmp)
+      const moved = this.chapterMap.get(movedId)
+      if (!moved) return
+      const clamped = Math.max(0, Math.min(targetIndex, others.length))
+      others.splice(clamped, 0, moved)
+      others.forEach((c, i) => {
+        c.sort_order = i
+        this.dirtyChapters.add(c.id)
+      })
+    },
+
+    resequenceStepGroup(chapterId: string | null): void {
+      const group = this.steps
+        .filter((s) => s.chapter_id === chapterId)
+        .sort((a, b) => (a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1))
+      group.forEach((st, i) => {
+        st.sort_order = i
+        this.dirtySteps.add(st.id)
+      })
+    },
+
+    resequenceStepGroupWithInsert(chapterId: string | null, movedId: string, targetIndex: number): void {
+      const cmp = (a: EditorStep, b: EditorStep): number =>
+        a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.id < b.id ? -1 : 1
+      const others = this.steps.filter((s) => s.chapter_id === chapterId && s.id !== movedId).sort(cmp)
+      const moved = this.stepMap.get(movedId)
+      if (!moved) return
+      const clamped = Math.max(0, Math.min(targetIndex, others.length))
+      others.splice(clamped, 0, moved)
+      others.forEach((st, i) => {
+        st.sort_order = i
+        this.dirtySteps.add(st.id)
+      })
     },
 
     // ---- 标记模式 / 层级标定模式（互斥） ---- //
