@@ -7,7 +7,7 @@ import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { isTempId } from '@/utils/editor'
 import { nextReviewId, nextRowId } from '@/utils/reviewNav'
-import { buildSelection } from '@/utils/batchMark'
+import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { computeDrop, validDrop, type DndTree } from '@/utils/treeDnd'
 import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
 
@@ -220,6 +220,50 @@ async function onDrop(row: FlatRow): Promise<void> {
 // ---- 标记模式批量选择 ---- //
 const markSel = ref<Set<string>>(new Set())
 const lastChecked = ref<string | null>(null)
+
+// ---- 标记模式：后代映射（DFS 全子树，忽略折叠/过滤） ---- //
+// 每个 chapter id → 其全部后代 id（含 chapter / content / step）。
+// rebuild 触发：chapters / steps 任意属性变（结构 + 非结构，Pinia 响应式追踪）。
+const descendantsByChapter = computed<Map<string, string[]>>(() => {
+  const childChapters = new Map<string | null, string[]>()
+  for (const c of store.chapters) {
+    const g = childChapters.get(c.parent_id) ?? []
+    g.push(c.id)
+    childChapters.set(c.parent_id, g)
+  }
+  const childSteps = new Map<string | null, string[]>()
+  for (const s of store.steps) {
+    const g = childSteps.get(s.chapter_id) ?? []
+    g.push(s.id)
+    childSteps.set(s.chapter_id, g)
+  }
+  const out = new Map<string, string[]>()
+  const dfs = (id: string): string[] => {
+    const acc: string[] = []
+    for (const cid of childChapters.get(id) ?? []) {
+      acc.push(cid, ...dfs(cid))
+    }
+    for (const sid of childSteps.get(id) ?? []) {
+      acc.push(sid)
+    }
+    return acc
+  }
+  for (const c of store.chapters) out.set(c.id, dfs(c.id))
+  return out
+})
+
+// 半选集合：descendant 命中数 ∈ (0, total) 的 chapter id。chapter 自身是否在 selection 不影响半选判定。
+const indeterminateSet = computed<Set<string>>(() => {
+  const out = new Set<string>()
+  for (const [chId, desc] of descendantsByChapter.value) {
+    if (desc.length === 0) continue
+    let hit = 0
+    for (const id of desc) if (markSel.value.has(id)) hit++
+    if (hit > 0 && hit < desc.length) out.add(chId)
+  }
+  return out
+})
+
 watch(
   () => store.markMode,
   (on) => {
@@ -230,6 +274,24 @@ watch(
   },
 )
 function onCheck(row: FlatRow, shift: boolean): void {
+  // 章节 + 非 shift：级联。action 由当前状态判定——checked → deselect；其它（unchecked / indeterminate）→ select。
+  if (row.kind === 'chapter' && !shift) {
+    const desc = descendantsByChapter.value.get(row.id) ?? []
+    const isChecked = markSel.value.has(row.id) && !indeterminateSet.value.has(row.id)
+    const action: 'select' | 'deselect' = isChecked ? 'deselect' : 'select'
+    const res = buildCascadeSelection({
+      current: markSel.value,
+      anchor: lastChecked.value,
+      rootId: row.id,
+      descendantIds: desc,
+      action,
+    })
+    markSel.value = res.selection
+    lastChecked.value = res.anchor
+    for (const w of res.warnings) ElMessage.warning(w)
+    return
+  }
+  // 其它情况（叶子 / shift）：走原 buildSelection
   const res = buildSelection({
     current: markSel.value,
     anchor: lastChecked.value,
@@ -243,10 +305,24 @@ function onCheck(row: FlatRow, shift: boolean): void {
 }
 async function applyBatch(status: 'step' | 'content'): Promise<void> {
   const ids = [...markSel.value]
-  // 先保存待存改动，把临时 id 解析为真实 id，再逐个写后端（避免 404 + 标记静默丢失）。
+  // 先保存待存改动并拿到 temp→real id 映射；再按行 kind 分发。
   const map = await store.ensureSaved()
-  for (const id of ids) await store.setMark(map[id] ?? id, status)
-  ElMessage.success(`已标记 ${ids.length} 项`)
+  let inplace = 0
+  for (const id of ids) {
+    const real = map[id] ?? id
+    const ch = store.chapterMap.get(real)
+    if (ch) {
+      await store.setMark(real, status)
+      continue
+    }
+    const st = store.stepMap.get(real)
+    if (st && st.kind !== status) {
+      store.setStepKind(real, status)
+      inplace++
+    }
+    // 已是目标 kind 的 step/content：跳过
+  }
+  ElMessage.success(`已标记 ${ids.length} 项${inplace ? `（${inplace} 项就地转换）` : ''}`)
   markSel.value = new Set()
 }
 async function clearMarks(): Promise<void> {
@@ -357,6 +433,7 @@ defineExpose({ focusSearch })
           :selected="store.selectedId === row.id"
           :mark-mode="store.markMode"
           :selected-for-mark="markSel.has(row.id)"
+          :indeterminate="indeterminateSet.has(row.id)"
           :add-state="addStateFor(row)"
           :editable="store.editable"
           :can-move-up="moveFlags.get(row.id)?.up ?? false"

@@ -1,5 +1,5 @@
 // 标记模式批量选择的纯逻辑（从 ChapterTreePanel 抽出，便于单测）。
-// 步骤不参与标记；shift 区间仅选与锚点同父的章节/正文，跨父忽略；单次最多 100 项。
+// shift 区间选与锚点同父的章节/正文/步骤，跨父忽略；单次最多 100 项。
 import type { FlatRow } from '@/types/node'
 
 export const MAX_BATCH_MARK = 100
@@ -38,7 +38,6 @@ export function buildSelection(params: {
       let crossed = false
       for (let i = lo; i <= hi; i++) {
         const r = rows[i]
-        if (r.kind === 'step') continue
         if (r.parent_id !== anchorParent) {
           crossed = true
           continue
@@ -56,6 +55,43 @@ export function buildSelection(params: {
   if (sel.size > MAX_BATCH_MARK) {
     const trimmed = new Set([...sel].slice(0, MAX_BATCH_MARK))
     if (nextAnchor && !trimmed.has(nextAnchor)) nextAnchor = null
+    warnings.push(`单次最多标记 ${MAX_BATCH_MARK} 项，已保留前 ${MAX_BATCH_MARK} 项`)
+    return { selection: trimmed, anchor: nextAnchor, warnings }
+  }
+  return { selection: sel, anchor: nextAnchor, warnings }
+}
+
+/** 章节级联选择参数。
+ * - rootId：被点击的章节 id（自身也会被加入/移除）。
+ * - descendantIds：rootId 的全部后代 id（含 chapter / content / step；DFS 顺序由调用方决定）。
+ * - action：select 加入；deselect 移除。半选/未选/全选的判定在调用方，这里只执行结果。
+ * - 100 项上限沿用 buildSelection 的策略：按 Set 插入顺序保留前 100，告警；锚点若被截则 null。
+ */
+export interface CascadeParams {
+  current: ReadonlySet<string>
+  anchor: string | null
+  rootId: string
+  descendantIds: readonly string[]
+  action: 'select' | 'deselect'
+}
+
+export function buildCascadeSelection(p: CascadeParams): SelectionUpdate {
+  const { current, rootId, descendantIds, action } = p
+  const sel = new Set(current)
+  const warnings: string[] = []
+
+  if (action === 'select') {
+    sel.add(rootId)
+    for (const id of descendantIds) sel.add(id)
+  } else {
+    sel.delete(rootId)
+    for (const id of descendantIds) sel.delete(id)
+  }
+
+  let nextAnchor: string | null = rootId
+  if (sel.size > MAX_BATCH_MARK) {
+    const trimmed = new Set([...sel].slice(0, MAX_BATCH_MARK))
+    if (!trimmed.has(nextAnchor)) nextAnchor = null
     warnings.push(`单次最多标记 ${MAX_BATCH_MARK} 项，已保留前 ${MAX_BATCH_MARK} 项`)
     return { selection: trimmed, anchor: nextAnchor, warnings }
   }
