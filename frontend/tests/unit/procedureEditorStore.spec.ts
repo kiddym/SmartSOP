@@ -627,7 +627,7 @@ describe('exportDraft / importDraft 含删除集合', () => {
   })
 
   it('importDraft 还原 deletedChapterIds / deletedStepIds', () => {
-    const s = seed()
+    seed()
     const s2 = useProcedureEditorStore()
     s2.importDraft({
       procedure: meta(),
