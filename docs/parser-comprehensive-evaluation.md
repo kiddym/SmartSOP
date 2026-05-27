@@ -146,9 +146,11 @@
 
 ### L2 架构重构（中期）
 
+> **重要 — L2-1 撤回**：见下面 §3.5「L2 设计抉择记录」。L2-1「段内切分」违反 spec §6 顺序保真不变量与"parser 不改原结构"设计原则，已正式否决，不在本节考虑。
+
 | 建议 | 预期收益 | 改造代价 | 风险与缓解 |
 |---|---|---|---|
-| **Normalizer 加可选"段内切分"前置** | 融合式 `3.1质量部...一长段` 当前作为整段 title + content 留在 chapter title 里（用户看到 chapter 标题就是整段文本）。如果加 SplitByLeadingNumber 前置：把 `N.N <短标题>：<长正文>` 切成 NumberLeadHeading + ContentParagraph 两个 IR 块。eval R 可能再 +0.05，UX 更清爽（chapter 标题短）。 | 1 周；需重做 import_blocks 形态 + 前端编辑器适配 | 高（P3 风险）：动 IR 块流契约，前端 store 假设会破。每改一处需走 §5 MCP 抽样验收。建议先在 backend feature flag 后实现，灰度切换。 |
+| ~~**Normalizer 加可选"段内切分"前置**~~ | ~~融合式 `3.1质量部...一长段` ...~~ | ~~~~ | ~~~~ |
 | **ConfidenceScorer 独立阶段** | 当前置信度计算嵌在 `_classify_heading` 内，与"是不是 chapter"判断耦合。拆出 Stage 2a (HeadingDetector) + Stage 2b (ConfidenceScorer) 两个独立 stage，每个可独立 ablation。本闭环 r2 改动如果有独立 scorer 会更干净（不用 trace 多个 if 分支）。 | 1 周；新增 stage interface + 单测 | 中：API 维持不变（仍输出 chapters[] + confidence_tier），仅内部重构。失败模式：scorer 与 detector 状态共享退化 |
 | **Tier 升级"链"机制** | 当前 Tier 1（HIGH）走 styles，Tier 2（MEDIUM）走启发式，没有清晰的 fallback 链。改成 `ResolverChain = [StyleResolver, SynonymResolver, OutlineResolver, HeuristicResolver]`，每个 resolver 独立返回 (level, conf, src) or None；第一个返回的就是结果。代码可读性 +1，将来加 ML resolver 无需改主路径。 | 3-4 个工作日 | 低：与 styles.classify_with_source 现有四级反查机制对齐 |
 
@@ -162,6 +164,48 @@
 ### 每条建议自评（spec §6.6 必填）
 
 每条建议下面 **预期收益（文档名+模式）/ 改造代价 / 回归风险与缓解** 三项已在表内完整覆盖。
+
+---
+
+### 3.5 L2 设计抉择记录（撤回 L2-1）
+
+**抉择**：L2-1「Normalizer 加可选段内切分前置」**永久否决**，不在未来路线上。
+
+**底层原则**：**Parser 是"忠实表达者"，不是"编辑者"**
+
+| 边界 | Parser 该做 | Parser 不该做 |
+|---|---|---|
+| 段落粒度 | 1 docx paragraph ↔ 1 IR block ↔ 1 ParsedNode | 切分 / 合并段落 |
+| 标题判定 | 二元判定：本段是 heading 还是 content（按 styles / 编号 / 启发式）| 推断"前 5 字是标题、后 80 字是内容"|
+| 顺序 | 按 docx 原序输出 | 重排、归位 |
+| 内容改写 | 0（HTML 透传）| 改文本、补缺、删冗 |
+
+该原则与 spec [`word-parser-solution.md`](word-parser-solution.md) §6 顺序保真不变量一致：
+
+> IR 块流 = 原 docx XML child order 的同构投影。Normalizer 不重排，Structurer 仅在标题位置切分章节，不重排内容块。
+
+**为什么 L2-1 违反此原则**：
+
+- L2-1 把原 docx 1 个段落（如 `3.1质量部是记录的归口管理部门...`）切成 IR 中 2 个块（heading "3.1 质量部" + content "是记录..."）
+- 这是 **1:N 解读**，不是 **1:1 投影**
+- 切分点判定（"："/"。"/"，" 之后？前 N 字？）是**算法替用户做的编辑决策**，违反"决策权归用户"
+
+**该问题的正确解决路径 — UI 侧（不动 parser）**：
+
+| 问题 | UI 解决方式 | 实现负担 |
+|---|---|---|
+| 融合式 chapter 标题过长撑爆树 | 树标题字段超 N 字截断 + tooltip 显示全文 | 纯展示，0 数据改动 |
+| 用户想把长标题改为内容 | 类型转换按钮：chapter → content（已有"标记模式"基础设施）| UI 增强 |
+| 用户想拆"前缀作标题、后缀作内容" | 编辑器内手势：选中分隔符位置后按热键 split | UI 增强 |
+| 用户想批量处理同模式的融合式段 | 复用 `detected_patterns` + 模式批量提升 UI | UI 已有，需打磨 |
+
+**决策权归属**是关键区别：UI 切分是**用户主导**，parser 切分是**算法猜**。本原则要前者。
+
+**对未来路线的影响**：
+
+- L2-1 永久否决
+- L2-2 ConfidenceScorer / L2-3 ResolverChain 不违反原则，但因无紧迫痛点，暂缓
+- 融合式相关 UX 改进转向**前端编辑能力增强**，单独 spec 处理（见 [`docs/superpowers/specs/2026-05-27-frontend-editing-affordances-design.md`](superpowers/specs/2026-05-27-frontend-editing-affordances-design.md)）
 
 ---
 
