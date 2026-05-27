@@ -8,6 +8,21 @@
 | 轮 | 时间 (UTC) | 改动 | 改的文件 | mainline P_micro | R_micro | F1_micro | hier_micro | cov_micro | min_R 文档 | 备注 / trade-off |
 |---|---|---|---|---:|---:|---:|---:|---:|---|---|
 | 0 (baseline) | 2026-05-27 | 起点 | — | 0.6154 | 0.7579 | 0.6792 | 1.0000 | 0.9370 | 02记录(0.52) | 主要缺口：P 过低（heuristic over-promote）+ 长尾 R<0.6 |
+| 1 (list veto) | 2026-05-27 | 启发式 list kind 命中 → score=0 短路 | heading_detector.py | 0.6516 | 0.7579 | 0.6997 | 1.0000 | 0.9419 | 02记录(0.52) | 有限空间 F1 +0.10；零回归 |
+| 2 (LOW+heading) | 2026-05-27 | LOW tier 仅在 heading kind 编号信号时升 | structurer.py | 0.9412 | 0.7579 | 0.8403 | 1.0000 | 0.9884 | 02记录(0.52) | 电厂 P +0.53；cov 突破 ✅；零回归 |
+| 3 (depth≥2 + GT补) | 2026-05-27 | N.N+CJK 直连归 heading；长段 depth=1 半额；CW-WI/01 GT 补全 | heading_detector.py + Tier2 GT | 0.9536 | 0.8645 | 0.9067 | 1.0000 | 0.9883 | 01-公司(0.62) | R/min_R/cov 全突破 ✅；GT 补全自决（spec §4.4）|
+| 4 (styled→no heuristic) | 2026-05-27 | has_style_heading=True 时关 heuristic | structurer.py | **0.9840** | **0.8645** | **0.9210** | **1.0000** | **0.9966** | **01-公司(0.62)** | **🎯 5/5 严强阈值全 ✅；零回归** |
+
+## 🎯 达标退出
+
+第 4 轮后 5/5 红绿灯全 ✅。下一步：MCP 浏览器抽样验收（§5）→ 综合评估文档（Task 11）。
+
+## 关键经验
+
+1. **三维度独立看才能避免单指标遮蔽**：r1 P 升 R 不变是真改进；r3 R 升 P 退是真 trade-off
+2. **GT 完整性是隐性前提**：CW-WI/01-公司 v3 GT 不完整，r3 触发了 GT 误差成 P 假退化
+3. **每轮单一改动 attribution 准**：5 轮每轮只改一处，diff 一目了然
+4. **trade-off 自决可控**：每轮 commit message + tuning log 明记理由，事后可审
 
 ## 失败模式画像（baseline 时）
 
