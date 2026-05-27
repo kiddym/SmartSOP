@@ -198,6 +198,18 @@ heading_synonyms:
 
 **IR 块流 = 原 docx XML child order 的同构投影**。Normalizer 不重排，Structurer 仅在标题位置切分章节，不重排内容块。完整性校验 C005 对每章节的 `(type, source_ref.xpath)` 序列与原 XML 访问序列对账，差异需为 0。
 
+### 6.1 段落粒度 1:1（强化条款，2026-05-27）
+
+**原 docx 1 个 `<w:p>` 段落 ↔ IR 1 个 Block ↔ ParsedNode 1 个节点**。不允许：
+
+- 把"号+正文同段"的融合式段落（如 `3.1质量部是记录的归口管理部门...`）切成 heading + content 两块
+- 把多个相邻段落合并为一块
+- 在段落内做任何重写、补字、删字、归一标点之外的内容改动
+
+理由：parser 的角色是**"忠实表达"**，不是**"编辑"**。融合式段落的可读性问题（标题过长、content 节点空）属于编辑器 UX 范畴，由前端的「类型转换 / 手势切分 / 模式批量」用户主导操作解决，不在 parser 范围。决策权归属是这条边界的核心：UI 切分=用户主导；parser 切分=算法猜测，违反 §C.0 「人机分工」。
+
+详见 [`parser-comprehensive-evaluation.md`](parser-comprehensive-evaluation.md) §3.5「L2 设计抉择记录」。
+
 ---
 
 ## 7. Serializer：富文本 schema
