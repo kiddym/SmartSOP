@@ -127,9 +127,15 @@ def score_block(block: Block, stats: DocStats) -> tuple[float, int, str]:
         return 0.0, 1, "heuristic"
 
     num = classify_numbering(text)
+    # ── list 标记 hard veto：(一)/N) 等列表项即便短+粗+大字号也不能升 heading ──
+    # 否则其它信号累积可达 MEDIUM (0.5+)，结构器会误升 chapter。
+    # 见 eval-r1 调参：有限空间作业 FP 14/35 是 (一)~(六) 项；危险源 FP 中也有 N) 项。
+    if num is not None and num.kind == "list":
+        return 0.0, 1, "heuristic"
+
     is_short = len(text) <= _SHORT_LEN
     score = 0.0
-    level = num.level if (num and num.kind != "list") else 1
+    level = num.level if num else 1
 
     # 字号相对化（单一字号时归零）
     if (

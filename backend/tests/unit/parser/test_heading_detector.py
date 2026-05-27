@@ -84,6 +84,27 @@ def test_heuristic_never_reaches_high() -> None:
     assert score <= 0.84  # 启发式封顶，永不自动 HIGH
 
 
+def test_list_marker_is_hard_veto_regardless_of_other_signals() -> None:
+    """eval-r1：(一)/(N)/N) list 标记是 hard veto——即便 bold+短+大字号也不能升 heading。
+
+    背景：有限空间作业管理办法.docx 35 个 FP 中 (一)~(六) 等共 ~15 个，
+    它们 kind='list' 但其它信号累积仍可达 MEDIUM (0.5+) 被结构器升 chapter。
+    """
+    stats = hd.DocStats(font_p85=12.0, single_font=False)
+    for text in [
+        "(一)落实国家法律法规、标准规范对有限空间作业的要求;",
+        "（1）子项",
+        "1) 子项",
+        "1）子项",
+    ]:
+        # 即便加粗 + 大字号 + 短段全开，list marker 必须 score < LOW
+        blk = _para(text, bold=1.0, font=22.0)
+        score, _, _ = hd.score_block(blk, stats)
+        assert score < hd.LOW, (
+            f"list marker {text!r} 应 hard veto (score < {hd.LOW})，实际 {score:.2f}"
+        )
+
+
 # --------------------------------------------------------------------------- #
 # detected_patterns（按编号前缀归组）
 # --------------------------------------------------------------------------- #
