@@ -6,7 +6,7 @@
 // 编号 code 用 utils.recomputeCodes 客户端镜像实时预览；保存用 id_map 就地改名，避免整页刷新。
 
 import { defineStore } from 'pinia'
-import { fetchProcedureDetail, saveProcedure, applyMarks } from '@/api/procedures'
+import { fetchProcedureDetail, saveProcedure, applyMarks, applyLayerRolesApi } from '@/api/procedures'
 import {
   convertChapterToStep,
   convertRootToStep,
@@ -44,10 +44,6 @@ const CONTENT_MAX_BYTES = 5 * 1024 * 1024 // 富文本总量上限（CONTENT_TOO
 
 function byteLength(s: string): number {
   return typeof TextEncoder !== 'undefined' ? new TextEncoder().encode(s).length : s.length
-}
-
-function escapeHtml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 interface Snapshot {
@@ -254,7 +250,6 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
             kind: 'chapter',
             level: levels.get(c.id) ?? 1,
             hasLeafChildren: hasStep.has(c.id),
-            originalParent: c.parent_id,
           })
           walk(c.id)
         }
@@ -264,7 +259,6 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
             kind: s.kind === 'content' ? 'content' : 'step',
             level: 0,
             hasLeafChildren: false,
-            originalParent: s.chapter_id,
           })
         }
       }
@@ -870,63 +864,35 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       const conflicts = validateLayerQ25(rows, updates)
       if (conflicts.length > 0) return { ok: false, conflicts }
 
-      // 先持久化所有临时节点；temp id 解析到真实 id
       const idMap = await this.ensureSaved()
       this.pushUndo('layer')
 
-      // 第一步：叶子提升为章节（API 调用）。每次后 reload 把本地状态拉齐。
-      // 提升用 leaf 的当前 chapter_id 作为 parent；新章节 level = parent.level + 1（后端决定）。
-      const hasPromotions = [...updates.values()].some((u) => u.kind === 'to-chapter')
-      for (const row of rows) {
-        if (row.kind === 'chapter') continue
-        const u = updates.get(row.id)
-        if (!u || u.kind !== 'to-chapter') continue
-        const realId = idMap[row.id] ?? row.id
-        await convertStepToChapter(realId)
-      }
-      if (hasPromotions) {
-        await this.reload()
+      const resolvedRoles: Record<string, LayerRole> = {}
+      for (const [id, role] of roleMap) {
+        resolvedRoles[idMap[id] ?? id] = role
       }
 
-      // 第二步：章节重排 + chapter→content（in-memory；保存阶段统一 flush）。
-      // reload 后的 chapter ID 与原 ID 相同（升级会改 step ID 但不影响 chapter ID），
-      // 所以同样的 updates 仍适用于此阶段的章节项。
-      const clearReview: string[] = []
-      const toContent: { id: string; parent_id: string | null; sort_order: number; title: string }[] = []
-      for (const [id, u] of updates) {
-        if (u.kind === 'reorder') {
-          const ch = this.chapterMap.get(id)
-          if (!ch) continue
-          if (ch.mark_status === 'review') clearReview.push(id)
-          ch.parent_id = u.parent_id
-          ch.sort_order = u.sort_order
-          this.dirtyChapters.add(id)
-        } else if (u.kind === 'to-content') {
-          const ch = this.chapterMap.get(id)
-          if (!ch) continue
-          if (ch.mark_status === 'review') clearReview.push(id)
-          toContent.push({ id, parent_id: u.parent_id, sort_order: u.sort_order, title: ch.title })
+      try {
+        await applyLayerRolesApi(this.procedure!.id, { roles: resolvedRoles }, this.revision)
+      } catch (e: unknown) {
+        // 后端 400 SIBLING_TYPE_CONFLICT 详情: { code, message, conflicts: [...] }
+        const detail = (e as { response?: { status?: number; data?: { detail?: { code?: string; conflicts?: unknown[] } } } })?.response?.data?.detail
+        if (detail?.code === 'SIBLING_TYPE_CONFLICT' && Array.isArray(detail.conflicts)) {
+          const conflicts: LayerConflict[] = detail.conflicts.map((c: unknown) => {
+            const cc = c as { parent_id: string | null; chapter_children: string[]; leaf_children: string[] }
+            return {
+              parent_id: cc.parent_id,
+              chapterChildren: cc.chapter_children,
+              leafChildren: cc.leaf_children,
+            }
+          })
+          return { ok: false, conflicts }
         }
-        // to-chapter 已在第一步完成；leaf-reparent 由 reload 后基于 chapter 重排自然形成（leaf 的 chapter_id 在 DB 未变）。
+        throw e
       }
-      for (const t of toContent) {
-        this.removeNodeLocal(t.id)
-        const sid = genTempId()
-        this.steps.push({
-          id: sid,
-          chapter_id: t.parent_id,
-          kind: 'content',
-          title: '',
-          content: t.title.trim() ? `<p>${escapeHtml(t.title)}</p>` : '',
-          input_schema: {} as InputSchema,
-          attachment_marks: [],
-          skip_numbering: false,
-          sort_order: t.sort_order,
-        })
-        this.dirtySteps.add(sid)
-      }
+
+      await this.reload()
       this.layerMode = false
-      for (const id of clearReview) void this.setMark(id, 'unmarked')
       return { ok: true }
     },
 

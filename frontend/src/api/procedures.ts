@@ -1,6 +1,6 @@
 import { http } from './http'
 import type { BatchDeleteResult, PageResult } from '@/types/common'
-import type { ApplyMarksResult } from '@/types/node'
+import type { ApplyMarksResult, LayerApplyIn, LayerApplyResult } from '@/types/node'
 import type { PdfLayout } from '@/types/pdf'
 import type {
   BatchMoveResult,
@@ -72,6 +72,19 @@ export const saveProcedure = async (
 // 应用标记（原子事务，Q9）。无 If-Match：服务端自行 bump revision，调用方应随后 reload 同步。
 export const applyMarks = async (id: string): Promise<ApplyMarksResult> =>
   (await http.post<ApplyMarksResult>(`/procedures/${id}/apply-marks`)).data
+
+// 层级标定批量应用(事务性)。If-Match 头携带当前 revision;
+// 后端 walk + 校验 + Phase A-D + recompute + bump。
+export const applyLayerRolesApi = async (
+  id: string,
+  payload: LayerApplyIn,
+  revision: number,
+): Promise<LayerApplyResult> =>
+  (
+    await http.post<LayerApplyResult>(`/procedures/${id}/apply-layer-roles`, payload, {
+      headers: { 'If-Match': String(revision) },
+    })
+  ).data
 
 export const transitionProcedure = async (
   id: string,

@@ -204,3 +204,29 @@ class SplitTitleContentIn(BaseModel):
     """章节标题拆分请求：cursor_offset 必须在 (0, len(title)) 开区间内。"""
 
     cursor_offset: int = Field(..., gt=0)
+
+
+# --------------------------------------------------------------------------- #
+# 层级标定批量应用（Phase 6）
+# --------------------------------------------------------------------------- #
+class LayerApplyIn(BaseModel):
+    """层级标定批量应用请求(spec §3.1)。
+    roles 仅传需要明确角色的节点;未传节点视为 keep(叶子)/默认(章节)。
+    """
+
+    roles: dict[str, Literal["chapter_1", "chapter_2", "chapter_3", "content", "keep"]] = Field(
+        default_factory=dict
+    )
+
+
+class LayerConflictOut(BaseModel):
+    parent_id: str | None
+    chapter_children: list[str]
+    leaf_children: list[str]
+
+
+class LayerApplyResult(BaseModel):
+    """成功:返回本 batch leaf→new_chapter 映射 + 新 revision。"""
+
+    chapter_map: dict[str, str] = Field(default_factory=dict)
+    revision: int

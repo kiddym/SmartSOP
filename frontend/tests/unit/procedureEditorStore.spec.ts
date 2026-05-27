@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 
 // 隔离 axios / element-plus 副作用：store 经 api 层间接依赖 http。
@@ -28,6 +27,7 @@ vi.mock('@/api/procedures', () => ({
   fetchProcedureDetail: vi.fn(),
   saveProcedure: saveSpy,
   applyMarks: vi.fn(),
+  applyLayerRolesApi: vi.fn(async () => ({ chapter_map: {}, revision: 4 })),
 }))
 
 import { useProcedureEditorStore } from '@/store/procedureEditor'
@@ -500,75 +500,78 @@ describe('层级标定 (P2c)', () => {
     expect(s.layerRows[1].hasLeafChildren).toBe(true)
   })
 
-  it('applyLayerRoles 把 b 提为一级章节并置脏、退出模式', async () => {
+  it('applyLayerRoles 无 Q25 冲突 → 调 applyLayerRolesApi 并 reload，退出模式', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    vi.mocked(applyLayerRolesApi).mockClear()
     const s = seed()
     s.chapters = [chap('a', null, 0), chap('b', 'a', 0)]
     s.layerMode = true
+    vi.spyOn(s, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(s, 'reload').mockResolvedValue()
     const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
     expect(result.ok).toBe(true)
-    expect(s.chapterMap.get('b')?.parent_id).toBeNull()
-    expect(s.dirtyChapters.has('b')).toBe(true)
+    expect(applyLayerRolesApi).toHaveBeenCalledTimes(1)
+    expect(applyLayerRolesApi).toHaveBeenCalledWith('p1', { roles: { a: 'chapter_1', b: 'chapter_1' } }, 3)
+    expect(s.reload).toHaveBeenCalled()
     expect(s.layerMode).toBe(false)
   })
 
-  it('applyLayerRoles 连带清被触及节点的 review', async () => {
+  it('applyLayerRoles review 章节：API 成功后 reload（清 review 由后端或 reload 处理）', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    vi.mocked(applyLayerRolesApi).mockClear()
     const s = seed()
     s.chapters = [{ ...chap('a', null, 0), mark_status: 'review' }, chap('b', 'a', 0)]
     s.layerMode = true
+    vi.spyOn(s, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(s, 'reload').mockResolvedValue()
     const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
     expect(result.ok).toBe(true)
-    await flushPromises()
-    expect(s.chapterMap.get('a')?.mark_status).toBe('unmarked')
-    expect(markSpy).toHaveBeenCalledWith('a', 'unmarked')
+    expect(s.reload).toHaveBeenCalled()
   })
 
-  it('applyLayerRoles content 角色：章节被删、建内容块步骤（kind=content、含原标题、挂到父级）', async () => {
+  it('applyLayerRoles content 角色：无 Q25 → 调 applyLayerRolesApi 含 content 角色', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    vi.mocked(applyLayerRolesApi).mockClear()
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('c', '正文文本', 'a', 0)]
     s.steps = []
     s.layerMode = true
+    vi.spyOn(s, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(s, 'reload').mockResolvedValue()
     const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content']]))
     expect(result.ok).toBe(true)
-    // 原章节 c 被删
-    expect(s.chapterMap.get('c')).toBeUndefined()
-    // 建了一个挂在 a 下的内容块步骤
-    const cs = s.steps.filter((st) => st.kind === 'content')
-    expect(cs).toHaveLength(1)
-    expect(cs[0].chapter_id).toBe('a')
-    expect(cs[0].content).toBe('<p>正文文本</p>')
-    expect(s.dirtySteps.has(cs[0].id)).toBe(true)
+    expect(applyLayerRolesApi).toHaveBeenCalledWith('p1', { roles: { a: 'chapter_1', c: 'content' } }, 3)
   })
 
-  it('applyLayerRoles content 转换：HTML 字符被转义、空白标题→空 content', async () => {
+  it('applyLayerRoles content 多节点：多个 content 角色全部传入 API', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    vi.mocked(applyLayerRolesApi).mockClear()
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('c', '<b>x & y</b>', 'a', 0), chapter('d', '   ', 'a', 1)]
     s.steps = []
     s.layerMode = true
+    vi.spyOn(s, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(s, 'reload').mockResolvedValue()
     const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content'], ['d', 'content']]))
     expect(result.ok).toBe(true)
-    const cs = s.steps.filter((st) => st.kind === 'content')
-    const cContent = cs.find((st) => st.content.includes('&lt;'))
-    expect(cContent?.content).toBe('<p>&lt;b&gt;x &amp; y&lt;/b&gt;</p>')
-    // 空白标题→空 content
-    expect(cs.some((st) => st.content === '')).toBe(true)
+    const call = vi.mocked(applyLayerRolesApi).mock.calls[0]
+    expect(call[1]).toEqual({ roles: { a: 'chapter_1', c: 'content', d: 'content' } })
   })
 
-  it('applyLayerRoles content 父章节带后代：后代先改挂他处，content 章节安全删除', async () => {
-    // a(l1) b(标 content, 其下挂子章节 g) ：b 后代不更新 l1/l2/l3，故 g 挂到根；b 已无子→可删
-    // g 指定 chapter_1（与 a 同级）避免 Q25 冲突（b→content 为叶，g→chapter_1 为章节，互不同父）
+  it('applyLayerRoles 后代重排：无 Q25 → 调 API 一次，roles 含全部节点', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    vi.mocked(applyLayerRolesApi).mockClear()
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('b', '乙', 'a', 0), chapter('g', '丙', 'b', 0)]
     s.steps = []
     s.layerMode = true
+    vi.spyOn(s, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(s, 'reload').mockResolvedValue()
     const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'content'], ['g', 'chapter_1']]))
     expect(result.ok).toBe(true)
-    // b 转成内容块步骤、原章节删除
-    expect(s.chapterMap.get('b')).toBeUndefined()
-    const cs = s.steps.filter((st) => st.kind === 'content')
-    expect(cs).toHaveLength(1)
-    expect(cs[0].chapter_id).toBe('a')
-    // g 改挂到根（content 行 b 不更新上下文，chapter_1 → parent_id=null）
-    expect(s.chapterMap.get('g')?.parent_id).toBeNull()
+    expect(applyLayerRolesApi).toHaveBeenCalledTimes(1)
+    const call = vi.mocked(applyLayerRolesApi).mock.calls[0]
+    expect(call[1].roles).toMatchObject({ a: 'chapter_1', b: 'content', g: 'chapter_1' })
   })
 })
 

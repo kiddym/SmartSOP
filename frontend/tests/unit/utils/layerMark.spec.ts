@@ -7,15 +7,15 @@ import {
   type LayerRole,
   type LayerRow,
 } from '@/utils/layerMark'
+import fixtures from '../../fixtures/layerWalkFixtures.json'
 
 function row(
   id: string,
   kind: 'chapter' | 'step' | 'content',
   level: number,
   hasLeafChildren = false,
-  originalParent: string | null = null,
 ): LayerRow {
-  return { id, kind, level, hasLeafChildren, originalParent }
+  return { id, kind, level, hasLeafChildren }
 }
 
 describe('layerMark', () => {
@@ -62,23 +62,23 @@ describe('layerMark', () => {
   })
 
   it('defaultLayerRole with LayerRow：章节行按 level 夹到 chapter_1/2/3', () => {
-    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 1, hasLeafChildren: false, originalParent: null })).toBe('chapter_1')
-    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 2, hasLeafChildren: false, originalParent: null })).toBe('chapter_2')
-    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 7, hasLeafChildren: false, originalParent: null })).toBe('chapter_3')
-    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 0, hasLeafChildren: false, originalParent: null })).toBe('chapter_1')
+    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 1, hasLeafChildren: false })).toBe('chapter_1')
+    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 2, hasLeafChildren: false })).toBe('chapter_2')
+    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 7, hasLeafChildren: false })).toBe('chapter_3')
+    expect(defaultLayerRole({ id: 'c', kind: 'chapter', level: 0, hasLeafChildren: false })).toBe('chapter_1')
   })
 
   it('defaultLayerRole with LayerRow：叶子行默认 keep', () => {
-    expect(defaultLayerRole({ id: 's', kind: 'step', level: 0, hasLeafChildren: false, originalParent: null })).toBe('keep')
-    expect(defaultLayerRole({ id: 'c', kind: 'content', level: 0, hasLeafChildren: false, originalParent: null })).toBe('keep')
+    expect(defaultLayerRole({ id: 's', kind: 'step', level: 0, hasLeafChildren: false })).toBe('keep')
+    expect(defaultLayerRole({ id: 'c', kind: 'content', level: 0, hasLeafChildren: false })).toBe('keep')
   })
 })
 
 describe('computeLayerUpdates with leaves', () => {
   it('叶子保持 keep → 输出 leaf-reparent，挂到最近标题', () => {
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const roles = new Map<string, LayerRole>([['A', 'chapter_1']])
     const u = computeLayerUpdates(rows, roles)
@@ -88,10 +88,10 @@ describe('computeLayerUpdates with leaves', () => {
 
   it('叶子选 chapter_2 → 输出 to-chapter，并成为新 l2', () => {
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const roles = new Map<string, LayerRole>([
       ['A', 'chapter_1'],
@@ -105,7 +105,7 @@ describe('computeLayerUpdates with leaves', () => {
 
   it('叶子选 chapter_X 但无可挂父：chapter_2 无 l1 → 挂根成 L1', () => {
     const rows: LayerRow[] = [
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: null },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const roles = new Map<string, LayerRole>([['s1', 'chapter_2']])
     const u = computeLayerUpdates(rows, roles)
@@ -116,10 +116,10 @@ describe('computeLayerUpdates with leaves', () => {
 describe('computeLayerIndents with leaves', () => {
   it('叶子继承当前 heading level；提升后自身缩进按新 level', () => {
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const roles = new Map<string, LayerRole>([
       ['A', 'chapter_1'],
@@ -134,44 +134,27 @@ describe('computeLayerIndents with leaves', () => {
 })
 
 describe('validateLayerQ25', () => {
-  it('提升中间叶子导致父级 chapter/leaf 混合 → 冲突按 DB 原父分组', () => {
-    // s1 / c1 / s2 在 DB 里都挂 A；c1 被提升为 chapter_2。
-    // walk 算 s2.parent=c1，但后端 convertStepToChapter 不会动 s2.chapter_id，
-    // 实际 DB 终态：A 同时有 chapter c1 + leaves s1, s2。
+  it('提升一个叶子,父下另一叶子被 walk 挂到新章节下 → 无冲突', () => {
+    // s1, s2 都在 A 下,s1 升 L2,walk 算 s2.parent=s1(末态正确)
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const updates = computeLayerUpdates(rows, new Map([
       ['A', 'chapter_1'],
-      ['c1', 'chapter_2'],
+      ['s1', 'chapter_2'],
     ]))
-    const conflicts = validateLayerQ25(rows, updates)
-    expect(conflicts).toHaveLength(1)
-    expect(conflicts[0].parent_id).toBe('A')
-    expect(conflicts[0].chapterChildren).toEqual(['c1'])
-    // 新逻辑：s1 和 s2 都按 DB 原父分组，两者都留在 A，都报为冲突的 leafChildren。
-    expect(conflicts[0].leafChildren.sort()).toEqual(['s1', 's2'])
-  })
-
-  it('全 leaf 兄弟（无章节兄弟）无冲突', () => {
-    const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-    ]
-    const updates = computeLayerUpdates(rows, new Map([['A', 'chapter_1']]))
     expect(validateLayerQ25(rows, updates)).toEqual([])
   })
 
-  it('实测场景：父 P 下 2 个 step 兄弟，提升 1 个 → DB 原父出现混合', () => {
-    // 这就是 MCP 实测发现的 GAP：旧 walk-only 算法漏报，新 DB-原父 算法捕获。
+  it('文档序内,先 keep 叶子后 to-chapter 叶子 → 共享父 A 出现混合 → 冲突', () => {
+    // k 在 s1 之前,walk: A reorder@null, k leaf-reparent@A, s1 to-chapter@A
+    // A 下:[s1(chapter), k(leaf)] → 冲突
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
-      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true },
+      { id: 'k', kind: 'content', level: 0, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const updates = computeLayerUpdates(rows, new Map([
       ['A', 'chapter_1'],
@@ -181,14 +164,23 @@ describe('validateLayerQ25', () => {
     expect(conflicts).toHaveLength(1)
     expect(conflicts[0].parent_id).toBe('A')
     expect(conflicts[0].chapterChildren).toEqual(['s1'])
-    expect(conflicts[0].leafChildren).toEqual(['s2'])
+    expect(conflicts[0].leafChildren).toEqual(['k'])
   })
 
-  it('父 P 下唯一 step 提升 → 无冲突（DB 原父无遗留 leaf）', () => {
-    // 用户的简单 happy path：父章节只有一个叶子，提升后父变成 [chapter]，干净。
+  it('全 leaf 兄弟(无章节兄弟) → 无冲突', () => {
     const rows: LayerRow[] = [
-      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true, originalParent: null },
-      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false, originalParent: 'A' },
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
+    ]
+    const updates = computeLayerUpdates(rows, new Map([['A', 'chapter_1']]))
+    expect(validateLayerQ25(rows, updates)).toEqual([])
+  })
+
+  it('父下唯一 step 提升 → 无冲突', () => {
+    const rows: LayerRow[] = [
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: true },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
     ]
     const updates = computeLayerUpdates(rows, new Map([
       ['A', 'chapter_1'],
@@ -196,4 +188,24 @@ describe('validateLayerQ25', () => {
     ]))
     expect(validateLayerQ25(rows, updates)).toEqual([])
   })
+})
+
+describe('computeLayerUpdates — shared fixture equivalence', () => {
+  for (const fx of fixtures.fixtures) {
+    it(`fixture: ${fx.name}`, () => {
+      const rows: LayerRow[] = fx.rows.map((r: any) => ({
+        id: r.id,
+        kind: r.kind,
+        level: r.level,
+        hasLeafChildren: r.hasLeafChildren,
+      }))
+      const roleMap = new Map<string, LayerRole>(
+        Object.entries(fx.roles) as [string, LayerRole][]
+      )
+      const updates = computeLayerUpdates(rows, roleMap)
+      const actual: Record<string, unknown> = {}
+      for (const [k, v] of updates) actual[k] = v
+      expect(actual).toEqual(fx.updates)
+    })
+  }
 })

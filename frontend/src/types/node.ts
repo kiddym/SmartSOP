@@ -198,3 +198,25 @@ export interface AddButtonState {
   canAddContent: boolean
   canAddStep: boolean
 }
+
+// 层级标定批量应用(spec: 2026-05-27-layer-overlay-auto-nest-design)。
+export type LayerApplyRoleValue = 'chapter_1' | 'chapter_2' | 'chapter_3' | 'content' | 'keep'
+
+export interface LayerApplyIn {
+  roles: Record<string, LayerApplyRoleValue>
+}
+
+export interface LayerApplyResult {
+  chapter_map: Record<string, string>
+  revision: number
+}
+
+export interface LayerApplyConflictDetail {
+  code: 'SIBLING_TYPE_CONFLICT'
+  message: string
+  conflicts: Array<{
+    parent_id: string | null
+    chapter_children: string[]
+    leaf_children: string[]
+  }>
+}
