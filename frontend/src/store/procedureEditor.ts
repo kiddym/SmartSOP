@@ -860,10 +860,13 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         if (!ch) continue
         // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType 一致）。
         if (ch.mark_status === 'review') clearReview.push(id)
-        if (u.toContentStep) {
+        // TODO(layer-overlay Task 6): rewrite this whole function for async + Q25 + leaf dispatch.
+        // Transitional: read the new LayerUpdate tagged union (kind discriminator) shipped in Task 2.
+        if (u.kind === 'to-content') {
           toContent.push({ id, parent_id: u.parent_id, sort_order: u.sort_order, title: ch.title })
           continue
         }
+        if (u.kind !== 'reorder') continue // leaf-reparent / to-chapter are no-ops in transitional path
         ch.parent_id = u.parent_id
         ch.sort_order = u.sort_order
         this.dirtyChapters.add(id)

@@ -18,10 +18,9 @@ describe('layerMark', () => {
       ['a', 'chapter_1'], ['b', 'chapter_2'], ['c', 'content'],
     ])
     const u = computeLayerUpdates(rows, m)
-    // TODO: Update assertions once LayerUpdate shape changes in Task 2/3
-    expect((u.get('a') as any)).toEqual({ parent_id: null, toContentStep: false, sort_order: 0 })
-    expect((u.get('b') as any)).toEqual({ parent_id: 'a', toContentStep: false, sort_order: 0 })
-    expect((u.get('c') as any)).toEqual({ parent_id: 'b', toContentStep: true, sort_order: 0 })
+    expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
+    expect(u.get('b')).toEqual({ kind: 'reorder', parent_id: 'a', sort_order: 0, level: 2 })
+    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'b', sort_order: 0, sourceTitle: '' })
   })
 
   it('content 行不更新 l1/l2/l3 上下文（后续 content 仍挂上一个标题）', () => {
@@ -31,22 +30,20 @@ describe('layerMark', () => {
       ['a', 'chapter_1'], ['c', 'content'], ['d', 'content'],
     ])
     const u = computeLayerUpdates(rows, m)
-    // TODO: Update assertions once LayerUpdate shape changes in Task 2/3
-    expect((u.get('c') as any)).toEqual({ parent_id: 'a', toContentStep: true, sort_order: 0 })
-    expect((u.get('d') as any)).toEqual({ parent_id: 'a', toContentStep: true, sort_order: 1 })
+    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 0, sourceTitle: '' })
+    expect(u.get('d')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 1, sourceTitle: '' })
   })
 
   it('不可达层级夹紧：二级无一级父→根', () => {
     const rows = [row('a', 'chapter', 1)]
     const u = computeLayerUpdates(rows, new Map([['a', 'chapter_2']]))
-    expect((u.get('a') as any)?.parent_id).toBeNull()
-    expect((u.get('a') as any)?.toContentStep).toBe(false)
+    expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
   })
 
   it('含叶子（步骤/内容块）子节点的行标 content 仍保持章节', () => {
     const rows = [row('a', 'chapter', 1, true)]
     const u = computeLayerUpdates(rows, new Map([['a', 'content']]))
-    expect((u.get('a') as any)?.toContentStep).toBe(false)
+    expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
   })
 
   it('computeLayerIndents：章节 = level-1，content = 当前标题层级', () => {
@@ -67,5 +64,44 @@ describe('layerMark', () => {
   it('defaultLayerRole with LayerRow：叶子行默认 keep', () => {
     expect(defaultLayerRole({ id: 's', kind: 'step', level: 0, hasLeafChildren: false })).toBe('keep')
     expect(defaultLayerRole({ id: 'c', kind: 'content', level: 0, hasLeafChildren: false })).toBe('keep')
+  })
+})
+
+describe('computeLayerUpdates with leaves', () => {
+  it('叶子保持 keep → 输出 leaf-reparent，挂到最近标题', () => {
+    const rows: LayerRow[] = [
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+    ]
+    const roles = new Map<string, LayerRole>([['A', 'chapter_1']])
+    const u = computeLayerUpdates(rows, roles)
+    expect(u.get('A')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
+    expect(u.get('s1')).toEqual({ kind: 'leaf-reparent', parent_id: 'A', sort_order: 0 })
+  })
+
+  it('叶子选 chapter_2 → 输出 to-chapter，并成为新 l2', () => {
+    const rows: LayerRow[] = [
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
+    ]
+    const roles = new Map<string, LayerRole>([
+      ['A', 'chapter_1'],
+      ['c1', 'chapter_2'],
+    ])
+    const u = computeLayerUpdates(rows, roles)
+    expect(u.get('s1')).toEqual({ kind: 'leaf-reparent', parent_id: 'A', sort_order: 0 })
+    expect(u.get('c1')).toEqual({ kind: 'to-chapter', parent_id: 'A', sort_order: 1, level: 2 })
+    expect(u.get('s2')).toEqual({ kind: 'leaf-reparent', parent_id: 'c1', sort_order: 0 })
+  })
+
+  it('叶子选 chapter_X 但无可挂父：chapter_2 无 l1 → 挂根成 L1', () => {
+    const rows: LayerRow[] = [
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+    ]
+    const roles = new Map<string, LayerRole>([['s1', 'chapter_2']])
+    const u = computeLayerUpdates(rows, roles)
+    expect(u.get('s1')).toEqual({ kind: 'to-chapter', parent_id: null, sort_order: 0, level: 1 })
   })
 })

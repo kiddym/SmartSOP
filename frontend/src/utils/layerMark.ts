@@ -41,16 +41,22 @@ function effectiveRole(row: LayerRow, roleMap: Map<string, LayerRole>): LayerRol
 }
 
 /**
- * 由文档序行 + roleMap 算每个章节节点的目标 {parent_id, toContentStep, sort_order}。
- * l1/l2/l3 走位：chapter_2 无一级父→根；chapter_3 无二级父→挂一级/根；content 挂最近章节、作叶子。
- * content 行不更新 l1/l2/l3 上下文（其后代会挂到上一个标题）。
- * TODO(layer-overlay Task 2/3): rewrite to emit new LayerUpdate shape
+ * 由文档序行 + roleMap 算每个章节节点的目标状态。
+ *
+ * 对于每行，根据其 kind 和 role：
+ * - chapter + chapter_X role: reorder（在祖先链允许的最深层级）
+ * - chapter + content role: to-content（降级为当前标题下的内容步骤）
+ * - leaf + keep: leaf-reparent（挂到最近的标题）
+ * - leaf + chapter_X role: to-chapter（提升为章节，夹紧到祖先链能撑得起的层）
+ *
+ * l1/l2/l3 上下文：chapter_2 无 l1 时夹回根；chapter_3 无 l2 时夹到 l1；
+ * content 行不更新上下文（其后代仍挂前一个标题）。
  */
 export function computeLayerUpdates(
   rows: LayerRow[],
   roleMap: Map<string, LayerRole>,
 ): Map<string, LayerUpdate> {
-  const out = new Map<string, any>()
+  const out = new Map<string, LayerUpdate>()
   let l1: string | null = null
   let l2: string | null = null
   let l3: string | null = null
@@ -60,31 +66,54 @@ export function computeLayerUpdates(
     sortCounter.set(p, n + 1)
     return n
   }
+
+  // 标题级 → 解析出 parent + 实际落定 level（夹紧到祖先链能撑得起的层）
+  const placeChapter = (requestedLevel: number): { parent: string | null; level: number } => {
+    if (requestedLevel >= 3 && l2) return { parent: l2, level: 3 }
+    if (requestedLevel >= 2 && l1) return { parent: l1, level: 2 }
+    return { parent: null, level: 1 }
+  }
+
+  const setHeadingContext = (id: string, level: number): void => {
+    if (level === 1) { l1 = id; l2 = null; l3 = null }
+    else if (level === 2) { l2 = id; l3 = null }
+    else { l3 = id }
+  }
+
   for (const row of rows) {
     const role = effectiveRole(row, roleMap)
-    if (role === 'content') {
-      const parent = l3 ?? l2 ?? l1
-      out.set(row.id, { parent_id: parent, toContentStep: true, sort_order: nextSort(parent) })
+
+    if (row.kind === 'chapter') {
+      if (role === 'content') {
+        // 章节降级为当前标题下的内容步骤；不更新 l1/l2/l3 上下文
+        const parent = l3 ?? l2 ?? l1
+        out.set(row.id, { kind: 'to-content', parent_id: parent, sort_order: nextSort(parent), sourceTitle: '' })
+        continue
+      }
+
+      // 章节保持为标题（chapter_1/2/3）
+      const requested = role === 'chapter_3' ? 3 : role === 'chapter_2' ? 2 : 1
+      const { parent, level } = placeChapter(requested)
+      setHeadingContext(row.id, level)
+      out.set(row.id, { kind: 'reorder', parent_id: parent, sort_order: nextSort(parent), level })
       continue
     }
-    const level = roleLevel(role)
-    let parent: string | null
-    if (level >= 3 && l2) {
-      parent = l2
-      l3 = row.id
-    } else if (level >= 2 && l1) {
-      parent = l1
-      l2 = row.id
-      l3 = null
-    } else {
-      parent = null
-      l1 = row.id
-      l2 = null
-      l3 = null
+
+    // 叶子（step / content）
+    if (role === 'keep') {
+      const parent = l3 ?? l2 ?? l1
+      out.set(row.id, { kind: 'leaf-reparent', parent_id: parent, sort_order: nextSort(parent) })
+      continue
     }
-    out.set(row.id, { parent_id: parent, toContentStep: false, sort_order: nextSort(parent) })
+
+    // 叶子提升为章节
+    const requested = role === 'chapter_3' ? 3 : role === 'chapter_2' ? 2 : 1
+    const { parent, level } = placeChapter(requested)
+    setHeadingContext(row.id, level)
+    out.set(row.id, { kind: 'to-chapter', parent_id: parent, sort_order: nextSort(parent), level })
   }
-  return out as Map<string, LayerUpdate>
+
+  return out
 }
 
 /** 「所见即所选」缩进：章节 = level-1；content = 当前标题层级。 */
