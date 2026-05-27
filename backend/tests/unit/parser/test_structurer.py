@@ -122,29 +122,3 @@ def test_standard_validation_fails_without_styled_headings() -> None:
     rep = _structure(unstyled_numbered_sop(), "standard").validation
     assert rep is not None
     assert rep.level == "error"  # H001：无样式标题 → PARSE_TEMPLATE_INVALID
-
-
-def test_structurer_emits_ordered_import_blocks() -> None:
-    res = _structure(styled_sop(), "standard")
-
-    assert [b.source_index for b in res.import_blocks] == sorted(
-        b.source_index for b in res.import_blocks
-    )
-    first = res.import_blocks[0]
-    assert first.raw_text == "目的"
-    assert first.clean_text == "目的"
-    assert first.suggested_type == "chapter"
-    assert first.suggested_level == 1
-    assert first.confidence_tier == "high"
-    assert first.has_word_numbering is False
-
-
-def test_structurer_import_blocks_keep_hand_typed_numbering() -> None:
-    res = _structure(unstyled_numbered_sop(), "smart")
-
-    first = res.import_blocks[0]
-    assert first.raw_text == "1 目的"
-    assert first.clean_text == "1 目的"
-    assert first.suggested_type == "chapter"
-    assert first.suggested_level == 1
-    assert first.mark_status == "review"

@@ -91,8 +91,6 @@ def _rewrite_placeholders(result: ParseResult, mapping: dict[str, str]) -> None:
             walk(node.children)
 
     walk(result.chapters)
-    for block in result.import_blocks:
-        block.rich_content = rewrite_html(block.rich_content)
 
 
 def _template_invalid(report: ValidationReport) -> HTTPException:

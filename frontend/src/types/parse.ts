@@ -36,24 +36,6 @@ export interface ParsedNode {
   children: ParsedNode[]
 }
 
-export interface ParsedImportBlock {
-  id: string
-  source_index: number
-  raw_text: string
-  display_text: string
-  clean_text: string
-  rich_content: string
-  block_type: 'paragraph' | 'table'
-  has_word_numbering: boolean
-  word_number: string | null
-  word_number_level: number | null
-  style_name: string | null
-  suggested_type: 'chapter' | 'content'
-  suggested_level: number | null
-  confidence_tier: ConfidenceTier
-  mark_status: MarkStatus
-}
-
 export interface ParsedAsset {
   temp_id: string
   url: string
@@ -105,7 +87,6 @@ export interface ParseMetadata {
 export interface ParseResponse {
   metadata: ParseMetadata
   chapters: ParsedNode[]
-  import_blocks: ParsedImportBlock[]
   assets: ParsedAsset[]
   detected_patterns: DetectedPattern[]
   validation: ValidationReport | null
