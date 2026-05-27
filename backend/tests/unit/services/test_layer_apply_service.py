@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
@@ -40,3 +41,39 @@ def test_q25_conflict_when_promoted_leaves_remaining_siblings(
     db.refresh(s1)
     db.refresh(s2)
     assert s1.is_active and s2.is_active
+
+
+def test_phase_a_single_leaf_promoted_no_siblings(db: Session, factory: Factory) -> None:
+    """父 P 下唯一 leaf 升 L2 → 创建新 L2 chapter,原 leaf 软删,body 转 child content。"""
+    from app.models.chapter import ProcedureChapter
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    ch = factory.chapter(proc.id, title="A", level=1)
+    s1 = factory.step(
+        proc.id, chapter_id=ch.id, kind="content", title="崔宇明", content="<p>负责...</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s1.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+
+    # 新章节存在
+    assert len(result["chapter_map"]) == 1
+    new_ch_id = result["chapter_map"][s1.id]
+    db.refresh(s1)
+    assert not s1.is_active  # 原 leaf 软删
+
+    new_ch = db.get(ProcedureChapter, new_ch_id)
+    assert new_ch is not None
+    assert new_ch.title == "崔宇明"
+    assert new_ch.parent_id == ch.id
+    assert new_ch.level == 2
+
+    # body 转为子 content step
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == new_ch_id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 1
+    assert children[0].kind == "content"
+    assert children[0].content == "<p>负责...</p>"

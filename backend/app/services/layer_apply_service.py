@@ -122,6 +122,59 @@ def _validate_depth(updates: dict[str, dict]) -> None:
             raise bad_request("CHAPTER_DEPTH_EXCEEDED", f"章节嵌套超过 {MAX_DEPTH} 级")
 
 
+def _phase_a_to_chapter(
+    db: Session,
+    proc: Procedure,
+    rows: list[LayerRow],
+    updates: dict[str, dict],
+) -> dict[str, str]:
+    """按文档序执行 to-chapter。返回 leaf_id → new_chapter_id 映射。
+    parent_id 解析:若 walk 给的 parent 命中映射(同 batch 先一步升的叶子),
+    则替换为对应新 chapter id;否则原样使用(指向现存 chapter 或 null)。"""
+    from app.models.base import utcnow
+
+    chapter_map: dict[str, str] = {}
+    step_by_id = {
+        s.id: s for s in db.execute(
+            select(ProcedureStep).where(
+                ProcedureStep.procedure_id == proc.id,
+                ProcedureStep.is_active.is_(True),
+            )
+        ).scalars()
+    }
+    for row in rows:  # 文档序遍历,保证 map 在被引用前已填充
+        u = updates.get(row.id)
+        if not u or u["kind"] != "to-chapter":
+            continue
+        st = step_by_id[row.id]
+        resolved_parent = chapter_map.get(u["parent_id"], u["parent_id"])
+        new_ch = ProcedureChapter(
+            procedure_id=proc.id,
+            parent_id=resolved_parent,
+            title=st.title or "未命名章节",
+            sort_order=u["sort_order"],
+            level=u["level"],
+        )
+        db.add(new_ch)
+        db.flush()
+        if st.content and st.content.strip():
+            child = ProcedureStep(
+                procedure_id=proc.id,
+                chapter_id=new_ch.id,
+                kind="content",
+                title="",
+                content=st.content,
+                input_schema={},
+                sort_order=0,
+            )
+            db.add(child)
+            db.flush()
+        st.is_active = False
+        st.deleted_at = utcnow()
+        chapter_map[row.id] = new_ch.id
+    return chapter_map
+
+
 def apply_layer_roles(
     db: Session,
     procedure_id: str,
@@ -136,5 +189,8 @@ def apply_layer_roles(
     updates = compute_layer_updates(rows, roles)
     _validate_q25(updates)
     _validate_depth(updates)
-    # Execution phases A-D come in subsequent tasks.
-    return {"chapter_map": {}, "revision": proc.revision}
+
+    chapter_map = _phase_a_to_chapter(db, proc, rows, updates)
+    # Phase B / C / D + finalize come in later tasks.
+    db.flush()
+    return {"chapter_map": chapter_map, "revision": proc.revision}
