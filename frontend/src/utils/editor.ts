@@ -228,3 +228,6 @@ export function collectDeprecatedFieldValues(
   }
   return out
 }
+
+// 树行标题 tooltip 阈值（CJK 字符；30 字之内的 chapter 标题在 240-360px 列宽下基本不省略）
+export const TITLE_TOOLTIP_THRESHOLD = 30

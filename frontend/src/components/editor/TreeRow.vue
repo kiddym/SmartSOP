@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { FORM_TYPE_META } from '@/utils/editor'
+import { FORM_TYPE_META, TITLE_TOOLTIP_THRESHOLD } from '@/utils/editor'
 import type { AddButtonState, FlatRow } from '@/types/node'
 
 // 单个树行（§2.1 信息密度）。仅负责展示 + 派发意图，store 调用在 ChapterTreePanel。
@@ -57,6 +57,10 @@ const typeColor = computed(() =>
 const typeLabel = computed(() =>
   props.row.kind === 'step' && props.row.form_type ? FORM_TYPE_META[props.row.form_type].label : '',
 )
+
+const tooltipDisabled = computed(
+  () => props.row.kind !== 'chapter' || display.value.length <= TITLE_TOOLTIP_THRESHOLD
+)
 </script>
 
 <template>
@@ -89,7 +93,15 @@ const typeLabel = computed(() =>
 
     <span class="tr-icon" :class="colorClass">{{ icon }}</span>
     <span class="tr-code" :class="{ 'tr-code--skip': row.code === '#' }">{{ row.code }}</span>
-    <span class="tr-title" :class="{ 'tr-title--fallback': titleFallback }">{{ display }}</span>
+    <el-tooltip
+      :content="display"
+      :disabled="tooltipDisabled"
+      placement="top-start"
+      :show-after="300"
+      popper-class="tr-title-tooltip"
+    >
+      <span class="tr-title" :class="{ 'tr-title--fallback': titleFallback }">{{ display }}</span>
+    </el-tooltip>
 
     <span v-if="row.mark_status === 'review'" class="tr-review" title="解析存疑，待确认">待确认</span>
     <span v-if="typeColor" class="tr-typebar" :class="`bar-${typeColor}`" :title="typeLabel">▮</span>
@@ -260,5 +272,13 @@ const typeLabel = computed(() =>
   height: 100%;
   display: inline-flex;
   align-items: center;
+}
+</style>
+
+<style>
+.tr-title-tooltip {
+  max-width: 400px;
+  white-space: normal;
+  word-break: break-word;
 }
 </style>

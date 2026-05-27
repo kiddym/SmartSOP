@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import TreeRow from '@/components/editor/TreeRow.vue'
 import type { FlatRow } from '@/types/node'
+import { TITLE_TOOLTIP_THRESHOLD } from '@/utils/editor'
 
 function row(overrides: Partial<FlatRow> = {}): FlatRow {
   return {
@@ -118,5 +119,26 @@ describe('TreeRow', () => {
     const w = mountRow(row({ id: 'c1', kind: 'chapter' }), { markMode: true, indeterminate: true })
     const cb = w.findComponent({ name: 'ElCheckbox' })
     expect(cb.props('indeterminate')).toBe(true)
+  })
+})
+
+describe('TreeRow title tooltip', () => {
+  it('disables tooltip when chapter title length <= threshold', () => {
+    const w = mountRow(row({ title: 'a'.repeat(TITLE_TOOLTIP_THRESHOLD) }))
+    const tip = w.findComponent({ name: 'ElTooltip' })
+    expect(tip.exists()).toBe(true)
+    expect(tip.props('disabled')).toBe(true)
+  })
+
+  it('enables tooltip when chapter title length > threshold', () => {
+    const w = mountRow(row({ title: 'a'.repeat(TITLE_TOOLTIP_THRESHOLD + 1) }))
+    const tip = w.findComponent({ name: 'ElTooltip' })
+    expect(tip.props('disabled')).toBe(false)
+  })
+
+  it('disables tooltip for non-chapter kind even with long title', () => {
+    const w = mountRow(row({ id: 'c1', kind: 'content', title: 'a'.repeat(100), fallback: '(空内容)' }))
+    const tip = w.findComponent({ name: 'ElTooltip' })
+    expect(tip.props('disabled')).toBe(true)
   })
 })
