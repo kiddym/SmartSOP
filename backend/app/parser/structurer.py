@@ -224,12 +224,20 @@ def _classify_heading(
         )
         source = _SOURCE_MAP.get(src or "style", "style")
         return block.style_level, 1.0, "high", "unmarked", source
-    # 启发式（仅 smart）→ MEDIUM/LOW 标 review
+    # 启发式（仅 smart）→ MEDIUM 直接升，LOW 仅在有真编号信号（heading kind）时升
+    # eval r2 trade-off：电厂/危险源 FPs 是 LOW 纯启发式（短+font 误升），但 02记录/
+    # 05人力的真实章节有些恰好 0.45（编号+短，但 single_font 等让分凑不到 0.5）—
+    # 必须保留对这类的 LOW 提升。weak_heading（N、）不在 LOW 提升内（避免非粗长段
+    # 噪音；它们要升必须靠 bold 把自己推到 MEDIUM）。
     if mode == "smart" and block.text.strip():
         score, level, _ = hd.score_block(block, stats)
         tier = hd.tier_for(score)
-        if tier in ("medium", "low"):
+        if tier == "medium":
             return level, score, tier, "review", "heuristic"
+        if tier == "low":
+            num = hd.classify_numbering(block.text.strip())
+            if num is not None and num.kind == "heading":
+                return level, score, tier, "review", "heuristic"
     return None
 
 
