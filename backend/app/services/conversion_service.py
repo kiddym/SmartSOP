@@ -4,9 +4,12 @@
 - chapter → step（convert-to-step / convert-root-to-step）：chapter 必须无子节点（Q4 CHAPTER_HAS_CHILDREN）；
   转出 step.content 为空让用户补（§19.3）；父级移除该 chapter 后若仍有其他 chapter 子节点则
   违反 Q25 → SIBLING_TYPE_CONFLICT（Q29）。
-- step → chapter（convert-to-chapter）：新 chapter 为原 step.chapter 的子节点；step 正文转入新 chapter
-  下一个 kind='content' 内容块步骤；父级移除 step 后若仍有其他 step 则
+- step/content → chapter（convert-to-chapter）：新 chapter 为原叶子.chapter 的子节点；
+  原 title 作为新章节标题（空 title 兜底"未命名章节"），rich_content 转入新 chapter 下一个
+  kind='content' 内容块步骤；父级移除该叶子后若仍有其他叶子（step+content 不分 kind）则
   违反 Q25 → SIBLING_TYPE_CONFLICT（Q29）。
+  新定义下 content = title?（可选） + rich_content；step = content + 结构化字段（form/attachment）。
+  两者升为章节走同一条路径——仅"是否带结构化字段"不同，不影响升级语义。
 
 事务边界：只 flush，不 commit；结构变更 bump 程序 revision。
 """
@@ -306,15 +309,13 @@ def convert_root_to_step(db: Session, chapter_id: str, meta: RequestMeta) -> Con
 # step → chapter
 # --------------------------------------------------------------------------- #
 def convert_to_chapter(db: Session, step_id: str, meta: RequestMeta) -> ConversionResult:
+    # content 与 step 均可走此路径——新定义下两者只差"结构化字段"，title 都允许（content 可空）。
+    # 升为章节的 title 来自 st.title，空 title 由下方 `st.title or "未命名章节"` 兜底。
     st = _get_step(db, step_id)
     proc = _get_proc_editable(db, st.procedure_id)
 
-    # 内容块（kind='content'）语义上是"无标题正文"，没有 heading 可作为章节标题；
-    # UI 上也不暴露此入口（content 与 step 之间的切换走 setStepKind）。直接拒绝。
-    if st.kind != "step":
-        raise bad_request("CONTENT_BLOCK_NOT_CONVERTIBLE", "内容块不能转换为章节")
-
-    # 父级（原 step.chapter）移除该 step 后若仍有其他 step → 互斥冲突（Q29）
+    # 父级（原 step.chapter）移除该 step 后若仍有其他叶子（step+content 不分 kind） → §Q29 互斥冲突。
+    # _other_step_count 已按 ProcedureStep 全表数，自动覆盖 content 兄弟。
     if _other_step_count(db, proc.id, st.chapter_id, st.id) > 0:
         raise bad_request("SIBLING_TYPE_CONFLICT", "同级仍有步骤，转换会违反互斥规则")
 

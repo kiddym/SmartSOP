@@ -236,11 +236,13 @@ describe('TreeRow layer mode', () => {
     expect(labels).toEqual(['保持', '一级', '二级', '三级'])
   })
 
-  it('content 行 chapter_X 选项 disabled（Phase 1 限制）', () => {
+  it('content 行 chapter_X 选项可点（新定义：content 有可选 title，可升为章节）', () => {
     const contentRow = { ...baseLayerRow, id: 'c', kind: 'content' } as unknown as FlatRow
     const w = mountLayerRow({ row: contentRow, layerMode: true, layerRole: 'keep' })
+    const labels = w.findAll('.tr-layer-picker .el-radio-button__inner').map((b) => b.text())
+    expect(labels).toEqual(['保持', '一级', '二级', '三级'])
     const disabled = w.findAll('.tr-layer-picker .el-radio-button.is-disabled')
-    expect(disabled.length).toBe(3) // 一级/二级/三级 disabled；只 保持 可用
+    expect(disabled.length).toBe(0)
   })
 
   it('indent override 生效（override=2 → paddingLeft=38px）', () => {

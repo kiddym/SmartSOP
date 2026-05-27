@@ -599,9 +599,10 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       this.pushUndo()
       st.kind = kind
       if (kind === 'content') {
-        st.input_schema = {} as InputSchema // content 不用执行表单，与后端一致置空对象
+        // 新定义：content = title?（可选）+ rich_content；只清掉「结构化字段」（input_schema/attachment_marks），
+        // title 保留——同一个内容仅切换"是否带表单/附件"的视图，避免 mark-mode 批量切换时丢标题。
+        st.input_schema = {} as InputSchema
         st.attachment_marks = []
-        st.title = ''
       } else {
         st.input_schema = { type: 'COMMON' } as InputSchema
       }

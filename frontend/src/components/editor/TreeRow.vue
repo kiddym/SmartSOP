@@ -81,12 +81,13 @@ const layerOptions = computed<{ value: import('@/utils/layerMark').LayerRole; te
       { value: 'content', text: '正文', disabled: props.row.has_children },
     ]
   }
-  const isContent = props.row.kind === 'content'
+  // step / content 叶子等价（新定义：content = title? + rich_content；step 多结构化字段）。
+  // 升为章节的能力对两者都开放，title 由各自的详情面板维护、`未命名章节` 在后端兜底。
   return [
     { value: 'keep', text: '保持' },
-    { value: 'chapter_1', text: '一级', disabled: isContent },
-    { value: 'chapter_2', text: '二级', disabled: isContent },
-    { value: 'chapter_3', text: '三级', disabled: isContent },
+    { value: 'chapter_1', text: '一级' },
+    { value: 'chapter_2', text: '二级' },
+    { value: 'chapter_3', text: '三级' },
   ]
 })
 

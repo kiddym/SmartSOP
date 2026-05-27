@@ -195,6 +195,30 @@ describe('setStepKind', () => {
     expect(store.stepMap.get('s1')!.kind).toBe('content')
     expect(store.dirtySteps.has('s1')).toBe(true)
   })
+
+  it('setStepKind step→content 保留 title（新定义：content 有可选 title）', () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.steps = [
+      {
+        id: 's1',
+        chapter_id: 'c1',
+        title: '概述',
+        content: '<p>正文</p>',
+        kind: 'step',
+        input_schema: { type: 'COMMON' },
+        attachment_marks: [{ token: 't', filename: 'a.pdf', note: '' }],
+        skip_numbering: false,
+        sort_order: 0,
+      },
+    ]
+    store.setStepKind('s1', 'content')
+    const s = store.stepMap.get('s1')!
+    expect(s.kind).toBe('content')
+    expect(s.title).toBe('概述') // 保留
+    expect(s.attachment_marks).toEqual([]) // 结构化字段仍清空（不再是 step 的语义）
+    expect(s.input_schema).toEqual({}) // 同上
+  })
 })
 
 describe('编辑与脏追踪', () => {

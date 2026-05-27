@@ -34,7 +34,11 @@ class ProcedureStep(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     input_schema: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     # 步骤级附件标记（仅标记，不嵌文件，Q203）
     attachment_marks: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
-    # step / content（内容块=只有富文本的步骤）
+    # 节点 kind：
+    #   step    = title?（可选） + content（富文本） + 结构化字段（input_schema 表单 / attachment_marks 附件）
+    #   content = title?（可选） + content（富文本）；不带结构化字段
+    # 两者结构相同（同表 tb_procedure_step），区别仅"是否带表单/附件结构"；
+    # 升为章节走 conversion_service.convert_to_chapter（不分 kind）。
     kind: Mapped[str] = mapped_column(String(20), default="step", server_default="step")
     procedure: Mapped[Procedure] = relationship(back_populates="steps")
     chapter: Mapped[ProcedureChapter | None] = relationship(back_populates="steps")

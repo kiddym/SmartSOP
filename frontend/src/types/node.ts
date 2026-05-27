@@ -160,7 +160,10 @@ export interface EditorChapter {
   sort_order: number
 }
 
-// 步骤节点（扁平存储）；内容块 = kind='content' 的步骤（仅 content 富文本）。
+// 步骤节点（扁平存储）。kind 区分：
+//   step    = title?（可选） + content（富文本） + 结构化字段（表单 input_schema / 附件 attachment_marks）
+//   content = title?（可选） + content（富文本）；无结构化字段
+// 升为章节（layer 模式 / convert-to-chapter）对两者都开放——title 作新章节标题、空 title 由后端兜底"未命名章节"。
 export interface EditorStep {
   id: string
   chapter_id: string | null

@@ -177,8 +177,10 @@ export function buildRevision(detail: ProcedureDetail): RevisionRow[] {
 }
 
 // 内容区块按 backend 顺序遍历并据 layout 映射页号（与 sections._render_chapter/_render_step 对齐）。
-// 章节只是容器（只出标题）；其子步骤按 sort_order：kind==='content' 走内联富文本（无编号无标题），
+// 章节只是容器（只出标题）；其子步骤按 sort_order：kind==='content' 走内联富文本（PDF 渲染不出编号、不出 title），
 // kind==='step' 走步骤渲染。chapter/step 取 layout 映射，content 继承当前页。
+// 注：content.title 在编辑器里有意义（作为升级章节时的候选标题），但在 PDF 上下文里仍不打印——
+// 二者解耦：模型层 content 允许 title，渲染层选择不显示。
 function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[] {
   const blocks: PreviewBlock[] = []
   const stepsByChapter = new Map<string | null, StepOut[]>()
@@ -208,7 +210,8 @@ function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[]
 
   const renderStep = (st: StepOut): void => {
     if (st.kind === 'content') {
-      // 内容块：内联富文本，无编号、无标题（继承当前页，不取 layout.steps 映射）。
+      // 内容块在 PDF 渲染时不出编号、不出 title（即便模型上 content.title 可有）；
+      // 继承当前页，不取 layout.steps 映射。
       blocks.push({ key: `c-${st.id}`, kind: 'content', page: current, html: st.content })
       return
     }

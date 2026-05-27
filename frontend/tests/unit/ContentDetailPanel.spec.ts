@@ -77,6 +77,45 @@ describe('ContentDetailPanel', () => {
     expect(w.text()).not.toContain('接受待确认')
   })
 
+  it('新定义：暴露 title 输入框（可空），编辑 title 写回 store', async () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.steps = [
+      {
+        id: 'k',
+        chapter_id: 'c1',
+        kind: 'content',
+        title: '概述',
+        content: '<p>hi</p>',
+        input_schema: {} as never,
+        attachment_marks: [],
+        skip_numbering: false,
+        sort_order: 0,
+      },
+    ]
+    store.selectNode('k')
+
+    const w = mount(ContentDetailPanel, {
+      global: {
+        plugins: [ElementPlus],
+        stubs: {
+          RichTextEditor: {
+            props: ['modelValue'],
+            template: '<div class="rte">{{ modelValue }}</div>',
+          },
+        },
+      },
+    })
+
+    const titleInput = w.find('input[data-test="content-title"]')
+    expect(titleInput.exists()).toBe(true)
+    expect((titleInput.element as HTMLInputElement).value).toBe('概述')
+
+    await titleInput.setValue('适用范围')
+    expect(store.stepMap.get('k')!.title).toBe('适用范围')
+    expect(store.dirtySteps.has('k')).toBe(true)
+  })
+
   it('无选中步骤时不渲染内容区', () => {
     const store = useProcedureEditorStore()
     store.procedure = meta()

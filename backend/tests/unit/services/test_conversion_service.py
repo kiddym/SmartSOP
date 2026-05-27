@@ -139,16 +139,56 @@ def test_convert_step_to_chapter_sibling_conflict(db: Session, factory: Factory)
     assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
 
 
-def test_convert_content_step_to_chapter_rejected(db: Session, factory: Factory) -> None:
-    """content 块语义上是"无标题正文"，不应能被提升为章节（无 heading）。"""
+def test_convert_content_step_to_chapter_with_title(db: Session, factory: Factory) -> None:
+    """新定义：content 也可有 title；当 content 唯一子时，可提升为章节。
+    新章节 title = content.title；原 rich_content 搬到新章节下的 kind='content' 子步骤。"""
     proc = _proc(factory)
     parent = factory.chapter(proc.id, title="父")
     content_step = factory.step(
-        proc.id, chapter_id=parent.id, kind="content", title="", content="<p>说明</p>"
+        proc.id, chapter_id=parent.id, kind="content", title="概述", content="<p>说明</p>"
     )
+    result = conversion_service.convert_to_chapter(db, content_step.id, META)
+    assert result.deleted == [content_step.id]
+    assert len(result.created) == 2  # 新 chapter + 子 content 块
+    new_steps = step_service.list_steps(db, procedure_id=proc.id, chapter_id=result.created[0])
+    assert len(new_steps) == 1
+    body = new_steps[0]
+    assert body.kind == "content"
+    assert "说明" in body.content
+    # 新章节标题来自 content.title
+    from app.services import chapter_service
+    new_chapter = chapter_service.get_chapter(db, result.created[0])
+    assert new_chapter.title == "概述"
+
+
+def test_convert_content_step_to_chapter_empty_title_uses_fallback(
+    db: Session, factory: Factory
+) -> None:
+    """新定义：content.title 可空；空 title 升章节走与 step 一样的"未命名章节"兜底。"""
+    proc = _proc(factory)
+    parent = factory.chapter(proc.id, title="父")
+    content_step = factory.step(
+        proc.id, chapter_id=parent.id, kind="content", title="", content="<p>正文</p>"
+    )
+    result = conversion_service.convert_to_chapter(db, content_step.id, META)
+    from app.services import chapter_service
+    new_chapter = chapter_service.get_chapter(db, result.created[0])
+    assert new_chapter.title == "未命名章节"
+
+
+def test_convert_content_step_to_chapter_sibling_conflict(
+    db: Session, factory: Factory
+) -> None:
+    """§Q29：升 content 为章节时，若同级仍有其它叶子（不分 step 还是 content），
+    会让父级同时有 chapter + leaf，触发 SIBLING_TYPE_CONFLICT。
+    覆盖 _other_step_count 已自然包含 content 行（不分 kind）的行为。"""
+    proc = _proc(factory)
+    parent = factory.chapter(proc.id, title="父")
+    c1 = factory.step(proc.id, chapter_id=parent.id, kind="content", title="概述", content="")
+    factory.step(proc.id, chapter_id=parent.id, kind="content", title="范围", content="")
     with pytest.raises(HTTPException) as exc:
-        conversion_service.convert_to_chapter(db, content_step.id, META)
-    assert exc.value.detail["code"] == "CONTENT_BLOCK_NOT_CONVERTIBLE"
+        conversion_service.convert_to_chapter(db, c1.id, META)
+    assert exc.value.detail["code"] == "SIBLING_TYPE_CONFLICT"
 
 
 def test_convert_step_to_chapter_depth_exceeded(db: Session, factory: Factory) -> None:
