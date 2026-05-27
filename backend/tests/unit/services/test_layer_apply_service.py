@@ -77,3 +77,50 @@ def test_phase_a_single_leaf_promoted_no_siblings(db: Session, factory: Factory)
     assert len(children) == 1
     assert children[0].kind == "content"
     assert children[0].content == "<p>负责...</p>"
+
+
+def test_phase_bc_reorder_and_to_content(db: Session, factory: Factory) -> None:
+    """A(L1) + B(L1) 调整为 A(L1) + B(content under A)。"""
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    b = factory.chapter(proc.id, title="B", level=1, sort_order=1)
+
+    layer_apply_service.apply_layer_roles(
+        db,
+        proc.id,
+        roles={a.id: "chapter_1", b.id: "content"},
+        expected_revision=proc.revision,
+        meta=META,
+    )
+
+    db.refresh(a)
+    db.refresh(b)
+    assert a.is_active and a.parent_id is None and a.level == 1
+    assert not b.is_active  # chapter B 被软删
+    # A 下有一个 content step,title 为空,body = "<p>B</p>"
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 1
+    assert children[0].kind == "content"
+    assert children[0].content == "<p>B</p>"
+
+
+def test_phase_c_chapter_has_children_rejects(db: Session, factory: Factory) -> None:
+    """有子 chapter 的章节不可降为 content → 400 CHAPTER_HAS_CHILDREN。"""
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    factory.chapter(proc.id, title="A.1", parent_id=a.id, level=2, sort_order=0)
+
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service.apply_layer_roles(
+            db,
+            proc.id,
+            roles={a.id: "content"},
+            expected_revision=proc.revision,
+            meta=META,
+        )
+    assert ex.value.status_code == 400
+    assert ex.value.detail["code"] == "CHAPTER_HAS_CHILDREN"
