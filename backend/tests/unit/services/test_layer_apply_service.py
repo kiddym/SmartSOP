@@ -165,3 +165,99 @@ def test_screenshot_scenario_three_l2_promotions_with_adoption(
     assert c1.chapter_id == new_c and c2.chapter_id == new_c
     # 描述行的 sort_order 应该是 0, 1(在各自新章节下)
     assert sorted([a1.sort_order, a2.sort_order]) == [0, 1]
+
+
+def test_l3_clamped_to_l1_when_no_l2_context(db: Session, factory: Factory) -> None:
+    """根级叶子标 L3 → walk 夹到 L1。"""
+    from app.models.chapter import ProcedureChapter
+
+    proc = _proc(factory)
+    s = factory.step(proc.id, chapter_id=None, kind="content", title="孤行", sort_order=0)
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_3"}, expected_revision=proc.revision, meta=META
+    )
+    new_ch = db.get(ProcedureChapter, result["chapter_map"][s.id])
+    assert new_ch.parent_id is None
+    assert new_ch.level == 1
+
+
+def test_l2_then_l3_nested_adoption(db: Session, factory: Factory) -> None:
+    """L2 + L3,L3 成为 L2 的子章节,L3 的收养块(y1)在 L3 下,L2 之后的块(x1)在 L2 下。
+
+    文档序: R > x(升L2) > y(升L3) > y1(leaf) > x1(leaf)
+    walk 末态: y 挂在 x 下(L3),y1 挂在 y 下,x1 挂在 y 下(因为 l3=y 在 x1 前)。
+    注:x1 在 y1 后,walk 时 l3=y,x1 → leaf-reparent(parent=y)。
+    """
+    from app.models.chapter import ProcedureChapter
+
+    proc = _proc(factory)
+    r = factory.chapter(proc.id, title="R", level=1)
+    x = factory.step(proc.id, chapter_id=r.id, kind="content", title="X", sort_order=0)
+    y = factory.step(proc.id, chapter_id=r.id, kind="content", title="Y", sort_order=1)
+    y1 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>y1</p>", sort_order=2)
+    x1 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>x1</p>", sort_order=3)
+
+    result = layer_apply_service.apply_layer_roles(
+        db,
+        proc.id,
+        roles={x.id: "chapter_2", y.id: "chapter_3"},
+        expected_revision=proc.revision,
+        meta=META,
+    )
+    new_x, new_y = result["chapter_map"][x.id], result["chapter_map"][y.id]
+    assert db.get(ProcedureChapter, new_x).parent_id == r.id
+    assert db.get(ProcedureChapter, new_x).level == 2
+    assert db.get(ProcedureChapter, new_y).parent_id == new_x
+    assert db.get(ProcedureChapter, new_y).level == 3
+    # y1 and x1 both fall under y (l3) since they come after y in doc order
+    db.refresh(y1); db.refresh(x1)
+    assert y1.chapter_id == new_y
+    assert x1.chapter_id == new_y
+
+
+def test_depth_validator_rejects_level_4() -> None:
+    """Walk 总是夹紧到 ≤3,所以 depth 校验是 defense-in-depth,直接构造 updates 测试。"""
+    fake_updates = {
+        "x": {"kind": "to-chapter", "parent_id": "y", "sort_order": 0, "level": 4}
+    }
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service._validate_depth(fake_updates)
+    assert ex.value.detail["code"] == "CHAPTER_DEPTH_EXCEEDED"
+
+
+def test_optimistic_lock_conflict(db: Session, factory: Factory) -> None:
+    """传递错误的 expected_revision → 409 VERSION_CONFLICT。"""
+    proc = _proc(factory)
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service.apply_layer_roles(
+            db, proc.id, roles={}, expected_revision=proc.revision + 1, meta=META
+        )
+    assert ex.value.status_code == 409
+
+
+def test_empty_roles_noop(db: Session, factory: Factory) -> None:
+    """空 roles 仍返回 chapter_map=空,不抛错。"""
+    proc = _proc(factory)
+    ch = factory.chapter(proc.id, title="A", level=1)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="x", sort_order=0)
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={}, expected_revision=proc.revision, meta=META
+    )
+    assert result["chapter_map"] == {}
+
+
+def test_to_content_empty_title_produces_empty_body(db: Session, factory: Factory) -> None:
+    """空标题章节降为 content → content="" 而非 "<p></p>"。"""
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    b = factory.chapter(proc.id, title="", level=1, sort_order=1)  # 空标题章节
+    layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={a.id: "chapter_1", b.id: "content"}, expected_revision=proc.revision, meta=META
+    )
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 1
+    assert children[0].content == ""  # 不是 "<p></p>"
