@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta, get_db, get_request_meta
 from app.schemas.common import BatchDeleteResult, Page
-from app.schemas.node import ApplyMarksResult
+from app.schemas.node import ApplyMarksResult, LayerApplyIn, LayerApplyResult
 from app.schemas.parse import AssetUploadResult, ImportRequest
 from app.schemas.pdf import PdfLayoutOut
 from app.schemas.procedure import (
@@ -41,6 +41,7 @@ from app.services import (
     asset_service,
     editor_service,
     import_service,
+    layer_apply_service,
     mark_service,
     pdf,
     procedure_service,
@@ -266,6 +267,23 @@ def apply_marks(
     result = mark_service.apply_marks(db, procedure_id, meta)
     db.commit()
     return result
+
+
+@router.post("/{procedure_id}/apply-layer-roles", response_model=LayerApplyResult)
+def apply_layer_roles(
+    procedure_id: str,
+    payload: LayerApplyIn,
+    db: Session = Depends(get_db),
+    meta: RequestMeta = Depends(get_request_meta),
+    if_match: str | None = Header(default=None, alias="If-Match"),
+) -> LayerApplyResult:
+    """层级标定批量应用(spec)。事务性:walk → 校验 → Phase A-D → recompute + bump + audit。"""
+    expected = ensure_if_match(if_match)
+    result = layer_apply_service.apply_layer_roles(
+        db, procedure_id, roles=payload.roles, expected_revision=expected, meta=meta
+    )
+    db.commit()
+    return LayerApplyResult(**result)
 
 
 @router.delete("/{procedure_id}", response_model=None)
