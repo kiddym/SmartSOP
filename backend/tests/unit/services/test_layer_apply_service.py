@@ -124,3 +124,44 @@ def test_phase_c_chapter_has_children_rejects(db: Session, factory: Factory) -> 
         )
     assert ex.value.status_code == 400
     assert ex.value.detail["code"] == "CHAPTER_HAS_CHILDREN"
+
+
+def test_screenshot_scenario_three_l2_promotions_with_adoption(
+    db: Session, factory: Factory
+) -> None:
+    """截图场景:3.0 下三组(姓名 + 2 描述),三个姓名升 L2,各吃 2 个描述。"""
+    from app.models.chapter import ProcedureChapter
+
+    proc = _proc(factory)
+    r = factory.chapter(proc.id, title="职责", level=1, sort_order=0)
+    a = factory.step(proc.id, chapter_id=r.id, kind="content", title="崔宇明", sort_order=0)
+    a1 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>负责编制本程序</p>", sort_order=1)
+    a2 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>全面负责财务</p>", sort_order=2)
+    b = factory.step(proc.id, chapter_id=r.id, kind="content", title="王覆宇", sort_order=3)
+    b1 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>架构设计</p>", sort_order=4)
+    b2 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>服务器部署</p>", sort_order=5)
+    c = factory.step(proc.id, chapter_id=r.id, kind="content", title="于星河", sort_order=6)
+    c1 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>前端开发</p>", sort_order=7)
+    c2 = factory.step(proc.id, chapter_id=r.id, kind="content", content="<p>开发流程</p>", sort_order=8)
+
+    result = layer_apply_service.apply_layer_roles(
+        db,
+        proc.id,
+        roles={a.id: "chapter_2", b.id: "chapter_2", c.id: "chapter_2"},
+        expected_revision=proc.revision,
+        meta=META,
+    )
+
+    new_a = result["chapter_map"][a.id]
+    new_b = result["chapter_map"][b.id]
+    new_c = result["chapter_map"][c.id]
+    for nid, expected_title in [(new_a, "崔宇明"), (new_b, "王覆宇"), (new_c, "于星河")]:
+        ch = db.get(ProcedureChapter, nid)
+        assert ch is not None and ch.parent_id == r.id and ch.level == 2 and ch.title == expected_title
+
+    db.refresh(a1); db.refresh(a2); db.refresh(b1); db.refresh(b2); db.refresh(c1); db.refresh(c2)
+    assert a1.chapter_id == new_a and a2.chapter_id == new_a
+    assert b1.chapter_id == new_b and b2.chapter_id == new_b
+    assert c1.chapter_id == new_c and c2.chapter_id == new_c
+    # 描述行的 sort_order 应该是 0, 1(在各自新章节下)
+    assert sorted([a1.sort_order, a2.sort_order]) == [0, 1]

@@ -20,7 +20,7 @@ from app.errors import bad_request
 from app.models.chapter import ProcedureChapter
 from app.models.procedure import Procedure
 from app.models.step import ProcedureStep
-from app.services import optimistic_lock
+from app.services import audit_service, numbering_service, optimistic_lock
 from app.services.layer_walk import LayerRow, compute_layer_updates
 
 LayerRole = Literal["chapter_1", "chapter_2", "chapter_3", "content", "keep"]
@@ -252,6 +252,20 @@ def _phase_c_to_content(
         ch.deleted_at = utcnow()
 
 
+def _phase_d_leaf_reparent(
+    db: Session, updates: dict[str, dict], chapter_map: dict[str, str]
+) -> None:
+    """叶子重挂(保持角色叶子)。已被 Phase A 软删的叶子跳过。"""
+    for node_id, u in updates.items():
+        if u["kind"] != "leaf-reparent":
+            continue
+        st = db.get(ProcedureStep, node_id)
+        if st is None or not st.is_active:
+            continue
+        st.chapter_id = chapter_map.get(u["parent_id"], u["parent_id"])
+        st.sort_order = u["sort_order"]
+
+
 def apply_layer_roles(
     db: Session,
     procedure_id: str,
@@ -271,5 +285,21 @@ def apply_layer_roles(
     chapter_map = _phase_a_to_chapter(db, proc, rows, updates)
     _phase_b_reorder(db, updates, chapter_map)
     _phase_c_to_content(db, proc, updates, chapter_map)
+    _phase_d_leaf_reparent(db, updates, chapter_map)
     db.flush()
+
+    numbering_service.recompute(db, proc.id)
+    optimistic_lock.bump(proc)
+    db.flush()
+
+    audit_service.log_procedure_action(
+        db,
+        target_id=proc.id,
+        procedure_group_id=proc.procedure_group_id,
+        action="apply-layer-roles",
+        meta=meta,
+        old_value={"role_count": len(roles)},
+        new_value={"chapter_map": chapter_map},
+    )
+
     return {"chapter_map": chapter_map, "revision": proc.revision}
