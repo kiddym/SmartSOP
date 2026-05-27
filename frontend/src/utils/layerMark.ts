@@ -116,22 +116,44 @@ export function computeLayerUpdates(
   return out
 }
 
-/** 「所见即所选」缩进：章节 = level-1；content = 当前标题层级。 */
+/** 「所见即所选」缩进：章节按其落定 level；叶子 keep 缩在当前 heading 下；叶子提升为章节按新 level。 */
 export function computeLayerIndents(
   rows: LayerRow[],
   roleMap: Map<string, LayerRole>,
 ): Map<string, number> {
   const map = new Map<string, number>()
   let headingLevel = 0
+  let l1Set = false
+  let l2Set = false
   for (const row of rows) {
     const role = effectiveRole(row, roleMap)
-    if (role === 'content') {
-      map.set(row.id, headingLevel)
-    } else {
-      const lv = roleLevel(role)
+    if (row.kind === 'chapter') {
+      if (role === 'content') {
+        // 章节降级为 content 步骤：缩进按当前 heading 下一层；不更新 heading 上下文
+        map.set(row.id, headingLevel)
+        continue
+      }
+      // 章节保持标题：夹紧到祖先链能撑得起的层（与 computeLayerUpdates 同算法）
+      const requested = roleLevel(role)
+      const lv = requested >= 3 && l2Set ? 3 : requested >= 2 && l1Set ? 2 : 1
       map.set(row.id, lv - 1)
       headingLevel = lv
+      if (lv === 1) { l1Set = true; l2Set = false }
+      else if (lv === 2) { l2Set = true }
+      continue
     }
+    // 叶子（step / content）
+    if (role === 'keep') {
+      map.set(row.id, headingLevel)
+      continue
+    }
+    // 叶子提升为章节
+    const requested = roleLevel(role)
+    const lv = requested >= 3 && l2Set ? 3 : requested >= 2 && l1Set ? 2 : 1
+    map.set(row.id, lv - 1)
+    headingLevel = lv
+    if (lv === 1) { l1Set = true; l2Set = false }
+    else if (lv === 2) { l2Set = true }
   }
   return map
 }

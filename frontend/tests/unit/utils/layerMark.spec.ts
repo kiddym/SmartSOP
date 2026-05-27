@@ -105,3 +105,23 @@ describe('computeLayerUpdates with leaves', () => {
     expect(u.get('s1')).toEqual({ kind: 'to-chapter', parent_id: null, sort_order: 0, level: 1 })
   })
 })
+
+describe('computeLayerIndents with leaves', () => {
+  it('叶子继承当前 heading level；提升后自身缩进按新 level', () => {
+    const rows: LayerRow[] = [
+      { id: 'A', kind: 'chapter', level: 1, hasLeafChildren: false },
+      { id: 's1', kind: 'step', level: 0, hasLeafChildren: false },
+      { id: 'c1', kind: 'content', level: 0, hasLeafChildren: false },
+      { id: 's2', kind: 'step', level: 0, hasLeafChildren: false },
+    ]
+    const roles = new Map<string, LayerRole>([
+      ['A', 'chapter_1'],
+      ['c1', 'chapter_2'],
+    ])
+    const m = computeLayerIndents(rows, roles)
+    expect(m.get('A')).toBe(0) // L1 → 0
+    expect(m.get('s1')).toBe(1) // 挂在 L1 下
+    expect(m.get('c1')).toBe(1) // 自己被提升为 L2 → indent=1
+    expect(m.get('s2')).toBe(2) // 挂在新 L2 下
+  })
+})
