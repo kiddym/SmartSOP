@@ -93,6 +93,26 @@ def _is_inside_txbx(el: etree._Element) -> bool:
     return False
 
 
+def _count_raw_images(el: etree._Element) -> int:
+    """与 _emit_images 同口径的原始图源计数：a:blip + v:imagedata，跳过 txbxContent 内。
+
+    供 emit_paragraph / emit_table 写入 Block.raw_image_count，让 C001 完整性校验
+    的分母覆盖 VML 老格式图。Skip 规则与 _emit_images 同形态：仅当 blip/vimg 在
+    txbxContent 内、且 el 本身**不在** txbxContent 内时跳过——这一对称形态保证
+    外层段落不双计 txbx 内图，而内层 emit_paragraph(sub) 仍能正确计入 sub 内图。
+    """
+    n = 0
+    for blip in el.iter(qn("a:blip")):
+        if _is_inside_txbx(blip) and not _is_inside_txbx(el):
+            continue
+        n += 1
+    for vimg in el.iter(qn("v:imagedata")):
+        if _is_inside_txbx(vimg) and not _is_inside_txbx(el):
+            continue
+        n += 1
+    return n
+
+
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
     """收集一个 run 内全部图片（a:blip inline/anchor + v:imagedata VML），按 XML 顺序。
 
@@ -249,7 +269,7 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
         numbered = ppr.find(qn("w:numPr")) is not None
 
     out = _serialize_runs(para, ctx)
-    raw_blips = sum(1 for _ in para.iter(qn("a:blip")))
+    raw_blips = _count_raw_images(para)
     alignment = _read_alignment(ppr)
     style_level = styles_mod.classify_heading_style(
         style_id, ctx.style_index, synonyms=ctx.synonyms, style_overrides=ctx.style_overrides
@@ -375,7 +395,7 @@ def _table_html(tbl: etree._Element, ctx: _Ctx) -> tuple[str, list[ImageRef]]:
 
 def emit_table(tbl: etree._Element, ctx: _Ctx, index: int) -> Block:
     table_html, images = _table_html(tbl, ctx)
-    raw_blips = sum(1 for _ in tbl.iter(qn("a:blip")))
+    raw_blips = _count_raw_images(tbl)
     raw_tables = sum(1 for _ in tbl.iter(qn("w:tbl")))
     return Block(
         kind="table",

@@ -127,3 +127,24 @@ def test_textbox_image_attributed_to_inner_block_not_outer() -> None:
         assert len(outer.images) == 0, "outer paragraph must not double-count txbx image"
     # 全文图总数 == 1
     assert nd.total_image_count == 1
+
+
+def test_raw_image_count_includes_vml_imagedata() -> None:
+    """raw_image_count 应将 v:imagedata 计入分母，与 _emit_images 的抽取范围对齐。"""
+    data = DocxBuilder().vml_image_para().build()
+    nd = _normalize(data)
+    blk = next(b for b in nd.blocks if b.images)
+    assert blk.raw_image_count == 1
+    assert len(blk.images) == blk.raw_image_count  # 分母分子一致 → C001 pass
+
+
+def test_raw_image_count_excludes_txbx_blips_on_outer_paragraph() -> None:
+    """外层段落的 raw_image_count 不应包含 txbx 内部图（避免与内层 block 重复计数）。"""
+    data = DocxBuilder().textbox_with_image_para("内图测试").build()
+    nd = _normalize(data)
+    para_blocks = [b for b in nd.blocks if b.kind == "paragraph"]
+    outer = next(b for b in para_blocks if not b.text.strip())
+    inner = next(b for b in para_blocks if "内图测试" in b.text)
+    assert outer.raw_image_count == 0
+    assert inner.raw_image_count == 1
+    assert len(inner.images) == 1
