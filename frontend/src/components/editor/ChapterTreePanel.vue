@@ -142,8 +142,12 @@ function onAddFromRow(row: FlatRow, kind: 'chapter' | 'content' | 'step'): void 
   else if (kind === 'step') store.addStepNode(parentId, afterId, 'step')
   else store.addStepNode(parentId, afterId, 'content')
 }
-function onConvert(row: FlatRow, dir: 'to-step' | 'to-content'): void {
-  store.setStepKind(row.id, dir === 'to-step' ? 'step' : 'content')
+function onConvert(row: FlatRow, dir: 'to-step' | 'to-content' | 'chapter-to-content'): void {
+  if (dir === 'chapter-to-content') {
+    store.convertChapterToContent(row.id)
+  } else {
+    store.setStepKind(row.id, dir === 'to-step' ? 'step' : 'content')
+  }
 }
 async function onRemove(row: FlatRow): Promise<void> {
   if (!isTempId(row.id)) {

@@ -23,7 +23,7 @@ const emit = defineEmits<{
   (e: 'add', kind: 'chapter' | 'content' | 'step'): void
   (e: 'move', dir: 'up' | 'down'): void
   (e: 'remove'): void
-  (e: 'convert', dir: 'to-step' | 'to-content'): void
+  (e: 'convert', dir: 'to-step' | 'to-content' | 'chapter-to-content'): void
   (e: 'check', shift: boolean): void
   (e: 'dragstart', ev: DragEvent): void
   (e: 'dragover', ev: DragEvent): void
@@ -31,7 +31,7 @@ const emit = defineEmits<{
   (e: 'dragend'): void
 }>()
 
-function onMore(c: 'to-step' | 'to-content' | 'remove'): void {
+function onMore(c: 'to-step' | 'to-content' | 'chapter-to-content' | 'remove'): void {
   if (c === 'remove') emit('remove')
   else emit('convert', c)
 }
@@ -132,6 +132,13 @@ const tooltipDisabled = computed(
           <el-dropdown-menu>
             <el-dropdown-item v-if="row.kind === 'content'" command="to-step">转为步骤</el-dropdown-item>
             <el-dropdown-item v-if="row.kind === 'step'" command="to-content">转为内容块</el-dropdown-item>
+            <el-dropdown-item
+              v-if="row.kind === 'chapter'"
+              command="chapter-to-content"
+              :disabled="row.has_children"
+            >
+              转为内容块
+            </el-dropdown-item>
             <el-dropdown-item command="remove" divided>删除</el-dropdown-item>
           </el-dropdown-menu>
         </template>

@@ -10,6 +10,7 @@ import { fetchProcedureDetail, saveProcedure, applyMarks } from '@/api/procedure
 import {
   convertChapterToStep,
   convertRootToStep,
+  convertChapterToContent as convertChapterToContentApi,
   setChapterMarkStatus,
 } from '@/api/chapters'
 import { convertStepToChapter } from '@/api/steps'
@@ -735,6 +736,19 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       const map = await this.ensureSaved()
       await convertStepToChapter(map[id] ?? id)
       await this.reload()
+    },
+
+    async refreshAfterConversion(): Promise<void> {
+      await this.reload()
+    },
+
+    async convertChapterToContent(id: string): Promise<void> {
+      const map = await this.ensureSaved()
+      const realId = map[id] ?? id
+      const result = await convertChapterToContentApi(realId)
+      await this.refreshAfterConversion()
+      this.pushUndo(`chapter-to-content:${realId}`)
+      if (result.created.length > 0) this.selectNode(result.created[0])
     },
 
     // 跨父移动：本地写 parent_id (或 chapter_id) + 两侧组重排 sort_order，置脏，可撤销。
