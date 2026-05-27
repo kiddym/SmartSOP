@@ -3,12 +3,12 @@ import { computed, ref, watch } from 'vue'
 import { useDebounceFn, useVirtualList } from '@vueuse/core'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import TreeRow from './TreeRow.vue'
-import EditorLayerMarking from './EditorLayerMarking.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { isTempId } from '@/utils/editor'
 import { nextReviewId, nextRowId } from '@/utils/reviewNav'
 import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { computeDrop, validDrop, type DndTree } from '@/utils/treeDnd'
+import { computeLayerIndents, defaultLayerRole, type LayerRole, type LayerConflict } from '@/utils/layerMark'
 import type { EditorChapter, EditorStep, FlatRow } from '@/types/node'
 
 const store = useProcedureEditorStore()
@@ -355,6 +355,50 @@ async function clearMarks(): Promise<void> {
   markSel.value = new Set()
 }
 
+// ---- 层级标定模式（与 mark mode 平行的叠加层）---- //
+const layerRoleMap = ref<Map<string, LayerRole>>(new Map())
+const layerConflicts = ref<LayerConflict[]>([])
+
+watch(() => store.layerMode, (on) => {
+  if (on) {
+    const m = new Map<string, LayerRole>()
+    for (const r of store.layerRows) m.set(r.id, defaultLayerRole(r))
+    layerRoleMap.value = m
+    layerConflicts.value = []
+  } else {
+    layerRoleMap.value = new Map()
+    layerConflicts.value = []
+  }
+}, { immediate: true })
+
+const layerIndentMap = computed(() => {
+  if (!store.layerMode) return new Map<string, number>()
+  return computeLayerIndents(store.layerRows, layerRoleMap.value)
+})
+
+function onLayerRole(rowId: string, role: LayerRole): void {
+  layerRoleMap.value = new Map(layerRoleMap.value).set(rowId, role)
+}
+
+async function applyLayer(): Promise<void> {
+  const res = await store.applyLayerRoles(layerRoleMap.value)
+  if (!res.ok) {
+    layerConflicts.value = res.conflicts
+    ElMessage.warning(`存在 ${res.conflicts.length} 处 §Q25 冲突，请先解决再应用`)
+  } else {
+    layerConflicts.value = []
+  }
+}
+
+function cancelLayer(): void {
+  store.toggleLayerMode()
+}
+
+function jumpToRow(id: string): void {
+  store.expandAncestors(id)
+  store.selectNode(id)
+}
+
 const searchRef = ref<{ focus: () => void } | null>(null)
 function focusSearch(): void {
   searchRef.value?.focus()
@@ -423,8 +467,33 @@ defineExpose({ focusSearch })
       </div>
     </div>
 
-    <EditorLayerMarking v-if="store.layerMode" />
-    <div v-else v-bind="containerProps" class="tree-scroll">
+    <div v-if="store.layerMode" class="lm-bar">
+      <span class="lm-hint">逐行设定层级；叶子可提升为章节。先解决 §Q25 冲突再应用。</span>
+      <span class="lm-spacer" />
+      <el-button size="small" @click="cancelLayer">取消</el-button>
+      <el-button size="small" type="primary" @click="applyLayer">应用层级</el-button>
+    </div>
+    <div v-if="store.layerMode && layerConflicts.length" class="lm-conflicts">
+      <p class="lm-conflicts-title">⚠ §Q25 同级互斥冲突，共 {{ layerConflicts.length }} 处：</p>
+      <ul>
+        <li v-for="(c, i) in layerConflicts" :key="i">
+          在父节点
+          <a href="#" @click.prevent="c.parent_id && jumpToRow(c.parent_id)">{{ c.parent_id ?? '根级' }}</a>
+          下：章节
+          <span v-for="id in c.chapterChildren" :key="id">
+            <a href="#" @click.prevent="jumpToRow(id)">{{ id }}</a>
+            <span> </span>
+          </span>
+          与叶子
+          <span v-for="id in c.leafChildren" :key="id">
+            <a href="#" @click.prevent="jumpToRow(id)">{{ id }}</a>
+            <span> </span>
+          </span>
+          混合。请把叶子一并提升、或撤销章节提升。
+        </li>
+      </ul>
+    </div>
+    <div v-bind="containerProps" class="tree-scroll">
       <div v-bind="useVirtualRows ? wrapperProps : {}">
         <TreeRow
           v-for="row in renderedRows"
@@ -439,6 +508,9 @@ defineExpose({ focusSearch })
           :can-move-up="moveFlags.get(row.id)?.up ?? false"
           :can-move-down="moveFlags.get(row.id)?.down ?? false"
           :drop-hint="overId === row.id ? overHint : ''"
+          :layer-mode="store.layerMode"
+          :layer-role="layerRoleMap.get(row.id) ?? 'keep'"
+          :indent-override="store.layerMode ? (layerIndentMap.get(row.id) ?? null) : null"
           @select="onSelect(row)"
           @toggle="store.toggleExpanded(row.id)"
           @add="(kind) => onAddFromRow(row, kind)"
@@ -446,6 +518,7 @@ defineExpose({ focusSearch })
           @remove="onRemove(row)"
           @convert="(dir) => onConvert(row, dir)"
           @check="(shift) => onCheck(row, shift)"
+          @layer-role="(role) => onLayerRole(row.id, role)"
           @dragstart="(ev) => onDragStart(row, ev)"
           @dragover="(ev) => onDragOver(row, ev)"
           @drop="onDrop(row)"
@@ -511,4 +584,23 @@ defineExpose({ focusSearch })
   flex: 1;
   overflow-y: auto;
 }
+.lm-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
+}
+.lm-hint { font-size: 12px; color: #909399; }
+.lm-spacer { flex: 1; }
+.lm-conflicts {
+  padding: 8px 12px;
+  background: #fef0f0;
+  border-bottom: 1px solid #fcdada;
+  color: #f56c6c;
+  font-size: 12px;
+}
+.lm-conflicts-title { margin: 0 0 4px 0; font-weight: 600; }
+.lm-conflicts ul { margin: 0; padding-left: 16px; }
+.lm-conflicts a { color: #d97757; text-decoration: underline; cursor: pointer; }
 </style>

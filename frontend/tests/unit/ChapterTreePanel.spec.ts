@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import ChapterTreePanel from '@/components/editor/ChapterTreePanel.vue'
@@ -439,5 +439,47 @@ describe('ChapterTreePanel · 标记模式级联', () => {
     expect(labels).not.toContain('应用标记')
     expect(labels).not.toContain('应用章节标记')
     expect(labels).toEqual(expect.arrayContaining(['标记为步骤', '标记为内容', '清除标记']))
+  })
+})
+
+describe('ChapterTreePanel layer overlay', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  it('layer 模式下渲染 TreeRow（不再走 EditorLayerMarking 独立视图）', () => {
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [
+      { id: 'A', parent_id: null, title: 'A', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
+    ]
+    store.steps = []
+    store.layerMode = true
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] } })
+    // TreeRow renders
+    expect(w.findAll('.tr').length).toBeGreaterThan(0)
+    // EditorLayerMarking's old root class no longer present
+    expect(w.find('.layer-marking').exists()).toBe(false)
+    // Layer picker visible inside the TreeRow
+    expect(w.find('.tr-layer-picker').exists()).toBe(true)
+  })
+
+  it('apply 返回 Q25 冲突 → 渲染冲突 banner', async () => {
+    const store = useProcedureEditorStore()
+    store.chapters = [
+      { id: 'A', parent_id: null, title: 'A', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 },
+    ]
+    store.steps = []
+    store.layerMode = true
+    const spy = vi.spyOn(store, 'applyLayerRoles').mockResolvedValue({
+      ok: false,
+      conflicts: [{ parent_id: 'A', chapterChildren: ['c1'], leafChildren: ['s1'] }],
+    })
+    const w = mount(ChapterTreePanel, { global: { plugins: [ElementPlus] } })
+    const btn = w.findAll('button').find((b) => b.text().includes('应用'))
+    expect(btn).toBeDefined()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(spy).toHaveBeenCalled()
+    expect(w.find('.lm-conflicts').exists()).toBe(true)
+    expect(w.text()).toContain('Q25')
   })
 })
