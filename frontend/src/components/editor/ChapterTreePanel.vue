@@ -381,12 +381,21 @@ function onLayerRole(rowId: string, role: LayerRole): void {
 }
 
 async function applyLayer(): Promise<void> {
-  const res = await store.applyLayerRoles(layerRoleMap.value)
-  if (!res.ok) {
-    layerConflicts.value = res.conflicts
-    ElMessage.warning(`存在 ${res.conflicts.length} 处 §Q25 冲突，请先解决再应用`)
-  } else {
-    layerConflicts.value = []
+  // Q25 dry-run + 在 store apply 路径里的网络/后端异常都可能抛出。
+  // dry-run 已能识别"可预测的"冲突；这里 catch 兜住意外（网络掉线 / 后端意外 4xx）
+  // 避免回到最初的"静默失败"——参见 .verify-screenshots/layer-overlay-FINDINGS.md。
+  // 注意：to-chapter 是按行 API；若中途失败可能留下半提交状态，reload 让 UI 与 DB 重新对齐。
+  try {
+    const res = await store.applyLayerRoles(layerRoleMap.value)
+    if (!res.ok) {
+      layerConflicts.value = res.conflicts
+      ElMessage.warning(`存在 ${res.conflicts.length} 处 §Q25 冲突，请先解决再应用`)
+    } else {
+      layerConflicts.value = []
+    }
+  } catch {
+    ElMessage.error('应用层级失败，状态已与后端重新同步')
+    await store.reload()
   }
 }
 

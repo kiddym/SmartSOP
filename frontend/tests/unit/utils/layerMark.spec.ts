@@ -27,7 +27,7 @@ describe('layerMark', () => {
     const u = computeLayerUpdates(rows, m)
     expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
     expect(u.get('b')).toEqual({ kind: 'reorder', parent_id: 'a', sort_order: 0, level: 2 })
-    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'b', sort_order: 0, sourceTitle: '' })
+    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'b', sort_order: 0 })
   })
 
   it('content 行不更新 l1/l2/l3 上下文（后续 content 仍挂上一个标题）', () => {
@@ -37,8 +37,8 @@ describe('layerMark', () => {
       ['a', 'chapter_1'], ['c', 'content'], ['d', 'content'],
     ])
     const u = computeLayerUpdates(rows, m)
-    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 0, sourceTitle: '' })
-    expect(u.get('d')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 1, sourceTitle: '' })
+    expect(u.get('c')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 0 })
+    expect(u.get('d')).toEqual({ kind: 'to-content', parent_id: 'a', sort_order: 1 })
   })
 
   it('不可达层级夹紧：二级无一级父→根', () => {

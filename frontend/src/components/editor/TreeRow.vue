@@ -19,7 +19,7 @@ interface Props {
   layerRole?: import('@/utils/layerMark').LayerRole
   indentOverride?: number | null
 }
-const props = withDefaults(defineProps<Props>(), { layerMode: false, indentOverride: null })
+const props = withDefaults(defineProps<Props>(), { layerMode: false, layerRole: 'keep', indentOverride: null })
 const emit = defineEmits<{
   (e: 'select'): void
   (e: 'toggle'): void

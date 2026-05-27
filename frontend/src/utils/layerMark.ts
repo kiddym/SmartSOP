@@ -11,10 +11,11 @@ export interface LayerRow {
   originalParent: string | null
 }
 
-/** 应用层级后单个行的目标归属（tagged union）。 */
+/** 应用层级后单个行的目标归属（tagged union）。
+ * to-content 的 chapter 标题由 store.applyLayerRoles 直接从 chapterMap 取，故此处不带 sourceTitle。 */
 export type LayerUpdate =
   | { kind: 'reorder'; parent_id: string | null; sort_order: number; level: number }
-  | { kind: 'to-content'; parent_id: string | null; sort_order: number; sourceTitle: string }
+  | { kind: 'to-content'; parent_id: string | null; sort_order: number }
   | { kind: 'to-chapter'; parent_id: string | null; sort_order: number; level: number }
   | { kind: 'leaf-reparent'; parent_id: string | null; sort_order: number }
 
@@ -90,7 +91,7 @@ export function computeLayerUpdates(
       if (role === 'content') {
         // 章节降级为当前标题下的内容步骤；不更新 l1/l2/l3 上下文
         const parent = l3 ?? l2 ?? l1
-        out.set(row.id, { kind: 'to-content', parent_id: parent, sort_order: nextSort(parent), sourceTitle: '' })
+        out.set(row.id, { kind: 'to-content', parent_id: parent, sort_order: nextSort(parent) })
         continue
       }
 
