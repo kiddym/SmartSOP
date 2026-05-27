@@ -98,9 +98,13 @@ def structure(
     stats = hd.compute_doc_stats(blocks)
     style_index = nd.style_index or styles_mod.StyleIndex()
 
+    # 文档已用样式体系（≥1 个样式 heading）→ 信任作者意图，关闭启发式（spec eval r4）
+    # 否则署名 list / 表格行号 等非样式段被升 FP。Tier 1 styled 文档 100% 命中已足够。
+    has_style_heading = any(b.style_level is not None for b in blocks)
+
     # smart：预算启发式候选（供 body_start 兜底链第 3 级）
     heuristic_indices: list[int] = []
-    if mode == "smart":
+    if mode == "smart" and not has_style_heading:
         for b in blocks:
             if b.kind != "paragraph" or b.style_level is not None or not b.text.strip():
                 continue
@@ -127,7 +131,15 @@ def structure(
     for block in body_blocks:
         if _is_empty(block):
             continue
-        head = _classify_heading(block, mode, style_index, synonyms, style_overrides, stats)
+        head = _classify_heading(
+            block,
+            mode,
+            style_index,
+            synonyms,
+            style_overrides,
+            stats,
+            allow_heuristic=not has_style_heading,
+        )
         import_blocks.append(_to_import_block(block, head=head, style_index=style_index))
         if head is not None:
             raw_level, conf, tier, mark, source = head
@@ -213,8 +225,13 @@ def _classify_heading(
     synonyms: dict[str, int],
     style_overrides: dict[str, int],
     stats: hd.DocStats,
+    allow_heuristic: bool = True,
 ) -> tuple[int, float, str, str, str] | None:
-    """返回 ``(raw_level, confidence, tier, mark_status, heading_source)`` 或 None。"""
+    """返回 ``(raw_level, confidence, tier, mark_status, heading_source)`` 或 None。
+
+    ``allow_heuristic=False`` 时仅样式 heading 命中（eval r4：已有样式体系的文档
+    不需启发式兜底，避免署名 list / 表格行号等被升 FP）。
+    """
     if block.kind != "paragraph":
         return None
     # 样式标题（Tier1）→ HIGH 免确认
@@ -224,12 +241,12 @@ def _classify_heading(
         )
         source = _SOURCE_MAP.get(src or "style", "style")
         return block.style_level, 1.0, "high", "unmarked", source
-    # 启发式（仅 smart）→ MEDIUM 直接升，LOW 仅在有真编号信号（heading kind）时升
+    # 启发式（仅 smart 且文档无样式体系）→ MEDIUM 直接升，LOW 仅在有真编号信号（heading kind）时升
     # eval r2 trade-off：电厂/危险源 FPs 是 LOW 纯启发式（短+font 误升），但 02记录/
     # 05人力的真实章节有些恰好 0.45（编号+短，但 single_font 等让分凑不到 0.5）—
     # 必须保留对这类的 LOW 提升。weak_heading（N、）不在 LOW 提升内（避免非粗长段
     # 噪音；它们要升必须靠 bold 把自己推到 MEDIUM）。
-    if mode == "smart" and block.text.strip():
+    if mode == "smart" and allow_heuristic and block.text.strip():
         score, level, _ = hd.score_block(block, stats)
         tier = hd.tier_for(score)
         if tier == "medium":
