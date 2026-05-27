@@ -254,7 +254,6 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
             kind: 'chapter',
             level: levels.get(c.id) ?? 1,
             hasLeafChildren: hasStep.has(c.id),
-            originalParent: c.parent_id,
           })
           walk(c.id)
         }
@@ -264,7 +263,6 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
             kind: s.kind === 'content' ? 'content' : 'step',
             level: 0,
             hasLeafChildren: false,
-            originalParent: s.chapter_id,
           })
         }
       }

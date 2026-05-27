@@ -6,9 +6,6 @@ export interface LayerRow {
   kind: 'chapter' | 'step' | 'content'
   level: number // chapter 当前层级（叶子行 level=0 占位）
   hasLeafChildren: boolean // 仅 chapter 有意义：挂了步骤/内容块 → 不可降为 content
-  // DB 当前父节点（用于 Q25 dry-run 的「后端实际拓扑」算法，见 validateLayerQ25 注释）。
-  // chapter 行：来自 chapter.parent_id；叶子行：来自 step.chapter_id。根级为 null。
-  originalParent: string | null
 }
 
 /** 应用层级后单个行的目标归属（tagged union）。
@@ -129,47 +126,25 @@ export interface LayerConflict {
 /**
  * Dry-run §Q25 同级互斥校验。
  *
- * 注意「前端 walk 算出的理想终态」与「后端单步 API 实际终态」会发散：
- *   - `reorder`（章节重排）和 `to-content`（章节降级）走 store in-memory 路径，
- *     终点 parent === walk 算的 u.parent_id。
- *   - `to-chapter`（叶子提升为章节）走后端 `convertStepToChapter` 单行 API，
- *     新章节的 parent_id = 该叶子在 DB 里的 chapter_id（= row.originalParent），
- *     **不是** walk 算出的 u.parent_id。
- *   - `leaf-reparent`（叶子保持）store 不动它的 chapter_id，所以 DB 终点 = originalParent。
- *
- * 校验必须按 backend 实际拓扑分组（端到端正确的位置），否则会漏报：
- * 比如父 P 下两个 step 兄弟，提升其中一个 → walk 把另一个算到新章节名下不报冲突，
- * 但后端真实结果是 P 同时有 [新章节, 留下的 step]，触发 SIBLING_TYPE_CONFLICT。
+ * 与后端 layer_apply_service 等价:按 walk 末态 (u.parent_id) 分组。
+ * 后端 apply-layer-roles 端点执行同一份 walk 后会落到完全相同的拓扑,
+ * 因此前端 dry-run 不会假阳性 / 假阴性。
  */
 export function validateLayerQ25(
-  rows: LayerRow[],
+  _rows: LayerRow[],
   updates: Map<string, LayerUpdate>,
 ): LayerConflict[] {
-  const rowMap = new Map(rows.map((r) => [r.id, r]))
-  // 算每行的 (endKind, endParent) — 后端 / store apply 完成后的真实归属。
+  // 算每行的 (endKind, endParent) — apply 完成后的真实归属。
   type End = { kind: 'chapter' | 'leaf'; parent: string | null }
   const endOf = new Map<string, End>()
   for (const [id, u] of updates) {
-    const row = rowMap.get(id)
-    if (!row) continue
     switch (u.kind) {
-      case 'reorder':
-        endOf.set(id, { kind: 'chapter', parent: u.parent_id })
-        break
-      case 'to-content':
-        endOf.set(id, { kind: 'leaf', parent: u.parent_id })
-        break
-      case 'to-chapter':
-        // 后端用 originalParent；walk 的 u.parent_id 这里不可信
-        endOf.set(id, { kind: 'chapter', parent: row.originalParent })
-        break
-      case 'leaf-reparent':
-        // store 不改 chapter_id；终点 = originalParent
-        endOf.set(id, { kind: 'leaf', parent: row.originalParent })
-        break
+      case 'reorder':       endOf.set(id, { kind: 'chapter', parent: u.parent_id }); break
+      case 'to-content':    endOf.set(id, { kind: 'leaf',    parent: u.parent_id }); break
+      case 'to-chapter':    endOf.set(id, { kind: 'chapter', parent: u.parent_id }); break
+      case 'leaf-reparent': endOf.set(id, { kind: 'leaf',    parent: u.parent_id }); break
     }
   }
-  // 按真实 endParent 分组
   const groups = new Map<string | null, { chapters: string[]; leaves: string[] }>()
   for (const [id, end] of endOf) {
     const g = groups.get(end.parent) ?? { chapters: [], leaves: [] }
