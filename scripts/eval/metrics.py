@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 import unicodedata
 
-from scripts.eval.types import GtChapter, TitleMetrics
+from scripts.eval.models import GtChapter, TitleMetrics
 
 _SPACE_RE = re.compile(r"\s+")
 

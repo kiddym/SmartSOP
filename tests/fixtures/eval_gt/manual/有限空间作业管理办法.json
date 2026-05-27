@@ -1,0 +1,36 @@
+{
+  "docx_stem": "有限空间作业管理办法",
+  "tier": "manual",
+  "chapters": [
+    {
+      "title": "第一章  总则",
+      "level": 1,
+      "source_idx": 6
+    },
+    {
+      "title": "第二章 管理职责",
+      "level": 1,
+      "source_idx": 18
+    },
+    {
+      "title": "第三章 有限空间作业安全管理要求",
+      "level": 1,
+      "source_idx": 29
+    },
+    {
+      "title": "第四章 进入有限空间作业安全技术措施",
+      "level": 1,
+      "source_idx": 78
+    },
+    {
+      "title": "第五章 相关罚则",
+      "level": 1,
+      "source_idx": 122
+    },
+    {
+      "title": "第九章  附则",
+      "level": 1,
+      "source_idx": 124
+    }
+  ]
+}

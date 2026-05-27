@@ -1,0 +1,31 @@
+{
+  "docx_stem": "3.危险源监控措施",
+  "tier": "manual",
+  "chapters": [
+    {
+      "title": "一、危险源：火灾",
+      "level": 1,
+      "source_idx": 2
+    },
+    {
+      "title": "二、危险源：触电",
+      "level": 1,
+      "source_idx": 11
+    },
+    {
+      "title": "三、危险源：机械伤害",
+      "level": 1,
+      "source_idx": 22
+    },
+    {
+      "title": "四、危险源：受限空间",
+      "level": 1,
+      "source_idx": 29
+    },
+    {
+      "title": "五、危险源：高处坠落",
+      "level": 1,
+      "source_idx": 39
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "docx_stem": "02记录控制程序",
+  "tier": "manual",
+  "chapters": [
+    {
+      "title": "1 目的",
+      "level": 1,
+      "source_idx": 2
+    },
+    {
+      "title": "2 范围",
+      "level": 1,
+      "source_idx": 4
+    },
+    {
+      "title": "3 职责和权限",
+      "level": 1,
+      "source_idx": 6
+    },
+    {
+      "title": "3.1 质量部是记录的归口管理部门，负责组织全公司记录表格的编制和校审。",
+      "level": 2,
+      "source_idx": 7
+    },
+    {
+      "title": "3.2 质量部负责检验和计量工作过程、技术服务过程中的记录的控制。",
+      "level": 2,
+      "source_idx": 8
+    },
+    {
+      "title": "3.3 生产部负责生产工艺、设备、工装管理过程中的记录的控制。",
+      "level": 2,
+      "source_idx": 9
+    },
+    {
+      "title": "3.4 各职能部门负责各自工作过程中的记录的控制。",
+      "level": 2,
+      "source_idx": 10
+    },
+    {
+      "title": "4 工作程序",
+      "level": 1,
+      "source_idx": 11
+    },
+    {
+      "title": "4.1 记录的分类",
+      "level": 2,
+      "source_idx": 12
+    },
+    {
+      "title": "4.1.1管理类记录：如《培训计划》《管理评审报告》《内部审核报告》等。",
+      "level": 3,
+      "source_idx": 13
+    },
+    {
+      "title": "4.1.2技术质量类记录：如《生产过程记录》《产品质量检验表》等。",
+      "level": 3,
+      "source_idx": 14
+    },
+    {
+      "title": "4.2记录的填写",
+      "level": 2,
+      "source_idx": 15
+    },
+    {
+      "title": "4.2.1质量记录填写要及时、真实、内容完整、字迹清晰，不得随意涂改。",
+      "level": 3,
+      "source_idx": 16
+    },
+    {
+      "title": "4.3.2如因笔误或计算错误要修改原数据，应采用单杠划去原数",
+      "level": 3,
+      "source_idx": 17
+    },
+    {
+      "title": "4.3 记录的收集、编目和归档",
+      "level": 2,
+      "source_idx": 20
+    },
+    {
+      "title": "4.4 记录的保管",
+      "level": 2,
+      "source_idx": 22
+    },
+    {
+      "title": "4.4.1归档后的记录应存放在能防潮、防蛀、防火的环境里，并由各部门配备专（兼）职人员保管。",
+      "level": 3,
+      "source_idx": 23
+    },
+    {
+      "title": "4.4.2记录的保存期限",
+      "level": 3,
+      "source_idx": 24
+    },
+    {
+      "title": "4.4 记录的查阅、借阅",
+      "level": 2,
+      "source_idx": 26
+    },
+    {
+      "title": "4.5 记录的处理",
+      "level": 2,
+      "source_idx": 28
+    },
+    {
+      "title": "5 记录",
+      "level": 1,
+      "source_idx": 30
+    }
+  ]
+}

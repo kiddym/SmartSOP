@@ -16,7 +16,7 @@ from lxml import etree
 from app.parser import styles as styles_mod
 from app.parser import synonyms as synonyms_mod
 from scripts.eval.metrics import normalize_title
-from scripts.eval.types import GroundTruth, GtChapter
+from scripts.eval.models import GroundTruth, GtChapter
 
 NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
 _FIXTURES_ROOT = Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "eval_gt"

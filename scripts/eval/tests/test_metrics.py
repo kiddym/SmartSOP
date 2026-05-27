@@ -9,7 +9,7 @@ from scripts.eval.metrics import (
     normalize_title,
     title_prf,
 )
-from scripts.eval.types import GtChapter
+from scripts.eval.models import GtChapter
 
 
 def test_normalize_title_strips_whitespace_and_lowercases():
