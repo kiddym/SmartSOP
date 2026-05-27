@@ -19,6 +19,12 @@ from docx.oxml.ns import qn
 from docx.shared import Pt
 from PIL import Image
 
+from lxml import etree as _et
+
+_W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+_V_NS = "urn:schemas-microsoft-com:vml"
+_R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
 
 def tiny_png(color: tuple[int, int, int] = (200, 30, 30), size: int = 8) -> bytes:
     """生成一张极小 PNG 的字节流。"""
@@ -78,6 +84,74 @@ class DocxBuilder:
         p = self.doc.add_paragraph()
         run = p.add_run()
         run.add_picture(io.BytesIO(png), width=Pt(width_pt))
+        return self
+
+    def vml_image_para(self, png: bytes | None = None) -> DocxBuilder:
+        """段落 run 内嵌一张 VML 老格式图（v:imagedata），同时复用 docx 的图片关系。"""
+        png = png or tiny_png()
+        # 先用 add_picture 走标准路径注入图片关系（拿到 rid + 落 media part）
+        tmp_p = self.doc.add_paragraph()
+        tmp_run = tmp_p.add_run()
+        tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
+        blip = tmp_run._r.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}blip")
+        assert blip is not None
+        rid = blip.get("{%s}embed" % _R_NS)
+        # 删除临时段落（关系/媒体已保留）
+        tmp_p._p.getparent().remove(tmp_p._p)
+        # 构造真正的 VML 段落
+        target_p = self.doc.add_paragraph()
+        run = target_p.add_run()
+        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        shape = _et.SubElement(
+            pict, "{%s}shape" % _V_NS, attrib={"style": "width:20pt;height:20pt"}
+        )
+        _et.SubElement(shape, "{%s}imagedata" % _V_NS, attrib={"{%s}id" % _R_NS: rid})
+        return self
+
+    def textbox_para(self, inner_text: str) -> DocxBuilder:
+        """段落 run 内嵌一个 VML 文本框，含一段子段落文字。"""
+        p = self.doc.add_paragraph()
+        run = p.add_run()
+        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        shape = _et.SubElement(
+            pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"}
+        )
+        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
+        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
+        inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
+        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
+        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        inner_t.text = inner_text
+        return self
+
+    def textbox_with_image_para(self, inner_text: str, png: bytes | None = None) -> DocxBuilder:
+        """文本框内含「文字 + 内联图（a:blip）」的段落——验证 txbx 内图归属内层 block。"""
+        png = png or tiny_png()
+        # 先借标准 add_picture 注册图片关系
+        tmp_p = self.doc.add_paragraph()
+        tmp_run = tmp_p.add_run()
+        tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
+        blip = tmp_run._r.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}blip")
+        rid = blip.get("{%s}embed" % _R_NS)
+        # 取出 drawing 子树备用，再删 tmp 段落
+        drawing = tmp_run._r.find("{%s}drawing" % _W_NS)
+        drawing_copy = _et.fromstring(_et.tostring(drawing))
+        tmp_p._p.getparent().remove(tmp_p._p)
+        # 构造外层段落 → pict → shape → textbox → txbxContent → p(text + drawing)
+        outer = self.doc.add_paragraph()
+        run = outer.add_run()
+        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        shape = _et.SubElement(
+            pict, "{%s}shape" % _V_NS, attrib={"style": "width:140pt;height:60pt"}
+        )
+        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
+        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
+        inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
+        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
+        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        inner_t.text = inner_text
+        inner_r.append(drawing_copy)
+        _ = rid  # 用于静默 lint；rid 已经在 drawing_copy 的 r:embed 中
         return self
 
     def text_with_image(self, before: str, after: str, png: bytes | None = None) -> DocxBuilder:
