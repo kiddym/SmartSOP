@@ -3,11 +3,16 @@
 零样式文档（无 heading 样式、纯编号/纯视觉）靠本模块产出 MEDIUM/LOW 候选
 （标 review）。编号分级字典 v4（26 份 QMS 打磨）+ 误报抑制 + 等字号自适应。
 启发式封顶 0.84，**永不自动 HIGH**（非标准标题必经人工确认）。
+
+评分由 ``SIGNALS`` 注册表组合（eval r5 L1 重构）：每个 signal 独立函数，
+``score_block`` = list veto 短路 + 各 signal 累加 + cap 0.84。新增信号
+只需在 ``SIGNALS`` 注册即可，调参时 ablation 也只需 disable 单条。
 """
 
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.parser.ir import Block
@@ -124,8 +129,101 @@ def tier_for(score: float) -> str | None:
     return None
 
 
+@dataclass(frozen=True)
+class SignalContext:
+    """各 signal 函数共享的输入。"""
+
+    block: Block
+    num: NumberingMatch | None
+    stats: DocStats
+    is_short: bool
+
+
+@dataclass(frozen=True)
+class Signal:
+    """启发式 signal 注册表项：name 用于 ablation/可解释性，score 是纯函数。"""
+
+    name: str
+    score: Callable[[SignalContext], float]
+    note: str  # 设计权重 / 调参备注（供 log + 调参者参考）
+
+
+def _font_p85_signal(ctx: SignalContext) -> float:
+    """字号 ≥ 全文 85 分位时 +0.25；单一字号 doc 归零（无相对差异可言）。"""
+    if (
+        not ctx.stats.single_font
+        and ctx.stats.font_p85 is not None
+        and ctx.block.max_font_pt is not None
+        and ctx.block.max_font_pt >= ctx.stats.font_p85
+    ):
+        return 0.25
+    return 0.0
+
+
+def _bold_signal(ctx: SignalContext) -> float:
+    """加粗字符占比 ≥ 0.5 时 +0.20。"""
+    return 0.20 if ctx.block.bold_ratio >= 0.5 else 0.0
+
+
+def _numbering_signal(ctx: SignalContext) -> float:
+    """编号信号（含长段误报抑制 + 等字号补偿）。
+
+    - heading kind：基础 0.25；depth=1 长段半额 (0.125，"1. 长 body" 噪音抑制)；
+      depth≥2 长段保留全额（融合式 unambiguous 结构）。
+    - weak_heading kind（N、 顿号）：仅 bold≥0.5 才计 0.25；长段完全 veto
+      （'1、设有消防...' 危险源 body 条款噪音 / Q217）。
+    - list kind：永远 0（实际由 score_block 入口 hard veto 短路，这里不到达）。
+    - 末尾 +0.10 单字号补偿（仅 num_points > 0 时叠加）。
+    """
+    num = ctx.num
+    if num is None or num.kind == "list":
+        return 0.0
+    if num.kind == "heading":
+        base = 0.25
+        if not ctx.is_short and num.level == 1:
+            base = 0.125
+    elif num.kind == "weak_heading":
+        base = 0.25 if ctx.block.bold_ratio >= 0.5 else 0.0
+        if not ctx.is_short:
+            base = 0.0
+    else:  # 防御：未来若加新 kind
+        return 0.0
+    if base > 0 and ctx.stats.single_font:
+        base += 0.10
+    return base
+
+
+def _short_signal(ctx: SignalContext) -> float:
+    """短段（≤30 字）+0.10。"""
+    return 0.10 if ctx.is_short else 0.0
+
+
+def _center_signal(ctx: SignalContext) -> float:
+    """居中对齐 +0.05。"""
+    return 0.05 if ctx.block.alignment == "center" else 0.0
+
+
+SIGNALS: list[Signal] = [
+    Signal("font_p85", _font_p85_signal, "字号≥p85 +0.25；单字号文档归零"),
+    Signal("bold", _bold_signal, "bold_ratio≥0.5 +0.20"),
+    Signal(
+        "numbering",
+        _numbering_signal,
+        "heading 全/半额（depth=1 长段半额）；weak_heading 仅 bold；list veto；单字号补偿 +0.10",
+    ),
+    Signal("short", _short_signal, "短段 ≤30 字 +0.10"),
+    Signal("center", _center_signal, "居中对齐 +0.05"),
+]
+
+
 def score_block(block: Block, stats: DocStats) -> tuple[float, int, str]:
-    """启发式评分（封顶 0.84）。返回 ``(score, inferred_level, "heuristic")``。"""
+    """启发式评分（封顶 0.84）。返回 ``(score, inferred_level, "heuristic")``。
+
+    Pipeline：
+    1. 空文本 → 0
+    2. list kind hard veto（短路）—— `(N)/(一)/N)` 即便其它信号累积也不升 heading
+    3. SignalContext 一次构造 → 各 ``SIGNALS`` 独立打分 → 累加 → cap 0.84
+    """
     text = block.text.strip()
     if not text:
         return 0.0, 1, "heuristic"
@@ -137,48 +235,15 @@ def score_block(block: Block, stats: DocStats) -> tuple[float, int, str]:
     if num is not None and num.kind == "list":
         return 0.0, 1, "heuristic"
 
-    is_short = len(text) <= _SHORT_LEN
-    score = 0.0
+    ctx = SignalContext(
+        block=block,
+        num=num,
+        stats=stats,
+        is_short=len(text) <= _SHORT_LEN,
+    )
     level = num.level if num else 1
-
-    # 字号相对化（单一字号时归零）
-    if (
-        not stats.single_font
-        and stats.font_p85 is not None
-        and block.max_font_pt is not None
-        and block.max_font_pt >= stats.font_p85
-    ):
-        score += 0.25
-
-    # 加粗占比
-    if block.bold_ratio >= 0.5:
-        score += 0.20
-
-    # 编号信号 + 误报抑制 + 等字号补偿
-    num_points = 0.0
-    if num is not None and num.kind != "list":
-        if num.kind == "heading":
-            num_points = 0.25
-            # heading depth=1 长段（"1. 我们要遵循所有质量规定..." 假想 body）半额；
-            # depth>=2 长段（"3.1质量部..." 融合式真子标题）保留全额（unambiguous 结构信号）
-            if not is_short and num.level == 1:
-                num_points = 0.125
-        elif num.kind == "weak_heading":  # 顿号/无空格歧义：需粗体才计分（Q217）
-            num_points = 0.25 if block.bold_ratio >= 0.5 else 0.0
-            if not is_short:  # weak_heading depth=1 长段完全 veto（'1、设有消防...' 噪音）
-                num_points = 0.0
-        if stats.single_font and num_points > 0:  # 等字号自适应：编号补偿
-            num_points += 0.10
-    score += num_points
-
-    # 短段
-    if is_short:
-        score += 0.10
-    # 特殊对齐
-    if block.alignment == "center":
-        score += 0.05
-
-    return min(score, _HEURISTIC_CAP), min(level, 3), "heuristic"
+    total = sum(sig.score(ctx) for sig in SIGNALS)
+    return min(total, _HEURISTIC_CAP), min(level, 3), "heuristic"
 
 
 @dataclass

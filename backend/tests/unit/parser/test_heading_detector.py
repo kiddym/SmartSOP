@@ -106,6 +106,50 @@ def test_fused_weak_heading_long_stays_vetoed() -> None:
     assert score < hd.LOW  # 非粗长 weak_heading 应彻底压住
 
 
+# --------------------------------------------------------------------------- #
+# Signal Registry（L1 重构）
+# --------------------------------------------------------------------------- #
+def test_signal_registry_has_5_entries() -> None:
+    """SIGNALS 注册表应含 5 个 signal（font_p85 / bold / numbering / short / center）。"""
+    names = [s.name for s in hd.SIGNALS]
+    assert set(names) == {"font_p85", "bold", "numbering", "short", "center"}
+    assert len(hd.SIGNALS) == 5
+
+
+def test_signal_breakdown_sums_to_score_block() -> None:
+    """每个 signal 独立打分之和（带 cap）= score_block 主入口结果。"""
+    stats = hd.DocStats(font_p85=12.0, single_font=False)
+    blk = _para("1 目的", bold=1.0, font=22.0)
+    ctx = hd.SignalContext(
+        block=blk,
+        num=hd.classify_numbering("1 目的"),
+        stats=stats,
+        is_short=True,
+    )
+    total = sum(sig.score(ctx) for sig in hd.SIGNALS)
+    score, _level, _ = hd.score_block(blk, stats)
+    assert abs(score - min(total, hd._HEURISTIC_CAP)) < 1e-9
+
+
+def test_individual_signal_inspectable() -> None:
+    """单个 signal 可独立调用做 ablation/调参。"""
+    stats = hd.DocStats(font_p85=12.0, single_font=False)
+    blk = _para("1 目的", bold=1.0, font=22.0)
+    ctx = hd.SignalContext(
+        block=blk,
+        num=hd.classify_numbering("1 目的"),
+        stats=stats,
+        is_short=True,
+    )
+    by_name = {s.name: s for s in hd.SIGNALS}
+    # bold ≥ 0.5 → 0.20
+    assert abs(by_name["bold"].score(ctx) - 0.20) < 1e-9
+    # short ≤ 30 → 0.10
+    assert abs(by_name["short"].score(ctx) - 0.10) < 1e-9
+    # font 22 ≥ p85 12 + not single_font → 0.25
+    assert abs(by_name["font_p85"].score(ctx) - 0.25) < 1e-9
+
+
 def test_list_marker_is_hard_veto_regardless_of_other_signals() -> None:
     """eval-r1：(一)/(N)/N) list 标记是 hard veto——即便 bold+短+大字号也不能升 heading。
 
