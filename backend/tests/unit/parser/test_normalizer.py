@@ -82,3 +82,15 @@ def test_html_escapes_special_chars() -> None:
     blk = next(b for b in nd.blocks if b.kind == "paragraph" and b.text)
     assert "&lt;" in blk.html
     assert "&amp;" in blk.html
+
+
+def test_vml_imagedata_extracted_as_image_ref() -> None:
+    """v:imagedata（VML 老格式图）应当被 _emit_images 抽取，不再静默丢失。"""
+    data = DocxBuilder().vml_image_para().build()
+    nd = _normalize(data)
+    img_blocks = [b for b in nd.blocks if b.images]
+    assert len(img_blocks) == 1, f"expected 1 paragraph with image, got {len(img_blocks)}"
+    img = img_blocks[0].images[0]
+    assert img.rid  # rid 不为空
+    assert img.data and len(img.data) > 0  # 媒体字节读到了
+    assert img.ext in (".png", ".jpg", ".jpeg")

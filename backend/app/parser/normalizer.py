@@ -83,10 +83,27 @@ def _font_pt(rpr: etree._Element | None) -> float | None:
         return None
 
 
+def _is_inside_txbx(el: etree._Element) -> bool:
+    """元素是否处于 w:txbxContent 子树下（用于跳过外层段落对 txbx 内图的重复抽取）。"""
+    parent = el.getparent()
+    while parent is not None:
+        if local(parent.tag) == "txbxContent":
+            return True
+        parent = parent.getparent()
+    return False
+
+
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
-    """收集一个 run 内全部图片（inline + anchor），按 XML 顺序。"""
+    """收集一个 run 内全部图片（a:blip inline/anchor + v:imagedata VML），按 XML 顺序。
+
+    跳过 w:txbxContent 内的图：那些由 normalize() 的 txbx 下钻分支单独抽取，
+    在此重复抽取会导致双计（见 _count_raw_images 同步策略）。
+    """
     refs: list[ImageRef] = []
+    # a:blip — 现代 DrawingML 图（含 inline / anchor）
     for blip in run.iter(qn("a:blip")):
+        if _is_inside_txbx(blip):
+            continue
         rid = blip.get(qn("r:embed")) or blip.get(qn("r:link"))
         if not rid:
             continue
@@ -103,6 +120,28 @@ def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
                 data=data,
                 ext=ext,
                 anchor=anchor,
+                placeholder=f"media:{rid}",
+            )
+        )
+    # v:imagedata — Word 97-2003 / VML 兼容路径（剪贴画、转存图等）
+    for vimg in run.iter(qn("v:imagedata")):
+        if _is_inside_txbx(vimg):
+            continue
+        rid = vimg.get(qn("r:id")) or vimg.get(qn("r:embed"))
+        if not rid:
+            continue
+        data = ctx.pkg.read_media(rid)
+        if data is None:
+            continue
+        part = ctx.pkg.media_part_for_rid(rid) or ""
+        ext = ("." + part.rsplit(".", 1)[1].lower()) if "." in part else ".png"
+        refs.append(
+            ImageRef(
+                rid=rid,
+                part_name=part,
+                data=data,
+                ext=ext,
+                anchor=False,
                 placeholder=f"media:{rid}",
             )
         )
