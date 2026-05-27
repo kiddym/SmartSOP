@@ -1,0 +1,116 @@
+{
+  "docx_stem": "05人力资源控制程序",
+  "tier": "manual",
+  "chapters": [
+    {
+      "title": "1 目的",
+      "level": 1,
+      "source_idx": 2
+    },
+    {
+      "title": "2 范围",
+      "level": 1,
+      "source_idx": 4
+    },
+    {
+      "title": "3 职责",
+      "level": 1,
+      "source_idx": 6
+    },
+    {
+      "title": "3.1 质量部",
+      "level": 2,
+      "source_idx": 7
+    },
+    {
+      "title": "3.2 各部门",
+      "level": 2,
+      "source_idx": 11
+    },
+    {
+      "title": "3.3 总经理",
+      "level": 2,
+      "source_idx": 14
+    },
+    {
+      "title": "4 工作程序",
+      "level": 1,
+      "source_idx": 16
+    },
+    {
+      "title": "4.1 人员安排",
+      "level": 2,
+      "source_idx": 17
+    },
+    {
+      "title": "4.2 能力、培训和意识",
+      "level": 2,
+      "source_idx": 23
+    },
+    {
+      "title": "4.2.1 应识别从事影响质量活动的人员的能力需求，分别对新员工、在岗员",
+      "level": 3,
+      "source_idx": 24
+    },
+    {
+      "title": "4.2.2新员工培训",
+      "level": 3,
+      "source_idx": 26
+    },
+    {
+      "title": "4.2.3 在岗人员培训",
+      "level": 3,
+      "source_idx": 30
+    },
+    {
+      "title": "4.2.4特殊工种人员的培训",
+      "level": 3,
+      "source_idx": 36
+    },
+    {
+      "title": "4.2.5技术人员培训",
+      "level": 3,
+      "source_idx": 40
+    },
+    {
+      "title": "4.2.6转岗人员培训(同4.2.2  2）、3）)",
+      "level": 3,
+      "source_idx": 42
+    },
+    {
+      "title": "4.2.7通过教育和培训，使员工意识到：",
+      "level": 3,
+      "source_idx": 43
+    },
+    {
+      "title": "4.3 培训计划",
+      "level": 2,
+      "source_idx": 48
+    },
+    {
+      "title": "4.4 培训实施：",
+      "level": 2,
+      "source_idx": 52
+    },
+    {
+      "title": "4.5评价培训的有效性",
+      "level": 2,
+      "source_idx": 55
+    },
+    {
+      "title": "5记录",
+      "level": 1,
+      "source_idx": 58
+    },
+    {
+      "title": "5.1《年度培训计划》",
+      "level": 2,
+      "source_idx": 59
+    },
+    {
+      "title": "5.2 《培训记录》",
+      "level": 2,
+      "source_idx": 60
+    }
+  ]
+}

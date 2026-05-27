@@ -1,0 +1,151 @@
+{
+  "docx_stem": "15-标识和可追溯性控制程序",
+  "tier": "template",
+  "chapters": [
+    {
+      "title": "1、目的",
+      "level": 1,
+      "source_idx": 4
+    },
+    {
+      "title": "2、范围",
+      "level": 1,
+      "source_idx": 6
+    },
+    {
+      "title": "3、权责",
+      "level": 1,
+      "source_idx": 8
+    },
+    {
+      "title": "3.1、质量部负责产品标识和可追溯性的归口控制。",
+      "level": 2,
+      "source_idx": 9
+    },
+    {
+      "title": "3.2、生技部生产人员负责生产过程的产品标识。",
+      "level": 2,
+      "source_idx": 10
+    },
+    {
+      "title": "3.3、仓库保管员负责入库产品的标识。",
+      "level": 2,
+      "source_idx": 11
+    },
+    {
+      "title": "3.4、供销部负责对销售产品的去向进行记录。",
+      "level": 2,
+      "source_idx": 12
+    },
+    {
+      "title": "4、定义",
+      "level": 1,
+      "source_idx": 13
+    },
+    {
+      "title": "5、工作流程:",
+      "level": 1,
+      "source_idx": 15
+    },
+    {
+      "title": "5.1、产品标识要求",
+      "level": 2,
+      "source_idx": 16
+    },
+    {
+      "title": "5.2、产品标识方法",
+      "level": 2,
+      "source_idx": 19
+    },
+    {
+      "title": "5.2.1、状态标识:合格-绿色、不合格-红色、待验-黄色、退货-蓝色,分别用区域色标标明。",
+      "level": 3,
+      "source_idx": 20
+    },
+    {
+      "title": "5.2.2、采购物资标识",
+      "level": 3,
+      "source_idx": 21
+    },
+    {
+      "title": "5.2.2.1、采购物资采用分区、标识牌、《货位卡》和记录(《入库单》、《出库单》)等方式,对采购物资进行标识和区分。",
+      "level": 3,
+      "source_idx": 22
+    },
+    {
+      "title": "5.2.2.2、对于有可追溯性要求的关键物资,《入库单》和《出库单》应记录物资批号、进货厂家等信息,以便追溯。",
+      "level": 3,
+      "source_idx": 23
+    },
+    {
+      "title": "5.2.3、生产过程中的半成品和成品(最终产品)标识:",
+      "level": 3,
+      "source_idx": 24
+    },
+    {
+      "title": "5.2.3.1、生技部制定《产品批号与效期的管理规程》,对产品标识做出规定。",
+      "level": 3,
+      "source_idx": 25
+    },
+    {
+      "title": "5.2.3.2、生产人员在《批生产记录》中记录产品标识内容,并填写操作人、生产日期等信息,以备追溯。",
+      "level": 3,
+      "source_idx": 26
+    },
+    {
+      "title": "5.2.4、成品库标识",
+      "level": 3,
+      "source_idx": 27
+    },
+    {
+      "title": "5.3、追溯",
+      "level": 2,
+      "source_idx": 33
+    },
+    {
+      "title": "5.3.1、可追溯性要求:",
+      "level": 3,
+      "source_idx": 34
+    },
+    {
+      "title": "5.3.1.1、物资:关键物资能追溯到供方.",
+      "level": 3,
+      "source_idx": 35
+    },
+    {
+      "title": "5.3.1.2、生产过程:能追溯到每道工序的操作者或检验员。",
+      "level": 3,
+      "source_idx": 36
+    },
+    {
+      "title": "5.3.2、产品需要追溯时,由质量部根据产品标识和相关记录进行追溯。",
+      "level": 3,
+      "source_idx": 37
+    },
+    {
+      "title": "6、相关文件",
+      "level": 1,
+      "source_idx": 38
+    },
+    {
+      "title": "7、表单",
+      "level": 1,
+      "source_idx": 40
+    },
+    {
+      "title": "7.1、标识卡",
+      "level": 2,
+      "source_idx": 41
+    },
+    {
+      "title": "7.2、货位卡",
+      "level": 2,
+      "source_idx": 42
+    },
+    {
+      "title": "7.3、批生产记录",
+      "level": 2,
+      "source_idx": 43
+    }
+  ]
+}

@@ -1,0 +1,261 @@
+{
+  "docx_stem": "25-各级人员质量职责和权限规定",
+  "tier": "template",
+  "chapters": [
+    {
+      "title": "1范围",
+      "level": 1,
+      "source_idx": 4
+    },
+    {
+      "title": "2职责",
+      "level": 1,
+      "source_idx": 7
+    },
+    {
+      "title": "2.1总经理负责组织机构的建立、质量职能的划分和组织对质量管理职责与权限的规定。",
+      "level": 2,
+      "source_idx": 8
+    },
+    {
+      "title": "2.2管理者代表负责对质量管理职责与权限的实施进行推动、监督、检查、完善。",
+      "level": 2,
+      "source_idx": 9
+    },
+    {
+      "title": "2.3各职能部门负责按质量职能的要求认真组织实施质量管理职责与权限。",
+      "level": 2,
+      "source_idx": 10
+    },
+    {
+      "title": "2.4质管部负责按有关制度对质量管理职责与权限的实施情况进行检查、考核,提出奖罚意见。",
+      "level": 2,
+      "source_idx": 11
+    },
+    {
+      "title": "3实施要求",
+      "level": 1,
+      "source_idx": 12
+    },
+    {
+      "title": "4各级人员质量职责和权限",
+      "level": 1,
+      "source_idx": 14
+    },
+    {
+      "title": "4.1总经理",
+      "level": 2,
+      "source_idx": 15
+    },
+    {
+      "title": "4.1.1职责",
+      "level": 3,
+      "source_idx": 16
+    },
+    {
+      "title": "4.1.2权限",
+      "level": 3,
+      "source_idx": 26
+    },
+    {
+      "title": "4.2管理者代表",
+      "level": 2,
+      "source_idx": 33
+    },
+    {
+      "title": "4.2.1职责",
+      "level": 3,
+      "source_idx": 34
+    },
+    {
+      "title": "4.2.2权限",
+      "level": 3,
+      "source_idx": 46
+    },
+    {
+      "title": "4.3.1职责",
+      "level": 3,
+      "source_idx": 58
+    },
+    {
+      "title": "4.3.2权限",
+      "level": 3,
+      "source_idx": 66
+    },
+    {
+      "title": "4.4.1职责",
+      "level": 3,
+      "source_idx": 75
+    },
+    {
+      "title": "4.4.2权限",
+      "level": 3,
+      "source_idx": 83
+    },
+    {
+      "title": "4.5质检科科长",
+      "level": 2,
+      "source_idx": 91
+    },
+    {
+      "title": "4.5.1职责",
+      "level": 3,
+      "source_idx": 92
+    },
+    {
+      "title": "4.5.2权限",
+      "level": 3,
+      "source_idx": 110
+    },
+    {
+      "title": "4.6质量管理员",
+      "level": 2,
+      "source_idx": 120
+    },
+    {
+      "title": "4.6.1职责",
+      "level": 3,
+      "source_idx": 121
+    },
+    {
+      "title": "4.6.2权限",
+      "level": 3,
+      "source_idx": 132
+    },
+    {
+      "title": "4.7检验员",
+      "level": 2,
+      "source_idx": 142
+    },
+    {
+      "title": "4.7.1职责",
+      "level": 3,
+      "source_idx": 143
+    },
+    {
+      "title": "4.7.2权限",
+      "level": 3,
+      "source_idx": 151
+    },
+    {
+      "title": "4.8技术科科长",
+      "level": 2,
+      "source_idx": 159
+    },
+    {
+      "title": "4.8.1职责",
+      "level": 3,
+      "source_idx": 160
+    },
+    {
+      "title": "4.8.2权限",
+      "level": 3,
+      "source_idx": 172
+    },
+    {
+      "title": "4.9营销科科长",
+      "level": 2,
+      "source_idx": 186
+    },
+    {
+      "title": "4.9.1职责",
+      "level": 3,
+      "source_idx": 187
+    },
+    {
+      "title": "4.9.2权限",
+      "level": 3,
+      "source_idx": 197
+    },
+    {
+      "title": "4.10三包服务人员",
+      "level": 2,
+      "source_idx": 206
+    },
+    {
+      "title": "4.10.1职责",
+      "level": 3,
+      "source_idx": 207
+    },
+    {
+      "title": "4.10.2权限",
+      "level": 3,
+      "source_idx": 212
+    },
+    {
+      "title": "4.11物资总库管理员",
+      "level": 2,
+      "source_idx": 221
+    },
+    {
+      "title": "4.11.1职责",
+      "level": 3,
+      "source_idx": 222
+    },
+    {
+      "title": "4.11.2权限",
+      "level": 3,
+      "source_idx": 229
+    },
+    {
+      "title": "4.12财务会计",
+      "level": 2,
+      "source_idx": 236
+    },
+    {
+      "title": "4.12.1职责",
+      "level": 3,
+      "source_idx": 237
+    },
+    {
+      "title": "4.12.2权限",
+      "level": 3,
+      "source_idx": 243
+    },
+    {
+      "title": "4.13综合车间主任(副主任)",
+      "level": 2,
+      "source_idx": 249
+    },
+    {
+      "title": "4.13.1职责",
+      "level": 3,
+      "source_idx": 250
+    },
+    {
+      "title": "4.14.2权限",
+      "level": 3,
+      "source_idx": 259
+    },
+    {
+      "title": "4.14操作工",
+      "level": 2,
+      "source_idx": 266
+    },
+    {
+      "title": "4.14.1职责",
+      "level": 3,
+      "source_idx": 267
+    },
+    {
+      "title": "4.14.2权限",
+      "level": 3,
+      "source_idx": 277
+    },
+    {
+      "title": "4.15出厂试验员",
+      "level": 2,
+      "source_idx": 283
+    },
+    {
+      "title": "4.15.1职责",
+      "level": 3,
+      "source_idx": 284
+    },
+    {
+      "title": "4.15.2权限",
+      "level": 3,
+      "source_idx": 288
+    }
+  ]
+}

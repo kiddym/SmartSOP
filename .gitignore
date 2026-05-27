@@ -90,3 +90,6 @@ frontend-package-list.json
 
 # brainstorming visual companion mockups
 .superpowers/
+
+# parser eval harness reports (machine-local, regenerable)
+.eval-reports/

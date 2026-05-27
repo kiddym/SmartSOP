@@ -84,6 +84,49 @@ def test_heuristic_never_reaches_high() -> None:
     assert score <= 0.84  # 启发式封顶，永不自动 HIGH
 
 
+def test_fused_subheading_heading_kind_keeps_half_credit() -> None:
+    """eval r3：融合式 'N.N xxx 正文长段' (heading kind) 保留半额 num_points 0.125
+    + single_font 补偿 0.10 → score >= LOW，可被 r2 'LOW + heading num' 规则升 chapter。
+    """
+    stats = hd.DocStats(font_p85=None, single_font=True)  # 02记录这类
+    text = "3.1质量部是记录的归口管理部门,负责组织全公司记录表格的编制和校审。"
+    blk = _para(text, bold=0.0)
+    score, level, _ = hd.score_block(blk, stats)
+    assert score >= hd.LOW  # 至少 LOW，才能被结构器升
+    assert score < hd.MEDIUM  # 但不要直接 MEDIUM（避免覆盖 heuristic）
+    assert level == 2
+
+
+def test_fused_weak_heading_long_stays_vetoed() -> None:
+    """weak_heading（N、）长段保持完全 veto——危险源 '1、设有消防设施...' 等 body 条款不升。"""
+    stats = hd.DocStats(font_p85=None, single_font=True)
+    text = "1、设有消防设施并按规定维护保养确保完好有效随时可用于灭火处置。"
+    blk = _para(text, bold=0.0)
+    score, _, _ = hd.score_block(blk, stats)
+    assert score < hd.LOW  # 非粗长 weak_heading 应彻底压住
+
+
+def test_list_marker_is_hard_veto_regardless_of_other_signals() -> None:
+    """eval-r1：(一)/(N)/N) list 标记是 hard veto——即便 bold+短+大字号也不能升 heading。
+
+    背景：有限空间作业管理办法.docx 35 个 FP 中 (一)~(六) 等共 ~15 个，
+    它们 kind='list' 但其它信号累积仍可达 MEDIUM (0.5+) 被结构器升 chapter。
+    """
+    stats = hd.DocStats(font_p85=12.0, single_font=False)
+    for text in [
+        "(一)落实国家法律法规、标准规范对有限空间作业的要求;",
+        "（1）子项",
+        "1) 子项",
+        "1）子项",
+    ]:
+        # 即便加粗 + 大字号 + 短段全开，list marker 必须 score < LOW
+        blk = _para(text, bold=1.0, font=22.0)
+        score, _, _ = hd.score_block(blk, stats)
+        assert score < hd.LOW, (
+            f"list marker {text!r} 应 hard veto (score < {hd.LOW})，实际 {score:.2f}"
+        )
+
+
 # --------------------------------------------------------------------------- #
 # detected_patterns（按编号前缀归组）
 # --------------------------------------------------------------------------- #
