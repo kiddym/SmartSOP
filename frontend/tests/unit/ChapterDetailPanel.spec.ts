@@ -4,10 +4,14 @@ import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 
 vi.mock('@/api/http', () => ({ http: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() } }))
-vi.mock('@/api/chapters', () => ({ setChapterMarkStatus: vi.fn().mockResolvedValue({}) }))
+vi.mock('@/api/chapters', () => ({
+  setChapterMarkStatus: vi.fn().mockResolvedValue({}),
+  splitChapterTitleContent: vi.fn(),
+}))
 
 import ChapterDetailPanel from '@/components/editor/ChapterDetailPanel.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import type { EditorChapter } from '@/types/node'
 
 function mountWith(markStatus: 'review' | 'unmarked') {
   const store = useProcedureEditorStore()
@@ -74,5 +78,65 @@ describe('ChapterDetailPanel 空标题自动聚焦', () => {
     expect(textarea.exists()).toBe(true)
     expect(document.activeElement).not.toBe(textarea.element)
     wrapper.unmount()
+  })
+})
+
+describe('ChapterDetailPanel split button', () => {
+  beforeEach(() => setActivePinia(createPinia()))
+
+  function mountPanel(title: string) {
+    const store = useProcedureEditorStore()
+    // @ts-expect-error 最小 procedure
+    store.procedure = { id: 'p1', version: 1, status: 'DRAFT', revision: 1, is_current: true }
+    store.chapters = [{ id: 'ch-1', title, parent_id: null, skip_numbering: false, mark_status: 'unmarked', sort_order: 0 } as EditorChapter]
+    store.steps = []
+    store.selectedId = 'ch-1'
+    return mount(ChapterDetailPanel, { global: { plugins: [ElementPlus] }, attachTo: document.body })
+  }
+
+  it('disables split button when cursor is null', async () => {
+    const w = mountPanel('章节标题ABCDE')
+    const btn = w.find('[data-test="split-title-content-btn"]')
+    expect(btn.exists()).toBe(true)
+    expect(btn.attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+
+  it('enables split button when cursor is in middle', async () => {
+    const w = mountPanel('章节标题ABCDE')
+    const textarea = w.find('textarea').element as HTMLTextAreaElement
+    textarea.setSelectionRange(4, 4)
+    await w.find('textarea').trigger('click')
+    const btn = w.find('[data-test="split-title-content-btn"]')
+    expect(btn.attributes('disabled')).toBeUndefined()
+    w.unmount()
+  })
+
+  it('disables split button when cursor at 0 or at end', async () => {
+    const w = mountPanel('章节标题')
+    const textarea = w.find('textarea').element as HTMLTextAreaElement
+
+    textarea.setSelectionRange(0, 0)
+    await w.find('textarea').trigger('click')
+    expect(w.find('[data-test="split-title-content-btn"]').attributes('disabled')).toBeDefined()
+
+    textarea.setSelectionRange(4, 4)  // 末尾 (4 chars)
+    await w.find('textarea').trigger('click')
+    expect(w.find('[data-test="split-title-content-btn"]').attributes('disabled')).toBeDefined()
+    w.unmount()
+  })
+
+  it('calls store.splitChapterTitleContent on click', async () => {
+    const w = mountPanel('章节标题ABCDE')
+    const store = useProcedureEditorStore()
+    const spy = vi.spyOn(store, 'splitChapterTitleContent').mockResolvedValue()
+
+    const textarea = w.find('textarea').element as HTMLTextAreaElement
+    textarea.setSelectionRange(4, 4)
+    await w.find('textarea').trigger('click')
+    await w.find('[data-test="split-title-content-btn"]').trigger('click')
+
+    expect(spy).toHaveBeenCalledWith('ch-1', 4)
+    w.unmount()
   })
 })

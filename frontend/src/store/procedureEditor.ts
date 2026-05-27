@@ -10,6 +10,8 @@ import { fetchProcedureDetail, saveProcedure, applyMarks } from '@/api/procedure
 import {
   convertChapterToStep,
   convertRootToStep,
+  convertChapterToContent as convertChapterToContentApi,
+  splitChapterTitleContent as splitChapterTitleContentApi,
   setChapterMarkStatus,
 } from '@/api/chapters'
 import { convertStepToChapter } from '@/api/steps'
@@ -154,6 +156,7 @@ interface State {
   redoStack: Snapshot[]
   lastUndoTag: string | null
   lastUndoAt: number
+  inflightSplit: Set<string>
 }
 
 export const useProcedureEditorStore = defineStore('procedureEditor', {
@@ -179,6 +182,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
     redoStack: [],
     lastUndoTag: null,
     lastUndoAt: 0,
+    inflightSplit: new Set<string>(),
   }),
 
   getters: {
@@ -735,6 +739,34 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       const map = await this.ensureSaved()
       await convertStepToChapter(map[id] ?? id)
       await this.reload()
+    },
+
+    async refreshAfterConversion(): Promise<void> {
+      await this.reload()
+    },
+
+    async convertChapterToContent(id: string): Promise<void> {
+      const map = await this.ensureSaved()
+      const realId = map[id] ?? id
+      const result = await convertChapterToContentApi(realId)
+      await this.refreshAfterConversion()
+      this.pushUndo(`chapter-to-content:${realId}`)
+      if (result.created.length > 0) this.selectNode(result.created[0])
+    },
+
+    async splitChapterTitleContent(id: string, cursorOffset: number): Promise<void> {
+      if (this.inflightSplit.has(id)) return
+      this.inflightSplit.add(id)
+      try {
+        const map = await this.ensureSaved()
+        const realId = map[id] ?? id
+        const result = await splitChapterTitleContentApi(realId, { cursor_offset: cursorOffset })
+        await this.refreshAfterConversion()
+        this.pushUndo(`split-title-content:${realId}`)
+        if (result.created.length > 0) this.selectNode(result.created[0])
+      } finally {
+        this.inflightSplit.delete(id)
+      }
     },
 
     // 跨父移动：本地写 parent_id (或 chapter_id) + 两侧组重排 sort_order，置脏，可撤销。

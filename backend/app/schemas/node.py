@@ -198,3 +198,9 @@ class ApplyMarksResult(BaseModel):
 
     created: list[str] = Field(default_factory=list)
     deleted: list[str] = Field(default_factory=list)
+
+
+class SplitTitleContentIn(BaseModel):
+    """章节标题拆分请求：cursor_offset 必须在 (0, len(title)) 开区间内。"""
+
+    cursor_offset: int = Field(..., gt=0)

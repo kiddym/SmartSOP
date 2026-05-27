@@ -30,3 +30,12 @@ export const convertChapterToStep = async (id: string): Promise<ConversionResult
 
 export const convertRootToStep = async (id: string): Promise<ConversionResult> =>
   (await http.post<ConversionResult>(`/chapters/${id}/convert-root-to-step`)).data
+
+export const convertChapterToContent = async (id: string): Promise<ConversionResult> =>
+  (await http.post<ConversionResult>(`/chapters/${id}/convert-to-content`)).data
+
+export const splitChapterTitleContent = async (
+  id: string,
+  payload: { cursor_offset: number },
+): Promise<ConversionResult> =>
+  (await http.post<ConversionResult>(`/chapters/${id}/split-title-content`, payload)).data

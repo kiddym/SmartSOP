@@ -375,3 +375,115 @@ def _compose_step_body(st: ProcedureStep) -> str:
     return st.content
 
 
+# --------------------------------------------------------------------------- #
+# chapter → content（融合式标题降级；Q25 同级互斥）
+# --------------------------------------------------------------------------- #
+def convert_to_content(db: Session, chapter_id: str, meta: RequestMeta) -> ConversionResult:
+    """章节降级为内容块。原 title 搬运到新 step.content；chapter 软删。
+
+    校验：
+    - 章节无任何子节点（CHAPTER_HAS_CHILDREN）
+    - 同级 siblings 不混类型（SIBLING_TYPE_CONFLICT；天然覆盖根 chapter 周围还有 chapter 的场景）
+    """
+    ch = _get_chapter(db, chapter_id)
+    proc = _get_proc_editable(db, ch.procedure_id)
+
+    if _chapter_has_children(db, proc.id, ch.id):
+        raise bad_request("CHAPTER_HAS_CHILDREN", "章节含子节点，不能转为内容块")
+    if _other_chapter_children_count(db, proc.id, ch.parent_id, ch.id) > 0:
+        raise bad_request("SIBLING_TYPE_CONFLICT", "同级仍有章节，转换会违反互斥规则")
+
+    step = ProcedureStep(
+        procedure_id=proc.id,
+        chapter_id=ch.parent_id,
+        kind="content",
+        title="",
+        content=ch.title,
+        input_schema={},
+        sort_order=0,
+    )
+    db.add(step)
+    ch.is_active = False
+    ch.deleted_at = utcnow()
+    db.flush()
+    numbering_service.recompute(db, proc.id)
+    optimistic_lock.bump(proc)
+    db.flush()
+    _audit(
+        db,
+        proc,
+        target_id=step.id,
+        action="chapter-to-content",
+        meta=meta,
+        old_value={"chapter_id": ch.id, "title": ch.title},
+    )
+    return ConversionResult(created=[step.id], deleted=[ch.id])
+
+
+# --------------------------------------------------------------------------- #
+# 拆 heading + content（C）
+# --------------------------------------------------------------------------- #
+def split_title_content(
+    db: Session, chapter_id: str, cursor_offset: int, meta: RequestMeta
+) -> ConversionResult:
+    """在 chapter.title 的 cursor_offset 位置拆为标题 + 内容。
+
+    title 截短到 [:cursor]，[cursor:] 部分作为新 content step 插入 chapter 下首位
+    （现有 step 全部 sort_order +1 让出 0 位）。
+
+    校验：
+    - 0 < cursor_offset < len(title)（INVALID_CURSOR）
+    - title[cursor:] strip 非空（EMPTY_CONTENT）
+    """
+    ch = _get_chapter(db, chapter_id)
+    proc = _get_proc_editable(db, ch.procedure_id)
+
+    title = ch.title or ""
+    if cursor_offset <= 0 or cursor_offset >= len(title):
+        raise bad_request("INVALID_CURSOR", "拆分点必须严格在标题中间")
+    new_content_text = title[cursor_offset:]
+    if not new_content_text.strip():
+        raise bad_request("EMPTY_CONTENT", "拆出的内容为空")
+
+    new_title = title[:cursor_offset]
+
+    # 已有 step children 全部 sort_order +1（让出 0 位）
+    existing_steps = (
+        db.execute(
+            select(ProcedureStep).where(
+                ProcedureStep.chapter_id == ch.id, ProcedureStep.is_active.is_(True)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    for s in existing_steps:
+        s.sort_order += 1
+
+    ch.title = new_title
+    new_step = ProcedureStep(
+        procedure_id=proc.id,
+        chapter_id=ch.id,
+        kind="content",
+        title="",
+        content=new_content_text,
+        input_schema={},
+        sort_order=0,
+    )
+    db.add(new_step)
+    db.flush()
+    numbering_service.recompute(db, proc.id)
+    optimistic_lock.bump(proc)
+    db.flush()
+    _audit(
+        db,
+        proc,
+        target_id=new_step.id,
+        action="split-title-content",
+        meta=meta,
+        old_value={"chapter_id": ch.id, "original_title": title, "cursor": cursor_offset},
+        new_value={"new_title": new_title, "new_content": new_content_text},
+    )
+    return ConversionResult(created=[new_step.id], deleted=[])
+
+

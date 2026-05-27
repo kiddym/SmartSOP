@@ -16,6 +16,7 @@ from app.schemas.node import (
     ChapterUpdate,
     ConversionResult,
     MarkStatusIn,
+    SplitTitleContentIn,
 )
 from app.services import chapter_service, conversion_service, mark_service
 
@@ -142,6 +143,27 @@ def convert_root_to_step(
     chapter_id: str, db: Session = Depends(get_db), meta: RequestMeta = Depends(get_request_meta)
 ) -> ConversionResult:
     result = conversion_service.convert_root_to_step(db, chapter_id, meta)
+    db.commit()
+    return result
+
+
+@router.post("/{chapter_id}/convert-to-content", response_model=ConversionResult)
+def convert_to_content(
+    chapter_id: str, db: Session = Depends(get_db), meta: RequestMeta = Depends(get_request_meta)
+) -> ConversionResult:
+    result = conversion_service.convert_to_content(db, chapter_id, meta)
+    db.commit()
+    return result
+
+
+@router.post("/{chapter_id}/split-title-content", response_model=ConversionResult)
+def split_title_content(
+    chapter_id: str,
+    payload: SplitTitleContentIn,
+    db: Session = Depends(get_db),
+    meta: RequestMeta = Depends(get_request_meta),
+) -> ConversionResult:
+    result = conversion_service.split_title_content(db, chapter_id, payload.cursor_offset, meta)
     db.commit()
     return result
 

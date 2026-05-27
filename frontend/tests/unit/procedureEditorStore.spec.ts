@@ -20,6 +20,8 @@ vi.mock('@/api/chapters', () => ({
   moveChapter: moveChapterSpy,
   convertChapterToStep: vi.fn(),
   convertRootToStep: vi.fn(),
+  convertChapterToContent: vi.fn(),
+  splitChapterTitleContent: vi.fn(),
 }))
 vi.mock('@/api/steps', () => ({ deleteStep: deleteStepSpy, moveStep: moveStepSpy, convertStepToChapter: vi.fn() }))
 vi.mock('@/api/procedures', () => ({
@@ -32,6 +34,8 @@ import { useProcedureEditorStore } from '@/store/procedureEditor'
 import { nextRowId } from '@/utils/reviewNav'
 import type { EditorChapter, EditorStep } from '@/types/node'
 import type { ProcedureMeta } from '@/types/procedure'
+import { convertChapterToContent as convertChapterToContentApi, splitChapterTitleContent as splitChapterTitleContentApi } from '@/api/chapters'
+import { fetchProcedureDetail } from '@/api/procedures'
 
 function meta(): ProcedureMeta {
   return {
@@ -788,5 +792,130 @@ describe('buildPayload + save 链路含删除集合', () => {
     const calledPayload = saveSpy.mock.calls[0][1]
     expect(calledPayload.deleted_chapter_ids).toEqual(['x'])
     expect(calledPayload.deleted_step_ids).toEqual(['s'])
+  })
+})
+
+describe('procedureEditorStore.convertChapterToContent', () => {
+  function detailResponse(overrides: Partial<{ chapters: EditorChapter[]; steps: EditorStep[] }> = {}) {
+    return {
+      procedure: meta(),
+      chapters: overrides.chapters ?? [],
+      steps: overrides.steps ?? [],
+      attachments: [],
+      fields: [],
+      has_source_docx: false,
+    }
+  }
+
+  it('calls API and selects new step', async () => {
+    vi.mocked(convertChapterToContentApi).mockResolvedValue({ created: ['new-step-id'], deleted: ['ch-1'] })
+    vi.mocked(fetchProcedureDetail).mockResolvedValue(detailResponse())
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+    const refreshSpy = vi.spyOn(store, 'refreshAfterConversion')
+
+    await store.convertChapterToContent('ch-1')
+
+    expect(vi.mocked(convertChapterToContentApi)).toHaveBeenCalledWith('ch-1')
+    expect(refreshSpy).toHaveBeenCalled()
+    expect(store.selectedId).toBe('new-step-id')
+  })
+
+  it('records undo on success', async () => {
+    vi.mocked(convertChapterToContentApi).mockResolvedValue({ created: ['new-id'], deleted: ['ch-1'] })
+    vi.mocked(fetchProcedureDetail).mockResolvedValue(detailResponse())
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+    const before = store.undoStack.length
+
+    await store.convertChapterToContent('ch-1')
+
+    expect(store.undoStack.length).toBe(before + 1)
+  })
+
+  it('does not mutate state on API failure', async () => {
+    vi.mocked(convertChapterToContentApi).mockRejectedValue(new Error('500 error'))
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+    const before = store.undoStack.length
+
+    await expect(store.convertChapterToContent('ch-1')).rejects.toThrow()
+
+    expect(store.undoStack.length).toBe(before)
+    expect(store.chapters.find((c) => c.id === 'ch-1')).toBeDefined()
+  })
+})
+
+describe('procedureEditorStore.splitChapterTitleContent', () => {
+  beforeEach(() => {
+    vi.mocked(splitChapterTitleContentApi).mockReset()
+  })
+
+  function detailResponse(overrides: Partial<{ chapters: EditorChapter[]; steps: EditorStep[] }> = {}) {
+    return {
+      procedure: meta(),
+      chapters: overrides.chapters ?? [],
+      steps: overrides.steps ?? [],
+      attachments: [],
+      fields: [],
+      has_source_docx: false,
+    }
+  }
+
+  it('calls API with cursor_offset and selects new step', async () => {
+    vi.mocked(splitChapterTitleContentApi).mockResolvedValue({ created: ['new-step-id'], deleted: [] })
+    vi.mocked(fetchProcedureDetail).mockResolvedValue(detailResponse())
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+
+    await store.splitChapterTitleContent('ch-1', 15)
+
+    expect(vi.mocked(splitChapterTitleContentApi)).toHaveBeenCalledWith('ch-1', { cursor_offset: 15 })
+    expect(store.selectedId).toBe('new-step-id')
+  })
+
+  it('blocks duplicate calls via inflight lock', async () => {
+    let resolveCall: (v: unknown) => void = () => {}
+    const pending = new Promise((r) => { resolveCall = r })
+    vi.mocked(splitChapterTitleContentApi).mockReturnValue(pending as never)
+    vi.mocked(fetchProcedureDetail).mockResolvedValue(detailResponse())
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+
+    const p1 = store.splitChapterTitleContent('ch-1', 4)
+    const p2 = store.splitChapterTitleContent('ch-1', 4)  // 双击
+    resolveCall({ created: ['new-id'], deleted: [] })
+    await Promise.all([p1, p2])
+
+    expect(vi.mocked(splitChapterTitleContentApi)).toHaveBeenCalledTimes(1)
+  })
+
+  it('records undo on success', async () => {
+    vi.mocked(splitChapterTitleContentApi).mockResolvedValue({ created: ['new-id'], deleted: [] })
+    vi.mocked(fetchProcedureDetail).mockResolvedValue(detailResponse())
+
+    const store = useProcedureEditorStore()
+    store.procedure = meta()
+    store.chapters = [chap('ch-1', null, 0)]
+    store.steps = []
+    const before = store.undoStack.length
+
+    await store.splitChapterTitleContent('ch-1', 4)
+    expect(store.undoStack.length).toBe(before + 1)
   })
 })

@@ -19,6 +19,42 @@ function onTitle(value: string): void {
   if (id) store.updateChapterFields(id, { title: value }, `title:${id}`)
 }
 
+// ---- 光标跟踪 / 拆分按钮 ---- //
+const cursorOffset = ref<number | null>(null)
+
+function refreshCursor(event?: Event): void {
+  const target = event?.target as HTMLTextAreaElement | null
+  if (target && target.tagName === 'TEXTAREA') {
+    cursorOffset.value = target.selectionStart ?? null
+    return
+  }
+  // 回退：尝试通过 EP ref 获取 textarea 元素
+  const inputEl = titleRef.value as unknown as { textarea?: { value?: HTMLTextAreaElement } }
+  const el = inputEl?.textarea?.value
+  if (el) {
+    cursorOffset.value = el.selectionStart ?? null
+    return
+  }
+  cursorOffset.value = null
+}
+
+const splitDisabled = computed(() => {
+  if (ro.value) return true
+  const ch = chapter.value
+  if (!ch || !ch.title.trim()) return true
+  const c = cursorOffset.value
+  if (c === null) return true
+  if (c <= 0 || c >= ch.title.length) return true
+  return false
+})
+
+function onSplit(): void {
+  const ch = chapter.value
+  const c = cursorOffset.value
+  if (!ch || c === null) return
+  void store.splitChapterTitleContent(ch.id, c)
+}
+
 interface ChildRow {
   id: string
   code: string
@@ -74,6 +110,11 @@ const children = computed<ChildRow[]>(() => {
             :disabled="ro"
             placeholder="输入章节标题"
             @input="onTitle"
+            @focus="refreshCursor"
+            @blur="refreshCursor"
+            @click="refreshCursor"
+            @keyup="refreshCursor"
+            @select="refreshCursor"
           />
           <div class="skip">
             <span class="skip-label">跳号</span>
@@ -85,6 +126,19 @@ const children = computed<ChildRow[]>(() => {
           </div>
         </div>
       </el-form-item>
+      <div class="split-row">
+        <el-button
+          size="small"
+          type="primary"
+          plain
+          data-test="split-title-content-btn"
+          :disabled="splitDisabled"
+          @click="onSplit"
+        >
+          在光标处拆为标题 + 内容
+        </el-button>
+        <span v-if="!splitDisabled" class="split-hint">将把光标后的文本变为本章节首个内容块</span>
+      </div>
     </el-form>
 
     <el-divider content-position="left">子节点（在左侧树增删）</el-divider>
@@ -132,6 +186,16 @@ const children = computed<ChildRow[]>(() => {
   padding-top: 4px;
 }
 .skip-label {
+  font-size: 12px;
+  color: #909399;
+}
+.split-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+}
+.split-hint {
   font-size: 12px;
   color: #909399;
 }
