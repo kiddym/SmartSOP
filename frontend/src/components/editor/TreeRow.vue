@@ -15,8 +15,11 @@ interface Props {
   canMoveDown: boolean
   dropHint: '' | 'before' | 'after' | 'inside' | 'invalid'
   indeterminate?: boolean
+  layerMode?: boolean
+  layerRole?: import('@/utils/layerMark').LayerRole
+  indentOverride?: number | null
 }
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), { layerMode: false, indentOverride: null })
 const emit = defineEmits<{
   (e: 'select'): void
   (e: 'toggle'): void
@@ -25,6 +28,7 @@ const emit = defineEmits<{
   (e: 'remove'): void
   (e: 'convert', dir: 'to-step' | 'to-content' | 'chapter-to-content'): void
   (e: 'check', shift: boolean): void
+  (e: 'layer-role', role: import('@/utils/layerMark').LayerRole): void
   (e: 'dragstart', ev: DragEvent): void
   (e: 'dragover', ev: DragEvent): void
   (e: 'drop', ev: DragEvent): void
@@ -61,14 +65,42 @@ const typeLabel = computed(() =>
 const tooltipDisabled = computed(
   () => props.row.kind !== 'chapter' || display.value.length <= TITLE_TOOLTIP_THRESHOLD
 )
+
+const effectiveIndent = computed(() =>
+  props.indentOverride !== null && props.indentOverride !== undefined
+    ? props.indentOverride
+    : props.row.depth,
+)
+
+const layerOptions = computed<{ value: import('@/utils/layerMark').LayerRole; text: string; disabled?: boolean }[]>(() => {
+  if (props.row.kind === 'chapter') {
+    return [
+      { value: 'chapter_1', text: '一级' },
+      { value: 'chapter_2', text: '二级' },
+      { value: 'chapter_3', text: '三级' },
+      { value: 'content', text: '正文', disabled: props.row.has_children },
+    ]
+  }
+  const isContent = props.row.kind === 'content'
+  return [
+    { value: 'keep', text: '保持' },
+    { value: 'chapter_1', text: '一级', disabled: isContent },
+    { value: 'chapter_2', text: '二级', disabled: isContent },
+    { value: 'chapter_3', text: '三级', disabled: isContent },
+  ]
+})
+
+function onLayerRole(v: string | number | boolean): void {
+  emit('layer-role', v as import('@/utils/layerMark').LayerRole)
+}
 </script>
 
 <template>
   <div
     class="tr"
     :class="[{ 'tr--selected': selected, 'tr--missing': missingTitle }, dropHint ? `tr--drop-${dropHint}` : '']"
-    :style="{ boxSizing: 'border-box', paddingLeft: `${row.depth * 16 + 6}px` }"
-    :draggable="editable && !markMode"
+    :style="{ boxSizing: 'border-box', paddingLeft: `${effectiveIndent * 16 + 6}px` }"
+    :draggable="editable && !markMode && !layerMode"
     @click="emit('select')"
     @dragstart="emit('dragstart', $event)"
     @dragover.prevent="emit('dragover', $event)"
@@ -108,7 +140,7 @@ const tooltipDisabled = computed(
 
     <span v-if="missingTitle" class="tr-missing-tag" title="章节标题为空">缺标题</span>
 
-    <span v-if="editable && !markMode" class="tr-actions" @click.stop>
+    <span v-if="editable && !markMode && !layerMode" class="tr-actions" @click.stop>
       <el-dropdown
         v-if="addState.canAddChapter || addState.canAddContent || addState.canAddStep"
         trigger="click"
@@ -143,6 +175,19 @@ const tooltipDisabled = computed(
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+    </span>
+
+    <span v-if="layerMode && editable" class="tr-layer-picker" @click.stop>
+      <el-radio-group :model-value="layerRole" size="small" @change="onLayerRole">
+        <el-radio-button
+          v-for="o in layerOptions"
+          :key="o.value"
+          :value="o.value"
+          :disabled="o.disabled"
+        >
+          {{ o.text }}
+        </el-radio-button>
+      </el-radio-group>
     </span>
   </div>
 </template>
@@ -279,6 +324,10 @@ const tooltipDisabled = computed(
   height: 100%;
   display: inline-flex;
   align-items: center;
+}
+.tr-layer-picker {
+  flex: none;
+  margin-left: auto;
 }
 </style>
 
