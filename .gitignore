@@ -29,6 +29,7 @@ node_modules/
 # Vite / frontend build
 frontend/dist/
 frontend/.vite/
+.vite/
 
 # Env files
 .env
