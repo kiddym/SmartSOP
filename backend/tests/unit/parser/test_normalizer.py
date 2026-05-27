@@ -94,3 +94,36 @@ def test_vml_imagedata_extracted_as_image_ref() -> None:
     assert img.rid  # rid 不为空
     assert img.data and len(img.data) > 0  # 媒体字节读到了
     assert img.ext in (".png", ".jpg", ".jpeg")
+
+
+def test_textbox_content_extracted_as_block() -> None:
+    """文本框（v:textbox > w:txbxContent）内的段落应作为独立 IR Block 抽出。"""
+    data = (
+        DocxBuilder()
+        .para("外层段落 A")
+        .textbox_para("注意：高压电气设备")
+        .para("外层段落 B")
+        .build()
+    )
+    nd = _normalize(data)
+    texts = [b.text.strip() for b in nd.blocks if b.kind == "paragraph"]
+    assert "外层段落 A" in texts
+    assert "外层段落 B" in texts
+    assert "注意：高压电气设备" in texts, f"textbox text missing from blocks: {texts}"
+
+
+def test_textbox_image_attributed_to_inner_block_not_outer() -> None:
+    """txbx 内的图应归属内层 block，外层段落 images 列表为空（防双计）。"""
+    data = DocxBuilder().textbox_with_image_para("内图测试").build()
+    nd = _normalize(data)
+    para_blocks = [b for b in nd.blocks if b.kind == "paragraph"]
+    # 应该有 2 个段落 block：外层（无图无字）+ 内层（含字含图）
+    inner = next((b for b in para_blocks if "内图测试" in b.text), None)
+    assert inner is not None, "inner textbox paragraph missing"
+    assert len(inner.images) == 1, f"inner block should own the image, got {len(inner.images)}"
+    # 外层段落不应再持有同一张图
+    outer = next((b for b in para_blocks if b is not inner and not b.text.strip()), None)
+    if outer is not None:
+        assert len(outer.images) == 0, "outer paragraph must not double-count txbx image"
+    # 全文图总数 == 1
+    assert nd.total_image_count == 1

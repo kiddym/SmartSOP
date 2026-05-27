@@ -96,13 +96,16 @@ def _is_inside_txbx(el: etree._Element) -> bool:
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
     """收集一个 run 内全部图片（a:blip inline/anchor + v:imagedata VML），按 XML 顺序。
 
-    跳过 w:txbxContent 内的图：那些由 normalize() 的 txbx 下钻分支单独抽取，
-    在此重复抽取会导致双计（见 _count_raw_images 同步策略）。
+    跳过规则：仅当 blip/imagedata 处于 txbxContent 内且当前 run 本身**不在** txbxContent
+    内时跳过——这一情形对应「外层段落的 _emit_images 走到 txbx 内的图」，那些图
+    由 normalize() 的 _emit_txbx_descendants 重新调 emit_paragraph 时单独抽取。
+    当 run 自身已在 txbx 内（即我们正在处理内层 paragraph），不跳过——内层 block
+    才能拿到属于它自己的图，避免与 _count_raw_images 分母错位、避免空 images 列表。
     """
     refs: list[ImageRef] = []
     # a:blip — 现代 DrawingML 图（含 inline / anchor）
     for blip in run.iter(qn("a:blip")):
-        if _is_inside_txbx(blip):
+        if _is_inside_txbx(blip) and not _is_inside_txbx(run):
             continue
         rid = blip.get(qn("r:embed")) or blip.get(qn("r:link"))
         if not rid:
@@ -125,7 +128,7 @@ def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
         )
     # v:imagedata — Word 97-2003 / VML 兼容路径（剪贴画、转存图等）
     for vimg in run.iter(qn("v:imagedata")):
-        if _is_inside_txbx(vimg):
+        if _is_inside_txbx(vimg) and not _is_inside_txbx(run):
             continue
         rid = vimg.get(qn("r:id")) or vimg.get(qn("r:embed"))
         if not rid:
@@ -421,16 +424,40 @@ def normalize(
     table_count = 0
     image_count = 0
 
+    def _append(blk: Block) -> None:
+        nonlocal image_count
+        blocks.append(blk)
+        image_count += len(blk.images)
+
+    def _emit_txbx_descendants(el: etree._Element, source_index: int) -> None:
+        """下钻 el 内所有 w:txbxContent，把内嵌段落/表作为附加 IR Block 追加。
+
+        共享父级 source_index，确保在 structurer 排序中紧邻外层块。
+        对表格调用时，el.iter() 会下钻到所有 cell，故 cell 内 txbx 同样被抽取
+        为独立块（与表平级，不内联回 cell HTML——见 plan 的 Known limitation）。
+        """
+        nonlocal table_count
+        for txbx in el.iter(qn("w:txbxContent")):
+            for sub in txbx:
+                sub_tag = local(sub.tag)
+                if sub_tag == "p":
+                    _append(emit_paragraph(sub, ctx, source_index))
+                elif sub_tag == "tbl":
+                    _append(emit_table(sub, ctx, source_index))
+                    table_count += 1
+
     for i, el in enumerate(_iter_body_children(body)):
         tag = local(el.tag)
         if tag == "p":
             block = emit_paragraph(el, ctx, i)
             block.is_toc_field = tracker.scan(el, i)
+            _append(block)
+            _emit_txbx_descendants(el, i)
         else:  # tbl
             block = emit_table(el, ctx, i)
             table_count += 1
-        image_count += len(block.images)
-        blocks.append(block)
+            _append(block)
+            _emit_txbx_descendants(el, i)
 
     return NormalizedDoc(
         blocks=blocks,
