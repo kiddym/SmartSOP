@@ -23,7 +23,7 @@ import {
   isTempId,
   recomputeCodes,
 } from '@/utils/editor'
-import { computeLayerUpdates, type LayerRole, type LayerRow } from '@/utils/layerMark'
+import { computeLayerUpdates, validateLayerQ25, type LayerConflict, type LayerRole, type LayerRow } from '@/utils/layerMark'
 import type {
   AddButtonState,
   ChapterTreeNode,
@@ -861,30 +861,51 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       this.layerMode = !this.layerMode
       if (this.layerMode) this.markMode = false
     },
-    applyLayerRoles(roleMap: Map<string, LayerRole>): void {
-      const updates = computeLayerUpdates(this.layerRows, roleMap)
+    async applyLayerRoles(roleMap: Map<string, LayerRole>): Promise<{ ok: true } | { ok: false; conflicts: LayerConflict[] }> {
+      const rows = this.layerRows
+      const updates = computeLayerUpdates(rows, roleMap)
+      const conflicts = validateLayerQ25(rows, updates)
+      if (conflicts.length > 0) return { ok: false, conflicts }
+
+      // 先持久化所有临时节点；temp id 解析到真实 id
+      const idMap = await this.ensureSaved()
       this.pushUndo('layer')
+
+      // 第一步：叶子提升为章节（API 调用）。每次后 reload 把本地状态拉齐。
+      // 提升用 leaf 的当前 chapter_id 作为 parent；新章节 level = parent.level + 1（后端决定）。
+      const hasPromotions = [...updates.values()].some((u) => u.kind === 'to-chapter')
+      for (const row of rows) {
+        if (row.kind === 'chapter') continue
+        const u = updates.get(row.id)
+        if (!u || u.kind !== 'to-chapter') continue
+        const realId = idMap[row.id] ?? row.id
+        await convertStepToChapter(realId)
+      }
+      if (hasPromotions) {
+        await this.reload()
+      }
+
+      // 第二步：章节重排 + chapter→content（in-memory；保存阶段统一 flush）。
+      // reload 后的 chapter ID 与原 ID 相同（升级会改 step ID 但不影响 chapter ID），
+      // 所以同样的 updates 仍适用于此阶段的章节项。
       const clearReview: string[] = []
       const toContent: { id: string; parent_id: string | null; sort_order: number; title: string }[] = []
-      // 第一遍：先把所有「仍是章节」的行重排（parent_id/sort_order），并收集要转 content 的行。
       for (const [id, u] of updates) {
-        const ch = this.chapterMap.get(id)
-        if (!ch) continue
-        // 应用层级=对结构的刻意确认，连带清待确认（与 toggleContentType 一致）。
-        if (ch.mark_status === 'review') clearReview.push(id)
-        // TODO(layer-overlay Task 6): rewrite this whole function for async + Q25 + leaf dispatch.
-        // Transitional: read the new LayerUpdate tagged union (kind discriminator) shipped in Task 2.
-        if (u.kind === 'to-content') {
+        if (u.kind === 'reorder') {
+          const ch = this.chapterMap.get(id)
+          if (!ch) continue
+          if (ch.mark_status === 'review') clearReview.push(id)
+          ch.parent_id = u.parent_id
+          ch.sort_order = u.sort_order
+          this.dirtyChapters.add(id)
+        } else if (u.kind === 'to-content') {
+          const ch = this.chapterMap.get(id)
+          if (!ch) continue
+          if (ch.mark_status === 'review') clearReview.push(id)
           toContent.push({ id, parent_id: u.parent_id, sort_order: u.sort_order, title: ch.title })
-          continue
         }
-        if (u.kind !== 'reorder') continue // leaf-reparent / to-chapter are no-ops in transitional path
-        ch.parent_id = u.parent_id
-        ch.sort_order = u.sort_order
-        this.dirtyChapters.add(id)
+        // to-chapter 已在第一步完成；leaf-reparent 由 reload 后基于 chapter 重排自然形成（leaf 的 chapter_id 在 DB 未变）。
       }
-      // 第二遍：把 content 角色的章节转成内容块步骤。此时其原子节点已在第一遍被重排到各自新父级
-      // （content 行不更新 l1/l2/l3，故其后代会挂到上一个标题上下文），该章节已无子节点，可安全删除。
       for (const t of toContent) {
         this.removeNodeLocal(t.id)
         const sid = genTempId()
@@ -903,6 +924,7 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       }
       this.layerMode = false
       for (const id of clearReview) void this.setMark(id, 'unmarked')
+      return { ok: true }
     },
 
     // 设置单节点 mark_status。调用方须保证 id 为真实 id（临时节点先 ensureSaved 解析）；

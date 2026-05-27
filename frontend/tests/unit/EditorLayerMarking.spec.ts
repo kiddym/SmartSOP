@@ -41,7 +41,7 @@ describe('EditorLayerMarking', () => {
   it('点「应用层级」调 store.applyLayerRoles', async () => {
     const w = setup()
     const store = useProcedureEditorStore()
-    const spy = vi.spyOn(store, 'applyLayerRoles').mockImplementation(() => {})
+    const spy = vi.spyOn(store, 'applyLayerRoles').mockResolvedValue({ ok: true })
     const btn = w.findAll('button').find((b) => b.text().includes('应用'))
     await btn!.trigger('click')
     expect(spy).toHaveBeenCalledOnce()

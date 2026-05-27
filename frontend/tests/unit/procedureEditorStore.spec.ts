@@ -476,11 +476,12 @@ describe('层级标定 (P2c)', () => {
     expect(s.layerRows[1].hasLeafChildren).toBe(true)
   })
 
-  it('applyLayerRoles 把 b 提为一级章节并置脏、退出模式', () => {
+  it('applyLayerRoles 把 b 提为一级章节并置脏、退出模式', async () => {
     const s = seed()
     s.chapters = [chap('a', null, 0), chap('b', 'a', 0)]
     s.layerMode = true
-    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    expect(result.ok).toBe(true)
     expect(s.chapterMap.get('b')?.parent_id).toBeNull()
     expect(s.dirtyChapters.has('b')).toBe(true)
     expect(s.layerMode).toBe(false)
@@ -490,18 +491,20 @@ describe('层级标定 (P2c)', () => {
     const s = seed()
     s.chapters = [{ ...chap('a', null, 0), mark_status: 'review' }, chap('b', 'a', 0)]
     s.layerMode = true
-    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'chapter_1']]))
+    expect(result.ok).toBe(true)
     await flushPromises()
     expect(s.chapterMap.get('a')?.mark_status).toBe('unmarked')
     expect(markSpy).toHaveBeenCalledWith('a', 'unmarked')
   })
 
-  it('applyLayerRoles content 角色：章节被删、建内容块步骤（kind=content、含原标题、挂到父级）', () => {
+  it('applyLayerRoles content 角色：章节被删、建内容块步骤（kind=content、含原标题、挂到父级）', async () => {
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('c', '正文文本', 'a', 0)]
     s.steps = []
     s.layerMode = true
-    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content']]))
+    const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content']]))
+    expect(result.ok).toBe(true)
     // 原章节 c 被删
     expect(s.chapterMap.get('c')).toBeUndefined()
     // 建了一个挂在 a 下的内容块步骤
@@ -512,12 +515,13 @@ describe('层级标定 (P2c)', () => {
     expect(s.dirtySteps.has(cs[0].id)).toBe(true)
   })
 
-  it('applyLayerRoles content 转换：HTML 字符被转义、空白标题→空 content', () => {
+  it('applyLayerRoles content 转换：HTML 字符被转义、空白标题→空 content', async () => {
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('c', '<b>x & y</b>', 'a', 0), chapter('d', '   ', 'a', 1)]
     s.steps = []
     s.layerMode = true
-    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content'], ['d', 'content']]))
+    const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['c', 'content'], ['d', 'content']]))
+    expect(result.ok).toBe(true)
     const cs = s.steps.filter((st) => st.kind === 'content')
     const cContent = cs.find((st) => st.content.includes('&lt;'))
     expect(cContent?.content).toBe('<p>&lt;b&gt;x &amp; y&lt;/b&gt;</p>')
@@ -525,20 +529,22 @@ describe('层级标定 (P2c)', () => {
     expect(cs.some((st) => st.content === '')).toBe(true)
   })
 
-  it('applyLayerRoles content 父章节带后代：后代先改挂他处，content 章节安全删除', () => {
-    // a(l1) b(标 content, 其下挂子章节 g) ：b 后代不更新 l1/l2/l3，故 g 挂到 a；b 已无子→可删
+  it('applyLayerRoles content 父章节带后代：后代先改挂他处，content 章节安全删除', async () => {
+    // a(l1) b(标 content, 其下挂子章节 g) ：b 后代不更新 l1/l2/l3，故 g 挂到根；b 已无子→可删
+    // g 指定 chapter_1（与 a 同级）避免 Q25 冲突（b→content 为叶，g→chapter_1 为章节，互不同父）
     const s = seed()
     s.chapters = [chapter('a', '甲', null, 0), chapter('b', '乙', 'a', 0), chapter('g', '丙', 'b', 0)]
     s.steps = []
     s.layerMode = true
-    s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'content'], ['g', 'chapter_2']]))
+    const result = await s.applyLayerRoles(new Map([['a', 'chapter_1'], ['b', 'content'], ['g', 'chapter_1']]))
+    expect(result.ok).toBe(true)
     // b 转成内容块步骤、原章节删除
     expect(s.chapterMap.get('b')).toBeUndefined()
     const cs = s.steps.filter((st) => st.kind === 'content')
     expect(cs).toHaveLength(1)
     expect(cs[0].chapter_id).toBe('a')
-    // g 改挂到 a（content 行 b 不更新上下文）
-    expect(s.chapterMap.get('g')?.parent_id).toBe('a')
+    // g 改挂到根（content 行 b 不更新上下文，chapter_1 → parent_id=null）
+    expect(s.chapterMap.get('g')?.parent_id).toBeNull()
   })
 })
 
