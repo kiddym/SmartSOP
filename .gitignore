@@ -94,3 +94,8 @@ frontend-package-list.json
 
 # parser eval harness reports (machine-local, regenerable)
 .eval-reports/
+
+# Agent runtime — local-only, not vendored
+.agents/
+skills-lock.json
+.claude/worktrees/
