@@ -1787,7 +1787,7 @@ Run: 同 Step 1。
 - 其它文档任一指标不允许退（micro/macro/per-doc 全部）；
 - **trade-off 自决**：若 doc A 升 0.3 / doc B 退 0.05，自行权衡（按 spec §4.4），保留 / revert 决定写进 tuning log 备注列。
 
-- [ ] **Step 6: 若属 P3 失败模式（动 import_blocks / 切块）→ §5 MCP 抽样验收**
+- [ ] **Step 6: 若属 P3 失败模式（切块）→ §5 MCP 抽样验收**
 
 按 spec §5.2 6 步走 6 份样本：
 

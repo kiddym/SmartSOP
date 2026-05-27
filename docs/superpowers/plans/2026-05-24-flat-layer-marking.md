@@ -1122,7 +1122,7 @@ git rm frontend/tests/unit/applyLayerRole.spec.ts
         rich_content: '', skip_numbering: false, confidence: 1, confidence_tier: 'high',
         mark_status: 'unmarked', heading_source: null, children: [],
       }],
-      import_blocks: [], assets: [], detected_patterns: [], validation: null,
+      assets: [], detected_patterns: [], validation: null,
       warnings: [], review_required: 0, parse_method: 'smart',
     })
     ctx.toggleLayerMarking()
