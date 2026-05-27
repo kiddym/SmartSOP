@@ -89,7 +89,11 @@ def classify_numbering(text: str) -> NumberingMatch | None:
                 return None
             key = "N 空格" if depth == 1 else "N" + ".N" * (depth - 1)
             return NumberingMatch(kind="heading", level=level, pattern_key=key)
-        if rest and _RE_CJK.match(rest):  # N+中文直接 "6相关文件" → weak（Q217）
+        if rest and _RE_CJK.match(rest):
+            # N+CJK 直连：depth>=2 (3.1质量部 / 4.1.1管理类) 是 unambiguous 融合式真子标题 → heading；
+            # depth=1 (6相关文件) 仍歧义 → weak_heading 需 bold（Q217 + eval r3）
+            if depth >= 2:
+                return NumberingMatch(kind="heading", level=level, pattern_key=f"N{'.N' * (depth - 1)}+中文")
             return NumberingMatch(kind="weak_heading", level=level, pattern_key="N+中文")
     return None
 
@@ -155,10 +159,14 @@ def score_block(block: Block, stats: DocStats) -> tuple[float, int, str]:
     if num is not None and num.kind != "list":
         if num.kind == "heading":
             num_points = 0.25
+            # heading depth=1 长段（"1. 我们要遵循所有质量规定..." 假想 body）半额；
+            # depth>=2 长段（"3.1质量部..." 融合式真子标题）保留全额（unambiguous 结构信号）
+            if not is_short and num.level == 1:
+                num_points = 0.125
         elif num.kind == "weak_heading":  # 顿号/无空格歧义：需粗体才计分（Q217）
             num_points = 0.25 if block.bold_ratio >= 0.5 else 0.0
-        if not is_short:  # 误报抑制：号+正文同段长段大幅降权
-            num_points = 0.0
+            if not is_short:  # weak_heading depth=1 长段完全 veto（'1、设有消防...' 噪音）
+                num_points = 0.0
         if stats.single_font and num_points > 0:  # 等字号自适应：编号补偿
             num_points += 0.10
     score += num_points
