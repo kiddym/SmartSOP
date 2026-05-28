@@ -32,6 +32,7 @@ import type {
   FlatRow,
   FormType,
   InputSchema,
+  LayerApplyResult,
   MarkStatus,
   NodeKind,
   StepOut,
@@ -858,7 +859,12 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       this.layerMode = !this.layerMode
       if (this.layerMode) this.markMode = false
     },
-    async applyLayerRoles(roleMap: Map<string, LayerRole>): Promise<{ ok: true } | { ok: false; conflicts: LayerConflict[] }> {
+    async applyLayerRoles(
+      roleMap: Map<string, LayerRole>,
+    ): Promise<
+      | { ok: true; extracted: number; collapsed: number }
+      | { ok: false; conflicts: LayerConflict[] }
+    > {
       const rows = this.layerRows
       const updates = computeLayerUpdates(rows, roleMap)
       const conflicts = validateLayerQ25(rows, updates)
@@ -872,8 +878,9 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
         resolvedRoles[idMap[id] ?? id] = role
       }
 
+      let result: LayerApplyResult
       try {
-        await applyLayerRolesApi(this.procedure!.id, { roles: resolvedRoles }, this.revision)
+        result = await applyLayerRolesApi(this.procedure!.id, { roles: resolvedRoles }, this.revision)
       } catch (e: unknown) {
         // 后端 400 SIBLING_TYPE_CONFLICT 详情: { code, message, conflicts: [...] }
         const detail = (e as { response?: { status?: number; data?: { detail?: { code?: string; conflicts?: unknown[] } } } })?.response?.data?.detail
@@ -893,7 +900,11 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
 
       await this.reload()
       this.layerMode = false
-      return { ok: true }
+      return {
+        ok: true,
+        extracted: Object.keys(result.extracted_titles ?? {}).length,
+        collapsed: Object.keys(result.collapsed_chapters ?? {}).length,
+      }
     },
 
     // 设置单节点 mark_status。调用方须保证 id 为真实 id（临时节点先 ensureSaved 解析）；

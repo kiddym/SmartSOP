@@ -392,6 +392,10 @@ async function applyLayer(): Promise<void> {
       ElMessage.warning(`存在 ${res.conflicts.length} 处 §Q25 冲突，请先解决再应用`)
     } else {
       layerConflicts.value = []
+      const parts: string[] = []
+      if (res.extracted > 0) parts.push(`已为 ${res.extracted} 个无标题章节自动提取标题`)
+      if (res.collapsed > 0) parts.push(`已合并 ${res.collapsed} 个章节为内容块`)
+      if (parts.length > 0) ElMessage.success(parts.join('；'))
     }
   } catch {
     ElMessage.error('应用层级失败，状态已与后端重新同步')

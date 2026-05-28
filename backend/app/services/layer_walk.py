@@ -31,8 +31,6 @@ def default_layer_role(row: LayerRow) -> LayerRole:
 def _effective_role(row: LayerRow, role_map: dict[str, LayerRole]) -> LayerRole:
     role = role_map.get(row.id, default_layer_role(row))
     if row.kind == "chapter":
-        if role == "content" and row.has_leaf_children:
-            return default_layer_role(row)
         if role == "keep":
             return default_layer_role(row)
         return role

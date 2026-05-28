@@ -27,6 +27,35 @@ LayerRole = Literal["chapter_1", "chapter_2", "chapter_3", "content", "keep"]
 MAX_DEPTH = 3
 
 
+def _try_extract_title_from_body(body: str | None) -> str | None:
+    """promote auto-extract 资格判定(spec §2.1):body 是 1 个 <p>,内部纯文本(无子元素 / 无样式),
+    长度 ≤ 50 Unicode 码点 → 返回提取的纯文本;任一不满足返回 None。
+    HTML 实体(如 &amp;)在 lxml 解析时解码为对应字符。
+    """
+    if not body or not body.strip():
+        return None
+    try:
+        from lxml import html as lxml_html
+
+        frag = lxml_html.fragment_fromstring(body, create_parent="div")
+    except Exception:  # 异常 HTML / 解析失败,保守返回 None
+        return None
+    children = list(frag)
+    if len(children) != 1:
+        return None
+    p = children[0]
+    if p.tag != "p":
+        return None
+    if list(p):  # <p> 含任何子元素 (<b><i><span><br><img>) → 不算纯文本
+        return None
+    text = p.text or ""
+    if len(text) > 50:
+        return None
+    if not text.strip():
+        return None
+    return text
+
+
 def _get_proc_editable(db: Session, procedure_id: str) -> Procedure:
     proc = db.execute(
         select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
@@ -128,13 +157,16 @@ def _phase_a_to_chapter(
     proc: Procedure,
     rows: list[LayerRow],
     updates: dict[str, dict],
-) -> dict[str, str]:
-    """按文档序执行 to-chapter。返回 leaf_id → new_chapter_id 映射。
-    parent_id 解析:若 walk 给的 parent 命中映射(同 batch 先一步升的叶子),
-    则替换为对应新 chapter id;否则原样使用(指向现存 chapter 或 null)。"""
+) -> tuple[dict[str, str], dict[str, str]]:
+    """按文档序执行 to-chapter。
+    返回 (chapter_map, extracted_titles):
+      - chapter_map: leaf_id → new_chapter_id(parent_id 解析用)
+      - extracted_titles: 命中 auto-extract 的 leaf_id → 抽取出的标题文本
+    """
     from app.models.base import utcnow
 
     chapter_map: dict[str, str] = {}
+    extracted_titles: dict[str, str] = {}
     step_by_id = {
         s.id: s for s in db.execute(
             select(ProcedureStep).where(
@@ -143,22 +175,33 @@ def _phase_a_to_chapter(
             )
         ).scalars()
     }
-    for row in rows:  # 文档序遍历,保证 map 在被引用前已填充
+    for row in rows:
         u = updates.get(row.id)
         if not u or u["kind"] != "to-chapter":
             continue
         st = step_by_id[row.id]
         resolved_parent = chapter_map.get(u["parent_id"], u["parent_id"])
+
+        # auto-extract 判定:仅当 st.title 为空时尝试
+        extracted = None
+        if not (st.title and st.title.strip()):
+            extracted = _try_extract_title_from_body(st.content)
+
         new_ch = ProcedureChapter(
             procedure_id=proc.id,
             parent_id=resolved_parent,
-            title=st.title or "未命名章节",
+            title=extracted or st.title or "未命名章节",
             sort_order=u["sort_order"],
             level=u["level"],
         )
         db.add(new_ch)
         db.flush()
-        if st.content and st.content.strip():
+
+        if extracted is not None:
+            # 命中抽取:body 已搬到 title,不建子 content step
+            extracted_titles[row.id] = extracted
+        elif st.content and st.content.strip():
+            # 回落:body 进子 content step(现行逻辑)
             child = ProcedureStep(
                 procedure_id=proc.id,
                 chapter_id=new_ch.id,
@@ -170,10 +213,12 @@ def _phase_a_to_chapter(
             )
             db.add(child)
             db.flush()
+
         st.is_active = False
         st.deleted_at = utcnow()
         chapter_map[row.id] = new_ch.id
-    return chapter_map
+
+    return chapter_map, extracted_titles
 
 
 def _has_chapter_children(db: Session, proc_id: str, chapter_id: str) -> bool:
@@ -186,10 +231,29 @@ def _has_chapter_children(db: Session, proc_id: str, chapter_id: str) -> bool:
     ).first() is not None
 
 
+def _leaf_children(db: Session, proc_id: str, chapter_id: str) -> list[ProcedureStep]:
+    """返回章节下所有活跃叶子(step + content),按 sort_order 排序。"""
+    return list(
+        db.execute(
+            select(ProcedureStep)
+            .where(
+                ProcedureStep.procedure_id == proc_id,
+                ProcedureStep.chapter_id == chapter_id,
+                ProcedureStep.is_active.is_(True),
+            )
+            .order_by(ProcedureStep.sort_order, ProcedureStep.id)
+        ).scalars()
+    )
+
+
 def _validate_chapter_children_for_content(
     db: Session, proc_id: str, updates: dict[str, dict]
 ) -> None:
-    """章节标 to-content 时若仍有子章节 → 提前 400 CHAPTER_HAS_CHILDREN。"""
+    """章节标 to-content 时校验形态(spec §3.2):
+    - 有子章节 → 400 CHAPTER_HAS_CHILDREN
+    - 叶子子节点 >1 → 400 NOT_MIRROR_SHAPE
+    - 1 个叶子子但 (kind != 'content' 或 title 非空) → 400 NOT_MIRROR_SHAPE
+    """
     for node_id, u in updates.items():
         if u["kind"] != "to-content":
             continue
@@ -201,6 +265,19 @@ def _validate_chapter_children_for_content(
                 "CHAPTER_HAS_CHILDREN",
                 f"章节 {ch.title or ch.id} 仍含子章节,不可降为内容",
             )
+        leaves = _leaf_children(db, proc_id, ch.id)
+        if len(leaves) > 1:
+            raise bad_request(
+                "NOT_MIRROR_SHAPE",
+                f"章节 {ch.title or ch.id} 有 {len(leaves)} 个叶子子节点,请先手动合并为 0 个或 1 个无标题内容块",
+            )
+        if len(leaves) == 1:
+            child = leaves[0]
+            if child.kind != "content" or (child.title or "").strip() != "":
+                raise bad_request(
+                    "NOT_MIRROR_SHAPE",
+                    f"章节 {ch.title or ch.id} 的叶子子节点不是无标题内容块,请先手动重组",
+                )
 
 
 def _phase_b_reorder(
@@ -223,20 +300,43 @@ def _phase_c_to_content(
     proc: Procedure,
     updates: dict[str, dict],
     chapter_map: dict[str, str],
-) -> None:
-    """章节降为 content step。校验 CHAPTER_HAS_CHILDREN(后端兜底)。"""
+) -> dict[str, str]:
+    """章节 → 内容(editorial flatten,spec §3.1):
+    - 0 子:body = "<p>title</p>"(标题非空时)
+    - 1 mirror 子(kind=content, title 空):body = "<p>title</p>" + child.body,child 软删
+    - 其他:NOT_MIRROR_SHAPE(此处兜底;预校验已拦截)
+    返回 collapsed_chapters: old_chapter_id → 被合并子 step_id
+    """
     from app.models.base import utcnow
 
+    collapsed: dict[str, str] = {}
     for node_id, u in updates.items():
         if u["kind"] != "to-content":
             continue
         ch = db.get(ProcedureChapter, node_id)
         if ch is None or not ch.is_active:
             continue
+
+        # Backstop:与 _validate_chapter_children_for_content 同语义,防绕过 / race
         if _has_chapter_children(db, proc.id, ch.id):
-            raise bad_request("CHAPTER_HAS_CHILDREN", f"章节 {ch.title or ch.id} 仍含子章节,不可降为内容")
-        title = ch.title or ""
-        body = f"<p>{_html.escape(title)}</p>" if title.strip() else ""
+            raise bad_request("CHAPTER_HAS_CHILDREN", f"章节 {ch.title or ch.id} 仍含子章节")
+        leaves = _leaf_children(db, proc.id, ch.id)
+        if len(leaves) > 1 or (
+            len(leaves) == 1
+            and (leaves[0].kind != "content" or (leaves[0].title or "").strip() != "")
+        ):
+            raise bad_request("NOT_MIRROR_SHAPE", f"章节 {ch.title or ch.id} 形态不可逆为内容")
+
+        title_html = f"<p>{_html.escape(ch.title)}</p>" if (ch.title or "").strip() else ""
+        if not leaves:
+            body = title_html
+        else:
+            child = leaves[0]
+            body = title_html + (child.content or "")
+            child.is_active = False
+            child.deleted_at = utcnow()
+            collapsed[ch.id] = child.id
+
         new_step = ProcedureStep(
             procedure_id=proc.id,
             chapter_id=chapter_map.get(u["parent_id"], u["parent_id"]),
@@ -250,6 +350,8 @@ def _phase_c_to_content(
         db.flush()
         ch.is_active = False
         ch.deleted_at = utcnow()
+
+    return collapsed
 
 
 def _phase_d_leaf_reparent(
@@ -282,9 +384,9 @@ def apply_layer_roles(
     _validate_q25(updates)
     _validate_depth(updates)
 
-    chapter_map = _phase_a_to_chapter(db, proc, rows, updates)
+    chapter_map, extracted_titles = _phase_a_to_chapter(db, proc, rows, updates)
     _phase_b_reorder(db, updates, chapter_map)
-    _phase_c_to_content(db, proc, updates, chapter_map)
+    collapsed_chapters = _phase_c_to_content(db, proc, updates, chapter_map)
     _phase_d_leaf_reparent(db, updates, chapter_map)
     db.flush()
 
@@ -299,7 +401,16 @@ def apply_layer_roles(
         action="apply-layer-roles",
         meta=meta,
         old_value={"role_count": len(roles)},
-        new_value={"chapter_map": chapter_map},
+        new_value={
+            "chapter_map": chapter_map,
+            "extracted_count": len(extracted_titles),
+            "collapsed_count": len(collapsed_chapters),
+        },
     )
 
-    return {"chapter_map": chapter_map, "revision": proc.revision}
+    return {
+        "chapter_map": chapter_map,
+        "revision": proc.revision,
+        "extracted_titles": extracted_titles,
+        "collapsed_chapters": collapsed_chapters,
+    }

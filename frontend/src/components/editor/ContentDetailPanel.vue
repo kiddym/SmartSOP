@@ -27,7 +27,7 @@ function onChange(value: string): void {
       :model-value="content.title"
       :disabled="ro"
       maxlength="500"
-      placeholder="内容块标题（可选——填了之后才能在层级标定里升为章节）"
+      placeholder="内容块标题（可选）"
       data-test="content-title"
       class="content-title"
       @input="onTitleChange"
