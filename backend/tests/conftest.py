@@ -26,6 +26,7 @@ from app.models import (
     FolderSequence,
     Procedure,
     ProcedureChapter,
+    ProcedureNode,
     ProcedureSettings,
     ProcedureStep,
 )
@@ -175,6 +176,31 @@ class Factory:
             skip_numbering=skip_numbering,
             input_schema=input_schema if input_schema is not None else {"type": "COMMON"},
             kind=kind,
+        )
+        self.db.add(node)
+        self.db.commit()
+        return node
+
+    def node(
+        self,
+        procedure_id: str,
+        body: str = "",
+        sort_order: int = 0,
+        heading_level: int | None = None,
+        kind: str = "node",
+        skip_numbering: bool = False,
+        input_schema: dict[str, object] | None = None,
+        mark_status: str = "unmarked",
+    ) -> "ProcedureNode":
+        node = ProcedureNode(
+            procedure_id=procedure_id,
+            body=body,
+            sort_order=sort_order,
+            heading_level=heading_level,
+            kind=kind,
+            skip_numbering=skip_numbering,
+            input_schema=input_schema if input_schema is not None else {},
+            mark_status=mark_status,
         )
         self.db.add(node)
         self.db.commit()
