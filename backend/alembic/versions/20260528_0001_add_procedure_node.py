@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sqlalchemy as sa
 from alembic import op
+from sqlalchemy.dialects import mysql
 
 revision: str = "add_procedure_node"
 down_revision: str | None = "content_block_as_step"
@@ -22,7 +23,12 @@ def upgrade() -> None:
         sa.Column("sort_order", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("heading_level", sa.Integer(), nullable=True),
         sa.Column("kind", sa.String(length=20), nullable=False, server_default="node"),
-        sa.Column("body", sa.Text(), nullable=False, server_default=""),
+        sa.Column(
+            "body",
+            sa.Text().with_variant(mysql.LONGTEXT(), "mysql"),
+            nullable=False,
+            server_default="",
+        ),
         sa.Column("code", sa.String(length=50), nullable=False, server_default=""),
         sa.Column("skip_numbering", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("input_schema", sa.JSON(), nullable=False),
