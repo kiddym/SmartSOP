@@ -150,6 +150,7 @@ def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
     for vimg in run.iter(qn("v:imagedata")):
         if _is_inside_txbx(vimg) and not _is_inside_txbx(run):
             continue
+        # VML 标准用 r:id 引关系；部分转存工具沿用 DrawingML 的 r:embed —— 双取兼容
         rid = vimg.get(qn("r:id")) or vimg.get(qn("r:embed"))
         if not rid:
             continue
