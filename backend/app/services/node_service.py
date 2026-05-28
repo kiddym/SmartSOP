@@ -17,7 +17,7 @@ from app.models.base import utcnow
 from app.models.node import ProcedureNode
 from app.services import node_numbering
 from app.services._invariants import enforce_node_invariants
-from app.services.node_tree import build_tree
+from app.services.node_tree import TreeNode, build_tree
 
 _SORT_GAP = 1000
 
@@ -49,7 +49,7 @@ def _get_node(db: Session, node_id: str) -> ProcedureNode:
 def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
     """返回扁平 list,每项含派生 parent_id/depth + 持久字段。"""
     rows = _active_nodes(db, procedure_id)
-    derived = {tn.id: tn for tn in _walk(build_tree(rows))}
+    derived = {tn.id: tn for tn in _walk(build_tree(rows))}  # type: ignore[arg-type]
     out: list[dict[str, Any]] = []
     for r in rows:
         tn = derived[r.id]
@@ -74,10 +74,10 @@ def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
     return out
 
 
-def _walk(roots: list) -> list:
-    out: list = []
+def _walk(roots: list[TreeNode]) -> list[TreeNode]:
+    out: list[TreeNode] = []
 
-    def rec(nodes: list) -> None:
+    def rec(nodes: list[TreeNode]) -> None:
         for n in nodes:
             out.append(n)
             rec(n.children)
