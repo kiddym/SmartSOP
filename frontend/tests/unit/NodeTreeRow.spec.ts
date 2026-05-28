@@ -83,3 +83,19 @@ describe('NodeTreeRow', () => {
     expect(w.emitted('dragend')).toBeTruthy()
   })
 })
+
+describe('NodeTreeRow — readonly', () => {
+  it('hides checkbox / chip / delete and is not draggable when readonly', () => {
+    const w = mountRow(treeRow(), { readonly: true })
+    expect(w.find('.ntr-check').exists()).toBe(false)
+    expect(w.findComponent({ name: 'ElDropdown' }).exists()).toBe(false)
+    expect(w.find('.ntr-del').exists()).toBe(false)
+    expect((w.find('.ntr').element as HTMLElement).getAttribute('draggable')).toBe('false')
+  })
+
+  it('still shows code + title + review badge when readonly', () => {
+    const w = mountRow(treeRow({ mark_status: 'review' }, { title: '安全须知' }), { readonly: true })
+    expect(w.text()).toContain('安全须知')
+    expect(w.find('.ntr-review').exists()).toBe(true)
+  })
+})

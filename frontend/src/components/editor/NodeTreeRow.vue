@@ -8,6 +8,7 @@ interface Props {
   selected: boolean
   selectedForMark: boolean
   dropHint: '' | 'before' | 'after'
+  readonly?: boolean
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -39,7 +40,7 @@ function onCheck(ev: MouseEvent): void {
     class="ntr"
     :class="[{ 'ntr--selected': selected }, dropHint ? `ntr--drop-${dropHint}` : '']"
     :style="{ boxSizing: 'border-box', paddingLeft: `${n.depth * 16 + 6}px` }"
-    draggable="true"
+    :draggable="!readonly"
     @click="emit('select')"
     @dragstart="emit('dragstart', $event)"
     @dragover.prevent="emit('dragover', $event)"
@@ -50,11 +51,12 @@ function onCheck(ev: MouseEvent): void {
       {{ row.expanded ? '▾' : '▸' }}
     </span>
     <el-checkbox
+      v-if="!readonly"
       :model-value="selectedForMark"
       class="ntr-check"
       @click.stop="onCheck"
     />
-    <span class="ntr-actions" @click.stop>
+    <span v-if="!readonly" class="ntr-actions" @click.stop>
       <el-dropdown trigger="click" :persistent="false" @command="(c: string) => emit('chip', c)">
         <el-button size="small" text class="ntr-chip">{{ levelLabel }} ▾</el-button>
         <template #dropdown>
@@ -72,7 +74,7 @@ function onCheck(ev: MouseEvent): void {
     <span class="ntr-code">{{ n.code }}</span>
     <span class="ntr-title">{{ row.title }}</span>
     <span v-if="n.mark_status === 'review'" class="ntr-review" title="解析存疑，待确认">待确认</span>
-    <el-button class="ntr-del" size="small" text title="删除" @click.stop="emit('remove')">✕</el-button>
+    <el-button v-if="!readonly" class="ntr-del" size="small" text title="删除" @click.stop="emit('remove')">✕</el-button>
   </div>
 </template>
 
