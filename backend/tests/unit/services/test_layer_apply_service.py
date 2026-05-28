@@ -545,3 +545,114 @@ def test_demote_two_content_children_refuses(db: Session, factory: Factory) -> N
             db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
         )
     assert ex.value.detail["code"] == "NOT_MIRROR_SHAPE"
+
+
+# ---------------------------------------------------------------------------
+# Round-trip invariants (spec §1.2)
+# ---------------------------------------------------------------------------
+
+
+def test_roundtrip_1_auto_extract_path(db: Session, factory: Factory) -> None:
+    """Round-trip 1 严格成立:content(空 title + 短纯文本 body) → promote → demote → 起点。"""
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    s = factory.step(
+        proc.id, chapter_id=a.id, kind="content", title="", content="<p>3.1 X</p>", sort_order=0
+    )
+
+    # promote
+    r1 = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+    new_ch_id = r1["chapter_map"][s.id]
+
+    # demote 回去
+    layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={new_ch_id: "content"}, expected_revision=proc.revision, meta=META
+    )
+
+    # 验证:A 下应有 1 个 content,title="",body="<p>3.1 X</p>"
+    final = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(final) == 1
+    assert final[0].title == ""
+    assert final[0].content == "<p>3.1 X</p>"
+
+
+def test_roundtrip_2_explicitly_breaks(db: Session, factory: Factory) -> None:
+    """Round-trip 2 透明放弃(spec §1.2):content(title="Y", body="<p>B</p>") → promote → demote →
+    content(title="", body="<p>Y</p><p>B</p>"),与起点 NOT 相等。
+
+    这个负例锁住设计决策:未来若有人改回严格 round-trip,本测试会挂。
+    """
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    s = factory.step(
+        proc.id, chapter_id=a.id, kind="content", title="Y", content="<p>B</p>", sort_order=0
+    )
+
+    # promote
+    r1 = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+    new_ch_id = r1["chapter_map"][s.id]
+
+    # demote 回去
+    layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={new_ch_id: "content"}, expected_revision=proc.revision, meta=META
+    )
+
+    final = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(final) == 1
+    # ✗ NOT 相等 — 这就是 round-trip 2 不严格的设计决策
+    assert final[0].title == ""  # 起点 title 是 "Y",现在变成 ""
+    assert final[0].content == "<p>Y</p><p>B</p>"  # body 多了 <p>Y</p> 前缀
+
+
+def test_mixed_batch_extract_and_flatten_same_apply(db: Session, factory: Factory) -> None:
+    """同一次 apply 内既触发 auto-extract 又触发 lift-child,两个 map 都非空。
+
+    拓扑:
+      sect_a (L1) → short_content (content, 空 title, 短纯文本 body) 升 L2  → extract
+      sect_b (L1) → target_ch   (L2)  → content 降 → flatten           → collapse
+    两个 parent 不同,避免 Q25 末态混合冲突。
+    """
+    proc = _proc(factory)
+
+    # 第一组:sect_a 下 promote 一个空标题短 content → 触发 extract
+    sect_a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    short_content = factory.step(
+        proc.id, chapter_id=sect_a.id, kind="content", title="", content="<p>新二级</p>", sort_order=0
+    )
+
+    # 第二组:sect_b 下 demote 一个 1-mirror-child 章节 → 触发 collapse
+    sect_b = factory.chapter(proc.id, title="B", level=1, sort_order=1)
+    target_ch = factory.chapter(proc.id, title="Y", parent_id=sect_b.id, level=2, sort_order=0)
+    mirror_child = factory.step(
+        proc.id, chapter_id=target_ch.id, kind="content", title="", content="<p>B</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db,
+        proc.id,
+        roles={
+            sect_a.id: "chapter_1",
+            short_content.id: "chapter_2",
+            sect_b.id: "chapter_1",
+            target_ch.id: "content",
+        },
+        expected_revision=proc.revision,
+        meta=META,
+    )
+
+    assert short_content.id in result["extracted_titles"]
+    assert result["extracted_titles"][short_content.id] == "新二级"
+    assert target_ch.id in result["collapsed_chapters"]
+    assert result["collapsed_chapters"][target_ch.id] == mirror_child.id
