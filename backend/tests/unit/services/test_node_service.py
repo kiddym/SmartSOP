@@ -41,3 +41,22 @@ def test_valid_step_ok() -> None:
     enforce_node_invariants(
         kind="step", heading_level=None, input_schema={"type": "COMMON"}, attachment_marks=[]
     )
+
+
+from app.services import node_numbering, node_service
+
+
+def _proc(factory):
+    folder = factory.folder()
+    return factory.procedure(folder_id=folder.id)
+
+
+def test_get_nodes_returns_sorted_with_derived(factory, db) -> None:
+    proc = _proc(factory)
+    factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=1)
+    factory.node(proc.id, body="<p>x</p>", sort_order=20, heading_level=None)
+    node_numbering.recompute(db, proc.id)
+    rows = node_service.get_nodes(db, proc.id)
+    assert [r["body"] for r in rows] == ["<p>A</p>", "<p>x</p>"]
+    assert rows[0]["parent_id"] is None and rows[0]["depth"] == 0 and rows[0]["code"] == "1"
+    assert rows[1]["parent_id"] == rows[0]["id"] and rows[1]["depth"] == 1
