@@ -1,21 +1,17 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import type { AxiosError } from 'axios'
 import EditorTopBar from '@/components/editor/EditorTopBar.vue'
-import ChapterTreePanel from '@/components/editor/ChapterTreePanel.vue'
-import ChapterDetailPanel from '@/components/editor/ChapterDetailPanel.vue'
-import ContentDetailPanel from '@/components/editor/ContentDetailPanel.vue'
-import StepDetailPanel from '@/components/editor/StepDetailPanel.vue'
+import NodeTreePanel from '@/components/editor/NodeTreePanel.vue'
+import NodeDetailPanel from '@/components/editor/NodeDetailPanel.vue'
 import ProcedureDetailsPanel from '@/components/editor/ProcedureDetailsPanel.vue'
 import PublishChecklistDialog from '@/components/editor/PublishChecklistDialog.vue'
 import VersionActionDialog, {
   type VersionActionResult,
 } from '@/components/version/VersionActionDialog.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
-import { useEditorPersistence } from '@/composables/useEditorPersistence'
-import { useEditorKeyboard } from '@/composables/useEditorKeyboard'
+import { useNodeEditorStore } from '@/store/nodeEditor'
 import { copyProcedure, deleteProcedure, transitionProcedure, upgradeVersion } from '@/api/procedures'
 import { formatDateTime } from '@/utils/format'
 import AttachmentPanel from '@/components/editor/AttachmentPanel.vue'
@@ -26,92 +22,28 @@ import { useSidebar } from '@/composables/useSidebar'
 import { shouldAutoCollapse } from '@/utils/editorFocus'
 import type { PanelConfig } from '@/utils/collapsiblePanel'
 
-import NodeEditorView from '@/views/procedures/NodeEditorView.vue'
-
+// 统一节点编辑器（B3b-1）：默认（/edit 与 /view）渲染 NodeTreePanel+NodeDetailPanel（绑 nodeEditor）。
+// 即时·乐观写：无 Save / dirty / 草稿持久化 / 离开守卫。生命周期与 meta 仍由 procedureEditor（slim）。
 const route = useRoute()
 const router = useRouter()
 const id = computed(() => String(route.params.id))
-const nodeMode = computed(() => route.query.editor === 'node')
 const store = useProcedureEditorStore()
-const persistence = useEditorPersistence(store, id.value)
+const nodeStore = useNodeEditorStore()
 
 const activeTab = ref<'node' | 'attach' | 'history'>('node')
 const publishVisible = ref(false)
 const copyVisible = ref(false)
 const pdfPreviewVisible = ref(false)
-async function onPreviewPdf(): Promise<void> {
-  if (store.isDirty) {
-    try {
-      await ElMessageBox.confirm('预览需要先保存当前修改，是否保存并预览？', 'PDF 预览', {
-        confirmButtonText: '保存并预览',
-        cancelButtonText: '取消',
-        type: 'warning',
-      })
-    } catch {
-      return
-    }
-    await doSave()
-    if (store.isDirty) return // 保存失败（校验/冲突）→ 不打开
-  }
-  pdfPreviewVisible.value = true
-}
 const versionBusy = ref(false)
-const leavingViaAction = ref(false) // 版本动作触发的跳转：绕过未保存守卫
-const treeRef = ref<InstanceType<typeof ChapterTreePanel> | null>(null)
 
 const sidebar = useSidebar()
 const autoCollapsed = ref(false)
 const priorCollapsed = ref<boolean | null>(null)
 const DETAIL_CFG: PanelConfig = { defaultWidth: 360, min: 300, max: 700 }
 
-const kind = computed<'chapter' | 'content' | 'step' | null>(() => {
-  const sid = store.selectedId
-  if (!sid) return null
-  if (store.chapterMap.has(sid)) return 'chapter'
-  const s = store.stepMap.get(sid)
-  return s ? (s.kind === 'content' ? 'content' : 'step') : null
-})
-
-function errCode(e: unknown): string | undefined {
-  return (e as AxiosError<{ detail?: { code?: string } }>).response?.data?.detail?.code
-}
-
-async function doSave(): Promise<void> {
-  if (!store.isDirty) return
-  const errors = store.validateForSave()
-  if (errors.length) {
-    // chapterDocRows 与折叠无关，能命中藏在折叠分支里的缺标题章节。
-    const firstMissingId = store.chapterDocRows.find((r) => r.kind === 'chapter' && !r.title.trim())?.id
-    if (firstMissingId) {
-      store.expandAncestors(firstMissingId) // 展开后该行进入 flatRows，可取其 code
-      store.selectNode(firstMissingId)
-      const code = store.flatRows.find((r) => r.id === firstMissingId)?.code ?? ''
-      ElMessage.error(`请先补全 ${store.missingTitleCount} 个章节标题，已定位到 ${code}`)
-    } else {
-      ElMessage.error(`请先修复：${errors.join('；')}`)
-    }
-    return
-  }
-  try {
-    await store.save()
-    persistence.clear()
-    ElMessage.success('已保存')
-  } catch (e) {
-    if (errCode(e) === 'VERSION_CONFLICT') {
-      try {
-        await ElMessageBox.confirm('远程版本已被其他人修改。加载远程最新版本（放弃本地未保存改动）？', '版本冲突', {
-          confirmButtonText: '加载远程',
-          cancelButtonText: '取消',
-          type: 'warning',
-        })
-        await store.reload()
-        persistence.clear()
-      } catch {
-        /* 用户取消，保留本地 */
-      }
-    }
-    /* 其他错误由拦截器提示，保留 dirty */
-  }
+// 即时写：结构与 meta 都已落库，PDF 预览直接打开（无需先存）。
+function onPreviewPdf(): void {
+  pdfPreviewVisible.value = true
 }
 
 async function onPublishConfirm(): Promise<void> {
@@ -120,7 +52,6 @@ async function onPublishConfirm(): Promise<void> {
   try {
     await transitionProcedure(p.id, { status: 'PUBLISHED' }, p.revision)
     publishVisible.value = false
-    persistence.clear()
     ElMessage.success('已发布')
     await store.reload()
   } catch {
@@ -141,7 +72,6 @@ async function onUpgrade(): Promise<void> {
   versionBusy.value = true
   try {
     const next = await upgradeVersion(p.id)
-    leavingViaAction.value = true
     ElMessage.success(`已创建 v${next.version} 草稿`)
     await router.push(`/procedures/${next.id}/edit`)
   } catch {
@@ -167,8 +97,6 @@ async function onDiscard(): Promise<void> {
   versionBusy.value = true
   try {
     const result = await deleteProcedure(p.id, reason)
-    persistence.clear()
-    leavingViaAction.value = true
     if (result) {
       ElMessage.success(`已丢弃草稿，当前版本回到 v${result.new_current_version}`)
       await router.push(`/procedures/${result.new_current_id}`)
@@ -193,7 +121,6 @@ async function onCopyConfirm(payload: VersionActionResult): Promise<void> {
       name: payload.name || undefined,
     })
     copyVisible.value = false
-    leavingViaAction.value = true
     ElMessage.success(`已复制为 ${copy.code}`)
     await router.push(`/procedures/${copy.id}/edit`)
   } catch {
@@ -203,48 +130,23 @@ async function onCopyConfirm(payload: VersionActionResult): Promise<void> {
   }
 }
 
-async function onDeleteSelected(): Promise<void> {
-  const sid = store.selectedId
-  if (!sid || !store.editable) return
-  try {
-    await store.deleteNode(sid)
-    ElMessage.success('已删除')
-  } catch {
-    /* 拦截器已提示 */
-  }
-}
-
-useEditorKeyboard({
-  onSave: () => void doSave(),
-  onUndo: () => store.undo(),
-  onRedo: () => store.redo(),
-  onFocusSearch: () => treeRef.value?.focusSearch(),
-  onDelete: () => void onDeleteSelected(),
-  onEsc: () => {
-    if (store.markMode) store.toggleMarkMode()
-  },
-})
-
 onMounted(async () => {
-  if (nodeMode.value) return
   await store.load(id.value)
   if (store.loadError) return
-  // 路由守卫：访问 /edit 但不可编辑 → 跳只读 /view（不留历史）。
+  await nodeStore.load(id.value) // 结构（即时·乐观）；在 /edit→/view 重定向前加载，否则复用组件的 /view 实例树为空
+  // 访问 /edit 但不可编辑 → 跳只读 /view（不留历史）。
   if (route.name === 'procedure-edit' && !store.editable) {
     void router.replace({ name: 'procedure-view', params: { id: id.value } })
     return
   }
-  await persistence.tryRestore()
-  persistence.start()
 
   // Word 导入进入 → 专注模式：自动折叠侧边栏（离开恢复）。
   if (shouldAutoCollapse(route.query.from, sidebar.collapsed.value)) {
     priorCollapsed.value = sidebar.collapsed.value
     sidebar.collapsed.value = true
     autoCollapsed.value = true
-    void router.replace({ path: route.path, query: {} }) // 抹掉 from，防刷新重触发
+    void router.replace({ path: route.path, query: {} })
   }
-  // 在自动折叠之后建立 watch：用户编辑中手动切换即「接管」，离开不再恢复。
   watch(
     () => sidebar.collapsed.value,
     () => {
@@ -254,35 +156,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  // 仅当本页自动折叠且用户未手动接管时，离开恢复进来前的状态。
   if (autoCollapsed.value) {
     sidebar.collapsed.value = priorCollapsed.value ?? false
-  }
-})
-
-onBeforeRouteLeave(async () => {
-  if (leavingViaAction.value) {
-    return true // 升级 / 丢弃 / 复制 触发的跳转，本地草稿已按需保留或清除
-  }
-  if (!store.isDirty) {
-    persistence.clear()
-    return true
-  }
-  try {
-    await ElMessageBox.confirm('有未保存的修改，离开前是否保存？', '未保存修改', {
-      confirmButtonText: '保存并离开',
-      cancelButtonText: '直接离开',
-      distinguishCancelAndClose: true,
-      type: 'warning',
-    })
-    await doSave()
-    return true
-  } catch (action) {
-    if (action === 'cancel') {
-      persistence.clear()
-      return true // 直接离开
-    }
-    return false // 关闭弹框 → 留在页面
   }
 })
 
@@ -292,8 +167,7 @@ function goBack(): void {
 </script>
 
 <template>
-  <NodeEditorView v-if="nodeMode" :procedure-id="id" />
-  <div v-else v-loading="store.loading" class="editor">
+  <div v-loading="store.loading" class="editor">
     <template v-if="store.loadError">
       <el-result icon="error" title="加载失败">
         <template #extra>
@@ -304,7 +178,6 @@ function goBack(): void {
 
     <template v-else-if="store.procedure">
       <EditorTopBar
-        @save="doSave"
         @publish="publishVisible = true"
         @back="goBack"
         @upgrade="onUpgrade"
@@ -325,7 +198,7 @@ function goBack(): void {
       <div class="body">
         <EditorPreviewPane v-if="store.hasSourceDocx" :procedure-id="store.procedure.id" />
         <div class="left">
-          <ChapterTreePanel ref="treeRef" />
+          <NodeTreePanel :readonly="!store.editable" />
         </div>
         <CollapsiblePanel
           label="节点详情"
@@ -338,10 +211,7 @@ function goBack(): void {
             <el-tabs v-model="activeTab" class="tabs">
               <el-tab-pane label="节点详情" name="node">
                 <div class="pane">
-                  <ChapterDetailPanel v-if="kind === 'chapter'" :key="store.selectedId ?? 'none'" />
-                  <ContentDetailPanel v-else-if="kind === 'content'" :key="store.selectedId ?? 'none'" />
-                  <StepDetailPanel v-else-if="kind === 'step'" :key="store.selectedId ?? 'none'" />
-                  <el-empty v-else description="选择左侧节点进行编辑" />
+                  <NodeDetailPanel :readonly="!store.editable" />
                 </div>
               </el-tab-pane>
               <el-tab-pane label="附件" name="attach">
