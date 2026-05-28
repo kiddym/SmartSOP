@@ -209,3 +209,32 @@ def test_sdt_inside_txbx_content_is_hoisted() -> None:
     assert "SDT 内的注意框" in [t.strip() for t in texts], (
         f"sdt-wrapped textbox paragraph missing from blocks: {texts}"
     )
+
+
+def test_nested_textbox_image_attributed_only_to_innermost_block() -> None:
+    """嵌套 txbx：内层 txbx 内的图只能归最内层 paragraph block，不能被外层 txbx 段落双计。
+
+    场景：outer_p[txbx_A[p(outer), p[txbx_B[p(inner + 图)]]]]。
+    预期：image_refs 仅含 1 条记录；总图数 == 1；外层 txbx_A 内的两段都没有图；
+          最内层段落（含 inner 文字的那段）拥有该图。
+    """
+    data = (
+        DocxBuilder()
+        .nested_textbox_with_image_para(
+            outer_text="外层文字", inner_text="内层文字"
+        )
+        .build()
+    )
+    nd = _normalize(data)
+    para_blocks = [b for b in nd.blocks if b.kind == "paragraph"]
+    # 总图数 == 1（防双计）
+    assert nd.total_image_count == 1, f"total_image_count={nd.total_image_count}, blocks={[(b.text[:20], len(b.images)) for b in para_blocks]}"
+    # 内层段落（含「内层文字」）拥有这张图
+    inner = next((b for b in para_blocks if "内层文字" in b.text), None)
+    assert inner is not None, "innermost paragraph missing"
+    assert len(inner.images) == 1, f"innermost should own the image, got {len(inner.images)}"
+    # 外层 txbx_A 内的两段（含「外层文字」段 + 包裹 inner 的空文字段）images 列表均为空
+    for b in para_blocks:
+        if b is inner:
+            continue
+        assert len(b.images) == 0, f"block text={b.text!r} should have 0 images, got {len(b.images)}"

@@ -83,49 +83,52 @@ def _font_pt(rpr: etree._Element | None) -> float | None:
         return None
 
 
-def _is_inside_txbx(el: etree._Element) -> bool:
-    """元素是否处于 w:txbxContent 子树下（用于跳过外层段落对 txbx 内图的重复抽取）。"""
-    parent = el.getparent()
-    while parent is not None:
-        if local(parent.tag) == "txbxContent":
-            return True
-        parent = parent.getparent()
-    return False
+def _belongs_to(child: etree._Element, ancestor: etree._Element) -> bool:
+    """child 是否属于 ancestor 的子树，且中间无 w:txbxContent 阻断。
+
+    这是 _emit_images / _count_raw_images 的统一归属判定：
+    blip/imagedata 与当前 emit 容器（run 或段落根）之间若隔着 txbxContent，
+    说明它属于嵌套 textbox 的内层 paragraph，应由那一层的 emit 独立持有，
+    外层不应越界把它收入囊中。这一形式天然处理多层嵌套（任何深度的 txbx
+    边界都阻断归属），取代了原 _is_inside_txbx 的"近端"双调用启发式。
+    """
+    cur = child.getparent()
+    while cur is not None and cur is not ancestor:
+        if local(cur.tag) == "txbxContent":
+            return False
+        cur = cur.getparent()
+    return cur is ancestor
 
 
 def _count_raw_images(el: etree._Element) -> int:
-    """与 _emit_images 同口径的原始图源计数：a:blip + v:imagedata，跳过 txbxContent 内。
+    """与 _emit_images 同口径的原始图源计数：a:blip + v:imagedata，按归属判定（_belongs_to）。
 
     供 emit_paragraph / emit_table 写入 Block.raw_image_count，让 C001 完整性校验
-    的分母覆盖 VML 老格式图。Skip 规则与 _emit_images 同形态：仅当 blip/vimg 在
-    txbxContent 内、且 el 本身**不在** txbxContent 内时跳过——这一对称形态保证
-    外层段落不双计 txbx 内图，而内层 emit_paragraph(sub) 仍能正确计入 sub 内图。
+    的分母覆盖 VML 老格式图。归属规则：blip/vimg 与 el 之间不能隔 txbxContent
+    边界——隔了就归更深的内层 paragraph 自行计数，外层不重复。这一形式同时
+    覆盖多层嵌套文本框（每层 txbx 都构成归属边界）。
     """
     n = 0
     for blip in el.iter(qn("a:blip")):
-        if _is_inside_txbx(blip) and not _is_inside_txbx(el):
-            continue
-        n += 1
+        if _belongs_to(blip, el):
+            n += 1
     for vimg in el.iter(qn("v:imagedata")):
-        if _is_inside_txbx(vimg) and not _is_inside_txbx(el):
-            continue
-        n += 1
+        if _belongs_to(vimg, el):
+            n += 1
     return n
 
 
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
     """收集一个 run 内全部图片（a:blip inline/anchor + v:imagedata VML），按 XML 顺序。
 
-    跳过规则：仅当 blip/imagedata 处于 txbxContent 内且当前 run 本身**不在** txbxContent
-    内时跳过——这一情形对应「外层段落的 _emit_images 走到 txbx 内的图」，那些图
-    由 normalize() 的 _emit_txbx_descendants 重新调 emit_paragraph 时单独抽取。
-    当 run 自身已在 txbx 内（即我们正在处理内层 paragraph），不跳过——内层 block
-    才能拿到属于它自己的图，避免与 _count_raw_images 分母错位、避免空 images 列表。
+    归属规则：仅当 blip/imagedata 通过纯父链能上溯到 run（中间无任何 w:txbxContent
+    边界）时才纳入。落在更深 txbx 内的图由那一层 emit_paragraph(sub) 单独抽取，
+    外层不重复。这一形式同时覆盖多层嵌套文本框，与 _count_raw_images 的分母对齐。
     """
     refs: list[ImageRef] = []
     # a:blip — 现代 DrawingML 图（含 inline / anchor）
     for blip in run.iter(qn("a:blip")):
-        if _is_inside_txbx(blip) and not _is_inside_txbx(run):
+        if not _belongs_to(blip, run):
             continue
         rid = blip.get(qn("r:embed")) or blip.get(qn("r:link"))
         if not rid:
@@ -148,7 +151,7 @@ def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
         )
     # v:imagedata — Word 97-2003 / VML 兼容路径（剪贴画、转存图等）
     for vimg in run.iter(qn("v:imagedata")):
-        if _is_inside_txbx(vimg) and not _is_inside_txbx(run):
+        if not _belongs_to(vimg, run):
             continue
         # VML 标准用 r:id 引关系；部分转存工具沿用 DrawingML 的 r:embed —— 双取兼容
         rid = vimg.get(qn("r:id")) or vimg.get(qn("r:embed"))

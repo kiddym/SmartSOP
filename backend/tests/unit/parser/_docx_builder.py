@@ -169,6 +169,55 @@ class DocxBuilder:
         inner_t.text = inner_text
         return self
 
+    def nested_textbox_with_image_para(
+        self, outer_text: str, inner_text: str, png: bytes | None = None
+    ) -> DocxBuilder:
+        """两层嵌套文本框：outer txbx 含一段（outer_text）+ 内层 txbx 含一段（inner_text + 图）。
+
+        验证嵌套 txbx 的图不被外层 txbx 段落双计入 — 图应仅归内层 paragraph block。
+        """
+        png = png or tiny_png()
+        # 借标准 add_picture 注册图片关系，取出 drawing 备用
+        tmp_p = self.doc.add_paragraph()
+        tmp_run = tmp_p.add_run()
+        tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
+        drawing = tmp_run._r.find("{%s}drawing" % _W_NS)
+        drawing_copy = _et.fromstring(_et.tostring(drawing))
+        tmp_p._p.getparent().remove(tmp_p._p)
+        # 构造：outer_p → pict → shape → textbox → txbxContent_A
+        #                                         → p(outer_text)
+        #                                         → p[pict → shape → textbox → txbxContent_B
+        #                                                                       → p(inner_text + drawing_copy)]
+        outer_p = self.doc.add_paragraph()
+        outer_run = outer_p.add_run()
+        pict_a = _et.SubElement(outer_run._r, "{%s}pict" % _W_NS)
+        shape_a = _et.SubElement(
+            pict_a, "{%s}shape" % _V_NS, attrib={"style": "width:200pt;height:80pt"}
+        )
+        tbx_a = _et.SubElement(shape_a, "{%s}textbox" % _V_NS)
+        tcontent_a = _et.SubElement(tbx_a, "{%s}txbxContent" % _W_NS)
+        # outer 段（in txbx_A）
+        a_p = _et.SubElement(tcontent_a, "{%s}p" % _W_NS)
+        a_r = _et.SubElement(a_p, "{%s}r" % _W_NS)
+        a_t = _et.SubElement(a_r, "{%s}t" % _W_NS)
+        a_t.text = outer_text
+        # 包含 inner txbx 的段（仍在 txbx_A 内）
+        wrap_p = _et.SubElement(tcontent_a, "{%s}p" % _W_NS)
+        wrap_r = _et.SubElement(wrap_p, "{%s}r" % _W_NS)
+        pict_b = _et.SubElement(wrap_r, "{%s}pict" % _W_NS)
+        shape_b = _et.SubElement(
+            pict_b, "{%s}shape" % _V_NS, attrib={"style": "width:160pt;height:60pt"}
+        )
+        tbx_b = _et.SubElement(shape_b, "{%s}textbox" % _V_NS)
+        tcontent_b = _et.SubElement(tbx_b, "{%s}txbxContent" % _W_NS)
+        # 内层段（in txbx_B），含图
+        b_p = _et.SubElement(tcontent_b, "{%s}p" % _W_NS)
+        b_r = _et.SubElement(b_p, "{%s}r" % _W_NS)
+        b_t = _et.SubElement(b_r, "{%s}t" % _W_NS)
+        b_t.text = inner_text
+        b_r.append(drawing_copy)
+        return self
+
     def text_with_image(self, before: str, after: str, png: bytes | None = None) -> DocxBuilder:
         """段中内联图：文字 + 图 + 文字（Q206 整段一个 content 节点）。"""
         png = png or tiny_png()
