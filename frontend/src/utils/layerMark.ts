@@ -30,8 +30,6 @@ function roleLevel(role: LayerRole): number {
 function effectiveRole(row: LayerRow, roleMap: Map<string, LayerRole>): LayerRole {
   const role = roleMap.get(row.id) ?? defaultLayerRole(row)
   if (row.kind === 'chapter') {
-    // 章节：content 角色受 hasLeafChildren 约束
-    if (role === 'content' && row.hasLeafChildren) return defaultLayerRole(row)
     // 章节不可选 'keep'，夹回默认
     if (role === 'keep') return defaultLayerRole(row)
     return role

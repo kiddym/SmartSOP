@@ -47,10 +47,10 @@ describe('layerMark', () => {
     expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
   })
 
-  it('含叶子（步骤/内容块）子节点的行标 content 仍保持章节', () => {
+  it('章节有 leaf 子也允许选 content（后端校验镜像形态）', () => {
     const rows = [row('a', 'chapter', 1, true)]
     const u = computeLayerUpdates(rows, new Map([['a', 'content']]))
-    expect(u.get('a')).toEqual({ kind: 'reorder', parent_id: null, sort_order: 0, level: 1 })
+    expect(u.get('a')?.kind).toBe('to-content')
   })
 
   it('computeLayerIndents：章节 = level-1，content = 当前标题层级', () => {
