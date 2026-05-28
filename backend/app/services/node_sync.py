@@ -107,7 +107,7 @@ def rebuild_from_legacy(db: Session, procedure_id: str) -> None:
                     sort_order=_next_sort(),
                     heading_level=None,
                     kind="step" if is_step else "node",
-                    body=st.content,
+                    body=(f"<p>{html.escape(st.title)}</p>{st.content}" if is_step else st.content),
                     input_schema=st.input_schema if is_step else {},
                     attachment_marks=st.attachment_marks if is_step else [],
                     skip_numbering=st.skip_numbering,
