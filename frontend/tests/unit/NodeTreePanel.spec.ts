@@ -109,3 +109,23 @@ describe('NodeTreePanel', () => {
     expect(reorder).toHaveBeenCalledWith(['b', 'a'])
   })
 })
+
+describe('NodeTreePanel — readonly', () => {
+  it('hides add button and floating bar; passes readonly to rows', async () => {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useNodeEditorStore()
+    store.procedureId = 'p1'
+    store.nodes = [n({ id: 'a', heading_level: 1, body: '<p>A</p>' })]
+    store.selectedId = 'a'
+    store.selection = new Set(['a']) // 即便有选中，readonly 也不显浮动条
+    const w = mount(NodeTreePanel, {
+      props: { readonly: true },
+      global: { plugins: [ElementPlus, pinia] },
+      attachTo: document.body,
+    })
+    expect(w.find('.np-add').exists()).toBe(false)
+    expect(w.find('.np-bar').exists()).toBe(false)
+    expect(w.findComponent({ name: 'NodeTreeRow' }).props('readonly')).toBe(true)
+  })
+})

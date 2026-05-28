@@ -8,6 +8,8 @@ import { nextReviewId } from '@/utils/reviewNav'
 import { computeReorder, type DropPosition } from '@/utils/nodeTreeDnd'
 import type { TreeRow } from '@/utils/nodeTree'
 
+const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
+
 const store = useNodeEditorStore()
 const anchor = ref<string | null>(null)
 const dragId = ref<string | null>(null)
@@ -93,7 +95,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
   <div class="node-tree">
     <div class="np-toolbar">
       <el-input v-model="search" class="np-search" size="small" placeholder="搜索标题…" clearable />
-      <el-button class="np-add" size="small" @click="addNode">＋ 新增节点</el-button>
+      <el-button v-if="!props.readonly" class="np-add" size="small" @click="addNode">＋ 新增节点</el-button>
       <span class="np-review-count">待确认 {{ store.reviewCount }}</span>
       <el-button
         class="np-review-toggle"
@@ -106,7 +108,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
       <el-button class="np-review-next" size="small" :disabled="!store.reviewCount" @click="gotoNextReview">下一个</el-button>
     </div>
 
-    <div v-if="store.selection.size" class="np-bar">
+    <div v-if="!props.readonly && store.selection.size" class="np-bar">
       <span>已选 {{ store.selection.size }}</span>
       <el-button class="np-bar-text" size="small" @click="barLevel(null)">设为正文</el-button>
       <el-button class="np-bar-l1" size="small" @click="barLevel(1)">设为 L1</el-button>
@@ -121,6 +123,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
         v-for="row in store.rows"
         :key="row.node.id"
         :row="row"
+        :readonly="props.readonly"
         :selected="store.selectedId === row.node.id"
         :selected-for-mark="store.selection.has(row.node.id)"
         :drop-hint="hintFor(row)"
