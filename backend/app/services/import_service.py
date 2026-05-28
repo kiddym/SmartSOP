@@ -26,6 +26,7 @@ from app.services import (
     procedure_service,
     source_docx_service,
 )
+from app.services._invariants import enforce_content_kind_invariant
 
 # import 默认 level_of_use（向导 step5 仅收 name+folder，Q182 必填字段取默认，建后详情面板可改）
 _DEFAULT_LEVEL_OF_USE: LevelOfUse = "reference"
@@ -124,6 +125,8 @@ def _create_node(
             skip_numbering=node.skip_numbering,
         )
         db.add(step)
+        # 防御性断言：确认 content 行写入时满足不变量
+        enforce_content_kind_invariant(step.kind, step.input_schema, step.attachment_marks)
         db.flush()
         return
     level = parent_level + 1

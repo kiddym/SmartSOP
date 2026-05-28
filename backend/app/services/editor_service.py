@@ -25,6 +25,7 @@ from app.models.step import ProcedureStep
 from app.schemas.node import FORM_TYPES
 from app.schemas.procedure import ProcedureSaveIn
 from app.services import audit_service, field_service, numbering_service, optimistic_lock
+from app.services._invariants import enforce_content_kind_invariant
 
 MAX_DEPTH = 3
 CONTENT_MAX_BYTES = 5 * 1024 * 1024
@@ -241,6 +242,10 @@ def save_procedure(
         st_node.input_schema = {} if is_content else su.input_schema
         st_node.attachment_marks = [] if is_content else su.attachment_marks
         st_node.skip_numbering = su.skip_numbering
+        # 后置断言：cleanup 之后终态必须满足 content-kind 不变量（防未来回归）
+        enforce_content_kind_invariant(
+            st_node.kind, st_node.input_schema, st_node.attachment_marks
+        )
         st_node.sort_order = su.sort_order
 
     db.flush()

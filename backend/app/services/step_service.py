@@ -22,6 +22,7 @@ from app.models.procedure import Procedure
 from app.models.step import ProcedureStep
 from app.schemas.node import FORM_TYPES, StepCreate, StepMoveIn, StepUpdate
 from app.services import audit_service, numbering_service, optimistic_lock
+from app.services._invariants import enforce_content_kind_invariant
 
 CONTENT_MAX_BYTES = 5 * 1024 * 1024
 
@@ -143,6 +144,7 @@ def create_step(db: Session, data: StepCreate, meta: RequestMeta) -> ProcedureSt
     _resolve_chapter(db, proc.id, data.chapter_id)
     _assert_can_hold_steps(db, proc.id, data.chapter_id)
     # content 块无执行表单，input_schema={} 是合法状态；与 editor_service 批量保存路径对齐。
+    enforce_content_kind_invariant(data.kind, data.input_schema, data.attachment_marks)
     if data.kind == "step":
         _validate_input_schema(data.input_schema)
     _content_size_guard(data.content)
@@ -181,6 +183,7 @@ def update_step(db: Session, step_id: str, data: StepUpdate, meta: RequestMeta) 
     st = _get_step(db, step_id)
     proc = _get_proc_editable(db, st.procedure_id)
     # content 块无执行表单，input_schema={} 是合法状态；与 editor_service 批量保存路径对齐。
+    enforce_content_kind_invariant(data.kind, data.input_schema, data.attachment_marks)
     if data.kind == "step":
         _validate_input_schema(data.input_schema)
     _content_size_guard(data.content)

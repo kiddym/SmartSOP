@@ -62,7 +62,9 @@ def test_step_and_content_coexist_in_chapter(db: Session, factory: Factory) -> N
     ch = _chapter(db, proc.id)
     s1 = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="步骤一"), META)
     c1 = step_service.create_step(
-        db, _sc(proc.id, chapter_id=ch.id, kind="content", content="<p>说明</p>"), META
+        db,
+        _sc(proc.id, chapter_id=ch.id, kind="content", content="<p>说明</p>", input_schema={}),
+        META,
     )
     s2 = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="步骤二"), META)
     db.refresh(s1)
@@ -202,3 +204,102 @@ def test_update_step_to_content_skips_input_schema_validation(db: Session, facto
     db.refresh(st)
     assert st.kind == "content"
     assert st.input_schema == {}
+
+
+# --------------------------------------------------------------------------- #
+# C8: content-kind invariant enforcement tests
+# --------------------------------------------------------------------------- #
+
+def test_create_step_rejects_content_kind_with_non_empty_input_schema(
+    db: Session, factory: Factory
+) -> None:
+    """fail-fast: kind='content' + 非空 input_schema → HTTPException 422。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    with pytest.raises(HTTPException) as exc:
+        step_service.create_step(
+            db,
+            _sc(
+                proc.id,
+                chapter_id=ch.id,
+                kind="content",
+                input_schema={"type": "text"},
+                attachment_marks=[],
+                content="<p>说明</p>",
+            ),
+            META,
+        )
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "CONTENT_KIND_INVARIANT"
+    assert "input_schema" in exc.value.detail["message"]
+
+
+def test_create_step_rejects_content_kind_with_non_empty_attachment_marks(
+    db: Session, factory: Factory
+) -> None:
+    """fail-fast: kind='content' + 非空 attachment_marks → HTTPException 422。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    with pytest.raises(HTTPException) as exc:
+        step_service.create_step(
+            db,
+            _sc(
+                proc.id,
+                chapter_id=ch.id,
+                kind="content",
+                input_schema={},
+                attachment_marks=[{"id": "a", "asset_id": "x"}],
+                content="<p>说明</p>",
+            ),
+            META,
+        )
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "CONTENT_KIND_INVARIANT"
+    assert "attachment_marks" in exc.value.detail["message"]
+
+
+def test_create_step_accepts_content_kind_with_empty_fields(
+    db: Session, factory: Factory
+) -> None:
+    """合法: kind='content' + 全空字段 → 创建成功。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    st = step_service.create_step(
+        db,
+        _sc(
+            proc.id,
+            chapter_id=ch.id,
+            kind="content",
+            input_schema={},
+            attachment_marks=[],
+            content="<p>内容块</p>",
+        ),
+        META,
+    )
+    assert st.kind == "content"
+    assert st.input_schema == {}
+    assert st.attachment_marks == []
+
+
+def test_update_step_rejects_content_kind_with_inconsistent_payload(
+    db: Session, factory: Factory
+) -> None:
+    """update_step 路径同样 fail-fast: kind='content' + 非空 input_schema → 422。"""
+    proc = _proc(factory)
+    ch = _chapter(db, proc.id)
+    st = step_service.create_step(db, _sc(proc.id, chapter_id=ch.id, title="原步骤"), META)
+    with pytest.raises(HTTPException) as exc:
+        step_service.update_step(
+            db,
+            st.id,
+            StepUpdate(
+                kind="content",
+                title="",
+                content="<p>内容</p>",
+                input_schema={"type": "WARNING"},
+                attachment_marks=[],
+            ),
+            META,
+        )
+    assert exc.value.status_code == 422
+    assert exc.value.detail["code"] == "CONTENT_KIND_INVARIANT"
