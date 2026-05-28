@@ -150,3 +150,51 @@ describe('nodeEditor store — structural edits', () => {
     expect(store.nodes.map((x) => x.id)).toEqual(['b', 'a'])
   })
 })
+
+describe('nodeEditor store — content edits + undo', () => {
+  it('updateBody PATCHes with the node revision and updates that node only', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>old</p>', revision: 4 })])
+    patchSpy.mockResolvedValue(n({ id: 'a', body: '<p>new</p>', revision: 5 }))
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.updateBody('a', '<p>new</p>')
+    expect(patchSpy).toHaveBeenCalledWith('a', { body: '<p>new</p>' }, 4)
+    expect(store.nodeMap.get('a')?.body).toBe('<p>new</p>')
+    expect(store.nodeMap.get('a')?.revision).toBe(5)
+  })
+
+  it('updateForm PATCHes input_schema + attachment_marks', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', kind: 'step', revision: 2 })])
+    patchSpy.mockResolvedValue(n({ id: 'a', kind: 'step', revision: 3, input_schema: { type: 'NOTE' } }))
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.updateForm('a', { type: 'NOTE' }, [])
+    expect(patchSpy).toHaveBeenCalledWith('a', { input_schema: { type: 'NOTE' }, attachment_marks: [] }, 2)
+  })
+
+  it('undo of setLevel issues the inverse :batch', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', heading_level: null, body: '<p>x</p>' })])
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 2, body: '<p>x</p>' })]) // do
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: null, body: '<p>x</p>' })]) // undo
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.setLevel('a', 2)
+    expect(store.canUndo).toBe(true)
+    await store.undo()
+    expect(batchSpy).toHaveBeenLastCalledWith('p1', { a: { set_heading_level: true, heading_level: null } })
+    expect(store.nodeMap.get('a')?.heading_level).toBe(null)
+    expect(store.canUndo).toBe(false)
+  })
+
+  it('undo of updateBody restores the previous body', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>old</p>', revision: 1 })])
+    patchSpy.mockResolvedValueOnce(n({ id: 'a', body: '<p>new</p>', revision: 2 })) // do
+    patchSpy.mockResolvedValueOnce(n({ id: 'a', body: '<p>old</p>', revision: 3 })) // undo
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.updateBody('a', '<p>new</p>')
+    await store.undo()
+    expect(patchSpy).toHaveBeenLastCalledWith('a', { body: '<p>old</p>' }, 2)
+    expect(store.nodeMap.get('a')?.body).toBe('<p>old</p>')
+  })
+})

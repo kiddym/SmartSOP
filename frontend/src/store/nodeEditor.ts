@@ -16,6 +16,7 @@ interface State {
   // 撤销（Task 5）
   undoStack: InverseOp[]
   redoStack: InverseOp[]
+  _suppressUndo: boolean // undo 执行期间抑制逆操作自身入栈
 }
 
 // 逆操作（Task 5 填充实现；此处先声明类型，store 形状稳定）。
@@ -34,6 +35,7 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     loadError: false,
     undoStack: [],
     redoStack: [],
+    _suppressUndo: false,
   }),
 
   getters: {
@@ -51,6 +53,9 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     },
     selectedNode(state): Node | null {
       return state.selectedId ? this.nodeMap.get(state.selectedId) ?? null : null
+    },
+    canUndo(state): boolean {
+      return state.undoStack.length > 0
     },
   },
 
@@ -89,9 +94,22 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       this.nodes = await api.listNodes(this.procedureId)
     },
 
-    // 占位：Task 5 实现逆操作入栈；此处先空实现，保持调用点稳定。
-    _pushUndo(_inverse: InverseOp): void {
-      void _inverse
+    // 逆操作入栈。undo 执行期间（_suppressUndo）逆操作本身不再入栈。
+    _pushUndo(inverse: InverseOp): void {
+      if (this._suppressUndo) return
+      this.undoStack.push(inverse)
+      if (this.undoStack.length > 100) this.undoStack.shift()
+    },
+
+    async undo(): Promise<void> {
+      const inverse = this.undoStack.pop()
+      if (!inverse) return
+      this._suppressUndo = true
+      try {
+        await inverse()
+      } finally {
+        this._suppressUndo = false
+      }
     },
 
     async setLevel(id: string, level: number | null): Promise<void> {
@@ -170,6 +188,38 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       await api.reorderNodes(this.procedureId, orderedIds)
       await this._refetch()
       this._pushUndo(() => this.reorder(prevOrder))
+    },
+
+    async updateBody(id: string, body: string): Promise<void> {
+      const node = this.nodeMap.get(id)
+      if (!node) return
+      const prevBody = node.body
+      const updated = await api.patchNode(id, { body }, node.revision)
+      this._replaceNode(updated)
+      this._pushUndo(() => this.updateBody(id, prevBody))
+    },
+
+    async updateForm(
+      id: string,
+      inputSchema: import('@/types/node').InputSchema,
+      attachmentMarks: import('@/types/node').AttachmentMark[],
+    ): Promise<void> {
+      const node = this.nodeMap.get(id)
+      if (!node) return
+      const prevSchema = node.input_schema as import('@/types/node').InputSchema
+      const prevMarks = node.attachment_marks
+      const updated = await api.patchNode(
+        id,
+        { input_schema: inputSchema, attachment_marks: attachmentMarks },
+        node.revision,
+      )
+      this._replaceNode(updated)
+      this._pushUndo(() => this.updateForm(id, prevSchema, prevMarks))
+    },
+
+    _replaceNode(updated: Node): void {
+      const i = this.nodes.findIndex((x) => x.id === updated.id)
+      if (i >= 0) this.nodes[i] = updated
     },
   },
 })
