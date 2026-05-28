@@ -22,6 +22,8 @@ from app.schemas.procedure import LevelOfUse, ProcedureCreate
 from app.services import (
     asset_service,
     editor_service,
+    node_import,
+    node_service,
     numbering_service,
     procedure_service,
     source_docx_service,
@@ -62,6 +64,9 @@ def import_procedure(
     _normalize_for_exclusion(chapters)
     for i, node in enumerate(chapters):
         _create_node(db, proc, node, parent_id=None, parent_level=0, sort_order=i)
+
+    # Plan B1 双写：同一棵（已归一化）导入树并行落成统一 ProcedureNode 行。
+    _write_procedure_nodes(db, proc, chapters)
 
     # 客户端可手改树：复用编辑器最终态校验（Q25 互斥 + content 叶子 + 章节 ≤3 级 +
     # 父引用有效 + 环/孤儿）并回写 level（§20.3），防绕过深度/互斥约束。
@@ -147,6 +152,29 @@ def _create_node(
     db.flush()
     for j, child in enumerate(node.children):
         _create_node(db, proc, child, parent_id=row.id, parent_level=level, sort_order=j)
+
+
+def _write_procedure_nodes(
+    db: Session, proc: Procedure, chapters: list[ImportNodeIn]
+) -> None:
+    """Plan B1 双写：把同一棵（已归一化的）导入树落成统一 ProcedureNode 行。
+    与 chapter/step 行并存；B2 切下游读取后、B4 删旧写。chapters 须已过
+    _normalize_for_exclusion。body 复用 _promote_temp_urls 提升临时图（对
+    chapter 的 <p>标题</p> 是 no-op）。create_node 顺序追加 → sort_order gap 序。
+    注：每次 create_node 内部触发 node_numbering.recompute，N 节点 = O(N²) 次；
+    B4 删此双写时应改为批量插入 + 单次 recompute。"""
+    for flat in node_import.flatten_tree(chapters):
+        node_service.create_node(
+            db,
+            proc.id,
+            {
+                "body": _promote_temp_urls(db, proc.id, flat.body),
+                "heading_level": flat.heading_level,
+                "kind": flat.kind,
+                "skip_numbering": flat.skip_numbering,
+                "mark_status": flat.mark_status,
+            },
+        )
 
 
 def _promote_temp_urls(db: Session, procedure_id: str, html: str) -> str:
