@@ -131,9 +131,7 @@ class DocxBuilder:
         tmp_p = self.doc.add_paragraph()
         tmp_run = tmp_p.add_run()
         tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
-        blip = tmp_run._r.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}blip")
-        rid = blip.get("{%s}embed" % _R_NS)
-        # 取出 drawing 子树备用，再删 tmp 段落
+        # 取出 drawing 子树备用（rid 已在 drawing 内的 r:embed 中保留），再删 tmp 段落
         drawing = tmp_run._r.find("{%s}drawing" % _W_NS)
         drawing_copy = _et.fromstring(_et.tostring(drawing))
         tmp_p._p.getparent().remove(tmp_p._p)
@@ -151,7 +149,6 @@ class DocxBuilder:
         inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
         inner_t.text = inner_text
         inner_r.append(drawing_copy)
-        _ = rid  # 用于静默 lint；rid 已经在 drawing_copy 的 r:embed 中
         return self
 
     def text_with_image(self, before: str, after: str, png: bytes | None = None) -> DocxBuilder:
