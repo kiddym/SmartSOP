@@ -26,6 +26,7 @@ from app.routers import (
     chapters,
     fields,
     folders,
+    nodes,
     parse,
     procedure_groups,
     procedures,
@@ -96,6 +97,7 @@ app.include_router(parse.router)
 app.include_router(attachments.router)
 app.include_router(fields.router)
 app.include_router(settings_router.router)
+app.include_router(nodes.router)
 
 
 @app.get("/healthz", tags=["health"])
