@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import bad_request, not_found
+from app.services import optimistic_lock
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
 from app.services import node_numbering
@@ -83,3 +84,35 @@ def _walk(roots: list) -> list:
 
     rec(roots)
     return out
+
+
+# 用户可 patch 的字段白名单。mark_status 不在内:它只由 review 确认动作(batch_update)
+# 与 parser 写入,不走通用 patch。
+_PATCHABLE = frozenset(
+    {"heading_level", "kind", "body", "input_schema", "attachment_marks", "skip_numbering"}
+)
+
+
+def patch_node(
+    db: Session, node_id: str, changes: dict[str, Any], *, expected_revision: int
+) -> ProcedureNode:
+    """单字段更新(spec §3.1)。changes 只允许 _PATCHABLE 的键。"""
+    node = _get_node(db, node_id)
+    optimistic_lock.verify_revision(node.revision, expected_revision)
+
+    unknown = set(changes) - _PATCHABLE
+    if unknown:
+        raise bad_request("BAD_FIELD", f"不可更新字段:{sorted(unknown)}")
+
+    new_kind = changes.get("kind", node.kind)
+    new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
+    new_schema = changes.get("input_schema", node.input_schema)
+    new_marks = changes.get("attachment_marks", node.attachment_marks)
+    enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
+
+    for k, v in changes.items():
+        setattr(node, k, v)
+    optimistic_lock.bump(node)
+    db.flush()
+    node_numbering.recompute(db, node.procedure_id)
+    return node

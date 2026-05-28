@@ -60,3 +60,43 @@ def test_get_nodes_returns_sorted_with_derived(factory, db) -> None:
     assert [r["body"] for r in rows] == ["<p>A</p>", "<p>x</p>"]
     assert rows[0]["parent_id"] is None and rows[0]["depth"] == 0 and rows[0]["code"] == "1"
     assert rows[1]["parent_id"] == rows[0]["id"] and rows[1]["depth"] == 1
+
+
+def test_patch_promote_content_to_heading(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="<p>3.1 质量部</p>", sort_order=10, heading_level=None)
+    updated = node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=1)
+    assert updated.heading_level == 2
+    assert updated.body == "<p>3.1 质量部</p>"  # body 原地不动
+    assert updated.revision == 2
+
+
+def test_patch_demote_heading_to_content(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=2)
+    updated = node_service.patch_node(db, n.id, {"heading_level": None}, expected_revision=1)
+    assert updated.heading_level is None
+    assert updated.body == "<p>A</p>"
+
+
+def test_patch_roundtrip_strict(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="<p>3.1 X</p>", sort_order=10, heading_level=None)
+    node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=1)
+    back = node_service.patch_node(db, n.id, {"heading_level": None}, expected_revision=2)
+    assert back.heading_level is None and back.body == "<p>3.1 X</p>"
+
+
+def test_patch_step_with_heading_level_rejected(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="", sort_order=10, kind="step", heading_level=None,
+                     input_schema={"type": "COMMON"})
+    with pytest.raises(HTTPException):
+        node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=1)
+
+
+def test_patch_revision_conflict(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=None)
+    with pytest.raises(HTTPException):
+        node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=99)
