@@ -16,12 +16,11 @@ from sqlalchemy.orm import Session
 
 from app.errors import not_found
 from app.models.attachment import ProcedureAttachment
-from app.models.chapter import ProcedureChapter
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
-from app.models.step import ProcedureStep
 from app.services import asset_service
+from app.services import node_service
 
 
 @dataclass
@@ -99,17 +98,29 @@ class RenderData:
 
 
 # --------------------------------------------------------------------------- #
-def _to_step(s: ProcedureStep) -> StepData:
-    return StepData(
-        id=s.id,
-        code=s.code,
-        title=s.title,
-        content=s.content,
-        kind=s.kind,
-        skip_numbering=s.skip_numbering,
-        input_schema=dict(s.input_schema or {}),
-        attachment_marks=list(s.attachment_marks or []),
-    )
+def _split_first_block(body: str) -> tuple[str, str]:
+    """把统一 node 的 body 切成 (首个块级元素的纯文本, 其余 HTML)。
+    用于从 body 还原 legacy 的 (title, content) 二分（spec §2.3 标题=body 首块）：
+    heading/step 的标题取首块文本；step 正文取其余。解析失败 → ('', 原文当正文)。
+
+    注：rest 经 lxml 序列化，`<br/>` 会被规整为 `<br>`——纯快照层差异，html_render 两者
+    同样渲染成 `<br/>`，视觉不受影响。首块的 tail 文本（块间裸文本）不并入 rest——
+    body 均由 node_sync 以 `<p>title</p>+content` 构造、content 为 Tiptap HTML，不产块间裸文本。"""
+    if not body or not body.strip():
+        return "", ""
+    try:
+        from lxml import html as lxml_html
+
+        frag = lxml_html.fragment_fromstring(body, create_parent="div")
+    except Exception:  # 异常 HTML：无标题，整体当正文
+        return "", body
+    children = list(frag)
+    if not children:  # 无块级子元素（裸文本）：整段当标题
+        return (frag.text or "").strip(), ""
+    first = children[0]
+    title = (first.text_content() or "").strip()
+    rest = "".join(lxml_html.tostring(c, encoding="unicode") for c in children[1:])
+    return title, rest
 
 
 def _resolve_field_value(fld: ProcedureField, raw: Any) -> str:
@@ -147,42 +158,54 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
     folder = db.get(Folder, proc.folder_id)
     folder_path = folder.full_path if folder is not None else ""
 
-    chapters = list(
-        db.execute(
-            select(ProcedureChapter)
-            .where(ProcedureChapter.procedure_id == proc_id, ProcedureChapter.is_active.is_(True))
-            .order_by(ProcedureChapter.sort_order, ProcedureChapter.id)
-        ).scalars()
-    )
-    steps = list(
-        db.execute(
-            select(ProcedureStep)
-            .where(ProcedureStep.procedure_id == proc_id, ProcedureStep.is_active.is_(True))
-            .order_by(ProcedureStep.sort_order, ProcedureStep.id)
-        ).scalars()
-    )
+    rows = node_service.get_nodes(db, proc_id)  # 扁平 + 派生 parent_id/code（B2a 已建 node）
 
-    children_by_parent: dict[str | None, list[ProcedureChapter]] = {}
-    for ch in chapters:
-        children_by_parent.setdefault(ch.parent_id, []).append(ch)
-    steps_by_chapter: dict[str | None, list[ProcedureStep]] = {}
-    for st in steps:
-        steps_by_chapter.setdefault(st.chapter_id, []).append(st)
-
-    def build_chapter(ch: ProcedureChapter) -> ChapterData:
-        node = ChapterData(
-            id=ch.id,
-            title=ch.title,
-            code=ch.code,
-            level=ch.level,
-            skip_numbering=ch.skip_numbering,
-            children=[build_chapter(c) for c in children_by_parent.get(ch.id, [])],
-            steps=[_to_step(s) for s in steps_by_chapter.get(ch.id, [])],
-        )
-        return node
-
-    root_chapters = [build_chapter(c) for c in children_by_parent.get(None, [])]
-    root_steps = [_to_step(s) for s in steps_by_chapter.get(None, [])]
+    chapters_by_id: dict[str, ChapterData] = {}
+    children_acc: dict[str | None, list[ChapterData]] = {}
+    steps_acc: dict[str | None, list[StepData]] = {}
+    for r in rows:  # rows 已按 sort_order 升序 → 同父下保持文档序
+        if r["heading_level"] is not None:
+            cd = ChapterData(
+                id=r["id"],
+                title=_split_first_block(r["body"])[0],
+                code=r["code"],
+                level=r["heading_level"],
+                skip_numbering=r["skip_numbering"],
+            )
+            chapters_by_id[r["id"]] = cd
+            children_acc.setdefault(r["parent_id"], []).append(cd)
+        elif r["kind"] == "step":
+            title, content = _split_first_block(r["body"])
+            steps_acc.setdefault(r["parent_id"], []).append(
+                StepData(
+                    id=r["id"],
+                    code=r["code"],
+                    title=title,
+                    content=content,
+                    kind="step",
+                    skip_numbering=r["skip_numbering"],
+                    input_schema=dict(r["input_schema"] or {}),
+                    attachment_marks=list(r["attachment_marks"] or []),
+                )
+            )
+        else:  # content 節點：無標題，整體內聯（pdf-content-no-title）
+            steps_acc.setdefault(r["parent_id"], []).append(
+                StepData(
+                    id=r["id"],
+                    code=r["code"],
+                    title="",
+                    content=r["body"],
+                    kind="content",
+                    skip_numbering=r["skip_numbering"],
+                    input_schema={},
+                    attachment_marks=[],
+                )
+            )
+    for cid, cd in chapters_by_id.items():
+        cd.children = children_acc.get(cid, [])
+        cd.steps = steps_acc.get(cid, [])
+    root_chapters = children_acc.get(None, [])
+    root_steps = steps_acc.get(None, [])
 
     attachments = [
         AttachmentData(
@@ -222,8 +245,8 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
                 )
             )
 
-    # 预取所有富文本里引用的 asset 字节（步骤 content 字段，含内容块步骤）
-    htmls: list[str] = [s.content for s in steps]
+    # 预取所有富文本里引用的 asset 字节（node body 字段，含内容块步骤）
+    htmls: list[str] = [r["body"] for r in rows]
     assets: dict[str, tuple[bytes, str]] = {}
     for aid in _collect_asset_ids(*htmls):
         try:

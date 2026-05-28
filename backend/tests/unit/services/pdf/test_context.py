@@ -91,6 +91,57 @@ def test_attachments_loaded_sorted(db: Session, factory: Factory) -> None:
     assert data.attachments[0].size_bytes == 1024
 
 
+def test_titles_derived_from_node_body(db: Session, factory: Factory) -> None:
+    """B2b: load_render_data 从 ProcedureNode 取数，标题由 body 首块派生。"""
+    leaf = factory.folder(name="质检", prefix="QC", full_path="质检")
+    factory.sequence(leaf.id)
+    proc = factory.procedure(leaf.id, code="QC-00009", name="派生标题")
+    ch = factory.chapter(proc.id, title="目的", level=1, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, title="检查阀门", content="<p>步骤正文</p>",
+                 kind="step", sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, title="", content="<p>内容块正文</p>",
+                 kind="content", sort_order=1)
+    numbering_service.recompute(db, proc.id)  # 经 B2a hook 建 node
+
+    data = context.load_render_data(db, proc.id)
+
+    assert len(data.root_chapters) == 1
+    chap = data.root_chapters[0]
+    assert chap.title == "目的"
+    assert chap.code == "1"
+    assert chap.level == 1
+    titles = [(st.kind, st.title, st.content) for st in chap.steps]
+    assert titles == [
+        ("step", "检查阀门", "<p>步骤正文</p>"),
+        ("content", "", "<p>内容块正文</p>"),
+    ]
+    assert chap.steps[0].code == "1.1"
+
+
+def test_nested_chapters_and_skip_numbering_from_nodes(db: Session, factory: Factory) -> None:
+    """B2b: L2-under-L1 树由派生 parent_id 正确串接；skip_numbering 透传。"""
+    leaf = factory.folder(name="质检", prefix="QC", full_path="质检")
+    factory.sequence(leaf.id)
+    proc = factory.procedure(leaf.id, code="QC-00010", name="嵌套")
+    l1 = factory.chapter(proc.id, title="职责", level=1, sort_order=0)
+    l2 = factory.chapter(proc.id, title="质量部", parent_id=l1.id, level=2, sort_order=0)
+    factory.chapter(proc.id, title="附录", level=1, sort_order=1, skip_numbering=True)
+    factory.step(proc.id, chapter_id=l2.id, title="归口", content="<p>x</p>", kind="step", sort_order=0)
+    numbering_service.recompute(db, proc.id)
+
+    data = context.load_render_data(db, proc.id)
+
+    assert [c.title for c in data.root_chapters] == ["职责", "附录"]
+    appendix = data.root_chapters[1]
+    assert appendix.skip_numbering is True
+    assert appendix.code == ""  # skip → 不编号，透传到快照
+    sub = data.root_chapters[0].children
+    assert [c.title for c in sub] == ["质量部"]
+    assert sub[0].level == 2
+    assert sub[0].code == "1.1"
+    assert sub[0].steps[0].title == "归口"  # 二级章节下的 step
+
+
 def test_cover_fields_resolved_and_empty_skipped(db: Session, factory: Factory) -> None:
     leaf = factory.folder(name="质检", prefix="QC", full_path="质检")
     factory.sequence(leaf.id)

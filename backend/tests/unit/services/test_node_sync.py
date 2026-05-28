@@ -43,11 +43,11 @@ def test_rebuild_chapters_and_content(factory: Factory, db: Session) -> None:
     assert [n["sort_order"] for n in nodes] == sorted(n["sort_order"] for n in nodes)
 
 
-def test_rebuild_step_node_keeps_form(factory: Factory, db: Session) -> None:
+def test_rebuild_step_node_folds_title_into_body(factory: Factory, db: Session) -> None:
     pid = _proc(factory)
     c1 = factory.chapter(pid, title="执行", sort_order=0)
     factory.step(
-        pid, chapter_id=c1.id, content="<p>填表</p>", kind="step",
+        pid, chapter_id=c1.id, title="步骤一", content="<p>填表</p>", kind="step",
         input_schema={"type": "COMMON"}, sort_order=0,
     )
 
@@ -56,8 +56,19 @@ def test_rebuild_step_node_keeps_form(factory: Factory, db: Session) -> None:
     leaf = node_service.get_nodes(db, pid)[1]
     assert leaf["kind"] == "step"
     assert leaf["heading_level"] is None
-    assert leaf["body"] == "<p>填表</p>"
+    assert leaf["body"] == "<p>步骤一</p><p>填表</p>"  # title 折成首段
     assert leaf["input_schema"] == {"type": "COMMON"}
+
+
+def test_rebuild_titleless_step_prepends_empty_title_block(factory: Factory, db: Session) -> None:
+    pid = _proc(factory)
+    c1 = factory.chapter(pid, title="执行", sort_order=0)
+    factory.step(pid, chapter_id=c1.id, title="", content="<p>填表</p>", kind="step", sort_order=0)
+
+    node_sync.rebuild_from_legacy(db, pid)
+
+    leaf = node_service.get_nodes(db, pid)[1]
+    assert leaf["body"] == "<p></p><p>填表</p>"  # 空 title 也恒前置（PDF 确定性切分）
 
 
 def test_rebuild_preserves_review_clamps_layer_marks(factory: Factory, db: Session) -> None:
