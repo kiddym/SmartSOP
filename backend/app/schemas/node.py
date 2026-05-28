@@ -226,7 +226,12 @@ class LayerConflictOut(BaseModel):
 
 
 class LayerApplyResult(BaseModel):
-    """成功:返回本 batch leaf→new_chapter 映射 + 新 revision。"""
+    """成功:返回本 batch leaf→new_chapter 映射 + 新 revision。
+    extracted_titles: 触发了 promote auto-extract 的行映射(old_step_id → 抽取的 title)
+    collapsed_chapters: 触发了 demote 1-mirror-child 合并的章节映射(old_chapter_id → 被合并子 step_id)
+    """
 
     chapter_map: dict[str, str] = Field(default_factory=dict)
     revision: int
+    extracted_titles: dict[str, str] = Field(default_factory=dict)
+    collapsed_chapters: dict[str, str] = Field(default_factory=dict)
