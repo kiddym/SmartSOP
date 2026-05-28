@@ -6,7 +6,7 @@
 // 编号 code 用 utils.recomputeCodes 客户端镜像实时预览；保存用 id_map 就地改名，避免整页刷新。
 
 import { defineStore } from 'pinia'
-import { fetchProcedureDetail, saveProcedure, applyMarks, applyLayerRolesApi } from '@/api/procedures'
+import { fetchProcedureDetail, saveProcedure, applyMarks, applyLayerRolesApi, updateProcedure } from '@/api/procedures'
 import {
   convertChapterToStep,
   convertRootToStep,
@@ -37,10 +37,12 @@ import type {
   NodeKind,
   StepOut,
 } from '@/types/node'
-import type { ProcedureFieldView, ProcedureMeta, ProcedureSaveIn } from '@/types/procedure'
+import type { ProcedureFieldView, ProcedureMeta, ProcedureSaveIn, ProcedureUpdate } from '@/types/procedure'
 
 const MAX_UNDO = 50
 const COALESCE_MS = 800
+const META_FLUSH_MS = 500
+let metaFlushTimer: ReturnType<typeof setTimeout> | null = null
 const CONTENT_MAX_BYTES = 5 * 1024 * 1024 // 富文本总量上限（CONTENT_TOO_LARGE，§8.2）
 
 function byteLength(s: string): number {
@@ -952,11 +954,41 @@ export const useProcedureEditorStore = defineStore('procedureEditor', {
       await this.reload()
     },
 
-    // 程序级元字段编辑（详情折叠面板）。不进 undo 栈（undo 聚焦树结构）。
+    // 程序级元字段编辑（详情折叠面板）。即时·乐观写：本地先改 + 防抖 flush（去 dirty/批量 save）。
     setMetaField<K extends keyof ProcedureMeta>(key: K, value: ProcedureMeta[K]): void {
       if (!this.procedure) return
-      this.procedure[key] = value
-      this.metaDirty = true
+      this.procedure[key] = value // 乐观本地
+      this._scheduleMetaFlush()
+    },
+
+    _scheduleMetaFlush(): void {
+      if (metaFlushTimer) clearTimeout(metaFlushTimer)
+      metaFlushTimer = setTimeout(() => {
+        void this._flushMeta()
+      }, META_FLUSH_MS)
+    },
+
+    async _flushMeta(): Promise<void> {
+      metaFlushTimer = null
+      const p = this.procedure
+      if (!p || !this.editable) return
+      const payload: ProcedureUpdate = {
+        name: p.name,
+        level_of_use: p.level_of_use,
+        description: p.description,
+        risk_level: p.risk_level,
+        quality_level: p.quality_level,
+        custom_values: p.custom_values,
+        version_update_notes: p.version_update_notes,
+        signoff_enabled: p.signoff_enabled,
+      }
+      try {
+        const updated = await updateProcedure(p.id, payload, p.revision)
+        // 只同步 revision，避免冲掉 flush 期间的并发本地编辑（http 拦截器处理错误）。
+        if (this.procedure && this.procedure.id === updated.id) this.procedure.revision = updated.revision
+      } catch {
+        await this.reload() // 失败（如 412）→ 重取同步
+      }
     },
 
     // ---- sessionStorage 草稿（§7：导出 / 导入完整可恢复状态） ---- //
