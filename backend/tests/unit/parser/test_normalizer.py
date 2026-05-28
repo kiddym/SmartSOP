@@ -199,3 +199,13 @@ def test_textbox_inside_toc_field_inherits_is_toc_field() -> None:
     assert inner_blocks[0].is_toc_field is True, (
         "hoisted textbox block inside TOC field domain should inherit is_toc_field=True"
     )
+
+
+def test_sdt_inside_txbx_content_is_hoisted() -> None:
+    """txbxContent 内的 <w:sdt> 包裹段落应被展开并 hoist 为独立块，与顶层 body 一致。"""
+    data = DocxBuilder().textbox_with_sdt_para("SDT 内的注意框").build()
+    nd = _normalize(data)
+    texts = [b.text for b in nd.blocks if b.kind == "paragraph"]
+    assert "SDT 内的注意框" in [t.strip() for t in texts], (
+        f"sdt-wrapped textbox paragraph missing from blocks: {texts}"
+    )

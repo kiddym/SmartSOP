@@ -151,6 +151,24 @@ class DocxBuilder:
         inner_r.append(drawing_copy)
         return self
 
+    def textbox_with_sdt_para(self, inner_text: str) -> DocxBuilder:
+        """文本框 txbxContent 内含一个 <w:sdt> 包裹的段落 —— 验证 SDT 在 txbx 内也被展开。"""
+        p = self.doc.add_paragraph()
+        run = p.add_run()
+        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        shape = _et.SubElement(
+            pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"}
+        )
+        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
+        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
+        sdt = _et.SubElement(tcontent, "{%s}sdt" % _W_NS)
+        sdt_content = _et.SubElement(sdt, "{%s}sdtContent" % _W_NS)
+        inner_p = _et.SubElement(sdt_content, "{%s}p" % _W_NS)
+        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
+        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        inner_t.text = inner_text
+        return self
+
     def text_with_image(self, before: str, after: str, png: bytes | None = None) -> DocxBuilder:
         """段中内联图：文字 + 图 + 文字（Q206 整段一个 content 节点）。"""
         png = png or tiny_png()

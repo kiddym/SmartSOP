@@ -460,10 +460,12 @@ def normalize(
         否则 TOC 域内的文本框内容会漏过 body_blocks 过滤。
         对表格调用时，el.iter() 会下钻到所有 cell，故 cell 内 txbx 同样被抽取
         为独立块（与表平级，不内联回 cell HTML——见 plan 的 Known limitation）。
+        txbx 内若有 <w:sdt> 包裹，复用 _iter_body_children 同款 SDT 展开，
+        与顶层 body 行为一致。
         """
         nonlocal table_count
         for txbx in el.iter(qn("w:txbxContent")):
-            for sub in txbx:
+            for sub in _iter_body_children(txbx):
                 sub_tag = local(sub.tag)
                 if sub_tag == "p":
                     blk = emit_paragraph(sub, ctx, source_index)
