@@ -100,3 +100,22 @@ def test_patch_revision_conflict(factory, db) -> None:
     n = factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=None)
     with pytest.raises(HTTPException):
         node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=99)
+
+
+def test_create_node_appends_to_end(factory, db) -> None:
+    proc = _proc(factory)
+    factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=1)
+    created = node_service.create_node(
+        db, proc.id, {"body": "<p>new</p>", "heading_level": None, "kind": "node"}
+    )
+    rows = node_service.get_nodes(db, proc.id)
+    assert rows[-1]["id"] == created.id
+    assert created.sort_order > 10
+
+
+def test_delete_node_soft_deletes(factory, db) -> None:
+    proc = _proc(factory)
+    n = factory.node(proc.id, body="<p>A</p>", sort_order=10, heading_level=1)
+    node_service.delete_node(db, n.id)
+    assert n.is_active is False and n.deleted_at is not None
+    assert node_service.get_nodes(db, proc.id) == []

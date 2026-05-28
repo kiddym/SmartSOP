@@ -116,3 +116,44 @@ def patch_node(
     db.flush()
     node_numbering.recompute(db, node.procedure_id)
     return node
+
+
+def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> ProcedureNode:
+    """新建节点,默认追加到末尾(sort_order = 当前 max + _SORT_GAP)。
+    data 可含 sort_order 显式指定位置。"""
+    kind = data.get("kind", "node")
+    heading_level = data.get("heading_level")
+    input_schema = data.get("input_schema", {})
+    attachment_marks = data.get("attachment_marks", [])
+    enforce_node_invariants(kind, heading_level, input_schema, attachment_marks)
+
+    if "sort_order" in data and data["sort_order"] is not None:
+        sort_order = data["sort_order"]
+    else:
+        existing = _active_nodes(db, procedure_id)
+        sort_order = (existing[-1].sort_order + _SORT_GAP) if existing else _SORT_GAP
+
+    node = ProcedureNode(
+        procedure_id=procedure_id,
+        body=data.get("body", ""),
+        heading_level=heading_level,
+        kind=kind,
+        input_schema=input_schema,
+        attachment_marks=attachment_marks,
+        skip_numbering=data.get("skip_numbering", False),
+        mark_status=data.get("mark_status", "unmarked"),
+        sort_order=sort_order,
+    )
+    db.add(node)
+    db.flush()
+    node_numbering.recompute(db, procedure_id)
+    return node
+
+
+def delete_node(db: Session, node_id: str) -> None:
+    """软删单节点。子节点不随删(派生关系,删后自动重派生)。"""
+    node = _get_node(db, node_id)
+    node.is_active = False
+    node.deleted_at = utcnow()
+    db.flush()
+    node_numbering.recompute(db, node.procedure_id)
