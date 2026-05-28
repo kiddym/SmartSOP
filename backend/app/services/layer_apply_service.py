@@ -231,10 +231,29 @@ def _has_chapter_children(db: Session, proc_id: str, chapter_id: str) -> bool:
     ).first() is not None
 
 
+def _leaf_children(db: Session, proc_id: str, chapter_id: str) -> list[ProcedureStep]:
+    """返回章节下所有活跃叶子(step + content),按 sort_order 排序。"""
+    return list(
+        db.execute(
+            select(ProcedureStep)
+            .where(
+                ProcedureStep.procedure_id == proc_id,
+                ProcedureStep.chapter_id == chapter_id,
+                ProcedureStep.is_active.is_(True),
+            )
+            .order_by(ProcedureStep.sort_order, ProcedureStep.id)
+        ).scalars()
+    )
+
+
 def _validate_chapter_children_for_content(
     db: Session, proc_id: str, updates: dict[str, dict]
 ) -> None:
-    """章节标 to-content 时若仍有子章节 → 提前 400 CHAPTER_HAS_CHILDREN。"""
+    """章节标 to-content 时校验形态(spec §3.2):
+    - 有子章节 → 400 CHAPTER_HAS_CHILDREN
+    - 叶子子节点 >1 → 400 NOT_MIRROR_SHAPE
+    - 1 个叶子子但 (kind != 'content' 或 title 非空) → 400 NOT_MIRROR_SHAPE
+    """
     for node_id, u in updates.items():
         if u["kind"] != "to-content":
             continue
@@ -246,6 +265,19 @@ def _validate_chapter_children_for_content(
                 "CHAPTER_HAS_CHILDREN",
                 f"章节 {ch.title or ch.id} 仍含子章节,不可降为内容",
             )
+        leaves = _leaf_children(db, proc_id, ch.id)
+        if len(leaves) > 1:
+            raise bad_request(
+                "NOT_MIRROR_SHAPE",
+                f"章节 {ch.title or ch.id} 有 {len(leaves)} 个叶子子节点,请先手动合并为 0 个或 1 个无标题内容块",
+            )
+        if len(leaves) == 1:
+            child = leaves[0]
+            if child.kind != "content" or (child.title or "").strip() != "":
+                raise bad_request(
+                    "NOT_MIRROR_SHAPE",
+                    f"章节 {ch.title or ch.id} 的叶子子节点不是无标题内容块,请先手动重组",
+                )
 
 
 def _phase_b_reorder(
