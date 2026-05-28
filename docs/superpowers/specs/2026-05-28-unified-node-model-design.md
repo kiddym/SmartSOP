@@ -52,7 +52,9 @@
 - ❌ **不改 step 的执行/sign-off 语义**:本期只改结构存储,`input_schema`/表单字段/签核流程读取口径适配,语义不动。
 - ❌ **不重做 PDF 视觉**:沿用 `pdf-content-no-title` 的决策(content 无编号无标题内联),仅适配数据来源从两表变一表。
 - ❌ **不做 overlay 范式**(方案 C):本期是 B,不推翻结构化解析。
-- ❌ **不动 `mark_service.py`(通用标记/级联选择)**:它服务附件批量等场景,与层级标定不是一回事,本期不删,仅评估其对 chapter/content 的引用是否需改读取口径。
+- ❌ **不保留"标记模式"的两阶段 mark→apply 工作流 UI**:经核查(见 §15),`mark_service.py` 的标记模式本质是**另一个** chapter→content/step 转换 UI,统一模型同样吞掉它。折叠进多选直改(§6 路径 γ),`apply_marks`/Q25/Q29/`mark_status` 的 step/content 中间态删除。
+- ✅ **必须保留 `review` 待确认标记**:它是 parser 产出的解析存疑元数据(`structurer.py` MEDIUM/LOW 置信度),与转换无关,变成 `ProcedureNode` 字段,徽章 + 过滤 + 确认动作都留(见 §15)。
+- ✅ **必须保留多选批量能力**:`batchMark.ts` 的 shift 区间选叶子逻辑改造后用于路径 γ(去掉"章节是纯容器跳过"规则)。
 
 ---
 
@@ -70,6 +72,7 @@
 | `body` | text(HTML) | rich。heading 的"标题"= body 第一个块级元素的文本(派生,见 §2.3) |
 | `input_schema` | JSON | 仅 `kind='step'` 非空(沿用 `_invariants.py` 现有 invariant) |
 | `attachment_marks` | JSON | 沿用现状 |
+| `mark_status` | str | `'unmarked'` \| `'review'`(解析存疑标记,parser 产出;**step/content 两个旧值删除**,见 §15)。值收敛后可考虑改名 `needs_review: bool`,本期保留字段名减少 parser churn |
 | `revision` | int | 乐观锁(沿用 `optimistic_lock.py` 模式) |
 | `is_active` / `deleted_at` | bool / ts | 软删 |
 
@@ -214,9 +217,9 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 | `POST /procedures/{id}/nodes` | 在指定位置插入新节点(给定前驱/后继 id 或目标 sort_order) |
 | `DELETE /nodes/{id}` | 软删 |
 | `POST /procedures/{id}/nodes/reorder` | 批量写 sort_order(拖拽/移动子树:前端算出受影响行的新 sort_order,后端只落库) |
-| `PATCH /procedures/{id}/nodes:batch` | 批量改 `heading_level`(多选浮动条,见 §6 路径 γ) |
+| `PATCH /procedures/{id}/nodes:batch` | 批量改 `heading_level` / `kind`(多选浮动条,见 §6 路径 γ;**取代旧 `apply-marks`**) |
 
-**删除**:`applyLayerRoles` / `apply-layer-roles` 端点及 `LayerApplyResult` schema。
+**删除**:`applyLayerRoles` / `apply-layer-roles` 端点及 `LayerApplyResult` schema;`apply-marks` / `mark-status` 端点及 `ApplyMarksResult` schema(转换折叠进 `PATCH`/`:batch`,见 §15)。
 **保留待评估**:`convert_to_chapter` / `convert_to_content` 单行端点(无 UI 调用方)直接删,被 `PATCH heading_level` 取代。
 
 ### 4.1 移动子树语义
@@ -232,6 +235,7 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 - `ParsedNode.content_type: "chapter"|"content"` → `heading_level: int|null`(heading 检测结果直接产出 level 数字,正文产 null)。
 - `structurer.py`(265 行,建章节树)→ 删除建树逻辑,改产**扁平有序 list**;树由后端 §2.2 派生。`heading_detector.py` 保留(仍检测 heading + level),但不再决定树形态。
 - `normalizer.py`(506 行)凡是为建树服务的段落归并逻辑评估删减;`parser-no-mutation-principle`(段落 1:1、不切不融)继续遵守。
+- **`review` 标记保留**:`structurer.py` 对 MEDIUM/LOW 置信度候选仍产 `mark_status='review'`(`result.py` 现已只产 `unmarked|review`,无需改动该枚举);`import_service` 把它带进 `ProcedureNode.mark_status`。`import_service` 第 6 行"正文下沉至相邻子标题"的严格互斥归一化——在统一模型下不再需要(没有"chapter+step 混"的非法态),实施时删除该归一化。
 
 ### 5.2 导入落库
 
@@ -247,16 +251,16 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 |---|---|---|
 | α inline chip | 每行行首一个层级 chip,点开下拉「正文/L1/L2/L3/L4/step」,点选即生效 | 新手、单行 |
 | β 键盘 | `Cmd+1..4` 设级、`Cmd+0` 设正文、`Tab`/`Shift+Tab` 增减缩进;多选 + 按键批量 | 高频用户 |
-| γ 多选浮动条 | 框选/勾选多行 → 浮出工具栏「设为 正文/L1/L2/L3/L4」→ `:batch` | 批量 |
+| γ 多选浮动条 | 框选/勾选多行 → 浮出工具栏「设为 正文/L1/L2/L3/L4/step」→ `:batch`。**这条同时取代旧"标记模式"的批量标注**(见 §15) | 批量 / 导入后清理 |
 | δ markdown | 行内编辑时行首打 `## ` 升级、heading 行首 `Backspace` 降级 | markdown 习惯者 |
 
 单行操作 ≤1 次点击(或 0 点击键盘);撤销走普通 `Cmd+Z`(行级编辑历史);反馈即时(前端 optimistic + 后端 ack)。
 
 ### 6.2 组件合并
 
-- `ChapterTreePanel` + 渲染逻辑 → `NodeTreePanel`(渲染派生树,行带 level chip)。
+- `ChapterTreePanel` + 渲染逻辑 → `NodeTreePanel`(渲染派生树,行带 level chip + 多选 checkbox + `review` 待确认徽章 + review 过滤)。
 - `ChapterDetailPanel` + `ContentDetailPanel` → `NodeDetailPanel`(展示 body + heading_level + 若 step 展示 input_schema)。`StepDetailPanel` 的表单字段编辑并入或保留为 NodeDetailPanel 的 step 子区。
-- `TreeRow.vue` 加 level chip + 多选 checkbox。
+- `TreeRow.vue` 加 level chip + 多选 checkbox;保留 `review` 的"待确认"徽章。
 
 ### 6.3 删除
 
@@ -264,10 +268,12 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 - store `applyLayerRoles` action 及其 spec。
 - 层级标定模式的进入/退出 UI、`extracted_titles`/`collapsed_chapters` toast 逻辑。
 - `ContentDetailPanel` 的 title placeholder(连同 title 字段)。
+- **标记模式 UI**:`store.markMode` 进退、`ChapterTreePanel` 里的 mark-mode 分支、`TreeRow` 的 markMode checkbox 与 `mark_status` 图标色映射(step/content 那部分;`review` 徽章保留)。
 
-### 6.4 评估(可能保留)
+### 6.4 保留并改造(`review` + 多选,§15 决策)
 
-- `batchMark.ts` / `mark_service` 对应的通用级联选择:服务附件批量等,**不随层级模式删**;仅检查其对 chapter/content 字段的引用改成 node 读取口径。
+- **`review` 待确认链路全保留**:`TreeRow` "待确认"徽章、`ChapterTreePanel` 的 `reviewCount`/`reviewFilter`、`mark_status==='review'` 过滤——全部迁到 `NodeTreePanel`。新增一个"确认"动作:编辑 review 节点的 `heading_level`/`kind`,或显式点确认,把 `mark_status` 清回 `unmarked`(`PATCH /nodes/{id}`)。
+- **`batchMark.ts` 多选逻辑改造保留**:shift 区间选 + 100 上限 + 跨父告警都留;**删掉 `if (r.kind === 'chapter') continue` 这条**(统一模型里没有纯容器章节,任何 node 都可被选中改级)。改造后服务路径 γ 与附件批量。
 
 ---
 
@@ -301,16 +307,21 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 - `layer_apply_service.py`(305 行)+ `test_layer_apply_service.py`
 - `layer_walk.py`(改写为 `node_tree.py` 或并入)
 - `chapter_service.py`(并入 node service)
-- `ProcedureChapter` model/表;`ProcedureStep.title`
-- 前端 `layerMark.ts` / `validateLayerQ25` / `computeLayerUpdates` / `computeLayerIndents` / `LayerRow` / `effectiveRole` / `applyLayerRoles`
+- `mark_service.py` 的 `apply_marks` + `set_mark_status` + Q25/Q29 互斥(转换由 `PATCH heading_level/kind` 取代);`apply-marks` / `mark-status` 端点 + `ApplyMarksResult` schema(见 §15)
+- `ProcedureChapter` model/表;`ProcedureStep.title`;`mark_status` 的 `step`/`content` 两个旧值
+- 前端 `layerMark.ts` / `validateLayerQ25` / `computeLayerUpdates` / `computeLayerIndents` / `LayerRow` / `effectiveRole` / `applyLayerRoles`;标记模式 UI(`store.markMode` 等,§6.3)
 - `convert_to_chapter` / `convert_to_content` 端点
+
+**保留改造(非删):**
+- `batchMark.ts` 多选逻辑(去掉 chapter-skip 规则,§6.4)
+- `review` 待确认全链路(parser 产出 + 徽章 + 过滤 + 确认动作,§5/§6.4)
 
 **作废 spec(本设计取代):**
 - `2026-05-28-content-chapter-roundtrip-design.md`(整份)
 - `2026-05-27-layer-overlay-auto-nest-design.md`(层级模式部分)
 - `2026-05-24-flat-layer-marking-design.md`
 - `2026-05-25-p2c-layer-marking-design.md`
-- `2026-05-26-mark-mode-cascade-selection-design.md`(若 mark mode 仅服务层级;若也服务附件则部分保留——实施时确认)
+- `2026-05-26-mark-mode-cascade-selection-design.md`(标记模式的转换/Apply 部分作废;多选选择逻辑 + review 保留,见 §15)
 
 **简化:**
 - parser `structurer.py`(265 行,建树→产扁平 list)、`normalizer.py`(506 行,删建树相关归并)
@@ -327,13 +338,15 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 - **严格 round-trip**:单段 / 多段 rich body,`heading_level` 来回切 body 字节级不变(替代旧 `test_roundtrip_2_explicitly_breaks`,新断言**两条路径都严格相等**)。
 - **reorder**:移动子树区间计算、sort_order 落库。
 - **invariants**:`_invariants.py` 三条新不变量。
-- **导入**:parser 扁平 list → node 行,heading_level 正确。
+- **导入**:parser 扁平 list → node 行,heading_level 正确;`review` 候选带进 `mark_status='review'`。
+- **批量 `:batch`**:多选标 step/content/level 一次提交(取代旧 `apply_marks`);`review` 节点改级后 `mark_status` 清回 `unmarked`。
 
 ### 10.2 前端
 
-- `NodeTreePanel` 派生树渲染(给定扁平 list + heading_level → 正确缩进/父子)。
+- `NodeTreePanel` 派生树渲染(给定扁平 list + heading_level → 正确缩进/父子);`review` 徽章 + 过滤显示。
 - 4 条输入路径:chip 改级、键盘 `Cmd+N`/`Tab`、多选 batch、markdown 行首(各 1 个 happy path)。
-- 移除 `layerMark.spec.ts` / `procedureEditor.applyLayerRoles.spec.ts`。
+- `batchMark` 改造后的选择:shift 区间选含 heading 行(不再 skip chapter)、100 上限、跨父告警。
+- 移除 `layerMark.spec.ts` / `procedureEditor.applyLayerRoles.spec.ts` / 标记模式 apply 相关 spec(保留改造后的 `batchMark.spec.ts`)。
 
 ---
 
@@ -345,7 +358,8 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 | 不存 parent_id,大 procedure 每次读都 O(n) 派生 | O(n) 栈扫极快;必要时缓存派生结果,按 revision 失效 |
 | 移动子树的 sort_order 区间计算前端算错 | 后端 dumb 落库但加一致性校验(同 procedure sort_order 唯一);前端单测覆盖区间边界 |
 | 一次性重建波及 PDF/sign-off/numbering 多处读取 | §7 逐模块清单;分阶段实施(§12)每阶段跑全测 |
-| `mark_service`/`batchMark` 误删 | §6.4 明确不随层级模式删,仅改读取口径,实施时单独确认 |
+| 折叠标记模式后,丢失"导入后集中审阅再一次性提交"的节奏 | `review` 待确认徽章 + 过滤保留,审阅入口不丢;即时改 + `Cmd+Z` 替代显式 Apply(§15 用户已选折叠) |
+| `batchMark`/`review` 链路误删(把标记模式整个删掉) | §6.4 + §9"保留改造"明确区分:删 `apply_marks`/Q25/markMode UI,**留** `batchMark` 选择逻辑 + review 全链路 |
 | heading 多段 body 在树里只显第一段,其余"藏"在 detail | 接受(Q1 决策);编辑器后续可加"回车拆行"nicety |
 
 ---
@@ -354,11 +368,11 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 
 1. **后端模型 + 不变量**:`ProcedureNode` model、`_invariants.py` 三条、Alembic revision、`seed.py` 重写、重建 dev.db。
 2. **树派生**:`node_tree.py`(`build_tree`)+ 单测;删 `layer_walk.py`。
-3. **后端 API**:`GET /nodes`(含派生)、`PATCH /nodes/{id}`、`POST/DELETE/reorder/:batch`;删 `layer_apply_service` + 端点 + 测试。`numbering_service` 适配。
-4. **Parser**:`ParsedNode.heading_level`、`structurer` 产扁平 list、`import_service` 落 node 行 + 单测。
+3. **后端 API**:`GET /nodes`(含派生)、`PATCH /nodes/{id}`、`POST/DELETE/reorder/:batch`;删 `layer_apply_service` + `mark_service.apply_marks`/`set_mark_status` + 各端点 + 测试。`numbering_service` 适配。
+4. **Parser**:`ParsedNode.heading_level`、`structurer` 产扁平 list(保留 `review` 产出)、`import_service` 落 node 行(删"正文下沉"归一化)+ 单测。
 5. **下游适配**:PDF、sign-off、version、attachment 读取口径(§7)+ 回归测试。
-6. **前端**:`NodeTreePanel` + `NodeDetailPanel`、4 条输入路径、删 layerMark 全家桶 + spec。
-7. **清理**:删作废 spec、`chapter_service`;手动 dev 验证(`running-smartsop-dev`);更新 memory(记一条"统一节点模型取代三分制",标记 `pdf-content-no-title`/`mark-mode-chapter-container`/`layer-overlay-q25-dryrun-gap` 等层级模式相关 memory 为 superseded)。
+6. **前端**:`NodeTreePanel`(含 review 徽章/过滤)+ `NodeDetailPanel`、4 条输入路径、改造 `batchMark`、删 layerMark + 标记模式 UI 全家桶 + spec。
+7. **清理**:删作废 spec、`chapter_service`;手动 dev 验证(`running-smartsop-dev`);更新 memory(记一条"统一节点模型取代三分制",标记 `pdf-content-no-title`/`mark-mode-chapter-container`/`layer-overlay-q25-dryrun-gap` 等层级/标记模式相关 memory 为 superseded)。
 
 每阶段跑全测(`backend/.venv/bin/python -m pytest` + 前端 vitest),绿了再进下一阶段(memory `uv-missing-use-venv-python`)。
 
@@ -372,7 +386,8 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 4. 跳级(L1 直接 L3):允许编辑,发布检查清单出软警告。
 5. step 节点尝试设 `heading_level`:被 invariant 拒绝。
 6. PDF 渲染、编号、sign-off 在新模型下正确。
-7. `layer_apply_service` / `layerMark.ts` / `ProcedureChapter` 已删,全测通过;新增严格 round-trip 测试(两条路径都相等)通过。
+7. `layer_apply_service` / `layerMark.ts` / `ProcedureChapter` / `mark_service.apply_marks` / 标记模式 UI 已删,全测通过;新增严格 round-trip 测试(两条路径都相等)通过。
+8. **导入一个含 `review` 候选的 Word**:`待确认`徽章正常显示、review 过滤可用;多选若干 review 节点 → 浮动条标「正文/step」一次生效,被改的节点 `review` 清除。
 
 ---
 
@@ -380,4 +395,23 @@ round-trip:把 x 降回 `null`,y/z 自动归还给 A,body 字节级不变(与 §
 
 - `2026-05-28-content-chapter-roundtrip-design.md` — auto-extract/flatten 不再需要(本设计 §3.3 严格 round-trip 取代)。
 - `2026-05-27-layer-overlay-auto-nest-design.md`、`2026-05-24-flat-layer-marking-design.md`、`2026-05-25-p2c-layer-marking-design.md` — 层级标定模式整体删除。
+- `2026-05-26-mark-mode-cascade-selection-design.md` — 标记模式的转换/Apply/Q25 作废;多选选择逻辑 + review 保留(§15)。
 - memory `mark-mode-chapter-container`、`layer-overlay-q25-dryrun-gap`、`pdf-content-no-title`、`editor-route-reuse-no-reload` — 实施收尾时复核并标记 superseded/更新。
+
+---
+
+## §15 标记模式核查结论(回应"删除前确认不影响内容/步骤标注")
+
+写 plan 前对 `mark_service.py` / `batchMark.ts` / `review` 做了核查,结论:**系统里有三个挂在 chapter/content/step 分裂上的东西,层级标定模式只是其一。**
+
+| 概念 | 代码 | 真实职责 | 处置 |
+|---|---|---|---|
+| 层级标定模式 | `layerMark.ts` / `layer_apply_service` | chapter↔content 升降级 | 删 |
+| 标记模式(内容/步骤标注) | `mark_service.py` / `batchMark.ts` / `markSel` | 叶子章节批量标 `step`/`content` → `apply_marks` 转换(建 step 行 + 删章节 + Q25/Q29 互斥) | 转换机制删,UX 折叠进多选直改 |
+| `review` 待确认 | parser `structurer.py` 产出 + `TreeRow` 徽章 + 过滤 | 解析存疑(MEDIUM/LOW 置信度)持久标记 | **全保留** |
+
+**关键发现**:标记模式本质是**另一个** chapter→content/step 转换 UI,存在理由同样是三分制。统一模型里它的转换全部冗余(标 content = `heading_level=null`;标 step = `kind='step'`;无需建/删行、无需 Q25)。
+
+**用户决策(本轮)**:折叠进多选直改(路径 γ)——标记模式独立 UI 消失,能力 = 多选后选「正文/L1../step」即时生效 + `Cmd+Z`。**两半价值保留**:`review` 全链路(徽章 + 过滤 + 确认动作)+ `batchMark` 多选逻辑(去掉 chapter-skip)。
+
+**窄结论**:删层级标定模式不碰标记模式;但统一模型主动把标记模式的转换也折叠了——这是更大的简化,不是回归。`review` 解析审阅能力一处不丢。
