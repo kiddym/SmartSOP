@@ -450,10 +450,14 @@ def normalize(
         blocks.append(blk)
         image_count += len(blk.images)
 
-    def _emit_txbx_descendants(el: etree._Element, source_index: int) -> None:
+    def _emit_txbx_descendants(
+        el: etree._Element, source_index: int, *, is_toc: bool = False
+    ) -> None:
         """下钻 el 内所有 w:txbxContent，把内嵌段落/表作为附加 IR Block 追加。
 
         共享父级 source_index，确保在 structurer 排序中紧邻外层块。
+        若外层 paragraph 处于 TOC 域内，传 is_toc=True 让 hoisted 子块继承该标记，
+        否则 TOC 域内的文本框内容会漏过 body_blocks 过滤。
         对表格调用时，el.iter() 会下钻到所有 cell，故 cell 内 txbx 同样被抽取
         为独立块（与表平级，不内联回 cell HTML——见 plan 的 Known limitation）。
         """
@@ -462,9 +466,15 @@ def normalize(
             for sub in txbx:
                 sub_tag = local(sub.tag)
                 if sub_tag == "p":
-                    _append(emit_paragraph(sub, ctx, source_index))
+                    blk = emit_paragraph(sub, ctx, source_index)
+                    if is_toc:
+                        blk.is_toc_field = True
+                    _append(blk)
                 elif sub_tag == "tbl":
-                    _append(emit_table(sub, ctx, source_index))
+                    blk = emit_table(sub, ctx, source_index)
+                    if is_toc:
+                        blk.is_toc_field = True
+                    _append(blk)
                     table_count += 1
 
     for i, el in enumerate(_iter_body_children(body)):
@@ -473,7 +483,7 @@ def normalize(
             block = emit_paragraph(el, ctx, i)
             block.is_toc_field = tracker.scan(el, i)
             _append(block)
-            _emit_txbx_descendants(el, i)
+            _emit_txbx_descendants(el, i, is_toc=block.is_toc_field)
         else:  # tbl
             block = emit_table(el, ctx, i)
             table_count += 1

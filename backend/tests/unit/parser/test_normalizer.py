@@ -148,3 +148,54 @@ def test_raw_image_count_excludes_txbx_blips_on_outer_paragraph() -> None:
     assert outer.raw_image_count == 0
     assert inner.raw_image_count == 1
     assert len(inner.images) == 1
+
+
+def test_textbox_inside_toc_field_inherits_is_toc_field() -> None:
+    """文本框出现在 TOC 字段域内时，hoisted 子块也应被标 is_toc_field=True，
+    防止 TOC 内的文本框内容漏过 body_blocks 过滤。"""
+    from lxml import etree as _et
+
+    _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+    _V_NS = "urn:schemas-microsoft-com:vml"
+
+    builder = DocxBuilder()
+
+    # --- 段落 1: TOC 域 begin + instrText(TOC) + separate ---
+    p_begin = builder.doc.add_paragraph()
+    r1 = p_begin.add_run()
+    fb = _et.SubElement(r1._r, "{%s}fldChar" % _W_NS)
+    fb.set("{%s}fldCharType" % _W_NS, "begin")
+    r2 = p_begin.add_run()
+    instr = _et.SubElement(r2._r, "{%s}instrText" % _W_NS)
+    instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
+    instr.text = ' TOC \\o "1-3" '
+    r3 = p_begin.add_run()
+    sep = _et.SubElement(r3._r, "{%s}fldChar" % _W_NS)
+    sep.set("{%s}fldCharType" % _W_NS, "separate")
+
+    # --- 段落 2: 处于 TOC 域内的 textbox 段落（用 lxml 直接构造，避免 python-docx 重置）---
+    p_txbx = builder.doc.add_paragraph()
+    run_txbx = p_txbx.add_run()
+    pict = _et.SubElement(run_txbx._r, "{%s}pict" % _W_NS)
+    shape = _et.SubElement(pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"})
+    tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
+    tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
+    inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
+    inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
+    inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+    inner_t.text = "TOC 内的注意框"
+
+    # --- 段落 3: TOC 域 end ---
+    p_end = builder.doc.add_paragraph()
+    re = p_end.add_run()
+    fe = _et.SubElement(re._r, "{%s}fldChar" % _W_NS)
+    fe.set("{%s}fldCharType" % _W_NS, "end")
+
+    nd = _normalize(builder.build())
+
+    # hoisted 子块应继承 is_toc_field=True
+    inner_blocks = [b for b in nd.blocks if "TOC 内的注意框" in b.text]
+    assert len(inner_blocks) == 1, f"expected 1 hoisted textbox block, got {len(inner_blocks)}"
+    assert inner_blocks[0].is_toc_field is True, (
+        "hoisted textbox block inside TOC field domain should inherit is_toc_field=True"
+    )
