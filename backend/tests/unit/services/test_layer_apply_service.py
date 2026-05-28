@@ -304,3 +304,42 @@ def test_router_smoke(engine, factory: Factory) -> None:
     body = resp.json()
     assert s.id in body["chapter_map"]
     assert body["revision"] > initial_revision
+
+
+# ---------------------------------------------------------------------------
+# _try_extract_title_from_body — pure helper (spec §2.1-§2.3)
+# ---------------------------------------------------------------------------
+
+
+def test_extract_pure_text_short_p_returns_text() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p>3.1 质量部</p>") == "3.1 质量部"
+
+
+def test_extract_body_too_long_returns_none() -> None:
+    body = "<p>" + ("你" * 51) + "</p>"
+    assert layer_apply_service._try_extract_title_from_body(body) is None
+
+
+def test_extract_body_has_bold_returns_none() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p><b>x</b></p>") is None
+
+
+def test_extract_body_multi_block_returns_none() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p>x</p><p>y</p>") is None
+
+
+def test_extract_body_with_br_returns_none() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p>x<br>y</p>") is None
+
+
+def test_extract_html_entity_decoded() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p>3.1 &amp; 4.0</p>") == "3.1 & 4.0"
+
+
+def test_extract_empty_p_returns_none() -> None:
+    assert layer_apply_service._try_extract_title_from_body("<p>  </p>") is None
+
+
+def test_extract_empty_body_returns_none() -> None:
+    assert layer_apply_service._try_extract_title_from_body("") is None
+    assert layer_apply_service._try_extract_title_from_body(None) is None  # type: ignore[arg-type]

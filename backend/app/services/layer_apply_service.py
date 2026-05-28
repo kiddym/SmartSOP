@@ -27,6 +27,35 @@ LayerRole = Literal["chapter_1", "chapter_2", "chapter_3", "content", "keep"]
 MAX_DEPTH = 3
 
 
+def _try_extract_title_from_body(body: str | None) -> str | None:
+    """promote auto-extract 资格判定(spec §2.1):body 是 1 个 <p>,内部纯文本(无子元素 / 无样式),
+    长度 ≤ 50 Unicode 码点 → 返回提取的纯文本;任一不满足返回 None。
+    HTML 实体(如 &amp;)在 lxml 解析时解码为对应字符。
+    """
+    if not body or not body.strip():
+        return None
+    try:
+        from lxml import html as lxml_html
+
+        frag = lxml_html.fragment_fromstring(body, create_parent="div")
+    except Exception:  # 异常 HTML / 解析失败,保守返回 None
+        return None
+    children = list(frag)
+    if len(children) != 1:
+        return None
+    p = children[0]
+    if p.tag != "p":
+        return None
+    if list(p):  # <p> 含任何子元素 (<b><i><span><br><img>) → 不算纯文本
+        return None
+    text = p.text or ""
+    if len(text) > 50:
+        return None
+    if not text.strip():
+        return None
+    return text
+
+
 def _get_proc_editable(db: Session, procedure_id: str) -> Procedure:
     proc = db.execute(
         select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
