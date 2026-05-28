@@ -81,6 +81,20 @@ describe('buildSelection', () => {
   })
 })
 
+describe('buildSelection — node rows (kind node|step)', () => {
+  it('selects node-kind rows (no chapter skip) and supports shift range within same parent', () => {
+    const rows = [
+      { id: 'a', parent_id: 'p', kind: 'node' },
+      { id: 'b', parent_id: 'p', kind: 'step' },
+      { id: 'c', parent_id: 'p', kind: 'node' },
+    ]
+    const first = buildSelection({ current: new Set(), anchor: null, rows, rowId: 'a', shift: false })
+    expect([...first.selection]).toEqual(['a'])
+    const range = buildSelection({ current: first.selection, anchor: 'a', rows, rowId: 'c', shift: true })
+    expect([...range.selection].sort()).toEqual(['a', 'b', 'c'])
+  })
+})
+
 describe('buildCascadeSelection', () => {
   it('select：空集合 + 章节级联 → 仅 descendantIds 入选（rootId 不入），anchor=rootId', () => {
     const r = buildCascadeSelection({

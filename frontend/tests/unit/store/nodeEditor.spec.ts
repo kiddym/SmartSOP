@@ -198,3 +198,23 @@ describe('nodeEditor store — content edits + undo', () => {
     expect(store.nodeMap.get('a')?.body).toBe('<p>old</p>')
   })
 })
+
+describe('nodeEditor store — batchSetKind', () => {
+  it('batchSetKind sends kind for each id and replaces nodes with the full list', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>a</p>' }), n({ id: 'b', sort_order: 1000, body: '<p>b</p>' })])
+    batchSpy.mockResolvedValue([n({ id: 'a', kind: 'step' }), n({ id: 'b', kind: 'step', sort_order: 1000 })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.batchSetKind(['a', 'b'], 'step')
+    expect(batchSpy).toHaveBeenCalledWith('p1', { a: { kind: 'step' }, b: { kind: 'step' } })
+    expect(store.nodeMap.get('a')?.kind).toBe('step')
+  })
+
+  it('batchSetKind on empty ids is a no-op', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a' })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.batchSetKind([], 'step')
+    expect(batchSpy).not.toHaveBeenCalled()
+  })
+})

@@ -1,6 +1,11 @@
 // 标记模式批量选择的纯逻辑（从 ChapterTreePanel 抽出，便于单测）。
 // shift 区间选与锚点同父的章节/正文/步骤，跨父忽略；单次最多 100 项。
-import type { FlatRow } from '@/types/node'
+// 结构型行：只需 id / 父 / kind（kind 用 string，兼容旧 'chapter'|'content'|'step' 与新 'node'|'step'）。
+export interface SelectableRow {
+  id: string
+  parent_id: string | null
+  kind: string
+}
 
 export const MAX_BATCH_MARK = 100
 
@@ -20,7 +25,7 @@ export interface SelectionUpdate {
 export function buildSelection(params: {
   current: ReadonlySet<string>
   anchor: string | null
-  rows: FlatRow[]
+  rows: readonly SelectableRow[]
   rowId: string
   shift: boolean
 }): SelectionUpdate {

@@ -146,6 +146,17 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       })
     },
 
+    async batchSetKind(ids: string[], kind: 'node' | 'step'): Promise<void> {
+      if (!this.procedureId || ids.length === 0) return
+      const prev = new Map(ids.map((i) => [i, this.nodeMap.get(i)?.kind ?? 'node']))
+      const updates: Record<string, { kind: 'node' | 'step' }> = {}
+      for (const i of ids) updates[i] = { kind }
+      this.nodes = await api.batchUpdateNodes(this.procedureId, updates)
+      this._pushUndo(async () => {
+        for (const [i, k] of prev) await this.setKind(i, k)
+      })
+    },
+
     async confirmReview(id: string): Promise<void> {
       if (!this.procedureId) return
       // 空 change → 后端清该节点 review（routers/nodes.py :batch 无条件清 review）。

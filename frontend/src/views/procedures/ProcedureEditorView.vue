@@ -26,9 +26,12 @@ import { useSidebar } from '@/composables/useSidebar'
 import { shouldAutoCollapse } from '@/utils/editorFocus'
 import type { PanelConfig } from '@/utils/collapsiblePanel'
 
+import NodeEditorView from '@/views/procedures/NodeEditorView.vue'
+
 const route = useRoute()
 const router = useRouter()
 const id = computed(() => String(route.params.id))
+const nodeMode = computed(() => route.query.editor === 'node')
 const store = useProcedureEditorStore()
 const persistence = useEditorPersistence(store, id.value)
 
@@ -223,6 +226,7 @@ useEditorKeyboard({
 })
 
 onMounted(async () => {
+  if (nodeMode.value) return
   await store.load(id.value)
   if (store.loadError) return
   // 路由守卫：访问 /edit 但不可编辑 → 跳只读 /view（不留历史）。
@@ -288,7 +292,8 @@ function goBack(): void {
 </script>
 
 <template>
-  <div v-loading="store.loading" class="editor">
+  <NodeEditorView v-if="nodeMode" :procedure-id="id" />
+  <div v-else v-loading="store.loading" class="editor">
     <template v-if="store.loadError">
       <el-result icon="error" title="加载失败">
         <template #extra>
