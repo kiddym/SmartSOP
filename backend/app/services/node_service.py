@@ -157,3 +157,33 @@ def delete_node(db: Session, node_id: str) -> None:
     node.deleted_at = utcnow()
     db.flush()
     node_numbering.recompute(db, node.procedure_id)
+
+
+def batch_update(
+    db: Session, procedure_id: str, updates: dict[str, dict[str, Any]]
+) -> list[ProcedureNode]:
+    """批量改 heading_level/kind 等(多选浮动条 / 取代旧 apply_marks)。
+    改动后若节点 mark_status=='review' 则清回 'unmarked'(确认动作,spec §6.4)。
+    单事务,任一不变量违反则整体抛错(router 不 commit → 回滚)。"""
+    changed: list[ProcedureNode] = []
+    for node_id, changes in updates.items():
+        node = _get_node(db, node_id)
+        if node.procedure_id != procedure_id:
+            raise bad_request("BAD_NODE", f"节点 {node_id} 不属于本程序")
+        unknown = set(changes) - _PATCHABLE
+        if unknown:
+            raise bad_request("BAD_FIELD", f"不可更新字段:{sorted(unknown)}")
+        new_kind = changes.get("kind", node.kind)
+        new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
+        new_schema = changes.get("input_schema", node.input_schema)
+        new_marks = changes.get("attachment_marks", node.attachment_marks)
+        enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
+        for k, v in changes.items():
+            setattr(node, k, v)
+        if node.mark_status == "review":
+            node.mark_status = "unmarked"
+        optimistic_lock.bump(node)
+        changed.append(node)
+    db.flush()
+    node_numbering.recompute(db, procedure_id)
+    return changed

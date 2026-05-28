@@ -119,3 +119,21 @@ def test_delete_node_soft_deletes(factory, db) -> None:
     node_service.delete_node(db, n.id)
     assert n.is_active is False and n.deleted_at is not None
     assert node_service.get_nodes(db, proc.id) == []
+
+
+def test_batch_update_sets_level_on_many(factory, db) -> None:
+    proc = _proc(factory)
+    a = factory.node(proc.id, body="<p>a</p>", sort_order=10, heading_level=None)
+    b = factory.node(proc.id, body="<p>b</p>", sort_order=20, heading_level=None)
+    c = factory.node(proc.id, body="<p>c</p>", sort_order=30, heading_level=None)
+    node_service.batch_update(db, proc.id, {a.id: {"heading_level": 3}, b.id: {"heading_level": 3}})
+    assert a.heading_level == 3 and b.heading_level == 3 and c.heading_level is None
+
+
+def test_batch_update_mark_as_step_clears_review(factory, db) -> None:
+    proc = _proc(factory)
+    a = factory.node(proc.id, body="", sort_order=10, heading_level=1, mark_status="review")
+    node_service.batch_update(
+        db, proc.id, {a.id: {"kind": "step", "heading_level": None, "input_schema": {"type": "COMMON"}}}
+    )
+    assert a.kind == "step" and a.heading_level is None and a.mark_status == "unmarked"
