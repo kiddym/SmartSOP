@@ -222,3 +222,56 @@ export interface LayerApplyConflictDetail {
     leaf_children: string[]
   }>
 }
+
+// ---- 统一节点模型（B3）：单 ProcedureNode 取代 chapter/content/step 三分 ----
+// 对齐后端 NodeOut（app/schemas/node_v2.py）。parent_id/depth/code 为服务端派生。
+export interface Node {
+  id: string
+  procedure_id: string
+  sort_order: number
+  heading_level: number | null // null=正文；1..N=章节层级
+  kind: 'node' | 'step' // 'node'=无表单（章节/正文）；'step'=带表单
+  body: string // rich HTML；heading 标题=body 第一个块级元素文本
+  code: string // 服务端编号
+  skip_numbering: boolean
+  input_schema: InputSchema | Record<string, never>
+  attachment_marks: AttachmentMark[]
+  mark_status: MarkStatus // 统一模型只用 'unmarked' | 'review'
+  revision: number // 乐观锁（仅 PATCH /nodes/{id} 用）
+  parent_id: string | null // 派生
+  depth: number // 派生
+}
+
+// PATCH /nodes/{id} body（NodePatchIn）。改 heading_level 必须带 set_heading_level:true。
+export interface NodePatch {
+  heading_level?: number | null
+  set_heading_level?: boolean
+  kind?: 'node' | 'step'
+  body?: string
+  input_schema?: InputSchema
+  attachment_marks?: AttachmentMark[]
+  skip_numbering?: boolean
+}
+
+// POST /procedures/{id}/nodes body（NodeCreateIn）。
+export interface NodeCreate {
+  body?: string
+  heading_level?: number | null
+  kind?: 'node' | 'step'
+  input_schema?: InputSchema
+  attachment_marks?: AttachmentMark[]
+  skip_numbering?: boolean
+  sort_order?: number | null
+}
+
+// :batch 单项（NodeBatchItem，不含 body/attachment_marks）。
+export interface NodeBatchItem {
+  heading_level?: number | null
+  set_heading_level?: boolean
+  kind?: 'node' | 'step'
+  input_schema?: InputSchema
+  skip_numbering?: boolean
+}
+
+// :batch updates 映射：nodeId → 变更。
+export type NodeBatchUpdates = Record<string, NodeBatchItem>
