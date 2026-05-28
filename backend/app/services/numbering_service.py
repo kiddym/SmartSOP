@@ -80,3 +80,9 @@ def recompute(db: Session, procedure_id: str) -> None:
     number_chapters(None, "", False)
     number_steps(None, "", False)  # 根级 step（与根 chapter 互斥，Q25）
     db.flush()
+    # Plan B2a：所有结构写入都经本 recompute 汇聚；在此把旧 chapter/step 树全量镜像成统一
+    # ProcedureNode 行，使下游可改读 node（B2b PDF）。临时脚手架，B4 随旧表+本服务一并删。
+    # 局部 import：本无循环（node_sync 不 import numbering_service），但避免把 node_sync 及其
+    # 依赖传染给所有 import numbering_service 的模块——本钩子是临时脚手架，不值得污染全局依赖。
+    from app.services import node_sync
+    node_sync.rebuild_from_legacy(db, procedure_id)
