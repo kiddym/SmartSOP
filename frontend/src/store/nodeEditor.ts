@@ -83,5 +83,93 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       // 缺省视为展开，故首次 toggle = 折叠。
       this.expanded[id] = this.expanded[id] === false
     },
+
+    async _refetch(): Promise<void> {
+      if (!this.procedureId) return
+      this.nodes = await api.listNodes(this.procedureId)
+    },
+
+    // 占位：Task 5 实现逆操作入栈；此处先空实现，保持调用点稳定。
+    _pushUndo(_inverse: InverseOp): void {
+      void _inverse
+    },
+
+    async setLevel(id: string, level: number | null): Promise<void> {
+      if (!this.procedureId) return
+      const prev = this.nodeMap.get(id)?.heading_level ?? null
+      this.nodes = await api.batchUpdateNodes(this.procedureId, {
+        [id]: { set_heading_level: true, heading_level: level },
+      })
+      this._pushUndo(() => this.setLevel(id, prev))
+    },
+
+    async setKind(id: string, kind: 'node' | 'step'): Promise<void> {
+      if (!this.procedureId) return
+      const prev = this.nodeMap.get(id)?.kind ?? 'node'
+      this.nodes = await api.batchUpdateNodes(this.procedureId, { [id]: { kind } })
+      this._pushUndo(() => this.setKind(id, prev))
+    },
+
+    async toggleSkip(id: string): Promise<void> {
+      if (!this.procedureId) return
+      const prev = this.nodeMap.get(id)?.skip_numbering ?? false
+      this.nodes = await api.batchUpdateNodes(this.procedureId, { [id]: { skip_numbering: !prev } })
+      this._pushUndo(() => this.toggleSkip(id))
+    },
+
+    async batchSetLevel(ids: string[], level: number | null): Promise<void> {
+      if (!this.procedureId || ids.length === 0) return
+      const prev = new Map(ids.map((i) => [i, this.nodeMap.get(i)?.heading_level ?? null]))
+      const updates: Record<string, { set_heading_level: true; heading_level: number | null }> = {}
+      for (const i of ids) updates[i] = { set_heading_level: true, heading_level: level }
+      this.nodes = await api.batchUpdateNodes(this.procedureId, updates)
+      this._pushUndo(async () => {
+        for (const [i, lv] of prev) await this.setLevel(i, lv)
+      })
+    },
+
+    async confirmReview(id: string): Promise<void> {
+      if (!this.procedureId) return
+      // 空 change → 后端清该节点 review（routers/nodes.py :batch 无条件清 review）。
+      this.nodes = await api.batchUpdateNodes(this.procedureId, { [id]: {} })
+      // 确认动作不入撤销栈（清 review 不可逆且无害）。
+    },
+
+    async createNode(payload: import('@/types/node').NodeCreate): Promise<void> {
+      if (!this.procedureId) return
+      const created = await api.createNode(this.procedureId, payload)
+      await this._refetch()
+      this.selectedId = created.id
+      this._pushUndo(() => this.removeNode(created.id))
+    },
+
+    async removeNode(id: string): Promise<void> {
+      if (!this.procedureId) return
+      const gone = this.nodeMap.get(id)
+      await api.deleteNode(id)
+      await this._refetch()
+      if (this.selectedId === id) this.selectedId = this.nodes[0]?.id ?? null
+      // 删除的撤销 = 重建（新 id，内容/层级/skip 还原；位置近似为末尾）。
+      if (gone) {
+        this._pushUndo(() =>
+          this.createNode({
+            body: gone.body,
+            heading_level: gone.heading_level,
+            kind: gone.kind,
+            input_schema: gone.input_schema as import('@/types/node').InputSchema,
+            attachment_marks: gone.attachment_marks,
+            skip_numbering: gone.skip_numbering,
+          }),
+        )
+      }
+    },
+
+    async reorder(orderedIds: string[]): Promise<void> {
+      if (!this.procedureId) return
+      const prevOrder = this.nodes.map((x) => x.id)
+      await api.reorderNodes(this.procedureId, orderedIds)
+      await this._refetch()
+      this._pushUndo(() => this.reorder(prevOrder))
+    },
   },
 })
