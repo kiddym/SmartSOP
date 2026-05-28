@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import { useNodeEditorStore } from '@/store/nodeEditor'
 
 // 发布检查列表（§17.4 / Q156 / Q178）：全 ✓（除 warning）才能确认发布。
+// B3b-2：结构来自 nodeEditor（节点数 + 待确认数）；元字段来自 procedureEditor；即时写无 dirty/save。
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
@@ -11,6 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useProcedureEditorStore()
+const nodeStore = useNodeEditorStore()
 
 interface Check {
   label: string
@@ -22,8 +24,8 @@ const checks = computed<Check[]>(() => {
   const p = store.procedure
   const list: Check[] = []
   list.push({ label: '程序名称非空', ok: !!p && p.name.trim().length > 0 })
-  list.push({ label: '至少包含 1 个章节', ok: store.chapters.length > 0 })
-  const reviewPending = store.chapters.filter((c) => c.mark_status === 'review').length
+  list.push({ label: '至少包含 1 个节点', ok: nodeStore.nodes.length > 0 })
+  const reviewPending = nodeStore.reviewCount
   list.push({ label: `无待确认节点${reviewPending ? `（剩 ${reviewPending}）` : ''}`, ok: reviewPending === 0 })
   for (const f of store.fields.filter((f) => f.required)) {
     const v = p?.custom_values?.[f.key]
@@ -32,22 +34,10 @@ const checks = computed<Check[]>(() => {
   if (p && p.version > 1) {
     list.push({ label: '本次版本更新说明非空', ok: p.version_update_notes.trim().length > 0 })
   }
-  list.push({ label: '无未保存修改', ok: !store.isDirty })
-  const unnamed = store.steps.filter((s) => !s.title.trim()).length
-  if (unnamed > 0) list.push({ label: `有 ${unnamed} 个步骤未命名（仅提示，不阻塞）`, ok: false, warning: true })
   return list
 })
 
 const canConfirm = computed(() => checks.value.every((c) => c.ok || c.warning))
-
-async function quickSave(): Promise<void> {
-  try {
-    await store.save()
-    ElMessage.success('已保存')
-  } catch {
-    /* 拦截器已提示 */
-  }
-}
 
 function close(): void {
   emit('update:modelValue', false)
@@ -65,15 +55,6 @@ function close(): void {
       <li v-for="(c, i) in checks" :key="i" :class="{ warn: c.warning, fail: !c.ok && !c.warning }">
         <span class="mark">{{ c.ok ? '✓' : c.warning ? '!' : '✗' }}</span>
         <span class="label">{{ c.label }}</span>
-        <el-button
-          v-if="c.label === '无未保存修改' && !c.ok"
-          size="small"
-          type="primary"
-          text
-          @click="quickSave"
-        >
-          一键保存
-        </el-button>
       </li>
     </ul>
     <template #footer>

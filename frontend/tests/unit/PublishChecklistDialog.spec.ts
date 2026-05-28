@@ -8,21 +8,35 @@ vi.mock('@/api/http', () => ({ http: { get: vi.fn(), post: vi.fn(), put: vi.fn()
 
 import PublishChecklistDialog from '@/components/editor/PublishChecklistDialog.vue'
 import { useProcedureEditorStore } from '@/store/procedureEditor'
+import { useNodeEditorStore } from '@/store/nodeEditor'
 import type { MarkStatus } from '@/types/node'
 
 let mountDiv: HTMLDivElement | null = null
 let wrapper: ReturnType<typeof mount> | null = null
 
-function setup(reviewCount: number) {
+function setup(reviewCount: number, nodeCount = reviewCount + 1) {
   const store = useProcedureEditorStore()
+  const nodeStore = useNodeEditorStore()
   // @ts-expect-error 最小 procedure
   store.procedure = { id: 'p1', version: 1, name: 'X', custom_values: {}, version_update_notes: '' }
   store.fields = []
-  store.chapters = Array.from({ length: reviewCount + 1 }, (_, i) => ({
-    id: `c${i}`, parent_id: null, title: 'c',
-    skip_numbering: false, mark_status: (i < reviewCount ? 'review' : 'unmarked') as MarkStatus, sort_order: i,
+  // B3b-2：结构来自 nodeEditor
+  nodeStore.nodes = Array.from({ length: nodeCount }, (_, i) => ({
+    id: `n${i}`,
+    procedure_id: 'p1',
+    parent_id: null,
+    sort_order: i,
+    heading_level: null,
+    kind: 'node' as const,
+    body: 'body',
+    code: '',
+    depth: 0,
+    skip_numbering: false,
+    mark_status: (i < reviewCount ? 'review' : 'unmarked') as MarkStatus,
+    revision: 1,
+    input_schema: {} as Record<string, never>,
+    attachment_marks: [],
   }))
-  store.steps = []
   mountDiv = document.createElement('div')
   document.body.appendChild(mountDiv)
   wrapper = mount(PublishChecklistDialog, {
@@ -62,5 +76,29 @@ describe('PublishChecklistDialog 待确认拦截', () => {
       n.textContent?.includes('无待确认'),
     )
     expect(li?.classList.contains('fail')).toBe(false)
+  })
+
+  it('无节点 → "至少包含 1 个节点"项失败且确认按钮禁用', async () => {
+    setup(0, 0)
+    await nextTick()
+    await flushPromises()
+    const li = Array.from(document.body.querySelectorAll('li')).find((n) =>
+      n.textContent?.includes('至少包含 1 个节点'),
+    )
+    expect(li?.classList.contains('fail')).toBe(true)
+    const confirm = Array.from(document.body.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('确认发布'),
+    )
+    expect(confirm?.disabled).toBe(true)
+  })
+
+  it('所有检查通过 → 确认按钮可用', async () => {
+    setup(0, 1)
+    await nextTick()
+    await flushPromises()
+    const confirm = Array.from(document.body.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('确认发布'),
+    )
+    expect(confirm?.disabled).toBe(false)
   })
 })
