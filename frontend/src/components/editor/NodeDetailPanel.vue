@@ -11,6 +11,7 @@ import { FORM_TYPES } from '@/types/node'
 import type { AttachmentMark, FormType, InputSchema } from '@/types/node'
 
 // 统一节点详情（B3a-2）。即时·乐观写：body→updateBody（防抖）、表单+附件→updateForm。
+const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
 const store = useNodeEditorStore()
 const node = computed(() => store.selectedNode)
 const procId = computed(() => store.procedureId ?? undefined)
@@ -85,7 +86,7 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
 
 <template>
   <div v-if="node" class="node-detail">
-    <el-form label-position="top">
+    <el-form v-if="!props.readonly" label-position="top">
       <el-form-item label="层级">
         <el-select :model-value="node.heading_level" @change="onLevel">
           <el-option v-for="l in LEVELS" :key="String(l.value)" :value="l.value as number" :label="l.label" />
@@ -107,6 +108,7 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
           :key="`body-${node.id}`"
           :model-value="node.body"
           variant="full"
+          :readonly="props.readonly"
           :procedure-id="procId"
           placeholder="输入正文…（首个块级元素文本作为标题）"
           @update:model-value="pushBody"
@@ -116,7 +118,7 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
       <el-collapse-item v-if="node.kind === 'step'" title="执行表单" name="form">
         <el-form label-position="top">
           <el-form-item label="类型">
-            <el-select :model-value="schema.type" @change="onTypeChange">
+            <el-select :model-value="schema.type" :disabled="props.readonly" @change="onTypeChange">
               <el-option v-for="t in FORM_TYPES" :key="t" :value="t" :label="FORM_TYPE_META[t].label" />
             </el-select>
           </el-form-item>
@@ -125,7 +127,7 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
           </div>
           <template v-else>
             <div class="config-preview">
-              <div class="cp-config"><StepFormFields :schema="schema" :readonly="false" @update:schema="onSchema" /></div>
+              <div class="cp-config"><StepFormFields :schema="schema" :readonly="props.readonly" @update:schema="onSchema" /></div>
               <div class="cp-preview"><FormFieldPreview :schema="schema" /></div>
             </div>
           </template>
@@ -134,18 +136,18 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
 
       <el-collapse-item v-if="node.kind === 'step'" title="附件标记" name="attach">
         <div v-for="(m, i) in marks" :key="i" class="mark-row">
-          <el-input :model-value="m.filename" placeholder="文件名" @input="(v: string) => updMark(i, { filename: v })" />
-          <el-select :model-value="m.kind" class="mark-kind" @change="(v: string) => updMark(i, { kind: v })">
+          <el-input :model-value="m.filename" placeholder="文件名" :disabled="props.readonly" @input="(v: string) => updMark(i, { filename: v })" />
+          <el-select :model-value="m.kind" class="mark-kind" :disabled="props.readonly" @change="(v: string) => updMark(i, { kind: v })">
             <el-option v-for="k in ATTACH_KINDS" :key="k.value" :value="k.value" :label="k.label" />
           </el-select>
-          <el-input :model-value="m.note" placeholder="备注" @input="(v: string) => updMark(i, { note: v })" />
-          <el-button size="small" text @click="removeMark(i)">✕</el-button>
+          <el-input :model-value="m.note" placeholder="备注" :disabled="props.readonly" @input="(v: string) => updMark(i, { note: v })" />
+          <el-button v-if="!props.readonly" size="small" text @click="removeMark(i)">✕</el-button>
         </div>
-        <el-button class="add-mark" size="small" @click="addMark">+ 附件标记</el-button>
+        <el-button v-if="!props.readonly" class="add-mark" size="small" @click="addMark">+ 附件标记</el-button>
       </el-collapse-item>
     </el-collapse>
 
-    <div v-if="node.mark_status === 'review'" class="review-bar">
+    <div v-if="node.mark_status === 'review' && !props.readonly" class="review-bar">
       <span class="review-tag">待确认</span>
       <el-button class="confirm-review" size="small" type="primary" @click="store.confirmReview(node.id)">确认</el-button>
     </div>

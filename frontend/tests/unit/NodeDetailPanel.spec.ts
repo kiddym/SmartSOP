@@ -15,7 +15,7 @@ function n(over: Partial<Node>): Node {
 }
 
 const stubs = {
-  RichTextEditor: { name: 'RichTextEditor', template: '<div class="rte-stub" />', props: ['modelValue'], emits: ['update:modelValue'] },
+  RichTextEditor: { name: 'RichTextEditor', template: '<div class="rte-stub" />', props: ['modelValue', 'readonly'], emits: ['update:modelValue'] },
   StepFormFields: { name: 'StepFormFields', template: '<div class="sff-stub" />', props: ['schema', 'readonly'], emits: ['update:schema'] },
   FormFieldPreview: { name: 'FormFieldPreview', template: '<div class="ffp-stub" />', props: ['schema'] },
 }
@@ -87,5 +87,38 @@ describe('NodeDetailPanel', () => {
     await w.vm.$nextTick()
     await w.find('.confirm-review').trigger('click')
     expect(spy).toHaveBeenCalledWith('a')
+  })
+})
+
+describe('NodeDetailPanel — readonly', () => {
+  function mountRO() {
+    const pinia = createPinia()
+    setActivePinia(pinia)
+    const store = useNodeEditorStore()
+    const w = mount(NodeDetailPanel, {
+      props: { readonly: true },
+      global: { plugins: [ElementPlus, pinia], stubs },
+      attachTo: document.body,
+    })
+    return { w, store }
+  }
+
+  it('hides level/kind/skip controls, review confirm, and attachment add when readonly', async () => {
+    const { w, store } = mountRO()
+    store.nodes = [n({ id: 'a', kind: 'step', mark_status: 'review', input_schema: { type: 'CHECK' } })]
+    store.selectedId = 'a'
+    await w.vm.$nextTick()
+    expect(w.find('.kind-switch').exists()).toBe(false)
+    expect(w.find('.confirm-review').exists()).toBe(false)
+    expect(w.find('.add-mark').exists()).toBe(false)
+  })
+
+  it('passes readonly to RichTextEditor and StepFormFields', async () => {
+    const { w, store } = mountRO()
+    store.nodes = [n({ id: 'a', kind: 'step', input_schema: { type: 'CHECK' } })]
+    store.selectedId = 'a'
+    await w.vm.$nextTick()
+    expect(w.findComponent({ name: 'RichTextEditor' }).props('readonly')).toBe(true)
+    expect(w.findComponent({ name: 'StepFormFields' }).props('readonly')).toBe(true)
   })
 })
