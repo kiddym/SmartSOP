@@ -40,7 +40,7 @@ describe('buildSelection', () => {
     expect(r.anchor).toBe('a')
   })
 
-  it('shift 区间：选同父章节/正文/步骤', () => {
+  it('shift 区间：选同父范围内的行', () => {
     const r = buildSelection({ current: new Set(['a']), anchor: 'a', rows, rowId: 'b', shift: true })
     expect([...r.selection].sort()).toEqual(['a', 'b'])
     expect(r.warnings).toEqual([])
