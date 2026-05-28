@@ -209,6 +209,8 @@ export interface LayerApplyIn {
 export interface LayerApplyResult {
   chapter_map: Record<string, string>
   revision: number
+  extracted_titles?: Record<string, string>
+  collapsed_chapters?: Record<string, string>
 }
 
 export interface LayerApplyConflictDetail {

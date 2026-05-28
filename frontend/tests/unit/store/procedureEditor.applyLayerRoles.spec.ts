@@ -64,6 +64,36 @@ describe('store.applyLayerRoles (overlay)', () => {
     expect(applyLayerRolesApi).toHaveBeenCalledWith('p1', { roles: { A: 'chapter_1', s1: 'chapter_2' } }, 1)
     expect(store.reload).toHaveBeenCalled()
     expect(store.layerMode).toBe(false)
+    if (result.ok) {
+      expect(result.extracted).toBe(0)
+      expect(result.collapsed).toBe(0)
+    }
+  })
+
+  it('result 含 extracted + collapsed 计数', async () => {
+    const { applyLayerRolesApi } = await import('@/api/procedures')
+    ;(applyLayerRolesApi as unknown as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      chapter_map: { s1: 'new-ch-1' },
+      revision: 2,
+      extracted_titles: { s1: '提取的标题' },
+      collapsed_chapters: { 'ch-a': 'child-1' },
+    })
+    const store = useProcedureEditorStore()
+    store.procedure = baseProc
+    store.chapters = [
+      { id: 'A', parent_id: null, title: 'A', skip_numbering: false, mark_status: 'unmarked', sort_order: 0 } as never,
+    ]
+    store.steps = [
+      { id: 's1', chapter_id: 'A', kind: 'content', title: '', content: '', input_schema: {} as never, attachment_marks: [], skip_numbering: false, sort_order: 0 } as never,
+    ]
+    vi.spyOn(store, 'ensureSaved').mockResolvedValue({})
+    vi.spyOn(store, 'reload').mockResolvedValue()
+    const result = await store.applyLayerRoles(new Map([['A', 'chapter_1'], ['s1', 'chapter_2']]))
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.extracted).toBe(1)
+      expect(result.collapsed).toBe(1)
+    }
   })
 
   it('后端 400 SIBLING_TYPE_CONFLICT → 解构 detail 并返回 conflicts', async () => {
