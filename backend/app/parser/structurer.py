@@ -146,9 +146,9 @@ def structure(
 
     validation = template_validator.validate(chapters, body_blocks) if mode == "standard" else None
 
-    # 完整性 warning（C001/C002）补到 warnings（smart 模式无 validation 承载）
+    # 完整性 warning（C001/C002/C003）补到 warnings（smart 模式无 validation 承载）
     if mode == "smart":
-        _append_completeness_warnings(body_blocks, warnings)
+        _append_completeness_warnings(body_blocks, nd, warnings)
 
     total_chapters = _count_chapters(chapters)
     metadata = ParseMetadata(
@@ -220,7 +220,9 @@ def _count_chapters(nodes: list[ParsedNode]) -> int:
     return total
 
 
-def _append_completeness_warnings(body_blocks: list[Block], warnings: list[ParseWarning]) -> None:
+def _append_completeness_warnings(
+    body_blocks: list[Block], nd: NormalizedDoc, warnings: list[ParseWarning]
+) -> None:
     from app.parser.validators import completeness
 
     img_ok, raw, ext = completeness.image_count_match(body_blocks)
@@ -232,4 +234,12 @@ def _append_completeness_warnings(body_blocks: list[Block], warnings: list[Parse
     if not tbl_ok:
         warnings.append(
             ParseWarning(stage="completeness", message=f"表格可能遗漏：原始 {traw} / 解析 {tser}")
+        )
+    p_ok, p_raw, p_kept = completeness.paragraph_count_match(nd)
+    if not p_ok:
+        warnings.append(
+            ParseWarning(
+                stage="completeness",
+                message=f"段落可能遗漏：原始 {p_raw} / 解析 {p_kept}（保留 {p_kept/p_raw:.1%}）",
+            )
         )

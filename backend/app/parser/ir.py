@@ -56,3 +56,4 @@ class NormalizedDoc:
     total_table_count: int = 0
     toc_field_end_index: int | None = None  # 最后一个 TOC 字段域闭合所在 block 索引
     style_index: StyleIndex | None = None
+    raw_paragraph_count: int = 0  # body.iter(w:p) 全量计数，供 C003 段落完整性对账

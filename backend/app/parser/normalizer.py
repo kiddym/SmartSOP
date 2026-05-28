@@ -495,10 +495,12 @@ def normalize(
             _append(block)
             _emit_txbx_descendants(el, i)
 
+    raw_paragraph_count = sum(1 for _ in body.iter(qn("w:p")))
     return NormalizedDoc(
         blocks=blocks,
         total_image_count=image_count,
         total_table_count=table_count,
         toc_field_end_index=tracker.toc_end_index,
         style_index=ctx.style_index,
+        raw_paragraph_count=raw_paragraph_count,
     )

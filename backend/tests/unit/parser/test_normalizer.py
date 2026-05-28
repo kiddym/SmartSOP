@@ -211,6 +211,25 @@ def test_sdt_inside_txbx_content_is_hoisted() -> None:
     )
 
 
+def test_raw_paragraph_count_populated_in_normalized_doc() -> None:
+    """normalize 应填充 raw_paragraph_count = body 内全部 <w:p> 计数（含 sdt 展开 + txbx 内）。"""
+    data = (
+        DocxBuilder()
+        .para("段一")
+        .heading("段二", level=1)
+        .textbox_para("文本框内段三")  # 计入 raw_paragraph_count（txbx 内的 w:p 也是）
+        .para("段四")
+        .build()
+    )
+    nd = _normalize(data)
+    # raw 应当 ≥ kept；当前 normalize 1:1 应当相等
+    kept = sum(1 for b in nd.blocks if b.kind == "paragraph")
+    assert nd.raw_paragraph_count >= kept >= 4
+    assert nd.raw_paragraph_count == kept, (
+        f"raw={nd.raw_paragraph_count} kept={kept} should be 1:1 with current normalize()"
+    )
+
+
 def test_nested_textbox_image_attributed_only_to_innermost_block() -> None:
     """嵌套 txbx：内层 txbx 内的图只能归最内层 paragraph block，不能被外层 txbx 段落双计。
 

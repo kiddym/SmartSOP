@@ -60,3 +60,42 @@ def test_c002_fails_when_nested_table_not_serialized() -> None:
     ok, raw, ser = completeness.table_count_match(blocks)
     assert ok is False
     assert raw == 2 and ser == 1
+
+
+def test_c003_passes_when_kept_above_95_percent() -> None:
+    """C003：保留率 ≥ 95% → pass。"""
+    from app.parser.ir import NormalizedDoc
+    blocks = [Block(kind="paragraph", source_index=i) for i in range(20)]
+    nd = NormalizedDoc(blocks=blocks, raw_paragraph_count=20)
+    ok, raw, kept = completeness.paragraph_count_match(nd)
+    assert ok is True
+    assert raw == 20 and kept == 20
+
+
+def test_c003_passes_at_exactly_95_percent() -> None:
+    """C003：保留率 = 95% 应当 pass（边界）。"""
+    from app.parser.ir import NormalizedDoc
+    blocks = [Block(kind="paragraph", source_index=i) for i in range(19)]
+    nd = NormalizedDoc(blocks=blocks, raw_paragraph_count=20)
+    ok, raw, kept = completeness.paragraph_count_match(nd)
+    assert ok is True  # 19/20 = 95%
+    assert raw == 20 and kept == 19
+
+
+def test_c003_fails_when_kept_below_95_percent() -> None:
+    """C003：保留率 < 95% → fail（模拟 normalize 漏抽段落）。"""
+    from app.parser.ir import NormalizedDoc
+    blocks = [Block(kind="paragraph", source_index=i) for i in range(18)]
+    nd = NormalizedDoc(blocks=blocks, raw_paragraph_count=20)
+    ok, raw, kept = completeness.paragraph_count_match(nd)
+    assert ok is False  # 18/20 = 90% < 95%
+    assert raw == 20 and kept == 18
+
+
+def test_c003_passes_when_raw_is_zero() -> None:
+    """C003：空文档（raw=0）应当 pass，避免除零异常。"""
+    from app.parser.ir import NormalizedDoc
+    nd = NormalizedDoc(blocks=[], raw_paragraph_count=0)
+    ok, raw, kept = completeness.paragraph_count_match(nd)
+    assert ok is True
+    assert raw == 0 and kept == 0
