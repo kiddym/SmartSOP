@@ -29,7 +29,7 @@ def parse_docx(
     syn = synonyms.load_default_synonyms()
     overrides = style_overrides or {}
     nd = normalizer.normalize(pkg, synonyms=syn, style_overrides=overrides)
-    return structurer.structure(nd, mode=mode, synonyms=syn, style_overrides=overrides)
+    return structurer.structure(nd, pkg=pkg, mode=mode, synonyms=syn, style_overrides=overrides)
 
 
 __all__ = ["VALID_MODES", "parse_docx"]

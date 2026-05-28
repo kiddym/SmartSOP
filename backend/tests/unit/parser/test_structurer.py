@@ -16,8 +16,9 @@ SYN = synonyms.load_default_synonyms()
 
 
 def _structure(data: bytes, mode: str) -> ParseResult:
-    nd = normalizer.normalize(DocxPackage(data), synonyms=SYN, style_overrides={})
-    return structurer.structure(nd, mode=mode, synonyms=SYN, style_overrides={})
+    pkg = DocxPackage(data)
+    nd = normalizer.normalize(pkg, synonyms=SYN, style_overrides={})
+    return structurer.structure(nd, pkg=pkg, mode=mode, synonyms=SYN, style_overrides={})
 
 
 def _all_nodes(result: ParseResult) -> list:

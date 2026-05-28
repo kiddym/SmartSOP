@@ -21,6 +21,7 @@ from app.parser.result import (
     ParseResult,
     ParseWarning,
 )
+from app.parser.utils.opc import DocxPackage
 from app.parser.validators import template_validator
 
 _MAX_CHAPTER_LEVEL = 3
@@ -46,6 +47,7 @@ def _is_empty(block: Block) -> bool:
 def structure(
     nd: NormalizedDoc,
     *,
+    pkg: DocxPackage,
     mode: str,
     synonyms: dict[str, int],
     style_overrides: dict[str, int],
@@ -150,6 +152,9 @@ def structure(
     if mode == "smart":
         _append_completeness_warnings(body_blocks, nd, warnings)
 
+    # 页眉/页脚/脚注/批注 丢弃告知（always-on，与模式无关）
+    _append_discarded_warning(pkg, warnings)
+
     total_chapters = _count_chapters(chapters)
     metadata = ParseMetadata(
         total_chapters=total_chapters,
@@ -218,6 +223,21 @@ def _count_chapters(nodes: list[ParsedNode]) -> int:
             total += 1
         total += _count_chapters(n.children)
     return total
+
+
+def _append_discarded_warning(pkg: DocxPackage, warnings: list[ParseWarning]) -> None:
+    """若 docx 含非空 header/footer/footnotes/endnotes/comments part，推一条 discarded_by_design warning。"""
+    parts = pkg.discarded_parts()
+    if not parts:
+        return
+    # 友好缩写：只列文件名的 tail 部分，逗号连接
+    tails = [p[len("word/"):] for p in parts]
+    warnings.append(
+        ParseWarning(
+            stage="discarded_by_design",
+            message=f"已忽略 {len(parts)} 处页眉/页脚/脚注/批注：{', '.join(tails)}",
+        )
+    )
 
 
 def _append_completeness_warnings(

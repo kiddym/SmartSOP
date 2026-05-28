@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import io
+
 from app.parser import normalizer, synonyms
 from app.parser.utils.opc import DocxPackage
 from tests.unit.parser._docx_builder import (
     DocxBuilder,
+    inject_header_part,
     styled_sop,
     unstyled_numbered_sop,
 )
@@ -257,3 +260,32 @@ def test_nested_textbox_image_attributed_only_to_innermost_block() -> None:
         if b is inner:
             continue
         assert len(b.images) == 0, f"block text={b.text!r} should have 0 images, got {len(b.images)}"
+
+
+def test_discarded_parts_detects_non_empty_header() -> None:
+    """DocxPackage.discarded_parts() 应识别注入的非空 header1.xml。"""
+    base = DocxBuilder().para("正文段").build()
+    no_header = DocxPackage(base)
+    assert no_header.discarded_parts() == []
+
+    with_header = DocxPackage(inject_header_part(base, header_text="页眉测试"))
+    parts = with_header.discarded_parts()
+    assert parts == ["word/header1.xml"], f"unexpected discarded parts: {parts}"
+
+
+def test_discarded_parts_ignores_empty_header_stub() -> None:
+    """空 header（无 <w:p>）不触发——避免噪音 warning。"""
+    import zipfile
+
+    base = DocxBuilder().para("正文段").build()
+    empty_header = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>'
+    in_buf = io.BytesIO(base)
+    out_buf = io.BytesIO()
+    with zipfile.ZipFile(in_buf, "r") as zin, zipfile.ZipFile(
+        out_buf, "w", zipfile.ZIP_DEFLATED
+    ) as zout:
+        for item in zin.namelist():
+            zout.writestr(item, zin.read(item))
+        zout.writestr("word/header1.xml", empty_header)
+    pkg = DocxPackage(out_buf.getvalue())
+    assert pkg.discarded_parts() == [], "empty header should not trigger discard warning"

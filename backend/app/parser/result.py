@@ -56,7 +56,7 @@ class ValidationReport:
 
 @dataclass
 class ParseWarning:
-    stage: str  # boundary | completeness | image | structure
+    stage: str  # boundary | completeness | image | structure | discarded_by_design
     message: str
 
 

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.parser import parse_docx
-from tests.unit.parser._docx_builder import DocxBuilder, styled_sop, unstyled_numbered_sop
+from tests.unit.parser._docx_builder import DocxBuilder, inject_header_part, styled_sop, unstyled_numbered_sop
 
 
 def test_parse_docx_standard_styled() -> None:
@@ -47,3 +47,33 @@ def test_parse_docx_handles_vml_and_textbox_without_completeness_warnings() -> N
             yield from _all_rich(n.children)
     all_rich = " ".join(_all_rich(res.chapters))
     assert "断电" in all_rich, f"textbox content missing from chapters: {all_rich[:200]}"
+
+
+def test_parse_docx_emits_discarded_by_design_warning_for_header() -> None:
+    """端到端：含 header 的 docx 应在 warnings 中出现 stage='discarded_by_design'。"""
+    base = (
+        DocxBuilder()
+        .heading("目的", level=1)
+        .para("本程序适用于全公司。")
+        .build()
+    )
+    data = inject_header_part(base, header_text="机密文件页眉")
+    res = parse_docx(data, "standard")
+    discarded = [w for w in res.warnings if w.stage == "discarded_by_design"]
+    assert len(discarded) == 1, (
+        f"expected 1 discarded_by_design warning, got {len(discarded)}: {res.warnings}"
+    )
+    assert "header1.xml" in discarded[0].message
+
+
+def test_parse_docx_no_discard_warning_when_no_header() -> None:
+    """没有 header/footer 的纯 body docx 不应出现 discarded_by_design warning。"""
+    data = (
+        DocxBuilder()
+        .heading("目的", level=1)
+        .para("纯净文档无页眉页脚。")
+        .build()
+    )
+    res = parse_docx(data, "standard")
+    discarded = [w for w in res.warnings if w.stage == "discarded_by_design"]
+    assert discarded == [], f"clean docx should have no discarded warning, got {discarded}"

@@ -128,6 +128,33 @@ class DocxPackage:
     def media_names(self) -> list[str]:
         return sorted(n for n in self._names if n.startswith("word/media/"))
 
+    def discarded_parts(self) -> list[str]:
+        """返回已存在且**非空**的 header*/footer*/footnotes/endnotes/comments part 名。
+
+        normalizer 不读这些 part（设计如此），本方法用于在 ParseResult 出口推一条
+        ``discarded_by_design`` warning，让前端能展示"已忽略 N 处页眉/页脚/..."。
+        判定"非空"= part XML 含至少一个 ``<w:p>`` —— 避免空 stub 触发噪音 warning。
+        """
+        discarded: list[str] = []
+        for name in sorted(self._names):
+            if not name.startswith("word/"):
+                continue
+            tail = name[len("word/"):]
+            # 匹配 header*.xml / footer*.xml / footnotes.xml / endnotes.xml / comments.xml
+            if not (
+                (tail.startswith("header") and tail.endswith(".xml"))
+                or (tail.startswith("footer") and tail.endswith(".xml"))
+                or tail in ("footnotes.xml", "endnotes.xml", "comments.xml")
+            ):
+                continue
+            root = self.parse(name)
+            if root is None:
+                continue
+            # 非空判定：含至少一个 w:p
+            if root.find(".//" + qn("w:p")) is not None:
+                discarded.append(name)
+        return discarded
+
 
 def _normalize_target(target: str) -> str:
     """把 rels 里相对 ``word/`` 的 Target 规整为 zip 内全路径。"""

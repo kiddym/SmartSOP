@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import io
+import zipfile
 
 from docx import Document
 from docx.enum.style import WD_STYLE_TYPE
@@ -24,6 +25,32 @@ from lxml import etree as _et
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _V_NS = "urn:schemas-microsoft-com:vml"
 _R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+
+
+def inject_header_part(docx_bytes: bytes, *, header_text: str = "页眉文字") -> bytes:
+    """向已构造的 docx 字节流注入一个最小 header1.xml part（含 1 个 <w:p>）。
+
+    不更新 [Content_Types].xml / document.xml.rels —— parser 的 discarded_parts()
+    只看 zip 内是否存在该 part + 是否非空，不要求 relationship 完整。
+    """
+    header_xml = (
+        b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+        b'<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">\n'
+        b"    <w:p><w:r><w:t>"
+        + header_text.encode("utf-8")
+        + b"</w:t></w:r></w:p>\n"
+        b"</w:hdr>"
+    )
+
+    in_buf = io.BytesIO(docx_bytes)
+    out_buf = io.BytesIO()
+    with zipfile.ZipFile(in_buf, "r") as zin, zipfile.ZipFile(
+        out_buf, "w", zipfile.ZIP_DEFLATED
+    ) as zout:
+        for item in zin.namelist():
+            zout.writestr(item, zin.read(item))
+        zout.writestr("word/header1.xml", header_xml)
+    return out_buf.getvalue()
 
 
 def tiny_png(color: tuple[int, int, int] = (200, 30, 30), size: int = 8) -> bytes:
