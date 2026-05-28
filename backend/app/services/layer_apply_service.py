@@ -300,20 +300,43 @@ def _phase_c_to_content(
     proc: Procedure,
     updates: dict[str, dict],
     chapter_map: dict[str, str],
-) -> None:
-    """章节降为 content step。校验 CHAPTER_HAS_CHILDREN(后端兜底)。"""
+) -> dict[str, str]:
+    """章节 → 内容(editorial flatten,spec §3.1):
+    - 0 子:body = "<p>title</p>"(标题非空时)
+    - 1 mirror 子(kind=content, title 空):body = "<p>title</p>" + child.body,child 软删
+    - 其他:NOT_MIRROR_SHAPE(此处兜底;预校验已拦截)
+    返回 collapsed_chapters: old_chapter_id → 被合并子 step_id
+    """
     from app.models.base import utcnow
 
+    collapsed: dict[str, str] = {}
     for node_id, u in updates.items():
         if u["kind"] != "to-content":
             continue
         ch = db.get(ProcedureChapter, node_id)
         if ch is None or not ch.is_active:
             continue
+
+        # Backstop:与 _validate_chapter_children_for_content 同语义,防绕过 / race
         if _has_chapter_children(db, proc.id, ch.id):
-            raise bad_request("CHAPTER_HAS_CHILDREN", f"章节 {ch.title or ch.id} 仍含子章节,不可降为内容")
-        title = ch.title or ""
-        body = f"<p>{_html.escape(title)}</p>" if title.strip() else ""
+            raise bad_request("CHAPTER_HAS_CHILDREN", f"章节 {ch.title or ch.id} 仍含子章节")
+        leaves = _leaf_children(db, proc.id, ch.id)
+        if len(leaves) > 1 or (
+            len(leaves) == 1
+            and (leaves[0].kind != "content" or (leaves[0].title or "").strip() != "")
+        ):
+            raise bad_request("NOT_MIRROR_SHAPE", f"章节 {ch.title or ch.id} 形态不可逆为内容")
+
+        title_html = f"<p>{_html.escape(ch.title)}</p>" if (ch.title or "").strip() else ""
+        if not leaves:
+            body = title_html
+        else:
+            child = leaves[0]
+            body = title_html + (child.content or "")
+            child.is_active = False
+            child.deleted_at = utcnow()
+            collapsed[ch.id] = child.id
+
         new_step = ProcedureStep(
             procedure_id=proc.id,
             chapter_id=chapter_map.get(u["parent_id"], u["parent_id"]),
@@ -327,6 +350,8 @@ def _phase_c_to_content(
         db.flush()
         ch.is_active = False
         ch.deleted_at = utcnow()
+
+    return collapsed
 
 
 def _phase_d_leaf_reparent(
@@ -361,7 +386,7 @@ def apply_layer_roles(
 
     chapter_map, extracted_titles = _phase_a_to_chapter(db, proc, rows, updates)
     _phase_b_reorder(db, updates, chapter_map)
-    _phase_c_to_content(db, proc, updates, chapter_map)
+    collapsed_chapters = _phase_c_to_content(db, proc, updates, chapter_map)
     _phase_d_leaf_reparent(db, updates, chapter_map)
     db.flush()
 
@@ -376,12 +401,16 @@ def apply_layer_roles(
         action="apply-layer-roles",
         meta=meta,
         old_value={"role_count": len(roles)},
-        new_value={"chapter_map": chapter_map, "extracted_count": len(extracted_titles)},
+        new_value={
+            "chapter_map": chapter_map,
+            "extracted_count": len(extracted_titles),
+            "collapsed_count": len(collapsed_chapters),
+        },
     )
 
     return {
         "chapter_map": chapter_map,
         "revision": proc.revision,
         "extracted_titles": extracted_titles,
-        "collapsed_chapters": {},  # Phase C 在 Task 5 填充
+        "collapsed_chapters": collapsed_chapters,
     }

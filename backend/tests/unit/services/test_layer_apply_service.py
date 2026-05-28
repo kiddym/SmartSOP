@@ -423,3 +423,125 @@ def test_promote_no_extract_when_title_already_set(db: Session, factory: Factory
     assert len(children) == 1
     assert children[0].content == "<p>3.1 短</p>"
     assert s.id not in result["extracted_titles"]
+
+
+# ---------------------------------------------------------------------------
+# demote editorial flatten (spec §3)
+# ---------------------------------------------------------------------------
+
+
+def test_demote_one_child_content_flattens(db: Session, factory: Factory) -> None:
+    """镜像形态:chapter("Y", child(body="<p>B</p>")) → content(body="<p>Y</p><p>B</p>"),child 软删。"""
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title="Y", parent_id=a.id, level=2, sort_order=0)
+    child = factory.step(
+        proc.id, chapter_id=ch.id, kind="content", title="", content="<p>B</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+    )
+
+    # ch 被软删,child 被软删
+    db.refresh(ch); db.refresh(child)
+    assert not ch.is_active
+    assert not child.is_active
+
+    # A 下新增 1 个 content step,body 是 <p>Y</p><p>B</p>
+    siblings = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(siblings) == 1
+    assert siblings[0].content == "<p>Y</p><p>B</p>"
+    assert siblings[0].title == ""
+
+    # collapsed_chapters 记录命中
+    assert result["collapsed_chapters"][ch.id] == child.id
+
+
+def test_demote_long_title_flattens_no_length_gate(db: Session, factory: Factory) -> None:
+    """无 ≤50 门槛:>50 码点的章节标题也能 flatten。"""
+    from app.models.step import ProcedureStep
+
+    long_title = "这是一个很长的章节标题" * 8  # 88 codepoints
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title=long_title, parent_id=a.id, level=2, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="", content="<p>B</p>", sort_order=0)
+
+    layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+    )
+
+    siblings = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(siblings) == 1
+    assert siblings[0].content == f"<p>{long_title}</p><p>B</p>"
+
+
+def test_demote_empty_title_one_child_omits_p_prefix(db: Session, factory: Factory) -> None:
+    """ch.title 为空时不前缀 <p></p>,直接用 child.body。"""
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title="", parent_id=a.id, level=2, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="", content="<p>B</p>", sort_order=0)
+
+    layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+    )
+
+    siblings = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == a.id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(siblings) == 1
+    assert siblings[0].content == "<p>B</p>"  # 无前缀空 <p></p>
+
+
+def test_demote_one_child_content_has_title_refuses(db: Session, factory: Factory) -> None:
+    """子 content 自己有 title → NOT_MIRROR_SHAPE。"""
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title="Y", parent_id=a.id, level=2, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="子标题", content="<p>B</p>", sort_order=0)
+
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service.apply_layer_roles(
+            db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+        )
+    assert ex.value.status_code == 400
+    assert ex.value.detail["code"] == "NOT_MIRROR_SHAPE"
+
+
+def test_demote_one_child_step_refuses(db: Session, factory: Factory) -> None:
+    """子是 kind='step' → NOT_MIRROR_SHAPE。"""
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title="Y", parent_id=a.id, level=2, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="step", title="", content="<p>B</p>", sort_order=0)
+
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service.apply_layer_roles(
+            db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+        )
+    assert ex.value.detail["code"] == "NOT_MIRROR_SHAPE"
+
+
+def test_demote_two_content_children_refuses(db: Session, factory: Factory) -> None:
+    """2+ 个 content 子 → NOT_MIRROR_SHAPE。"""
+    proc = _proc(factory)
+    a = factory.chapter(proc.id, title="A", level=1, sort_order=0)
+    ch = factory.chapter(proc.id, title="Y", parent_id=a.id, level=2, sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="", content="<p>1</p>", sort_order=0)
+    factory.step(proc.id, chapter_id=ch.id, kind="content", title="", content="<p>2</p>", sort_order=1)
+
+    with pytest.raises(HTTPException) as ex:
+        layer_apply_service.apply_layer_roles(
+            db, proc.id, roles={a.id: "chapter_1", ch.id: "content"}, expected_revision=proc.revision, meta=META
+        )
+    assert ex.value.detail["code"] == "NOT_MIRROR_SHAPE"
