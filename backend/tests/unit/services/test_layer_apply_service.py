@@ -343,3 +343,83 @@ def test_extract_empty_p_returns_none() -> None:
 def test_extract_empty_body_returns_none() -> None:
     assert layer_apply_service._try_extract_title_from_body("") is None
     assert layer_apply_service._try_extract_title_from_body(None) is None  # type: ignore[arg-type]
+
+
+def test_promote_auto_extract_pure_text_short(db: Session, factory: Factory) -> None:
+    """parser 漏识别的二级标题场景:content title 空,body 是 1 个短 <p> → 抽取为新章节 title,无子。"""
+    from app.models.chapter import ProcedureChapter
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    ch = factory.chapter(proc.id, title="职责", level=1)
+    s = factory.step(
+        proc.id, chapter_id=ch.id, kind="content", title="", content="<p>3.1 质量部</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+
+    new_ch_id = result["chapter_map"][s.id]
+    new_ch = db.get(ProcedureChapter, new_ch_id)
+    assert new_ch.title == "3.1 质量部"
+    # 抽取命中 → 不建子 content step
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == new_ch_id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 0
+    # extracted_titles 记录命中
+    assert result["extracted_titles"][s.id] == "3.1 质量部"
+
+
+def test_promote_no_extract_fallback_creates_child(db: Session, factory: Factory) -> None:
+    """body 是多块 → 不抽取,回落:title="未命名章节",body 进子 content step。"""
+    from app.models.chapter import ProcedureChapter
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    ch = factory.chapter(proc.id, title="职责", level=1)
+    s = factory.step(
+        proc.id, chapter_id=ch.id, kind="content", title="", content="<p>a</p><p>b</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+
+    new_ch_id = result["chapter_map"][s.id]
+    new_ch = db.get(ProcedureChapter, new_ch_id)
+    assert new_ch.title == "未命名章节"
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == new_ch_id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 1
+    assert children[0].content == "<p>a</p><p>b</p>"
+    assert s.id not in result["extracted_titles"]
+
+
+def test_promote_no_extract_when_title_already_set(db: Session, factory: Factory) -> None:
+    """title 非空 → 即使 body 是短纯文本,也不触发 auto-extract,使用 st.title。"""
+    from app.models.chapter import ProcedureChapter
+    from app.models.step import ProcedureStep
+
+    proc = _proc(factory)
+    ch = factory.chapter(proc.id, title="职责", level=1)
+    s = factory.step(
+        proc.id, chapter_id=ch.id, kind="content", title="崔宇明", content="<p>3.1 短</p>", sort_order=0
+    )
+
+    result = layer_apply_service.apply_layer_roles(
+        db, proc.id, roles={s.id: "chapter_2"}, expected_revision=proc.revision, meta=META
+    )
+
+    new_ch_id = result["chapter_map"][s.id]
+    new_ch = db.get(ProcedureChapter, new_ch_id)
+    assert new_ch.title == "崔宇明"  # 用了 st.title,不抽取
+    # body 仍走回落 → 进子 content step
+    children = db.execute(
+        select(ProcedureStep).where(ProcedureStep.chapter_id == new_ch_id, ProcedureStep.is_active.is_(True))
+    ).scalars().all()
+    assert len(children) == 1
+    assert children[0].content == "<p>3.1 短</p>"
+    assert s.id not in result["extracted_titles"]
