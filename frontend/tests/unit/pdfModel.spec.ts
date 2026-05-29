@@ -12,15 +12,37 @@ import {
 } from '@/components/PdfPreview/pdfModel'
 import type { ProcedureDetail, ProcedureFieldView } from '@/types/procedure'
 import type { PdfLayout } from '@/types/pdf'
-import type { StepOut } from '@/types/node'
+import type { Node } from '@/types/node'
 
-function step(partial: Partial<StepOut>): StepOut {
+// 扁平 ProcedureNode 工厂（B5：预览改读 nodes，不再读 detail.chapters/steps）。
+function node(partial: Partial<Node>): Node {
   return {
-    id: 's1', procedure_id: 'p', chapter_id: 'c1', kind: 'step', title: '步骤', code: '1.1', content: '',
-    sort_order: 0, skip_numbering: false, input_schema: { type: 'COMMON' },
-    attachment_marks: [],
+    id: 'n', procedure_id: 'p', sort_order: 0, heading_level: null, kind: 'node',
+    body: '', code: '', skip_numbering: false, input_schema: {}, attachment_marks: [],
+    mark_status: 'unmarked', revision: 0, parent_id: null, depth: 0,
     ...partial,
   }
+}
+
+// step 节点：kind='step' + input_schema 带 type；body 首块=标题，余 HTML=正文。
+function stepNode(partial: Partial<Node>): Node {
+  return node({
+    id: 's1', kind: 'step', code: '1.1', body: '<p>步骤</p>',
+    input_schema: { type: 'COMMON' }, ...partial,
+  })
+}
+
+// 扁平节点列表：与旧 chapters/steps 同逻辑结构（heading 目的/操作 + 目的下内容节点 + 操作下步骤），
+// 按 sort_order 升序（服务端保证）。layout 已按 node id 键化（B2b）。
+function nodes(): Node[] {
+  return [
+    node({ id: 'c1', heading_level: 1, kind: 'node', code: '1', body: '<p>目的</p>', sort_order: 0 }),
+    // 内容节点（heading_level=null, kind='node'）：正文在 body，PDF 不出编号/标题。
+    node({ id: 'cc1', parent_id: 'c1', kind: 'node', body: '<p>用于规范启动</p>', sort_order: 1 }),
+    node({ id: 'c2', heading_level: 1, kind: 'node', code: '2', body: '<p>操作</p>', sort_order: 2 }),
+    // 步骤节点：body 首块「启动电源」=标题。
+    stepNode({ id: 's1', parent_id: 'c2', code: '2.1', body: '<p>启动电源</p>', sort_order: 3 }),
+  ]
 }
 
 function detail(): ProcedureDetail {
@@ -38,18 +60,10 @@ function detail(): ProcedureDetail {
       ],
       created_at: '2026-05-01T00:00:00Z', updated_at: '2026-05-02T00:00:00Z',
     },
-    chapters: [
-      { id: 'c1', title: '目的', code: '1', level: 1, sort_order: 0,
-        skip_numbering: false, mark_status: 'unmarked', children: [] },
-      { id: 'c2', title: '操作', code: '2', level: 1, sort_order: 1,
-        skip_numbering: false, mark_status: 'unmarked', children: [] },
-    ],
-    steps: [
-      // 内容块 = kind='content' 的步骤（正文在 content 字段，无编号无标题）。
-      step({ id: 'cc1', chapter_id: 'c1', kind: 'content', code: '', title: '',
-        content: '<p>用于规范启动</p>', sort_order: 0 }),
-      step({ id: 's1', chapter_id: 'c2', code: '2.1', title: '启动电源', sort_order: 0 }),
-    ],
+    // B4 后 get_detail 不再返回 chapters/steps；类型仍保留（旧字段移除是后续任务），
+    // 给空数组占位，预览结构改由 nodes() 提供。
+    chapters: [],
+    steps: [],
     attachments: [],
     fields: [],
     has_source_docx: false,
@@ -70,6 +84,7 @@ function layout(): PdfLayout {
       { chapter_id: 'c1', code: '1.0', title: '目的', level: 1, physical_page: 4, display_page: '1' },
       { chapter_id: 'c2', code: '2.0', title: '操作', level: 1, physical_page: 5, display_page: '2' },
     ],
+    // 按 node id 键化（B2b：后端 pdf-layout 已用 node id）。
     chapters: { c1: 4, c2: 5 },
     steps: { s1: 5 },
     attachments_page: null,
@@ -110,15 +125,15 @@ describe('attachmentMarkText', () => {
 
 describe('execText', () => {
   it('CHECK / NUMBER / NONE / RADIO', () => {
-    expect(execText(step({ input_schema: { type: 'CHECK' } }))).toContain('通过')
-    expect(execText(step({ input_schema: { type: 'NUMBER', unit: 'MPa', min: 0, max: 10 } }))).toContain('0~10')
-    expect(execText(step({ input_schema: { type: 'NONE' } }))).toBe('')
-    expect(execText(step({ input_schema: { type: 'RADIO', options: ['A', 'B'] } }))).toContain('○ A')
+    expect(execText(stepNode({ input_schema: { type: 'CHECK' } }))).toContain('通过')
+    expect(execText(stepNode({ input_schema: { type: 'NUMBER', unit: 'MPa', min: 0, max: 10 } }))).toContain('0~10')
+    expect(execText(stepNode({ input_schema: { type: 'NONE' } }))).toBe('')
+    expect(execText(stepNode({ input_schema: { type: 'RADIO', options: ['A', 'B'] } }))).toContain('○ A')
   })
   it('警示类型（NOTE/CAUTION/WARNING）返回空串', () => {
-    expect(execText(step({ input_schema: { type: 'WARNING' }, content: '<p>危险！</p>' }))).toBe('')
-    expect(execText(step({ input_schema: { type: 'NOTE' }, content: '<p>注意</p>' }))).toBe('')
-    expect(execText(step({ input_schema: { type: 'CAUTION' }, content: '<p>小心</p>' }))).toBe('')
+    expect(execText(stepNode({ input_schema: { type: 'WARNING' } }))).toBe('')
+    expect(execText(stepNode({ input_schema: { type: 'NOTE' } }))).toBe('')
+    expect(execText(stepNode({ input_schema: { type: 'CAUTION' } }))).toBe('')
   })
 })
 
@@ -132,29 +147,40 @@ describe('buildRevision', () => {
 })
 
 describe('buildModel', () => {
-  it('TOC 取 layout、正文按页号分组', () => {
-    const m = buildModel(detail(), layout())
+  it('TOC 取 layout、正文按页号分组（块键用 node id）', () => {
+    const m = buildModel(detail(), nodes(), layout())
     expect(m.toc).toHaveLength(2)
     expect(m.contentPages).toHaveLength(3) // content 区段 3 页
     // c1 在第 4 页（content 第 1 页）
     const p4 = m.contentPages.find((p) => p.page === 4)!
-    expect(p4.blocks.some((b) => b.kind === 'chapter' && b.code === '1.0')).toBe(true)
-    expect(p4.blocks.some((b) => b.kind === 'content')).toBe(true) // content 节点继承 c1 页
+    expect(p4.blocks.some((b) => b.kind === 'chapter' && b.key === 'ch-c1' && b.code === '1.0')).toBe(true)
+    // content 节点继承 c1 页，键 c-<nodeId>
+    expect(p4.blocks.some((b) => b.kind === 'content' && b.key === 'c-cc1')).toBe(true)
     // c2 + step 在第 5 页
     const p5 = m.contentPages.find((p) => p.page === 5)!
-    expect(p5.blocks.some((b) => b.kind === 'chapter' && b.code === '2.0')).toBe(true)
-    expect(p5.blocks.some((b) => b.kind === 'step')).toBe(true)
+    expect(p5.blocks.some((b) => b.kind === 'chapter' && b.key === 'ch-c2' && b.code === '2.0')).toBe(true)
+    const stepBlock = p5.blocks.find((b) => b.kind === 'step' && b.key === 'st-s1')!
+    expect(stepBlock).toBeTruthy()
+    // body 首块切为标题，code 取 node.code
+    expect(stepBlock.title).toBe('启动电源')
+    expect(stepBlock.code).toBe('2.1')
+  })
+
+  it('正文块按文档序（章节 → 其内容/步骤）', () => {
+    const m = buildModel(detail(), nodes(), layout())
+    const keys = m.contentPages.flatMap((p) => p.blocks.map((b) => b.key))
+    expect(keys).toEqual(['ch-c1', 'c-cc1', 'ch-c2', 'st-s1'])
   })
 
   it('页 label 来自 layout.page_labels', () => {
-    const m = buildModel(detail(), layout())
+    const m = buildModel(detail(), nodes(), layout())
     expect(m.contentPages[0].label).toBe('1')
   })
 
   it('exposes signoffEnabled from procedure', () => {
     const d = detail()
     d.procedure.signoff_enabled = true
-    const model = buildModel(d, layout())
+    const model = buildModel(d, nodes(), layout())
     expect(model.signoffEnabled).toBe(true)
   })
 })
@@ -209,21 +235,20 @@ describe('buildModel 附件区段', () => {
     const l = layout()
     l.attachments_page = 6
     l.page_labels = ['', 'i', 'ii', '1', '2', '3']
-    const m = buildModel(d, l)
+    const m = buildModel(d, nodes(), l)
     expect(m.attachments).toHaveLength(1)
     expect(m.attachments[0].fileName).toBe('图.pdf')
-    expect(m.attachmentChapterTitle).toBe('3.0 附件 / Attachments') // 末正文 L1=2 → 3
+    expect(m.attachmentChapterTitle).toBe('3.0 附件 / Attachments') // 末顶层章节 L1=2 → 3
   })
   it('用户自建「附件」章节 → 标题为 null（不重复）', () => {
     const d = detail()
-    d.chapters.push({
-      id: 'c3', title: '附件', code: '3', level: 1, sort_order: 2,
-      skip_numbering: false, mark_status: 'unmarked', children: [],
-    })
+    const ns = nodes()
+    // 顶层 heading 节点 body 首块文本=「附件」→ 视为用户自建附件章节。
+    ns.push(node({ id: 'c3', heading_level: 1, kind: 'node', code: '3', body: '<p>附件</p>', sort_order: 4 }))
     d.attachments = [
       { id: 'a1', file_name: '图.pdf', size_bytes: 2048, mime_type: 'application/pdf', created_at: '2026-05-01T00:00:00Z', description: '' },
     ]
-    const m = buildModel(d, layout())
+    const m = buildModel(d, ns, layout())
     expect(m.attachmentChapterTitle).toBeNull()
   })
 })

@@ -2,7 +2,8 @@
 // 纯函数，便于单测。页号一律取后端 layout（与下载版对齐，Q235）；编号 L1 渲染追加 .0（Q305）。
 
 import { ALERT_TYPES } from '@/utils/editor'
-import type { ChapterTreeNode, StepOut } from '@/types/node'
+import type { Node } from '@/types/node'
+import { nodeTitle } from '@/utils/nodeTree'
 import type { ProcedureDetail, ProcedureFieldView } from '@/types/procedure'
 import type { PdfLayout, PdfTocEntry } from '@/types/pdf'
 
@@ -37,7 +38,10 @@ export interface PreviewBlock {
   code?: string
   title?: string
   html?: string
-  step?: StepOut
+  // step 块：node 携带 input_schema/attachment_marks（execText/标记/警示渲染）；
+  // 标题在 block.title，正文（body 去掉首块标题后的余 HTML）在 stepContent。
+  step?: Node
+  stepContent?: string
 }
 
 export interface ContentPage {
@@ -106,7 +110,7 @@ export function changeTypeLabel(entry: Record<string, unknown>): string {
 }
 
 // 15 型执行占位符文案（与后端 sections._form_placeholder 对齐，§6.3）。
-export function execText(step: StepOut): string {
+export function execText(step: Node): string {
   const s = step.input_schema as Record<string, unknown>
   const t = String(s.type ?? 'COMMON').toUpperCase()
   if ((ALERT_TYPES as readonly string[]).includes(t)) return ''
@@ -176,58 +180,80 @@ export function buildRevision(detail: ProcedureDetail): RevisionRow[] {
     })
 }
 
-// 内容区块按 backend 顺序遍历并据 layout 映射页号（与 sections._render_chapter/_render_step 对齐）。
-// 章节只是容器（只出标题）；其子步骤按 sort_order：kind==='content' 走内联富文本（PDF 渲染不出编号、不出 title），
-// kind==='step' 走步骤渲染。chapter/step 取 layout 映射，content 继承当前页。
-// 注：content.title 在编辑器里有意义（作为升级章节时的候选标题），但在 PDF 上下文里仍不打印——
-// 二者解耦：模型层 content 允许 title，渲染层选择不显示。
-function walkContent(detail: ProcedureDetail, layout: PdfLayout): PreviewBlock[] {
-  const blocks: PreviewBlock[] = []
-  const stepsByChapter = new Map<string | null, StepOut[]>()
-  for (const st of detail.steps) {
-    const list = stepsByChapter.get(st.chapter_id) ?? []
-    list.push(st)
-    stepsByChapter.set(st.chapter_id, list)
+// body → (首块纯文本=标题, 其余块 HTML=正文)，镜像后端 _split_first_block（pdf/context.py）。
+// 用浏览器 DOMParser；标题取首块 textContent（nodeTitle 同口径但带占位回退，这里 step 标题不需要占位）。
+// 解析失败 / 无块级子元素：整段当标题，正文为空。
+function splitBody(body: string): { title: string; content: string } {
+  if (!body || !body.trim()) return { title: '', content: '' }
+  const doc = new DOMParser().parseFromString(body, 'text/html')
+  const children = Array.from(doc.body.children)
+  if (children.length === 0) {
+    // 裸文本（无块级子元素）：整段当标题
+    return { title: (doc.body.textContent ?? '').trim(), content: '' }
   }
-  for (const list of stepsByChapter.values()) list.sort((a, b) => a.sort_order - b.sort_order)
+  const first = children[0]
+  const title = (first.textContent ?? '').trim()
+  const content = children.slice(1).map((c) => c.outerHTML).join('')
+  return { title, content }
+}
+
+// 内容区块按 backend 顺序遍历并据 layout 映射页号（与 sections._render_chapter/_render_step 对齐）。
+// 数据源为扁平 ProcedureNode 列表（按 sort_order 升序）；按 parent_id 分组重建树（镜像 pdf/context.py
+// load_render_data）。heading 节点=章节（只出标题）；其下非 heading 节点按文档序：
+//   kind==='step'  → 步骤渲染（body 切首块标题 + 余正文，取 layout.steps 映射）
+//   其余（content） → 内联富文本（PDF 不出编号、不出 title，继承当前页）
+// 遍历序：章节 → 其子章节 → 其子内容/步骤（与后端 tree walk 一致）；layout 已按 node id 键化（B2b）。
+function walkContent(nodes: Node[], layout: PdfLayout): PreviewBlock[] {
+  const blocks: PreviewBlock[] = []
+  // 按 parent_id 分组（nodes 已按 sort_order 升序 → 同父保持文档序）。
+  const childrenByParent = new Map<string | null, Node[]>() // heading 节点
+  const itemsByParent = new Map<string | null, Node[]>() // 非 heading 节点（content/step）
+  for (const n of nodes) {
+    const bucket = n.heading_level !== null ? childrenByParent : itemsByParent
+    const list = bucket.get(n.parent_id) ?? []
+    list.push(n)
+    bucket.set(n.parent_id, list)
+  }
 
   const contentStart = layout.sections.content?.start_page ?? 1
   let current = contentStart
 
-  const renderChapter = (ch: ChapterTreeNode): void => {
+  const renderChapter = (ch: Node): void => {
     current = layout.chapters[ch.id] ?? current
+    const level = ch.heading_level ?? 1
     blocks.push({
       key: `ch-${ch.id}`,
       kind: 'chapter',
       page: current,
-      level: ch.level,
-      code: displayCode(ch.code, ch.level, ch.skip_numbering),
-      title: ch.title,
+      level,
+      code: displayCode(ch.code, level, ch.skip_numbering),
+      title: nodeTitle(ch),
     })
-    for (const child of ch.children) renderChapter(child)
-    for (const st of stepsByChapter.get(ch.id) ?? []) renderStep(st)
+    for (const child of childrenByParent.get(ch.id) ?? []) renderChapter(child)
+    for (const item of itemsByParent.get(ch.id) ?? []) renderItem(item)
   }
 
-  const renderStep = (st: StepOut): void => {
-    if (st.kind === 'content') {
-      // 内容块在 PDF 渲染时不出编号、不出 title（即便模型上 content.title 可有）；
-      // 继承当前页，不取 layout.steps 映射。
-      blocks.push({ key: `c-${st.id}`, kind: 'content', page: current, html: st.content })
+  const renderItem = (node: Node): void => {
+    if (node.kind !== 'step') {
+      // 内容块在 PDF 渲染时不出编号、不出 title；继承当前页，不取 layout.steps 映射。
+      blocks.push({ key: `c-${node.id}`, kind: 'content', page: current, html: node.body })
       return
     }
-    current = layout.steps[st.id] ?? current
+    current = layout.steps[node.id] ?? current
+    const { title, content } = splitBody(node.body)
     blocks.push({
-      key: `st-${st.id}`,
+      key: `st-${node.id}`,
       kind: 'step',
       page: current,
-      code: st.skip_numbering ? '' : st.code,
-      title: st.title,
-      step: st,
+      code: node.skip_numbering ? '' : node.code,
+      title,
+      step: node,
+      stepContent: content,
     })
   }
 
-  for (const ch of detail.chapters) renderChapter(ch)
-  for (const st of stepsByChapter.get(null) ?? []) renderStep(st)
+  for (const ch of childrenByParent.get(null) ?? []) renderChapter(ch)
+  for (const item of itemsByParent.get(null) ?? []) renderItem(item)
   return blocks
 }
 
@@ -271,9 +297,10 @@ export function coverFieldRows(detail: ProcedureDetail): CoverFieldRow[] {
 }
 
 // 附件区段标题：用户自建「附件」章节 → null（标题在正文章节已渲染）；否则虚拟章节 {n}.0（§6.6）。
-function attachmentChapterTitle(detail: ProcedureDetail): string | null {
-  const top = detail.chapters ?? []
-  const hasUserChapter = top.some((c) => ATTACHMENT_CHAPTER_NAMES.includes(c.title.trim()))
+// 顶层章节 = parent_id===null 的 heading 节点（heading_level 非空）。
+function attachmentChapterTitle(nodes: Node[]): string | null {
+  const top = nodes.filter((n) => n.parent_id === null && n.heading_level !== null)
+  const hasUserChapter = top.some((c) => ATTACHMENT_CHAPTER_NAMES.includes(nodeTitle(c).trim()))
   if (hasUserChapter) return null
   let maxSeq = 0
   for (const c of top) {
@@ -284,8 +311,8 @@ function attachmentChapterTitle(detail: ProcedureDetail): string | null {
   return `${maxSeq + 1}.0 ${ATTACHMENT_CHAPTER_TITLE}`
 }
 
-export function buildModel(detail: ProcedureDetail, layout: PdfLayout): PreviewModel {
-  const blocks = walkContent(detail, layout)
+export function buildModel(detail: ProcedureDetail, nodes: Node[], layout: PdfLayout): PreviewModel {
+  const blocks = walkContent(nodes, layout)
   const contentSection = layout.sections.content
   const contentStart = contentSection?.start_page ?? 1
   const contentCount = contentSection?.page_count ?? 1
@@ -313,7 +340,7 @@ export function buildModel(detail: ProcedureDetail, layout: PdfLayout): PreviewM
     coverFields: coverFieldRows(detail),
     attachments,
     attachmentsPage: layout.attachments_page,
-    attachmentChapterTitle: attachments.length ? attachmentChapterTitle(detail) : null,
+    attachmentChapterTitle: attachments.length ? attachmentChapterTitle(nodes) : null,
     signoffEnabled: detail.procedure.signoff_enabled,
   }
 }
