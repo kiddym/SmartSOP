@@ -7,6 +7,7 @@ interface Props {
   row: TreeRow
   selected: boolean
   selectedForMark: boolean
+  indeterminate?: boolean
   dropHint: '' | 'before' | 'after'
   readonly?: boolean
 }
@@ -53,6 +54,7 @@ function onCheck(ev: MouseEvent): void {
     <el-checkbox
       v-if="!readonly"
       :model-value="selectedForMark"
+      :indeterminate="indeterminate"
       class="ntr-check"
       @click.stop="onCheck"
     />

@@ -99,3 +99,12 @@ describe('NodeTreeRow — readonly', () => {
     expect(w.find('.ntr-review').exists()).toBe(true)
   })
 })
+
+describe('NodeTreeRow — indeterminate', () => {
+  it('passes indeterminate to the checkbox (aria-checked="mixed" on label)', () => {
+    const w = mountRow(treeRow({ heading_level: 1 }, { hasChildren: true }), { indeterminate: true })
+    // Element Plus renders indeterminate as aria-checked="mixed" on the <label> wrapper
+    // and is-indeterminate on the inner .el-checkbox__input span (not the label).
+    expect(w.find('.ntr-check').attributes('aria-checked')).toBe('mixed')
+  })
+})
