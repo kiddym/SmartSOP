@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import NodeTreeRow from './NodeTreeRow.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
@@ -7,6 +7,7 @@ import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { nextReviewId } from '@/utils/reviewNav'
 import { computeReorder, type DropPosition } from '@/utils/nodeTreeDnd'
 import { subtreeIds, checkStates, indentLevel, type TreeRow } from '@/utils/nodeTree'
+import { useVirtualRows } from '@/composables/useVirtualRows'
 
 const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
 
@@ -18,6 +19,22 @@ const dropPos = ref<DropPosition>('before')
 
 const search = computed({ get: () => store.search, set: (v: string) => (store.search = v) })
 const states = computed(() => checkStates(store.nodes, store.selection))
+
+const rowsEl = ref<HTMLElement | null>(null)
+const { start, end, padTop, padBottom, totalHeight, scrollToIndex } = useVirtualRows(
+  rowsEl,
+  () => store.rows.length,
+)
+
+// Programmatic selection (create / undo / keyboard) may target an off-window row → scroll it in.
+watch(
+  () => store.selectedId,
+  (id) => {
+    if (!id) return
+    const i = store.rows.findIndex((r) => r.node.id === id)
+    if (i >= 0) void nextTick(() => scrollToIndex(i))
+  },
+)
 
 function onSelect(id: string): void {
   store.select(id)
@@ -148,27 +165,31 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
       <el-button size="small" text @click="clearSel">清空选择</el-button>
     </div>
 
-    <div class="np-rows">
-      <NodeTreeRow
-        v-for="row in store.rows"
-        :key="row.node.id"
-        :row="row"
-        :readonly="props.readonly"
-        :selected="store.selectedId === row.node.id"
-        :selected-for-mark="states.get(row.node.id) === 'checked'"
-        :indeterminate="states.get(row.node.id) === 'indeterminate'"
-        :drop-hint="hintFor(row)"
-        @select="onSelect(row.node.id)"
-        @toggle="store.toggleExpand(row.node.id)"
-        @check="(shift: boolean) => onCheck(row.node.id, shift)"
-        @chip="(c: string) => onChip(row.node.id, c)"
-        @remove="store.removeNode(row.node.id)"
-        @indent="(dir: 'in' | 'out') => onIndent(row.node.id, dir)"
-        @dragstart="onDragStart(row.node.id)"
-        @dragover="(ev: DragEvent) => onDragOver(row.node.id, ev)"
-        @drop="onDrop(row.node.id)"
-        @dragend="onDragEnd"
-      />
+    <div class="np-rows" ref="rowsEl">
+      <div class="np-sizer" :style="{ height: totalHeight + 'px' }">
+        <div class="np-spacer" :style="{ height: padTop + 'px' }" />
+        <NodeTreeRow
+          v-for="row in store.rows.slice(start, end)"
+          :key="row.node.id"
+          :row="row"
+          :readonly="props.readonly"
+          :selected="store.selectedId === row.node.id"
+          :selected-for-mark="states.get(row.node.id) === 'checked'"
+          :indeterminate="states.get(row.node.id) === 'indeterminate'"
+          :drop-hint="hintFor(row)"
+          @select="onSelect(row.node.id)"
+          @toggle="store.toggleExpand(row.node.id)"
+          @check="(shift: boolean) => onCheck(row.node.id, shift)"
+          @chip="(c: string) => onChip(row.node.id, c)"
+          @remove="store.removeNode(row.node.id)"
+          @indent="(dir: 'in' | 'out') => onIndent(row.node.id, dir)"
+          @dragstart="onDragStart(row.node.id)"
+          @dragover="(ev: DragEvent) => onDragOver(row.node.id, ev)"
+          @drop="onDrop(row.node.id)"
+          @dragend="onDragEnd"
+        />
+        <div class="np-spacer" :style="{ height: padBottom + 'px' }" />
+      </div>
       <el-empty v-if="!store.rows.length" description="暂无节点" />
     </div>
   </div>

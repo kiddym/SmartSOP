@@ -219,3 +219,27 @@ describe('NodeTreePanel — indent/outdent', () => {
     expect(setLevel).toHaveBeenCalledWith('a', null)
   })
 })
+
+describe('NodeTreePanel — virtualization', () => {
+  function many(count: number) {
+    return Array.from({ length: count }, (_, i) =>
+      n({ id: `r${i}`, sort_order: i * 1000, body: `<p>${i}</p>` }),
+    )
+  }
+
+  it('renders only the windowed rows once the viewport is measured', async () => {
+    const { w } = setup(many(100))
+    const el = w.find('.np-rows').element as HTMLElement
+    Object.defineProperty(el, 'clientHeight', { configurable: true, value: 300 })
+    Object.defineProperty(el, 'scrollTop', { configurable: true, writable: true, value: 600 })
+    await w.find('.np-rows').trigger('scroll')
+    await w.vm.$nextTick()
+    // first=20, visible=10, overscan 8 → start 12, end 38 → 26 rows
+    expect(w.findAllComponents({ name: 'NodeTreeRow' }).length).toBe(26)
+  })
+
+  it('degrades to render-all when the viewport is unmeasured (jsdom height 0)', () => {
+    const { w } = setup(many(80))
+    expect(w.findAllComponents({ name: 'NodeTreeRow' }).length).toBe(80)
+  })
+})
