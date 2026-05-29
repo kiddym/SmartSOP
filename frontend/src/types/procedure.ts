@@ -71,11 +71,6 @@ export interface ProcedureDetail {
   has_source_docx: boolean
 }
 
-// 保存响应：程序元字段（含新 revision）平铺 + 新建节点临时→真实 id 映射。
-export interface ProcedureSaveResult extends ProcedureMeta {
-  id_map: Record<string, string>
-}
-
 export interface ProcedureCreate {
   folder_id: string
   name: string

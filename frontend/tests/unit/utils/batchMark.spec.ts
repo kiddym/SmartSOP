@@ -1,23 +1,18 @@
 import { describe, it, expect } from 'vitest'
-import { buildSelection, buildCascadeSelection, MAX_BATCH_MARK } from '@/utils/batchMark'
-import type { FlatRow } from '@/types/node'
+import {
+  buildSelection,
+  buildCascadeSelection,
+  MAX_BATCH_MARK,
+  type SelectableRow,
+} from '@/utils/batchMark'
 
-const fr = (id: string, kind: FlatRow['kind'], parent: string | null): FlatRow => ({
+const fr = (id: string, kind: string, parent: string | null): SelectableRow => ({
   id,
   kind,
-  depth: 0,
   parent_id: parent,
-  title: id,
-  code: '',
-  skip_numbering: false,
-  mark_status: 'unmarked',
-  form_type: null,
-  has_children: false,
-  expanded: false,
-  fallback: '',
 })
 
-const rows: FlatRow[] = [
+const rows: SelectableRow[] = [
   fr('c1', 'chapter', null),
   fr('a', 'content', 'c1'),
   fr('b', 'content', 'c1'),

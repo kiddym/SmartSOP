@@ -53,61 +53,8 @@ export interface AttachmentMark {
   note: string
 }
 
-// ---- 编辑器内部模型（store 持有；data 字段沿用 snake_case 与服务端对齐，降低映射出错） ---- //
-
-export type NodeKind = 'chapter' | 'content' | 'step'
-
-// 章节 / 内容节点（扁平存储，parent_id 在挂载时回填）。
-export interface EditorChapter {
-  id: string
-  parent_id: string | null
-  title: string
-  skip_numbering: boolean
-  mark_status: MarkStatus
-  sort_order: number
-}
-
-// 步骤节点（扁平存储）。kind 区分：
-//   step    = title?（可选） + content（富文本） + 结构化字段（表单 input_schema / 附件 attachment_marks）
-//   content = title?（可选） + content（富文本）；无结构化字段
-// 升为章节（layer 模式 / convert-to-chapter）对两者都开放——title 作新章节标题、空 title 由后端兜底"未命名章节"。
-export interface EditorStep {
-  id: string
-  chapter_id: string | null
-  kind: 'step' | 'content'
-  title: string
-  content: string
-  input_schema: InputSchema
-  attachment_marks: AttachmentMark[]
-  skip_numbering: boolean
-  sort_order: number
-}
-
-// 扁平渲染行（树渲染 + 虚拟滚动 + 搜索过滤的统一单元）。
-export interface FlatRow {
-  id: string
-  kind: NodeKind
-  depth: number
-  parent_id: string | null
-  title: string
-  code: string // 已应用 .0 / # 渲染规则的显示串
-  skip_numbering: boolean
-  mark_status: MarkStatus // step 上恒 'unmarked'（后端无此列）；step 行本身可参与标记模式
-  form_type: FormType | null // 仅 step
-  has_children: boolean
-  expanded: boolean
-  fallback: string // title 为空时的灰斜体回退文本
-}
-
-// 新增按钮（Q25 互斥）三态。
-export interface AddButtonState {
-  canAddChapter: boolean
-  canAddContent: boolean
-  canAddStep: boolean
-}
-
 // ---- 统一节点模型（B3）：单 ProcedureNode 取代 chapter/content/step 三分 ----
-// 对齐后端 NodeOut（app/schemas/node_v2.py）。parent_id/depth/code 为服务端派生。
+// 对齐后端 NodeOut（app/schemas/node.py）。parent_id/depth/code 为服务端派生。
 export interface Node {
   id: string
   procedure_id: string
