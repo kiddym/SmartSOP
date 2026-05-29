@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nodeTitle, hasChildren, visibleRows } from '@/utils/nodeTree'
+import { nodeTitle, hasChildren, visibleRows, descendantIds, subtreeIds, checkStates } from '@/utils/nodeTree'
 import type { Node } from '@/types/node'
 
 function n(over: Partial<Node>): Node {
@@ -58,5 +58,47 @@ describe('visibleRows', () => {
     const rows = visibleRows(nodes, { a: true, b: true }, { search: '', reviewOnly: false })
     expect(rows[0]).toMatchObject({ title: 'A', hasChildren: true, expanded: true })
     expect(rows[0].node.id).toBe('a')
+  })
+})
+
+describe('descendantIds / subtreeIds', () => {
+  // tree: c1 > (a, c2 > (b)), c3
+  const nodes = [
+    n({ id: 'c1', heading_level: 1, sort_order: 0 }),
+    n({ id: 'a', parent_id: 'c1', sort_order: 1000 }),
+    n({ id: 'c2', heading_level: 2, parent_id: 'c1', sort_order: 2000 }),
+    n({ id: 'b', parent_id: 'c2', sort_order: 3000 }),
+    n({ id: 'c3', heading_level: 1, sort_order: 4000 }),
+  ]
+  it('descendantIds: all transitive descendants (excl. self)', () => {
+    expect(descendantIds(nodes, 'c1').sort()).toEqual(['a', 'b', 'c2'])
+    expect(descendantIds(nodes, 'a')).toEqual([]) // leaf
+    expect(descendantIds(nodes, 'c3')).toEqual([])
+  })
+  it('subtreeIds: self + descendants', () => {
+    expect(subtreeIds(nodes, 'c2').sort()).toEqual(['b', 'c2'])
+    expect(subtreeIds(nodes, 'a')).toEqual(['a'])
+  })
+})
+
+describe('checkStates', () => {
+  const nodes = [
+    n({ id: 'c1', heading_level: 1, sort_order: 0 }),
+    n({ id: 'a', parent_id: 'c1', sort_order: 1000 }),
+    n({ id: 'b', parent_id: 'c1', sort_order: 2000 }),
+  ]
+  it('heading checked when whole subtree selected', () => {
+    const s = checkStates(nodes, new Set(['c1', 'a', 'b']))
+    expect(s.get('c1')).toBe('checked')
+  })
+  it('heading indeterminate when partially selected', () => {
+    const s = checkStates(nodes, new Set(['a']))
+    expect(s.get('c1')).toBe('indeterminate')
+    expect(s.get('a')).toBe('checked')
+    expect(s.get('b')).toBe('unchecked')
+  })
+  it('heading unchecked when nothing selected', () => {
+    const s = checkStates(nodes, new Set())
+    expect(s.get('c1')).toBe('unchecked')
   })
 })
