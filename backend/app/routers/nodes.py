@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy.orm import Session
 
 from app.deps import get_db
-from app.schemas.node_v2 import (
+from app.schemas.node import (
     NodeBatchIn,
     NodeCreateIn,
     NodeOut,

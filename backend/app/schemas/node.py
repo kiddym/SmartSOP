@@ -1,4 +1,4 @@
-"""统一节点 API schema(spec §4)。独立于旧 schemas/node.py;Plan B 合并。"""
+"""统一节点 API schema(spec §4)。"""
 
 from __future__ import annotations
 

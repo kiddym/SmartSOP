@@ -4,7 +4,7 @@
 - heading_level: int|null —— null=正文;1/2/3…=章节层级
 - kind: 'node'|'step'    —— 'node'=无表单(章节或正文);'step'=带 input_schema 表单
 父子关系不存,由 sort_order+heading_level 派生(见 services/node_tree.py)。
-与旧 tb_procedure_chapter/tb_procedure_step 并存,Plan B 切换下游后删旧表。
+统一节点模型：单表 ProcedureNode 取代旧 chapter/step 三分（旧表已于 B4 删除）。
 """
 
 from __future__ import annotations
