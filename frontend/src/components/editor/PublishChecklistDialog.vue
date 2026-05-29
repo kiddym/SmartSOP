@@ -5,7 +5,7 @@ import { useNodeEditorStore } from '@/store/nodeEditor'
 
 // 发布检查列表（§17.4 / Q156 / Q178）：全 ✓（除 warning）才能确认发布。
 // B3b-2：结构来自 nodeEditor（节点数 + 待确认数）；元字段来自 procedureEditor；即时写无 dirty/save。
-const props = defineProps<{ modelValue: boolean }>()
+const props = defineProps<{ modelValue: boolean; loading?: boolean }>()
 const emit = defineEmits<{
   (e: 'update:modelValue', value: boolean): void
   (e: 'confirm'): void
@@ -59,7 +59,7 @@ function close(): void {
     </ul>
     <template #footer>
       <el-button @click="close">取消</el-button>
-      <el-button type="primary" :disabled="!canConfirm" @click="emit('confirm')">
+      <el-button type="primary" :loading="props.loading" :disabled="!canConfirm" @click="emit('confirm')">
         确认发布 v{{ store.procedure?.version }}
       </el-button>
     </template>

@@ -35,6 +35,7 @@ useEditorShortcuts({ editable: () => store.editable })
 
 const activeTab = ref<'node' | 'attach' | 'history'>('node')
 const publishVisible = ref(false)
+const publishing = ref(false)
 const copyVisible = ref(false)
 const pdfPreviewVisible = ref(false)
 const versionBusy = ref(false)
@@ -51,14 +52,17 @@ function onPreviewPdf(): void {
 
 async function onPublishConfirm(): Promise<void> {
   const p = store.procedure
-  if (!p) return
+  if (!p || publishing.value) return
+  publishing.value = true
   try {
     await transitionProcedure(p.id, { status: 'PUBLISHED' }, p.revision)
     publishVisible.value = false
-    ElMessage.success('已发布')
+    ElMessage.success(`已发布 v${p.version}`)
     await store.reload()
   } catch {
-    /* 拦截器已提示 */
+    /* 拦截器已提示；对话框保持打开以便重试 */
+  } finally {
+    publishing.value = false
   }
 }
 
@@ -241,7 +245,7 @@ function goBack(): void {
         </CollapsiblePanel>
       </div>
 
-      <PublishChecklistDialog v-model="publishVisible" @confirm="onPublishConfirm" />
+      <PublishChecklistDialog v-model="publishVisible" :loading="publishing" @confirm="onPublishConfirm" />
       <VersionActionDialog
         v-model="copyVisible"
         title="复制为新程序"
