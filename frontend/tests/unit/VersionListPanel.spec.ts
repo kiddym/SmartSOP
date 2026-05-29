@@ -114,4 +114,20 @@ describe('VersionListPanel', () => {
     expect(fetchGroupVersions).toHaveBeenCalledTimes(2) // mount + 手动刷新
     expect(successSpy).toHaveBeenCalledWith('已刷新')
   })
+
+  it('非当前行显示「对比当前」并派发 compare（older→current）', async () => {
+    const w = await mountPanel([
+      item({ id: 'v3', version: 3, status: 'PUBLISHED', is_current: true }),
+      item({ id: 'v2', version: 2, status: 'ARCHIVED' }),
+    ], 'v3')
+    const btn = w.findAll('button').find((b) => b.text().includes('对比当前'))
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    expect(w.emitted('compare')?.[0]).toEqual([{ oldId: 'v2', oldVersion: 2, newId: 'v3', newVersion: 3 }])
+  })
+
+  it('当前行不显示「对比当前」', async () => {
+    const w = await mountPanel([item({ id: 'v3', version: 3, status: 'PUBLISHED', is_current: true })], 'v3')
+    expect(w.findAll('button').some((b) => b.text().includes('对比当前'))).toBe(false)
+  })
 })
