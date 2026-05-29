@@ -14,7 +14,7 @@ import {
   fmtDate,
   type PreviewModel,
 } from './pdfModel'
-import { stepZoom, fitZoom, activePageIndex, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
+import { stepZoom, fitZoom, activePageIndex, clampPageInput, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
 import { isAlertType } from '@/utils/editor'
 import type { FormType } from '@/types/node'
 
@@ -73,6 +73,12 @@ function prevPage(): void {
 }
 function nextPage(): void {
   goPage(currentPage.value + 1)
+}
+function onPageInput(e: Event): void {
+  const el = e.target as HTMLInputElement
+  const i = clampPageInput(el.value, pageCount.value)
+  if (i !== null) goPage(i)
+  el.value = String(currentPage.value + 1) // re-sync after a jump or an invalid entry
 }
 
 const meta = computed(() => detail.value?.procedure ?? null)
@@ -169,7 +175,16 @@ function onPreviewClick(e: MouseEvent): void {
           </div>
           <div v-if="model && pageCount" class="pv-pagenav">
             <el-button size="small" :disabled="currentPage <= 0" @click="prevPage">‹ 上一页</el-button>
-            <span class="pv-pageind">{{ currentPage + 1 }} / {{ pageCount }}</span>
+            <input
+              class="pv-pageind pv-pageinput"
+              type="text"
+              inputmode="numeric"
+              :value="currentPage + 1"
+              aria-label="跳转到页"
+              @change="onPageInput"
+              @keyup.enter="onPageInput"
+            />
+            <span class="pv-pagetotal">/ {{ pageCount }}</span>
             <el-button size="small" :disabled="currentPage >= pageCount - 1" @click="nextPage">下一页 ›</el-button>
           </div>
           <el-button :loading="downloading" @click="doDownload">{{ downloading ? '生成中…' : '下载 PDF' }}</el-button>
@@ -359,6 +374,18 @@ function onPreviewClick(e: MouseEvent): void {
   font-size: 12px;
   min-width: 44px;
   text-align: center;
+}
+.pv-pageinput {
+  width: 34px;
+  text-align: center;
+  border: 1px solid var(--el-border-color, #dcdfe6);
+  border-radius: 4px;
+  font-size: 12px;
+  padding: 1px 2px;
+}
+.pv-pagetotal {
+  font-size: 12px;
+  color: #909399;
 }
 .pv-scroll {
   height: calc(100vh - 90px);

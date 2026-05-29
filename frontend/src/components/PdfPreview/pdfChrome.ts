@@ -32,3 +32,11 @@ export function activePageIndex(scrollTop: number, pageTops: number[]): number {
   }
   return idx
 }
+
+/** Parse a 1-based page input to a clamped 0-based index, or null if not a positive integer
+ *  (or no pages). e.g. ('3', 12) → 2 ; ('0', 12) → 0 ; ('99', 12) → 11 ; ('abc', 12) → null. */
+export function clampPageInput(raw: string | number, count: number): number | null {
+  const num = typeof raw === 'number' ? raw : parseInt(String(raw).trim(), 10)
+  if (!Number.isInteger(num) || count <= 0) return null
+  return Math.min(count - 1, Math.max(0, num - 1))
+}

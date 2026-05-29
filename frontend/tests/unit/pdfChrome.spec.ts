@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampZoom, stepZoom, fitZoom, activePageIndex, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
+import { clampZoom, stepZoom, fitZoom, activePageIndex, clampPageInput, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
 
 describe('clampZoom', () => {
   it('clamps below min and above max', () => {
@@ -46,5 +46,22 @@ describe('activePageIndex', () => {
     expect(activePageIndex(350, tops)).toBe(1)
     expect(activePageIndex(300, tops)).toBe(1)   // exact boundary → that page
     expect(activePageIndex(10000, tops)).toBe(2) // past last → last
+  })
+})
+
+describe('clampPageInput', () => {
+  it('parses a 1-based page to a clamped 0-based index', () => {
+    expect(clampPageInput('3', 12)).toBe(2)
+    expect(clampPageInput(3, 12)).toBe(2)
+  })
+  it('clamps out-of-range to first/last', () => {
+    expect(clampPageInput('0', 12)).toBe(0)
+    expect(clampPageInput('99', 12)).toBe(11)
+    expect(clampPageInput('-4', 12)).toBe(0)
+  })
+  it('null for non-numeric, empty, or no pages', () => {
+    expect(clampPageInput('abc', 12)).toBeNull()
+    expect(clampPageInput('', 12)).toBeNull()
+    expect(clampPageInput('5', 0)).toBeNull()
   })
 })
