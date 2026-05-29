@@ -12,7 +12,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.attachment import AttachmentOut
 from app.schemas.common import BatchDeleteFailure
-from app.schemas.node import ChapterTreeNode, ChapterUpsert, StepOut, StepUpsert
 
 LevelOfUse = Literal["reference", "continuous", "information"]
 Status = Literal["DRAFT", "PUBLISHED", "ARCHIVED"]
@@ -41,19 +40,6 @@ class ProcedureUpdate(BaseModel):
     custom_values: dict[str, Any] = Field(default_factory=dict)
     version_update_notes: str = Field(default="", max_length=10000)
     signoff_enabled: bool = Field(default=False)
-
-
-class ProcedureSaveIn(ProcedureUpdate):
-    """编辑器整批保存入参（PUT /procedures/{id}，§17.2）。
-
-    继承程序级元字段；附带脏节点 upsert + 显式删除列表。三者均可空——
-    仅传元字段时退化为元信息更新（向后兼容）。新节点用临时 id，后端返回 id 映射。
-    """
-
-    chapters: list[ChapterUpsert] = Field(default_factory=list)
-    steps: list[StepUpsert] = Field(default_factory=list)
-    deleted_chapter_ids: list[str] = Field(default_factory=list)
-    deleted_step_ids: list[str] = Field(default_factory=list)
 
 
 class TransitionIn(BaseModel):
@@ -216,12 +202,6 @@ class ProcedureMeta(BaseModel):
     updated_at: datetime
 
 
-class ProcedureSaveResult(ProcedureMeta):
-    """编辑器保存响应：程序元字段（含新 revision）平铺在顶层 + 新建节点的临时→真实 id 映射。"""
-
-    id_map: dict[str, str] = Field(default_factory=dict)
-
-
 class FieldOut(BaseModel):
     """程序详情面板渲染用的 active 自定义字段。"""
 
@@ -238,11 +218,9 @@ class FieldOut(BaseModel):
 
 
 class ProcedureDetail(BaseModel):
-    """GET /procedures/{id} 一次拉全部（Q153）：元信息 + 嵌套章节树 + 平铺步骤。"""
+    """GET /procedures/{id} 一次拉全部（Q153）：元信息 + 附件 + 字段。"""
 
     procedure: ProcedureMeta
-    chapters: list[ChapterTreeNode] = Field(default_factory=list)
-    steps: list[StepOut] = Field(default_factory=list)
     attachments: list[AttachmentOut] = Field(default_factory=list)
     fields: list[FieldOut] = Field(default_factory=list)
     has_source_docx: bool = False  # 该 group 是否有原始 Word 源文件（前端据此决定是否拉预览）

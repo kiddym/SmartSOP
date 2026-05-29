@@ -23,15 +23,12 @@ from sqlalchemy.orm import Session
 from app.deps import RequestMeta
 from app.errors import bad_request, not_found
 from app.models.base import new_uuid, utcnow
-from app.models.chapter import ProcedureChapter
 from app.models.node import ProcedureNode
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
-from app.models.step import ProcedureStep
 from app.schemas.attachment import AttachmentOut
 from app.schemas.common import BatchDeleteFailure, BatchDeleteResult
-from app.schemas.node import ChapterTreeNode, StepOut
 from app.schemas.procedure import (
     BatchMoveIn,
     BatchMoveResult,
@@ -598,48 +595,6 @@ def list_library(
     return [_out_model(db, p) for p in rows], total
 
 
-def _build_chapter_tree(db: Session, proc_id: str) -> list[ChapterTreeNode]:
-    """加载整棵章节树并嵌套为 ChapterTreeNode（按 sort_order 排序，Q153）。"""
-    rows = list(
-        db.execute(
-            select(ProcedureChapter)
-            .where(ProcedureChapter.procedure_id == proc_id, ProcedureChapter.is_active.is_(True))
-            .order_by(ProcedureChapter.sort_order, ProcedureChapter.id)
-        ).scalars()
-    )
-    children: dict[str | None, list[ProcedureChapter]] = {}
-    for ch in rows:
-        children.setdefault(ch.parent_id, []).append(ch)
-
-    def build(parent_id: str | None) -> list[ChapterTreeNode]:
-        return [
-            ChapterTreeNode(
-                id=ch.id,
-                title=ch.title,
-                code=ch.code,
-                level=ch.level,
-                sort_order=ch.sort_order,
-                skip_numbering=ch.skip_numbering,
-                mark_status=ch.mark_status,
-                children=build(ch.id),
-            )
-            for ch in children.get(parent_id, [])
-        ]
-
-    return build(None)
-
-
-def _load_steps(db: Session, proc_id: str) -> list[StepOut]:
-    rows = list(
-        db.execute(
-            select(ProcedureStep)
-            .where(ProcedureStep.procedure_id == proc_id, ProcedureStep.is_active.is_(True))
-            .order_by(ProcedureStep.sort_order, ProcedureStep.id)
-        ).scalars()
-    )
-    return [StepOut.model_validate(s) for s in rows]
-
-
 def get_detail(db: Session, proc_id: str) -> ProcedureDetail:
     proc = _get(db, proc_id)
     fields = list(
@@ -653,8 +608,6 @@ def get_detail(db: Session, proc_id: str) -> ProcedureDetail:
 
     return ProcedureDetail(
         procedure=_meta_model(db, proc),
-        chapters=_build_chapter_tree(db, proc_id),
-        steps=_load_steps(db, proc_id),
         attachments=[
             AttachmentOut.model_validate(a) for a in attachment_service.rows_for(db, proc_id)
         ],

@@ -48,8 +48,6 @@ def test_get_detail_shape(client: TestClient) -> None:
     assert resp.status_code == 200
     body = resp.json()
     assert body["procedure"]["id"] == pid
-    assert body["chapters"] == []
-    assert body["steps"] == []
     assert "fields" in body
 
 

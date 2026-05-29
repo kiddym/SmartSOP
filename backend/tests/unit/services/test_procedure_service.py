@@ -343,7 +343,6 @@ def test_get_detail_returns_meta_fields_empty_nested(db: Session, factory: Facto
     detail = procedure_service.get_detail(db, proc.id)
     assert detail.procedure.id == proc.id
     assert detail.procedure.folder_full_path == leaf.full_path
-    assert detail.chapters == []
     assert any(f.key == "risk_cat" for f in detail.fields)
 
 
