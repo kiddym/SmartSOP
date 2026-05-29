@@ -1,7 +1,9 @@
 import { defineStore } from 'pinia'
+import { ElMessage } from 'element-plus'
 import * as api from '@/api/nodes'
+import { isVersionConflict, errorMessage } from '@/api/http'
 import type { Node } from '@/types/node'
-import { visibleRows, type TreeRow } from '@/utils/nodeTree'
+import { visibleRows, nodeTitle, type TreeRow } from '@/utils/nodeTree'
 
 interface State {
   procedureId: string | null
@@ -95,6 +97,19 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     async _refetch(): Promise<void> {
       if (!this.procedureId) return
       this.nodes = await api.listNodes(this.procedureId)
+    },
+
+    /**
+     * 跨标签 409 冲突的 reload-wins 恢复：全量 re-GET、清空撤销/重做历史、提示用户。
+     * 全量 refetch 因为并发修改可能重排兄弟编号；历史里的逆操作引用已失效旧态，必须清空。
+     */
+    async _recoverFromConflict(id: string): Promise<void> {
+      await this._refetch().catch(() => {})
+      this.undoStack = []
+      this.redoStack = []
+      const node = this.nodeMap.get(id)
+      const label = node ? nodeTitle(node) : '该节点'
+      ElMessage.warning(`「${label}」已被他人修改，已加载最新版本，你刚才的未保存改动已丢弃`)
     },
 
     _pushUndo(inverse: InverseOp): void {
@@ -232,7 +247,17 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       if (!node) return
       if (body === node.body) return // 无变化（挂载初始回发 / 空保存 / 防抖重复）不写库、不入撤销栈
       const prevBody = node.body
-      const updated = await api.patchNode(id, { body }, node.revision)
+      let updated: Node
+      try {
+        updated = await api.patchNode(id, { body }, node.revision)
+      } catch (err) {
+        if (isVersionConflict(err)) {
+          await this._recoverFromConflict(id) // reload-wins
+          return
+        }
+        ElMessage.error(errorMessage(err) ?? '保存失败，请重试')
+        throw err // 非冲突瞬时错误：抛出，让 undo()/redo() 重新入栈
+      }
       this._replaceNode(updated)
       this._pushUndo(() => this.updateBody(id, prevBody))
     },
@@ -246,11 +271,21 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       if (!node) return
       const prevSchema = node.input_schema as import('@/types/node').InputSchema
       const prevMarks = node.attachment_marks
-      const updated = await api.patchNode(
-        id,
-        { input_schema: inputSchema, attachment_marks: attachmentMarks },
-        node.revision,
-      )
+      let updated: Node
+      try {
+        updated = await api.patchNode(
+          id,
+          { input_schema: inputSchema, attachment_marks: attachmentMarks },
+          node.revision,
+        )
+      } catch (err) {
+        if (isVersionConflict(err)) {
+          await this._recoverFromConflict(id) // reload-wins
+          return
+        }
+        ElMessage.error(errorMessage(err) ?? '保存失败，请重试')
+        throw err // 非冲突瞬时错误：抛出，让 undo()/redo() 重新入栈
+      }
       this._replaceNode(updated)
       this._pushUndo(() => this.updateForm(id, prevSchema, prevMarks))
     },

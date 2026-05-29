@@ -33,3 +33,17 @@ http.interceptors.response.use(
     return Promise.reject(error)
   },
 )
+
+/**
+ * 真正的跨标签冲突：后端 If-Match 校验通过但 revision 已变（409 VERSION_CONFLICT）。
+ * 注意：412 仅表示缺/坏 If-Match 标头（编程错误），不算冲突，故返回 false。
+ */
+export function isVersionConflict(err: unknown): boolean {
+  const r = (err as { response?: { status?: number; data?: { detail?: { code?: string } } } })?.response
+  return r?.status === 409 || r?.data?.detail?.code === 'VERSION_CONFLICT'
+}
+
+/** 取后端错误信封里的 message（供调用方自管 toast 的场景使用）。 */
+export function errorMessage(err: unknown): string | undefined {
+  return (err as { response?: { data?: { detail?: { message?: string } } } })?.response?.data?.detail?.message
+}

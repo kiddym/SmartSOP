@@ -33,13 +33,13 @@ describe('api/nodes', () => {
     expect(out).toEqual([{ id: 'n1' }])
   })
 
-  it('patchNode PATCHes /nodes/{id} with If-Match revision', async () => {
+  it('patchNode PATCHes /nodes/{id} with If-Match revision and skipErrorToast', async () => {
     mocked.patch.mockResolvedValue({ data: { id: 'n1' } })
     await patchNode('n1', { body: '<p>x</p>' }, 3)
     expect(mocked.patch).toHaveBeenCalledWith(
       '/nodes/n1',
       { body: '<p>x</p>' },
-      { headers: { 'If-Match': '3' } },
+      { headers: { 'If-Match': '3' }, skipErrorToast: true },
     )
   })
 

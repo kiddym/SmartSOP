@@ -15,6 +15,7 @@ export const patchNode = async (
   (
     await http.patch<Node>(`/nodes/${nodeId}`, patch, {
       headers: { 'If-Match': String(revision) },
+      skipErrorToast: true, // 冲突/校验错误由 nodeEditor store 自管提示（reload-wins）
     })
   ).data
 
