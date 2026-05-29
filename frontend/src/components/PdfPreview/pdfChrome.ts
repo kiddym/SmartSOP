@@ -40,3 +40,13 @@ export function clampPageInput(raw: string | number, count: number): number | nu
   if (!Number.isInteger(num) || count <= 0) return null
   return Math.min(count - 1, Math.max(0, num - 1))
 }
+
+/** Outline label for a preview .page element: 封面 for the cover; else the first section
+ *  heading (.sec-title / .chapter-title / .step-title) text; fallback `第 N 页`.
+ *  Ignores the running page-header (.ph-title, the repeated procedure name). */
+export function pageLabel(el: HTMLElement, index: number): string {
+  if (el.classList.contains('cover')) return '封面'
+  const h = el.querySelector('.sec-title, .chapter-title, .step-title')
+  const text = h?.textContent?.trim() ?? ''
+  return text || `第 ${index + 1} 页`
+}

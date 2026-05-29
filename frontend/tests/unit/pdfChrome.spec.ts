@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampZoom, stepZoom, fitZoom, activePageIndex, clampPageInput, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
+import { clampZoom, stepZoom, fitZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
 
 describe('clampZoom', () => {
   it('clamps below min and above max', () => {
@@ -63,5 +63,29 @@ describe('clampPageInput', () => {
     expect(clampPageInput('abc', 12)).toBeNull()
     expect(clampPageInput('', 12)).toBeNull()
     expect(clampPageInput('5', 0)).toBeNull()
+  })
+})
+
+describe('pageLabel', () => {
+  function page(html: string, cls = 'page'): HTMLElement {
+    const el = document.createElement('section')
+    el.className = cls
+    el.innerHTML = html
+    return el
+  }
+  it('cover page → 封面', () => {
+    expect(pageLabel(page('<h1 class="cover-title">公司运营管理</h1>', 'page cover'), 0)).toBe('封面')
+  })
+  it('section page → its .sec-title text', () => {
+    expect(pageLabel(page('<span class="ph-title">运营</span><h2 class="sec-title">目录</h2>'), 1)).toBe('目录')
+  })
+  it('content page → first .chapter-title text (ignores the running .ph-title)', () => {
+    expect(pageLabel(page('<span class="ph-title">运营</span><h1 class="chapter-title">1.0 目的</h1>'), 3)).toBe('1.0 目的')
+  })
+  it('step page → first .step-title text', () => {
+    expect(pageLabel(page('<div class="step-title">启动电源</div>'), 4)).toBe('启动电源')
+  })
+  it('no heading (only running header) → 第 N 页 fallback', () => {
+    expect(pageLabel(page('<span class="ph-title">运营</span>'), 6)).toBe('第 7 页')
   })
 })
