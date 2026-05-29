@@ -72,4 +72,17 @@ describe('VersionCompareDialog', () => {
     expect(listNodes).toHaveBeenCalledWith('new')
     expect(document.body.textContent).toContain('新增章节QQ') // the added node renders
   })
+
+  it('modified row shows a char-level diff (charMode default on)', async () => {
+    await mountDialog(
+      [n({ id: 'o1', code: '1', body: '<p>本程序适用于公司所有股东</p>' })],
+      [n({ id: 'n1', code: '1', body: '<p>本程序适用于公司创始股东</p>' })],
+    )
+    const line = document.body.querySelector('.vc-line') as HTMLElement // single modified row; teleported to body
+    line.dispatchEvent(new MouseEvent('click', { bubbles: true }))      // expand it
+    await flushPromises()
+    expect(document.body.querySelector('.vc-del')?.textContent).toContain('所有')
+    expect(document.body.querySelector('.vc-ins')?.textContent).toContain('创始')
+    expect(document.body.querySelector('.vc-html')).toBeNull() // rendered side-by-side hidden in charMode
+  })
 })

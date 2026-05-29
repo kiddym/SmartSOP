@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { listNodes } from '@/api/nodes'
 import { nodeTitle } from '@/utils/nodeTree'
 import { diffVersions, type DiffRow } from './versionDiff'
+import { charDiff, htmlToText } from './charDiff'
 
 const props = defineProps<{
   modelValue: boolean
@@ -17,6 +18,7 @@ const visible = computed({ get: () => props.modelValue, set: (v) => emit('update
 const loading = ref(false)
 const rows = ref<DiffRow[]>([])
 const onlyChanges = ref(true)
+const charMode = ref(true)
 const expanded = ref<Set<number>>(new Set())
 
 watch(
@@ -60,6 +62,9 @@ function toggle(i: number): void {
   else next.add(i)
   expanded.value = next
 }
+function charSegs(r: DiffRow) {
+  return charDiff(htmlToText(r.old?.body ?? ''), htmlToText(r.new?.body ?? ''))
+}
 </script>
 
 <template>
@@ -74,6 +79,7 @@ function toggle(i: number): void {
         </span>
         <span class="vc-spacer" />
         <el-switch v-model="onlyChanges" active-text="只看变更" />
+        <el-switch v-model="charMode" active-text="字符差异" />
         <el-button @click="visible = false">关闭</el-button>
       </div>
     </template>
@@ -88,16 +94,25 @@ function toggle(i: number): void {
         </div>
         <div v-if="expanded.has(i)" class="vc-bodies">
           <template v-if="r.status === 'modified'">
-            <div class="vc-col">
-              <div class="vc-coltag">旧 v{{ oldVersion }}</div>
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <div class="vc-html" v-html="r.old?.body"></div>
+            <div v-if="charMode" class="vc-chardiff">
+              <span
+                v-for="(seg, k) in charSegs(r)"
+                :key="k"
+                :class="seg.type === 'del' ? 'vc-del' : seg.type === 'ins' ? 'vc-ins' : ''"
+              >{{ seg.text }}</span>
             </div>
-            <div class="vc-col">
-              <div class="vc-coltag">新 v{{ newVersion }}</div>
-              <!-- eslint-disable-next-line vue/no-v-html -->
-              <div class="vc-html" v-html="r.new?.body"></div>
-            </div>
+            <template v-else>
+              <div class="vc-col">
+                <div class="vc-coltag">旧 v{{ oldVersion }}</div>
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div class="vc-html" v-html="r.old?.body"></div>
+              </div>
+              <div class="vc-col">
+                <div class="vc-coltag">新 v{{ newVersion }}</div>
+                <!-- eslint-disable-next-line vue/no-v-html -->
+                <div class="vc-html" v-html="r.new?.body"></div>
+              </div>
+            </template>
           </template>
           <div v-else-if="r.status === 'added'" class="vc-col">
             <div class="vc-coltag">新增</div>
@@ -138,4 +153,24 @@ function toggle(i: number): void {
 .vc-col { flex: 1; min-width: 0; }
 .vc-coltag { font-size: 12px; color: #909399; margin-bottom: 4px; }
 .vc-html { border: 1px solid var(--el-border-color-lighter, #ebeef5); border-radius: 4px; padding: 8px; background: #fff; overflow-x: auto; }
+.vc-chardiff {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  background: #fff;
+  border: 1px solid var(--el-border-color-lighter, #ebeef5);
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+}
+.vc-del {
+  background: #fde2e2;
+  color: #c0392b;
+  text-decoration: line-through;
+}
+.vc-ins {
+  background: #e3f9e5;
+  color: #2e7d32;
+}
 </style>
