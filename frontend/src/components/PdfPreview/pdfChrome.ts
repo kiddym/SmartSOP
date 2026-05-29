@@ -25,9 +25,14 @@ export function fitZoom(containerW: number, pageW: number, pad = 48): number {
  *  pageTops must be ascending. Clamped to [0, len-1]; 0 when empty. */
 export function activePageIndex(scrollTop: number, pageTops: number[]): number {
   if (pageTops.length === 0) return 0
+  // scrollIntoView({block:'start'}) leaves the target a bit below scrollTop (container top-padding
+  // + inter-page gap). That offset is ~6% of the page pitch and scales with CSS zoom, so use a
+  // pitch-relative tolerance (not a fixed px) to attribute the top correctly.
+  const pitch = pageTops.length >= 2 ? pageTops[1] - pageTops[0] : 0
+  const tol = pitch > 0 ? pitch * 0.15 : 1
   let idx = 0
   for (let i = 0; i < pageTops.length; i++) {
-    if (pageTops[i] <= scrollTop + 1) idx = i
+    if (pageTops[i] <= scrollTop + tol) idx = i
     else break
   }
   return idx
@@ -39,4 +44,14 @@ export function clampPageInput(raw: string | number, count: number): number | nu
   const num = typeof raw === 'number' ? raw : parseInt(String(raw).trim(), 10)
   if (!Number.isInteger(num) || count <= 0) return null
   return Math.min(count - 1, Math.max(0, num - 1))
+}
+
+/** Outline label for a preview .page element: 封面 for the cover; else the first section
+ *  heading (.sec-title / .chapter-title / .step-title) text; fallback `第 N 页`.
+ *  Ignores the running page-header (.ph-title, the repeated procedure name). */
+export function pageLabel(el: HTMLElement, index: number): string {
+  if (el.classList.contains('cover')) return '封面'
+  const h = el.querySelector('.sec-title, .chapter-title, .step-title')
+  const text = h?.textContent?.trim() ?? ''
+  return text || `第 ${index + 1} 页`
 }

@@ -14,7 +14,7 @@ import {
   fmtDate,
   type PreviewModel,
 } from './pdfModel'
-import { stepZoom, fitZoom, activePageIndex, clampPageInput, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
+import { stepZoom, fitZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
 import { isAlertType } from '@/utils/editor'
 import type { FormType } from '@/types/node'
 
@@ -40,6 +40,9 @@ const docEl = ref<HTMLElement | null>(null)
 const zoom = ref(1)
 const pageCount = ref(0)
 const currentPage = ref(0)
+const railOpen = ref(true)
+const railEl = ref<HTMLElement | null>(null)
+const railItems = ref<{ index: number; label: string }[]>([])
 const zoomPct = computed(() => Math.round(zoom.value * 100))
 
 function pageEls(): HTMLElement[] {
@@ -106,12 +109,19 @@ watch(visible, async (open) => {
       zoom.value = 1
       currentPage.value = 0
       pageCount.value = pageEls().length
+      railItems.value = pageEls().map((el, i) => ({ index: i, label: pageLabel(el, i) }))
   } catch {
     /* 拦截器已提示 */
     visible.value = false
   } finally {
     loading.value = false
   }
+})
+
+watch(currentPage, () => {
+  void nextTick(() => {
+    railEl.value?.querySelector<HTMLElement>('.pv-rail-item.is-active')?.scrollIntoView({ block: 'nearest' })
+  })
 })
 
 function levelOfUse(): string {
@@ -167,6 +177,7 @@ function onPreviewClick(e: MouseEvent): void {
       <div class="pv-toolbar no-print">
         <span class="pv-title">PDF 预览 · {{ meta?.code }} {{ meta?.name }}</span>
         <div class="pv-actions">
+          <el-button v-if="model && pageCount" size="small" :type="railOpen ? 'primary' : 'default'" @click="railOpen = !railOpen">☰ 目录</el-button>
           <div v-if="model" class="pv-zoom">
             <el-button size="small" :disabled="zoom <= ZOOM_MIN" @click="zoomOut">−</el-button>
             <span class="pv-zoom-pct">{{ zoomPct }}%</span>
@@ -194,7 +205,20 @@ function onPreviewClick(e: MouseEvent): void {
       </div>
     </template>
 
-    <div ref="scrollEl" v-loading="loading" class="pv-scroll" @scroll="onScroll">
+    <div class="pv-body">
+      <aside v-if="railOpen && model" ref="railEl" class="pv-rail no-print">
+        <button
+          v-for="it in railItems"
+          :key="it.index"
+          class="pv-rail-item"
+          :class="{ 'is-active': it.index === currentPage }"
+          @click="goPage(it.index)"
+        >
+          <span class="pv-rail-num">{{ it.index + 1 }}</span>
+          <span class="pv-rail-label">{{ it.label }}</span>
+        </button>
+      </aside>
+      <div ref="scrollEl" v-loading="loading" class="pv-scroll" @scroll="onScroll">
       <div v-if="model && meta" ref="docEl" class="pv-doc" :style="{ zoom }" @click="onPreviewClick">
         <!-- 封面（§3） -->
         <section class="page cover" :class="watermarkClass" :data-wm="watermarkText">
@@ -350,6 +374,7 @@ function onPreviewClick(e: MouseEvent): void {
         </section>
       </div>
     </div>
+    </div>
   </el-dialog>
 </template>
 
@@ -387,11 +412,56 @@ function onPreviewClick(e: MouseEvent): void {
   font-size: 12px;
   color: #909399;
 }
-.pv-scroll {
+.pv-body {
+  display: flex;
   height: calc(100vh - 90px);
+}
+.pv-scroll {
+  flex: 1;
+  min-width: 0;
   overflow: auto;
   background: #525659;
   padding: 24px 0;
+}
+.pv-rail {
+  width: 200px;
+  flex: none;
+  overflow-y: auto;
+  background: #3a3d42;
+  padding: 8px 0;
+}
+.pv-rail-item {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+  text-align: left;
+  padding: 4px 10px;
+  background: none;
+  border: none;
+  color: #cfd3dc;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.pv-rail-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.pv-rail-item.is-active {
+  background: var(--el-color-primary, #d97757);
+  color: #fff;
+}
+.pv-rail-num {
+  flex: none;
+  width: 20px;
+  text-align: right;
+  opacity: 0.7;
+}
+.pv-rail-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .pv-doc {
   display: flex;
