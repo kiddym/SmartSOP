@@ -73,7 +73,16 @@ async function barLevel(level: number | null): Promise<void> {
   clearSel()
 }
 async function barStep(): Promise<void> {
-  await store.batchSetKind(selectedIds.value, 'step')
+  // 仅叶子（heading_level===null）可设为步骤；章节标题跳过（后端 enforce_node_invariants：
+  // step ⇒ heading_level=null）。级联选中整子树时，这里把标题剔除、只转其下的叶子项。
+  const leafIds = selectedIds.value.filter((id) => store.nodeMap.get(id)?.heading_level === null)
+  const skipped = selectedIds.value.length - leafIds.length
+  if (!leafIds.length) {
+    ElMessage.warning('所选项均为章节标题，无法设为步骤')
+    return
+  }
+  if (skipped) ElMessage.warning(`${skipped} 个章节标题不能设为步骤，已跳过`)
+  await store.batchSetKind(leafIds, 'step')
   clearSel()
 }
 

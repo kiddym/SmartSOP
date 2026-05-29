@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
+import { ElMessage } from 'element-plus'
 import { setActivePinia, createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import NodeTreePanel from '@/components/editor/NodeTreePanel.vue'
@@ -158,5 +159,36 @@ describe('NodeTreePanel — readonly', () => {
     expect(w.find('.np-add').exists()).toBe(false)
     expect(w.find('.np-bar').exists()).toBe(false)
     expect(w.findComponent({ name: 'NodeTreeRow' }).props('readonly')).toBe(true)
+  })
+
+  it('barStep sets only leaf members to step, skipping headings (with a warning)', async () => {
+    const { w, store } = setup([
+      n({ id: 'c1', heading_level: 1, body: '<p>C1</p>' }),
+      n({ id: 'a', parent_id: 'c1', sort_order: 1000, depth: 1, body: '<p>A</p>' }),
+      n({ id: 'b', parent_id: 'c1', sort_order: 2000, depth: 1, body: '<p>B</p>' }),
+    ])
+    const setKind = vi.spyOn(store, 'batchSetKind').mockImplementation(() => Promise.resolve())
+    const warn = vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({}) as never)
+    store.selection = new Set(['c1', 'a', 'b'])
+    await w.vm.$nextTick()
+    await w.find('.np-bar-step').trigger('click')
+    await flushPromises()
+    expect(setKind).toHaveBeenCalledWith(['a', 'b'], 'step') // c1 heading skipped
+    expect(warn).toHaveBeenCalled()
+  })
+
+  it('barStep no-ops with a warning when the selection is all headings', async () => {
+    const { w, store } = setup([
+      n({ id: 'c1', heading_level: 1, body: '<p>C1</p>' }),
+      n({ id: 'c2', heading_level: 1, sort_order: 1000, body: '<p>C2</p>' }),
+    ])
+    const setKind = vi.spyOn(store, 'batchSetKind').mockImplementation(() => Promise.resolve())
+    const warn = vi.spyOn(ElMessage, 'warning').mockImplementation(() => ({}) as never)
+    store.selection = new Set(['c1', 'c2'])
+    await w.vm.$nextTick()
+    await w.find('.np-bar-step').trigger('click')
+    await flushPromises()
+    expect(setKind).not.toHaveBeenCalled()
+    expect(warn).toHaveBeenCalled()
   })
 })
