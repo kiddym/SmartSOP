@@ -38,6 +38,9 @@ export function visibleRows(
   filter: RowFilter,
 ): TreeRow[] {
   const byId = new Map(nodes.map((x) => [x.id, x]))
+  // O(1) child check: ids that appear as some node's parent_id.
+  const parentIds = new Set<string>()
+  for (const x of nodes) if (x.parent_id) parentIds.add(x.parent_id)
   const isExpanded = (id: string): boolean => expanded[id] !== false
 
   // 某节点是否被某个折叠的祖先隐藏（沿 parent_id 链上溯）。
@@ -58,7 +61,7 @@ export function visibleRows(
     if (q && !title.toLowerCase().includes(q)) continue
     // search/reviewOnly 激活时不做折叠（展开匹配项可见）；否则按展开态折叠。
     if (!q && !filter.reviewOnly && hiddenByCollapse(node)) continue
-    rows.push({ node, title, hasChildren: hasChildren(nodes, node.id), expanded: isExpanded(node.id) })
+    rows.push({ node, title, hasChildren: parentIds.has(node.id), expanded: isExpanded(node.id) })
   }
   return rows
 }
