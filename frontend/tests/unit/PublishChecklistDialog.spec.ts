@@ -14,7 +14,7 @@ import type { MarkStatus } from '@/types/node'
 let mountDiv: HTMLDivElement | null = null
 let wrapper: ReturnType<typeof mount> | null = null
 
-function setup(reviewCount: number, nodeCount = reviewCount + 1) {
+function setup(reviewCount: number, nodeCount = reviewCount + 1, loading = false) {
   const store = useProcedureEditorStore()
   const nodeStore = useNodeEditorStore()
   // @ts-expect-error 最小 procedure
@@ -40,7 +40,7 @@ function setup(reviewCount: number, nodeCount = reviewCount + 1) {
   mountDiv = document.createElement('div')
   document.body.appendChild(mountDiv)
   wrapper = mount(PublishChecklistDialog, {
-    props: { modelValue: true },
+    props: { modelValue: true, loading },
     global: { plugins: [ElementPlus] },
     attachTo: mountDiv,
   })
@@ -90,6 +90,17 @@ describe('PublishChecklistDialog 待确认拦截', () => {
       b.textContent?.includes('确认发布'),
     )
     expect(confirm?.disabled).toBe(true)
+  })
+
+  it('loading prop → 确认发布 button shows the loading state and is click-blocked', async () => {
+    setup(0, 1, true) // all checks pass + loading
+    await nextTick()
+    await flushPromises()
+    const confirm = Array.from(document.body.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('确认发布'),
+    )
+    expect(confirm?.classList.contains('is-loading')).toBe(true)
+    expect(confirm?.disabled).toBe(true) // Element Plus disables a loading button → no double-submit
   })
 
   it('所有检查通过 → 确认按钮可用', async () => {
