@@ -61,11 +61,13 @@ export function diffVersions(oldNodes: Node[], newNodes: Node[]): DiffRow[]
 - `const current = computed(() => items.value.find((i) => i.is_current))`.
 - On each row where `!v.is_current && current`, add a 「对比当前」 `el-button` (text, small) → `emit('compare', { oldId: v.id, oldVersion: v.version, newId: current.value!.id, newVersion: current.value!.version })`.
 
-### 4. Host — `frontend/src/views/procedures/ProcedureEditorView.vue`
+### 4. Host — `frontend/src/views/procedures/ProcedureDetailView.vue`
+
+`VersionListPanel` is mounted here (read-only procedure detail page), **not** in `ProcedureEditorView` (whose "版本历史" tab is just an `el-timeline` of `version_change_log`).
 
 - Add `const compareVisible = ref(false)` + `const comparePair = ref<{ oldId: string; oldVersion: number; newId: string; newVersion: number } | null>(null)`.
-- Where `VersionListPanel` is rendered (history tab), bind `@compare="(p) => { comparePair = p; compareVisible = true }"`.
-- Render `<VersionCompareDialog v-if="comparePair" v-model="compareVisible" v-bind="comparePair" />`.
+- On the existing `<VersionListPanel … @view @rollback>`, add `@compare="(p) => { comparePair = p; compareVisible = true }"`.
+- Render `<VersionCompareDialog v-if="comparePair" v-model="compareVisible" v-bind="comparePair" />` alongside the existing `<PdfPreviewDialog>` / `<VersionActionDialog>` renders.
 
 ## Data flow
 
@@ -85,7 +87,7 @@ VersionListPanel 「对比当前」 → @compare{oldId,newId,oldVersion,newVersi
 
 ## Testing
 
-- **Unit `frontend/tests/unit/version/versionDiff.spec.ts`** (pure): `nodeSignature` (code present → code; empty code → title); `changedFields` (each field); `diffVersions` — identical trees → all `unchanged`; an added node; a removed node; a body-modified node → `modified` + `changedFields:['正文']`; duplicate-title content matched positionally; empty old or new.
+- **Unit `frontend/tests/unit/versionDiff.spec.ts`** (pure; flat under `tests/unit/`, matching `pdfModel.spec.ts`): `nodeSignature` (code present → code; empty code → title); `changedFields` (each field); `diffVersions` — identical trees → all `unchanged`; an added node; a removed node; a body-modified node → `modified` + `changedFields:['正文']`; duplicate-title content matched positionally; empty old or new.
 - **`frontend/tests/unit/VersionCompareDialog.spec.ts`**: mock `@/api/nodes` `listNodes` to return two trees → on open, rows render with the right markers + summary counts; 「只看变更」 hides `unchanged`. (Mount in jsdom like existing dialog specs; mock `listNodes` via `vi.hoisted`.)
 - **`frontend/tests/unit/VersionListPanel.spec.ts`**: a non-current row shows 「对比当前」 and clicking it emits `compare` with the correct `{oldId,newId,...}`; the current row does not show it.
 - **Browser smoke: best-effort** — needs a group with ≥2 versions. Dev data is mostly single-version drafts; if practical, stage a v2 via the upgrade flow and compare; otherwise rely on the pure + dialog unit coverage and note it. (The diff is pure-tested; the dialog is jsdom-tested.)
