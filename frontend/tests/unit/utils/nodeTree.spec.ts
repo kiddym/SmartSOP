@@ -59,6 +59,14 @@ describe('visibleRows', () => {
     expect(rows[0]).toMatchObject({ title: 'A', hasChildren: true, expanded: true })
     expect(rows[0].node.id).toBe('a')
   })
+  it('visibleRows: hasChildren reflects parent_id membership (O(N) parent set)', () => {
+    const twoNodes = [
+      n({ id: 'p', heading_level: 1, depth: 0, parent_id: null, body: '<p>P</p>' }),
+      n({ id: 'c', sort_order: 1000, depth: 1, parent_id: 'p', body: '<p>C</p>' }),
+    ]
+    const rows = visibleRows(twoNodes, {}, { search: '', reviewOnly: false })
+    expect(rows.map((r) => r.hasChildren)).toEqual([true, false])
+  })
 })
 
 describe('descendantIds / subtreeIds', () => {
