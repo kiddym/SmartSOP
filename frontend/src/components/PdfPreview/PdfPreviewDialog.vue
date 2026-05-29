@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { downloadPdf, fetchPdfLayout, fetchProcedureDetail } from '@/api/procedures'
+import { listNodes } from '@/api/nodes'
 import type { ProcedureDetail } from '@/types/procedure'
 import {
   LEVEL_OF_USE_LABELS,
@@ -47,12 +48,13 @@ watch(visible, async (open) => {
   if (!open) return
   loading.value = true
   try {
-    const [d, l] = await Promise.all([
+    const [d, nodes, l] = await Promise.all([
       fetchProcedureDetail(props.procedureId),
+      listNodes(props.procedureId),
       fetchPdfLayout(props.procedureId),
     ])
     detail.value = d
-    model.value = buildModel(d, l)
+    model.value = buildModel(d, nodes, l)
   } catch {
     /* 拦截器已提示 */
     visible.value = false
@@ -213,19 +215,19 @@ function onPreviewClick(e: MouseEvent): void {
 
             <div v-else-if="b.kind === 'step' && b.step" class="step">
               <div class="step-title">
-                <span v-if="b.code" class="st-code">{{ b.code }}</span> {{ b.step.title || '（步骤）' }}
+                <span v-if="b.code" class="st-code">{{ b.code }}</span> {{ b.title || '（步骤）' }}
               </div>
               <div
                 v-if="isAlertType(b.step.input_schema.type)"
                 class="alert"
                 :class="alertBlockClass(b.step.input_schema.type)"
-                v-html="b.step.content"
+                v-html="b.stepContent"
               />
               <!-- 数据类型步骤的 content 被有意隐藏（与编辑器"已隐藏正文"提示一致） -->
               <div
-                v-else-if="b.step.input_schema.type === 'COMMON' && b.step.content"
+                v-else-if="b.step.input_schema.type === 'COMMON' && b.stepContent"
                 class="step-body"
-                v-html="b.step.content"
+                v-html="b.stepContent"
               />
               <p v-for="(m, i) in b.step.attachment_marks" :key="i" class="mark">
                 {{ attachmentMarkText(m) }}

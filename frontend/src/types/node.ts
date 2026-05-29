@@ -53,99 +53,6 @@ export interface AttachmentMark {
   note: string
 }
 
-// ---- 服务端输出形态 ---- //
-
-// GET /procedures/{id}.chapters 的嵌套树节点。
-export interface ChapterTreeNode {
-  id: string
-  title: string
-  code: string
-  level: number
-  sort_order: number
-  skip_numbering: boolean
-  mark_status: MarkStatus
-  children: ChapterTreeNode[]
-}
-
-// GET /procedures/{id}.steps（平铺，前端按 chapter_id 自挂载）。
-export interface StepOut {
-  id: string
-  procedure_id: string
-  chapter_id: string | null
-  kind: 'step' | 'content'
-  title: string
-  code: string
-  content: string
-  sort_order: number
-  skip_numbering: boolean
-  input_schema: InputSchema
-  attachment_marks: AttachmentMark[]
-}
-
-// GET/PUT /chapters/{id} 单节点详情（不含 children）。
-export interface ChapterOut {
-  id: string
-  procedure_id: string
-  parent_id: string | null
-  title: string
-  code: string
-  level: number
-  sort_order: number
-  skip_numbering: boolean
-  mark_status: MarkStatus
-}
-
-// ---- 批量保存入参（PUT /procedures/{id}，§17.2） ---- //
-
-export interface ChapterUpsert {
-  id: string
-  parent_id: string | null
-  title: string
-  skip_numbering: boolean
-  sort_order: number
-}
-
-export interface StepUpsert {
-  id: string
-  chapter_id: string | null
-  kind: 'step' | 'content'
-  title: string
-  content: string
-  input_schema: InputSchema
-  attachment_marks: AttachmentMark[]
-  skip_numbering: boolean
-  sort_order: number
-}
-
-// ---- 细粒度 action 入参 ---- //
-
-export interface ChapterCreate {
-  procedure_id: string
-  parent_id?: string | null
-  title?: string
-  skip_numbering?: boolean
-  sort_order?: number | null
-}
-
-export interface ChapterMoveIn {
-  target_parent_id: string | null
-  target_index: number
-}
-
-export interface StepMoveIn {
-  target_chapter_id: string | null
-  target_index: number
-}
-
-// ---- 转换 / 标记结果 ---- //
-
-export interface ConversionResult {
-  created: string[]
-  deleted: string[]
-}
-
-export type ApplyMarksResult = ConversionResult
-
 // ---- 编辑器内部模型（store 持有；data 字段沿用 snake_case 与服务端对齐，降低映射出错） ---- //
 
 export type NodeKind = 'chapter' | 'content' | 'step'
@@ -197,30 +104,6 @@ export interface AddButtonState {
   canAddChapter: boolean
   canAddContent: boolean
   canAddStep: boolean
-}
-
-// 层级标定批量应用(spec: 2026-05-27-layer-overlay-auto-nest-design)。
-export type LayerApplyRoleValue = 'chapter_1' | 'chapter_2' | 'chapter_3' | 'content' | 'keep'
-
-export interface LayerApplyIn {
-  roles: Record<string, LayerApplyRoleValue>
-}
-
-export interface LayerApplyResult {
-  chapter_map: Record<string, string>
-  revision: number
-  extracted_titles?: Record<string, string>
-  collapsed_chapters?: Record<string, string>
-}
-
-export interface LayerApplyConflictDetail {
-  code: 'SIBLING_TYPE_CONFLICT'
-  message: string
-  conflicts: Array<{
-    parent_id: string | null
-    chapter_children: string[]
-    leaf_children: string[]
-  }>
 }
 
 // ---- 统一节点模型（B3）：单 ProcedureNode 取代 chapter/content/step 三分 ----
