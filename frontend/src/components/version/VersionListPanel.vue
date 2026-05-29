@@ -18,6 +18,32 @@ const items = ref<VersionListItem[]>([])
 const loading = ref(false)
 const expanded = ref<Set<string>>(new Set())
 
+const selectedIds = ref<string[]>([])
+function toggleSelect(id: string): void {
+  if (selectedIds.value.includes(id)) {
+    selectedIds.value = selectedIds.value.filter((x) => x !== id)
+  } else {
+    const next = [...selectedIds.value, id]
+    if (next.length > 2) next.shift() // cap 2, FIFO
+    selectedIds.value = next
+  }
+}
+function clearSel(): void {
+  selectedIds.value = []
+}
+function compareSelected(): void {
+  if (selectedIds.value.length !== 2) return
+  const picked = selectedIds.value
+    .map((id) => items.value.find((v) => v.id === id))
+    .filter((v): v is VersionListItem => !!v)
+  if (picked.length !== 2) return
+  const [a, b] = picked
+  const older = a.version <= b.version ? a : b
+  const newer = a.version <= b.version ? b : a
+  emit('compare', { oldId: older.id, oldVersion: older.version, newId: newer.id, newVersion: newer.version })
+  clearSel()
+}
+
 // 当前已发布版本（回退动作的发起者；仅当存在时归档版本才显示「回退到此版本」）。
 const currentPublished = computed(() =>
   items.value.find((i) => i.is_current && i.status === 'PUBLISHED'),
@@ -66,8 +92,15 @@ function toggleNotes(id: string): void {
       </div>
     </template>
 
+    <div v-if="selectedIds.length" class="vsel-bar">
+      <span>已选 {{ selectedIds.length }} / 2</span>
+      <el-button size="small" type="primary" :disabled="selectedIds.length !== 2" @click="compareSelected">对比所选</el-button>
+      <el-button size="small" text @click="clearSel">清空</el-button>
+    </div>
+
     <div v-for="v in items" :key="v.id" class="vrow" :class="{ viewing: v.id === viewingId }">
       <div class="line">
+        <el-checkbox class="vrow-check" :model-value="selectedIds.includes(v.id)" @change="() => toggleSelect(v.id)" />
         <span class="ver">v{{ v.version }}</span>
         <StatusTag :status="v.status" />
         <el-tag v-if="v.is_current" size="small" type="success" disable-transitions>当前</el-tag>
@@ -168,5 +201,18 @@ function toggleNotes(id: string): void {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.vsel-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  font-size: 13px;
+  background: var(--el-color-primary-light-9, #fbf1ee);
+  border-radius: 4px;
+}
+.vrow-check {
+  flex: none;
 }
 </style>
