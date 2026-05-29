@@ -60,10 +60,7 @@ function detail(): ProcedureDetail {
       ],
       created_at: '2026-05-01T00:00:00Z', updated_at: '2026-05-02T00:00:00Z',
     },
-    // B4 后 get_detail 不再返回 chapters/steps；类型仍保留（旧字段移除是后续任务），
-    // 给空数组占位，预览结构改由 nodes() 提供。
-    chapters: [],
-    steps: [],
+    // B5 后 get_detail 不再返回 chapters/steps；预览结构由 nodes() 提供。
     attachments: [],
     fields: [],
     has_source_docx: false,

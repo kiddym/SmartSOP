@@ -1,6 +1,5 @@
 // 程序类型（与后端 app/schemas/procedure.py 对齐）
 
-import type { ChapterTreeNode, ChapterUpsert, StepOut, StepUpsert } from '@/types/node'
 import type { FieldOption, FieldType } from '@/types/field'
 
 export type LevelOfUse = 'reference' | 'continuous' | 'information'
@@ -67,19 +66,9 @@ export interface ProcedureFieldView {
 
 export interface ProcedureDetail {
   procedure: ProcedureMeta
-  chapters: ChapterTreeNode[]
-  steps: StepOut[]
   attachments: unknown[]
   fields: ProcedureFieldView[]
   has_source_docx: boolean
-}
-
-// 编辑器整批保存入参（PUT /procedures/{id}，§17.2）：元字段 + 脏节点 upsert + 显式删除。
-export interface ProcedureSaveIn extends ProcedureUpdate {
-  chapters: ChapterUpsert[]
-  steps: StepUpsert[]
-  deleted_chapter_ids: string[]
-  deleted_step_ids: string[]
 }
 
 // 保存响应：程序元字段（含新 revision）平铺 + 新建节点临时→真实 id 映射。
