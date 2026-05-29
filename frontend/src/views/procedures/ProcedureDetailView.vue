@@ -8,6 +8,7 @@ import VersionActionDialog, {
   type VersionActionResult,
 } from '@/components/version/VersionActionDialog.vue'
 import PdfPreviewDialog from '@/components/PdfPreview/PdfPreviewDialog.vue'
+import VersionCompareDialog from '@/components/version/VersionCompareDialog.vue'
 import {
   archiveGroup,
   copyProcedure,
@@ -37,6 +38,8 @@ const busy = ref(false)
 const panelRef = ref<InstanceType<typeof VersionListPanel> | null>(null)
 // PDF 预览 / 下载（任意 is_current=true 程序可用，editor-behavior §10）
 const previewVisible = ref(false)
+const compareVisible = ref(false)
+const comparePair = ref<{ oldId: string; oldVersion: number; newId: string; newVersion: number } | null>(null)
 const pdfBusy = ref(false)
 const canPdf = computed(() => !!meta.value?.is_current)
 
@@ -455,6 +458,7 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
         :viewing-id="meta.id"
         @view="(vid) => router.push(`/procedures/${vid}`)"
         @rollback="onRollback"
+        @compare="(p) => { comparePair = p; compareVisible = true }"
       />
 
       <el-card shadow="never" class="vlog">
@@ -514,6 +518,15 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
       />
 
       <PdfPreviewDialog v-model="previewVisible" :procedure-id="id" />
+
+      <VersionCompareDialog
+        v-if="comparePair"
+        v-model="compareVisible"
+        :old-id="comparePair.oldId"
+        :new-id="comparePair.newId"
+        :old-version="comparePair.oldVersion"
+        :new-version="comparePair.newVersion"
+      />
     </template>
   </div>
 </template>

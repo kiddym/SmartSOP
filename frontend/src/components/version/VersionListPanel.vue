@@ -11,6 +11,7 @@ const props = defineProps<{ groupId: string; viewingId: string }>()
 const emit = defineEmits<{
   (e: 'view', id: string): void
   (e: 'rollback', targetVersion: number, currentId: string): void
+  (e: 'compare', payload: { oldId: string; oldVersion: number; newId: string; newVersion: number }): void
 }>()
 
 const items = ref<VersionListItem[]>([])
@@ -21,6 +22,7 @@ const expanded = ref<Set<string>>(new Set())
 const currentPublished = computed(() =>
   items.value.find((i) => i.is_current && i.status === 'PUBLISHED'),
 )
+const current = computed(() => items.value.find((i) => i.is_current))
 
 async function reload(): Promise<void> {
   loading.value = true
@@ -40,6 +42,11 @@ async function manualRefresh(): Promise<void> {
   } catch {
     /* http 拦截器已提示错误 */
   }
+}
+
+function emitCompare(v: VersionListItem): void {
+  if (!current.value) return
+  emit('compare', { oldId: v.id, oldVersion: v.version, newId: current.value.id, newVersion: current.value.version })
 }
 
 function toggleNotes(id: string): void {
@@ -76,6 +83,14 @@ function toggleNotes(id: string): void {
         </el-button>
         <el-button v-if="v.id !== viewingId" text size="small" @click="emit('view', v.id)">
           查看
+        </el-button>
+        <el-button
+          v-if="!v.is_current && current"
+          text
+          size="small"
+          @click="emitCompare(v)"
+        >
+          对比当前
         </el-button>
         <el-button
           v-if="currentPublished && v.status === 'ARCHIVED' && !v.is_current"

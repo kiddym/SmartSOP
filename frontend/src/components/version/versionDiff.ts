@@ -1,0 +1,76 @@
+import type { Node } from '@/types/node'
+import { nodeTitle } from '@/utils/nodeTree'
+
+export type DiffStatus = 'unchanged' | 'modified' | 'added' | 'removed'
+export interface DiffRow {
+  status: DiffStatus
+  old: Node | null
+  new: Node | null
+  changedFields: string[]
+}
+
+/** Match signature: stable heading numbering when present, else first-line text. */
+export function nodeSignature(n: Node): string {
+  return n.code.trim() || nodeTitle(n)
+}
+
+const FIELD_LABELS: { key: 'body' | 'heading_level' | 'kind' | 'skip_numbering'; label: string }[] = [
+  { key: 'body', label: '正文' },
+  { key: 'heading_level', label: '层级' },
+  { key: 'kind', label: '类型' },
+  { key: 'skip_numbering', label: '跳号' },
+]
+
+/** Persistent fields that differ between a matched pair (human labels). */
+export function changedFields(a: Node, b: Node): string[] {
+  const out: string[] = []
+  for (const { key, label } of FIELD_LABELS) {
+    if (a[key] !== b[key]) out.push(label)
+  }
+  if (JSON.stringify(a.input_schema) !== JSON.stringify(b.input_schema)) out.push('执行表单')
+  if (JSON.stringify(a.attachment_marks) !== JSON.stringify(b.attachment_marks)) out.push('附件')
+  return out
+}
+
+/** Pure node-level diff: LCS over signatures of two sort_order-ordered trees.
+ *  Output in new-version order; removed rows interleaved at their old position. O(n·m). */
+export function diffVersions(oldNodes: Node[], newNodes: Node[]): DiffRow[] {
+  const a = oldNodes
+  const b = newNodes
+  const sa = a.map(nodeSignature)
+  const sb = b.map(nodeSignature)
+  const n = a.length
+  const m = b.length
+  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array<number>(m + 1).fill(0))
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      dp[i][j] = sa[i] === sb[j] ? dp[i + 1][j + 1] + 1 : Math.max(dp[i + 1][j], dp[i][j + 1])
+    }
+  }
+  const rows: DiffRow[] = []
+  let i = 0
+  let j = 0
+  while (i < n && j < m) {
+    if (sa[i] === sb[j]) {
+      const fields = changedFields(a[i], b[j])
+      rows.push({ status: fields.length ? 'modified' : 'unchanged', old: a[i], new: b[j], changedFields: fields })
+      i++
+      j++
+    } else if (dp[i + 1][j] >= dp[i][j + 1]) {
+      rows.push({ status: 'removed', old: a[i], new: null, changedFields: [] })
+      i++
+    } else {
+      rows.push({ status: 'added', old: null, new: b[j], changedFields: [] })
+      j++
+    }
+  }
+  while (i < n) {
+    rows.push({ status: 'removed', old: a[i], new: null, changedFields: [] })
+    i++
+  }
+  while (j < m) {
+    rows.push({ status: 'added', old: null, new: b[j], changedFields: [] })
+    j++
+  }
+  return rows
+}
