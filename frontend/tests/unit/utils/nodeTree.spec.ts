@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { nodeTitle, hasChildren, visibleRows, descendantIds, subtreeIds, checkStates, indentLevel } from '@/utils/nodeTree'
+import { nodeTitle, hasChildren, visibleRows, descendantIds, subtreeIds, checkStates, indentLevel, arrowNav } from '@/utils/nodeTree'
+import type { TreeRow } from '@/utils/nodeTree'
 import type { Node } from '@/types/node'
 
 function n(over: Partial<Node>): Node {
@@ -123,5 +124,39 @@ describe('indentLevel', () => {
     expect(indentLevel(2, 'out')).toBe(1)
     expect(indentLevel(1, 'out')).toBe(null)
     expect(indentLevel(null, 'out')).toBe(null)
+  })
+})
+
+function row(over: Partial<Node>, rowOver: Partial<TreeRow> = {}): TreeRow {
+  return { node: n(over), title: '', hasChildren: false, expanded: true, ...rowOver }
+}
+
+describe('arrowNav', () => {
+  // c1 (expanded parent) > a, b ; c2 (collapsed parent)
+  const rows: TreeRow[] = [
+    row({ id: 'c1', heading_level: 1 }, { hasChildren: true, expanded: true }),
+    row({ id: 'a', parent_id: 'c1' }),
+    row({ id: 'b', parent_id: 'c1' }),
+    row({ id: 'c2', heading_level: 1 }, { hasChildren: true, expanded: false }),
+  ]
+  it('down/up select next/prev, clamped at the ends', () => {
+    expect(arrowNav(rows, 'c1', 'down')).toEqual({ type: 'select', id: 'a' })
+    expect(arrowNav(rows, 'a', 'up')).toEqual({ type: 'select', id: 'c1' })
+    expect(arrowNav(rows, 'c1', 'up')).toBeNull()
+    expect(arrowNav(rows, 'c2', 'down')).toBeNull()
+  })
+  it('right: expand collapsed, step into first child when expanded, no-op on a leaf', () => {
+    expect(arrowNav(rows, 'c2', 'right')).toEqual({ type: 'expand', id: 'c2' })
+    expect(arrowNav(rows, 'c1', 'right')).toEqual({ type: 'select', id: 'a' })
+    expect(arrowNav(rows, 'a', 'right')).toBeNull()
+  })
+  it('left: collapse expanded, jump to parent, no-op at a childless root', () => {
+    expect(arrowNav(rows, 'c1', 'left')).toEqual({ type: 'collapse', id: 'c1' })
+    expect(arrowNav(rows, 'a', 'left')).toEqual({ type: 'select', id: 'c1' })
+    expect(arrowNav(rows, 'c2', 'left')).toBeNull()
+  })
+  it('unknown/null currentId → up/down picks the first row; left/right null', () => {
+    expect(arrowNav(rows, 'zzz', 'down')).toEqual({ type: 'select', id: 'c1' })
+    expect(arrowNav(rows, null, 'right')).toBeNull()
   })
 })

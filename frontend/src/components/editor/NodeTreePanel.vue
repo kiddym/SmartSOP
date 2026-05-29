@@ -6,7 +6,7 @@ import { useNodeEditorStore } from '@/store/nodeEditor'
 import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { nextReviewId } from '@/utils/reviewNav'
 import { computeReorder, type DropPosition } from '@/utils/nodeTreeDnd'
-import { subtreeIds, checkStates, indentLevel, type TreeRow } from '@/utils/nodeTree'
+import { subtreeIds, checkStates, indentLevel, arrowNav, type TreeRow } from '@/utils/nodeTree'
 import { useVirtualRows } from '@/composables/useVirtualRows'
 
 const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
@@ -73,6 +73,18 @@ function onIndent(id: string, dir: 'in' | 'out'): void {
   if (!node || node.kind === 'step') return // 步骤不缩进（不能成章节）
   const next = indentLevel(node.heading_level, dir)
   if (next !== node.heading_level) void store.setLevel(id, next)
+}
+function onNav(currentId: string, dir: 'up' | 'down' | 'left' | 'right'): void {
+  const action = arrowNav(store.rows, currentId, dir)
+  if (!action) return
+  if (action.type === 'select') {
+    store.select(action.id)
+    void nextTick(() => {
+      rowsEl.value?.querySelector<HTMLElement>(`[data-node-id="${action.id}"]`)?.focus()
+    })
+  } else {
+    store.toggleExpand(action.id) // expand (was collapsed) or collapse (was expanded)
+  }
 }
 function addNode(): void {
   void store.createNode({ heading_level: null, kind: 'node' })
@@ -183,6 +195,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
           @chip="(c: string) => onChip(row.node.id, c)"
           @remove="store.removeNode(row.node.id)"
           @indent="(dir: 'in' | 'out') => onIndent(row.node.id, dir)"
+          @nav="(dir: 'up' | 'down' | 'left' | 'right') => onNav(row.node.id, dir)"
           @dragstart="onDragStart(row.node.id)"
           @dragover="(ev: DragEvent) => onDragOver(row.node.id, ev)"
           @drop="onDrop(row.node.id)"

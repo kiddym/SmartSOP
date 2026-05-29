@@ -23,6 +23,7 @@ const emit = defineEmits<{
   (e: 'drop', ev: DragEvent): void
   (e: 'dragend'): void
   (e: 'indent', dir: 'in' | 'out'): void
+  (e: 'nav', dir: 'up' | 'down' | 'left' | 'right'): void
 }>()
 
 const n = computed(() => props.row.node)
@@ -36,11 +37,25 @@ function onCheck(ev: MouseEvent): void {
   emit('check', ev.shiftKey)
 }
 
+const NAV_KEYS: Record<string, 'up' | 'down' | 'left' | 'right'> = {
+  ArrowUp: 'up',
+  ArrowDown: 'down',
+  ArrowLeft: 'left',
+  ArrowRight: 'right',
+}
 function onKeydown(ev: KeyboardEvent): void {
-  if (props.readonly || ev.key !== 'Tab') return
-  if (ev.target !== ev.currentTarget) return // 仅行本身聚焦（非内部 checkbox/chip）才缩进
-  ev.preventDefault()
-  emit('indent', ev.shiftKey ? 'out' : 'in')
+  if (props.readonly) return
+  if (ev.target !== ev.currentTarget) return // 仅行本身聚焦（非内部 checkbox/chip）
+  if (ev.key === 'Tab') {
+    ev.preventDefault()
+    emit('indent', ev.shiftKey ? 'out' : 'in')
+    return
+  }
+  const dir = NAV_KEYS[ev.key]
+  if (dir) {
+    ev.preventDefault()
+    emit('nav', dir)
+  }
 }
 </script>
 
@@ -48,6 +63,7 @@ function onKeydown(ev: KeyboardEvent): void {
   <div
     class="ntr"
     :class="[{ 'ntr--selected': selected }, dropHint ? `ntr--drop-${dropHint}` : '']"
+    :data-node-id="n.id"
     :style="{ boxSizing: 'border-box', paddingLeft: `${n.depth * 16 + 6}px` }"
     :draggable="!readonly"
     :tabindex="readonly ? undefined : -1"

@@ -133,3 +133,28 @@ describe('NodeTreeRow — Tab indent', () => {
     expect(w.find('.ntr').attributes('tabindex')).toBe('-1')
   })
 })
+
+describe('NodeTreeRow — arrow nav', () => {
+  it('arrows on the row root emit nav with direction', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }))
+    await w.find('.ntr').trigger('keydown', { key: 'ArrowDown' })
+    await w.find('.ntr').trigger('keydown', { key: 'ArrowUp' })
+    await w.find('.ntr').trigger('keydown', { key: 'ArrowLeft' })
+    await w.find('.ntr').trigger('keydown', { key: 'ArrowRight' })
+    expect(w.emitted('nav')).toEqual([['down'], ['up'], ['left'], ['right']])
+  })
+  it('arrow from an inner control (checkbox) does not emit nav', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }))
+    await w.find('.ntr-check').trigger('keydown', { key: 'ArrowDown' })
+    expect(w.emitted('nav')).toBeFalsy()
+  })
+  it('row root carries data-node-id', () => {
+    const w = mountRow(treeRow({ id: 'xyz' }))
+    expect(w.find('.ntr').attributes('data-node-id')).toBe('xyz')
+  })
+  it('readonly row emits no nav', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }), { readonly: true })
+    await w.find('.ntr').trigger('keydown', { key: 'ArrowDown' })
+    expect(w.emitted('nav')).toBeFalsy()
+  })
+})
