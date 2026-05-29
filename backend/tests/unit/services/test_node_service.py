@@ -154,3 +154,17 @@ def test_reorder_rejects_unknown_node(factory, db) -> None:
     a = factory.node(proc.id, body="<p>a</p>", sort_order=10, heading_level=1)
     with pytest.raises(HTTPException):
         node_service.reorder(db, proc.id, [a.id, "ghost-id"])
+
+
+from sqlalchemy.orm import Session
+
+from tests.conftest import Factory
+
+
+def test_create_node_rejects_oversize_body(db: Session, factory: Factory) -> None:
+    folder = factory.folder(prefix="QC")
+    proc = factory.procedure(folder.id)
+    big = "x" * (5 * 1024 * 1024 + 1)
+    with pytest.raises(HTTPException) as exc:
+        node_service.create_node(db, proc.id, {"body": big, "kind": "node"})
+    assert exc.value.detail["code"] == "CONTENT_TOO_LARGE"
