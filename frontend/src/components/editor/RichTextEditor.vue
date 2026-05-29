@@ -3,7 +3,16 @@ import { onBeforeUnmount, shallowRef, computed } from 'vue'
 import '@wangeditor/editor/dist/css/style.css'
 import { Editor, Toolbar } from '@wangeditor/editor-for-vue'
 import type { IDomEditor, IEditorConfig, IToolbarConfig } from '@wangeditor/editor'
+import { Boot } from '@wangeditor/editor'
 import { uploadAsset } from '@/api/parse'
+import { withMarkdownAutoformat } from './markdownAutoformat'
+
+// Register markdown autoformat once for all wangeditor instances (HMR-safe via a global flag).
+const MD_PLUGIN_KEY = '__smartsop_md_autoformat_registered__'
+if (!(globalThis as Record<string, unknown>)[MD_PLUGIN_KEY]) {
+  Boot.registerPlugin(withMarkdownAutoformat)
+  ;(globalThis as Record<string, unknown>)[MD_PLUGIN_KEY] = true
+}
 
 // content / step 富文本编辑器（§4.2-4.3）。chapter 节点不使用本组件（§19）。
 // 图片直传（Q214/Q355）：仅 full 变体 + 传入 procedureId + 可编辑时启用「上传图片」菜单，

@@ -1,6 +1,16 @@
 // Markdown autoformat-on-type for the node-body wangeditor (E6).
 // Pure decision functions (unit-tested) + a Slate plugin (browser-verified, added in Task 2).
 
+import {
+  SlateEditor,
+  SlateElement,
+  SlateNode,
+  SlateRange,
+  SlateText,
+  SlateTransforms,
+  type IDomEditor,
+} from '@wangeditor/editor'
+
 export interface BlockTrigger {
   type: 'bulleted' | 'numbered' | 'blockquote'
   deleteLen: number
@@ -76,4 +86,83 @@ export function detectInlineTrigger(text: string): InlineTrigger | null {
   }
 
   return null
+}
+
+function applyBlock(editor: IDomEditor): boolean {
+  const blockEntry = SlateEditor.above(editor, {
+    match: (n) => SlateElement.isElement(n) && SlateEditor.isBlock(editor, n),
+  })
+  if (!blockEntry) return false
+  const [block, path] = blockEntry
+  // Only transform a plain paragraph (don't re-trigger inside list-item / blockquote / table cell).
+  if (!SlateElement.isElement(block) || (block as { type?: string }).type !== 'paragraph') return false
+  const sel = editor.selection
+  if (!sel) return false
+  const blockStart = SlateEditor.start(editor, path)
+  const prefix = SlateEditor.string(editor, { anchor: blockStart, focus: sel.anchor })
+  const rule = detectBlockTrigger(prefix)
+  if (!rule) return false
+  SlateTransforms.delete(editor, {
+    at: { anchor: blockStart, focus: { path: blockStart.path, offset: rule.deleteLen } },
+  })
+  if (rule.type === 'blockquote') {
+    SlateTransforms.setNodes(editor, { type: 'blockquote' } as unknown as Partial<SlateElement>, { at: path })
+  } else {
+    SlateTransforms.setNodes(
+      editor,
+      { type: 'list-item', ordered: rule.type === 'numbered', level: 0 } as unknown as Partial<SlateElement>,
+      { at: path },
+    )
+  }
+  return true
+}
+
+function applyInline(editor: IDomEditor): void {
+  const sel = editor.selection
+  if (!sel) return
+  const caret = sel.anchor
+  const leaf = SlateNode.get(editor, caret.path)
+  if (!SlateText.isText(leaf)) return
+  const text = leaf.text.slice(0, caret.offset) // this leaf, up to the just-typed delimiter
+  const hit = detectInlineTrigger(text)
+  if (!hit) return
+  const pt = (offset: number) => ({ path: caret.path, offset })
+  // Delete closing then opening delimiter (closing first to keep earlier offsets valid).
+  SlateTransforms.delete(editor, { at: { anchor: pt(hit.innerEnd), focus: pt(hit.closeEnd) } })
+  SlateTransforms.delete(editor, { at: { anchor: pt(hit.openStart), focus: pt(hit.innerStart) } })
+  const innerLen = hit.innerEnd - hit.innerStart
+  SlateTransforms.setNodes(
+    editor,
+    { [hit.mark]: true } as unknown as Partial<SlateText>,
+    { at: { anchor: pt(hit.openStart), focus: pt(hit.openStart + innerLen) }, match: SlateText.isText, split: true },
+  )
+  SlateTransforms.collapse(editor, { edge: 'end' })
+  SlateEditor.removeMark(editor, hit.mark) // so the next typed char isn't marked
+}
+
+/** wangeditor v5 plugin: markdown autoformat-on-type. Registered once via Boot.registerPlugin. */
+export function withMarkdownAutoformat<T extends IDomEditor>(editor: T): T {
+  const { insertText } = editor
+  editor.insertText = (text: string): void => {
+    try {
+      const sel = editor.selection
+      if (sel && SlateRange.isCollapsed(sel)) {
+        if (text === ' ') {
+          if (applyBlock(editor)) return // marker consumed, space dropped
+        } else if (text === '*' || text === '_' || text === '`') {
+          insertText(text) // land the closing delimiter first
+          try {
+            applyInline(editor)
+          } catch {
+            /* leave the literal char; never double-insert */
+          }
+          return
+        }
+      }
+    } catch {
+      /* fall through to default insert */
+    }
+    insertText(text)
+  }
+  return editor
 }
