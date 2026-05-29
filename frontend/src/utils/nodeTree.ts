@@ -101,6 +101,38 @@ export function indentLevel(current: number | null, dir: 'in' | 'out'): number |
   return LEVEL_SCALE[next]
 }
 
+export type NavAction = { type: 'select' | 'expand' | 'collapse'; id: string }
+
+/** Pure arrow-key navigation over the visible rows (tree-ordered; rows carry hasChildren/expanded;
+ *  node.parent_id gives the parent). Returns the action, or null for a no-op (boundary/leaf/root). */
+export function arrowNav(
+  rows: TreeRow[],
+  currentId: string | null,
+  dir: 'up' | 'down' | 'left' | 'right',
+): NavAction | null {
+  const idx = rows.findIndex((r) => r.node.id === currentId)
+  if (idx < 0) {
+    return (dir === 'up' || dir === 'down') && rows.length
+      ? { type: 'select', id: rows[0].node.id }
+      : null
+  }
+  const r = rows[idx]
+  if (dir === 'up') return idx > 0 ? { type: 'select', id: rows[idx - 1].node.id } : null
+  if (dir === 'down') return idx < rows.length - 1 ? { type: 'select', id: rows[idx + 1].node.id } : null
+  if (dir === 'right') {
+    if (r.hasChildren && !r.expanded) return { type: 'expand', id: r.node.id }
+    if (r.hasChildren && r.expanded) {
+      const child = rows.find((x, j) => j > idx && x.node.parent_id === r.node.id)
+      return child ? { type: 'select', id: child.node.id } : null
+    }
+    return null
+  }
+  // left
+  if (r.hasChildren && r.expanded) return { type: 'collapse', id: r.node.id }
+  const pid = r.node.parent_id
+  return pid && rows.some((x) => x.node.id === pid) ? { type: 'select', id: pid } : null
+}
+
 export type CheckState = 'checked' | 'indeterminate' | 'unchecked'
 
 /** 每个节点的三态：其子树（含自身）全选=checked，部分=indeterminate，皆未选=unchecked。O(N)。 */
