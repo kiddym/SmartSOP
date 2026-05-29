@@ -116,7 +116,6 @@ def test_scan_referenced_asset_ids_reads_node_bodies(
     folder = factory.folder(prefix="QC")
     proc = factory.procedure(folder.id)
     factory.node(proc.id, body="NODE_REF", sort_order=1000)
-    factory.step(proc.id, content="STEP_REF")  # legacy row must now be ignored
     monkeypatch.setattr(asset_service, "extract_asset_ids", lambda s: {s} if s else set())
     ids = asset_service._scan_referenced_asset_ids(db, proc.id)
     assert ids == {"NODE_REF"}

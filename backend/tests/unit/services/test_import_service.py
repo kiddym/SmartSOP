@@ -3,9 +3,7 @@
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
-from app.models.chapter import ProcedureChapter
 from app.models.node import ProcedureNode
-from app.models.step import ProcedureStep
 from app.schemas.parse import ImportNodeIn
 from app.services import import_service
 from tests.conftest import Factory
@@ -43,9 +41,6 @@ def test_import_builds_nodes_in_document_order(db: Session, factory: Factory, st
         (2, "node", "<p>子节</p>"),
         (None, "node", "<p>B</p>"),
     ]
-    # 不再建旧表行
-    assert db.query(ProcedureChapter).filter_by(procedure_id=proc.id).count() == 0
-    assert db.query(ProcedureStep).filter_by(procedure_id=proc.id).count() == 0
 
 
 def test_import_carries_review_mark_on_heading(db: Session, factory: Factory, storage_tmp) -> None:

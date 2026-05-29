@@ -9,14 +9,12 @@ from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.attachment import ProcedureAttachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
-from app.models.chapter import ProcedureChapter
 from app.models.field import ProcedureField
 from app.models.folder import Folder, FolderSequence
 from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
 from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
-from app.models.step import ProcedureStep
 
 __all__ = [
     "Base",
@@ -28,10 +26,8 @@ __all__ = [
     "ProcedureAssetReference",
     "ProcedureAttachment",
     "ProcedureAuditLog",
-    "ProcedureChapter",
     "ProcedureField",
     "ProcedureNode",
     "ProcedureSettings",
     "ProcedureSourceDocx",
-    "ProcedureStep",
 ]

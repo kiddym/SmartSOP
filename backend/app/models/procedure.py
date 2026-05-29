@@ -12,8 +12,6 @@ from app.models.base import DATETIME6, Base, SoftDeleteMixin, TimestampMixin, UU
 
 if TYPE_CHECKING:
     from app.models.attachment import ProcedureAttachment
-    from app.models.chapter import ProcedureChapter
-    from app.models.step import ProcedureStep
 
 
 class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
@@ -56,6 +54,4 @@ class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
 
     # 不用 delete-orphan / cascade delete：本项目全软删（database-spec §9）+ FK RESTRICT
     # （§8），子节点生命周期由 service 层软删管理，避免 ORM 触发硬 DELETE。
-    chapters: Mapped[list[ProcedureChapter]] = relationship(back_populates="procedure")
-    steps: Mapped[list[ProcedureStep]] = relationship(back_populates="procedure")
     attachments: Mapped[list[ProcedureAttachment]] = relationship(back_populates="procedure")
