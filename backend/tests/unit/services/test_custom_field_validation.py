@@ -17,11 +17,10 @@ from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.schemas.procedure import (
     ProcedureCreate,
-    ProcedureSaveIn,
     ProcedureUpdate,
     TransitionIn,
 )
-from app.services import editor_service, procedure_service
+from app.services import procedure_service
 from tests.conftest import Factory
 
 META = RequestMeta(ip_address="203.0.113.9", user_agent="pytest", request_id="r-cf")
@@ -103,32 +102,17 @@ def test_update_rejects_invalid_present_value(db: Session, factory: Factory) -> 
 
 
 # --------------------------------------------------------------------------- #
-# 编辑器整批保存：校验已填值格式；草稿可缺必填
+# 编辑器整批保存（= update_procedure）：草稿可缺必填
 # --------------------------------------------------------------------------- #
-def test_save_rejects_invalid_present_value(db: Session, factory: Factory) -> None:
-    _field(db, key="count", field_type="number")
-    leaf = _leaf(factory)
-    proc = _new(db, leaf.id)
-    with pytest.raises(HTTPException) as exc:
-        editor_service.save_procedure(
-            db,
-            proc.id,
-            ProcedureSaveIn(name="P", level_of_use="continuous", custom_values={"count": "abc"}),
-            proc.revision,
-            META,
-        )
-    assert exc.value.detail["code"] == "CUSTOM_FIELD_INVALID"
-
-
-def test_save_allows_missing_required(db: Session, factory: Factory) -> None:
+def test_update_allows_missing_required(db: Session, factory: Factory) -> None:
     _field(db, key="owner", required=True)
     leaf = _leaf(factory)
     proc = _new(db, leaf.id)
     rev_before = proc.revision
-    saved, _ = editor_service.save_procedure(
+    saved = procedure_service.update_procedure(
         db,
         proc.id,
-        ProcedureSaveIn(name="P", level_of_use="continuous"),
+        ProcedureUpdate(name="P", level_of_use="continuous"),
         rev_before,
         META,
     )

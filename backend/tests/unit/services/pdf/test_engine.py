@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from app.models.attachment import ProcedureAttachment
-from app.services import numbering_service, pdf
+from app.services import node_numbering, pdf
 from app.services.pdf import context
 from app.services.pdf.document import to_roman
 from app.services.pdf.engine import compute_layout, render_pdf
@@ -33,24 +33,20 @@ def _rich_proc(db: Session, factory: Factory):
         },
     ]
     proc.version_update_notes = "本次新增启动前检查"
-    purpose = factory.chapter(proc.id, title="目的", level=1, sort_order=0)
-    factory.step(
-        proc.id,
-        chapter_id=purpose.id,
-        kind="content",
-        content="<p>本程序用于规范启动流程。</p>",
-        sort_order=0,
+    # 文档序建 node：L1「目的」+ 内容块；L1「操作」+ 两个 step（透传 input_schema）
+    factory.node(proc.id, body="<p>目的</p>", heading_level=1, kind="node", sort_order=1000)
+    factory.node(
+        proc.id, body="<p>本程序用于规范启动流程。</p>", heading_level=None, kind="node",
+        sort_order=2000,
     )
-    ops = factory.chapter(proc.id, title="操作", level=1, sort_order=1)
-    factory.step(
-        proc.id, chapter_id=ops.id, title="启动电源", sort_order=0, input_schema={"type": "CHECK"}
+    factory.node(proc.id, body="<p>操作</p>", heading_level=1, kind="node", sort_order=3000)
+    factory.node(
+        proc.id, body="<p>启动电源</p>", heading_level=None, kind="step",
+        input_schema={"type": "CHECK"}, sort_order=4000,
     )
-    factory.step(
-        proc.id,
-        chapter_id=ops.id,
-        title="检查阀门",
-        sort_order=1,
-        input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10},
+    factory.node(
+        proc.id, body="<p>检查阀门</p>", heading_level=None, kind="step",
+        input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10}, sort_order=5000,
     )
     db.add(
         ProcedureAttachment(
@@ -62,7 +58,7 @@ def _rich_proc(db: Session, factory: Factory):
             sort_order=0,
         )
     )
-    numbering_service.recompute(db, proc.id)
+    node_numbering.recompute(db, proc.id)  # PDF reader 读持久化 node.code
     db.commit()
     return proc
 
