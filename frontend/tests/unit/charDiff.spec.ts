@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { htmlToText, charDiff } from '@/components/version/charDiff'
+import { htmlToText, charDiff, similarity } from '@/components/version/charDiff'
 
 describe('htmlToText', () => {
   it('strips tags + unescapes entities; empty → ""', () => {
@@ -47,5 +47,19 @@ describe('charDiff', () => {
       { type: 'del', text: a },
       { type: 'ins', text: b },
     ])
+  })
+})
+
+describe('similarity', () => {
+  it('identical → 1; disjoint → 0', () => {
+    expect(similarity('abc', 'abc')).toBe(1)
+    expect(similarity('abc', 'xyz')).toBe(0)
+  })
+  it('both empty → 1; one empty → 0', () => {
+    expect(similarity('', '')).toBe(1)
+    expect(similarity('abc', '')).toBe(0)
+  })
+  it('shared tail → high ratio', () => {
+    expect(similarity('目的本程序适用于公司股东', '宗旨本程序适用于公司股东')).toBeCloseTo(0.833, 2)
   })
 })
