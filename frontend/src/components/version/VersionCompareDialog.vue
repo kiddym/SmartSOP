@@ -19,19 +19,23 @@ const rows = ref<DiffRow[]>([])
 const onlyChanges = ref(true)
 const expanded = ref<Set<number>>(new Set())
 
-watch(visible, async (open) => {
-  if (!open) return
-  loading.value = true
-  expanded.value = new Set()
-  try {
-    const [oldNodes, newNodes] = await Promise.all([listNodes(props.oldId), listNodes(props.newId)])
-    rows.value = diffVersions(oldNodes, newNodes)
-  } catch {
-    visible.value = false // 拦截器已提示
-  } finally {
-    loading.value = false
-  }
-})
+watch(
+  visible,
+  async (open) => {
+    if (!open) return
+    loading.value = true
+    expanded.value = new Set()
+    try {
+      const [oldNodes, newNodes] = await Promise.all([listNodes(props.oldId), listNodes(props.newId)])
+      rows.value = diffVersions(oldNodes, newNodes)
+    } catch {
+      visible.value = false // 拦截器已提示
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 
 const visibleRows = computed(() =>
   onlyChanges.value ? rows.value.filter((r) => r.status !== 'unchanged') : rows.value,

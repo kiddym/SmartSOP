@@ -57,4 +57,19 @@ describe('VersionCompareDialog', () => {
     expect(document.body.textContent).not.toContain('不变标题XYZ') // unchanged → hidden
     expect(document.body.textContent).toContain('新内容')          // modified → shown
   })
+
+  it('fetches on mount when opened already-true (real host v-if path)', async () => {
+    listNodes.mockImplementation((procId: string) =>
+      Promise.resolve(procId === 'old' ? [] : [n({ id: 'n1', code: '1', body: '<p>新增章节QQ</p>' })]),
+    )
+    wrapper = mount(VersionCompareDialog, {
+      props: { modelValue: true, oldId: 'old', newId: 'new', oldVersion: 1, newVersion: 2 },
+      global: { plugins: [ElementPlus] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    expect(listNodes).toHaveBeenCalledWith('old')
+    expect(listNodes).toHaveBeenCalledWith('new')
+    expect(document.body.textContent).toContain('新增章节QQ') // the added node renders
+  })
 })
