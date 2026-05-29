@@ -10,6 +10,9 @@ vi.mock('@/api/nodes', () => ({
   deleteNode: deleteSpy, batchUpdateNodes: batchSpy, reorderNodes: reorderSpy,
 }))
 
+const { warnSpy, errorSpy } = vi.hoisted(() => ({ warnSpy: vi.fn(), errorSpy: vi.fn() }))
+vi.mock('element-plus', () => ({ ElMessage: { warning: warnSpy, error: errorSpy } }))
+
 import { useNodeEditorStore } from '@/store/nodeEditor'
 import type { Node } from '@/types/node'
 
@@ -287,5 +290,66 @@ describe('nodeEditor store — updateBody no-op guard (undo-on-load fix)', () =>
     await store.updateBody('a', '<p>y</p>')
     expect(patchSpy).toHaveBeenCalledWith('a', { body: '<p>y</p>' }, 1)
     expect(store.canUndo).toBe(true)
+  })
+})
+
+const conflict409 = { response: { status: 409, data: { detail: { code: 'VERSION_CONFLICT' } } } }
+
+describe('nodeEditor store — 409 conflict recovery (E4)', () => {
+  it('updateBody 409: reload-wins — refetch, clear undo+redo, warn, no undo push', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>old</p>', revision: 4 })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    // seed an undo entry so we can prove the conflict clears history
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1, body: '<p>old</p>', revision: 4 })])
+    await store.setLevel('a', 1)
+    expect(store.canUndo).toBe(true)
+    // a concurrent change makes the body save conflict
+    patchSpy.mockRejectedValueOnce(conflict409)
+    listSpy.mockResolvedValueOnce([n({ id: 'a', body: '<p>server</p>', revision: 9 })]) // refetch
+    await store.updateBody('a', '<p>mine</p>')
+    expect(store.nodeMap.get('a')?.body).toBe('<p>server</p>')
+    expect(store.nodeMap.get('a')?.revision).toBe(9)
+    expect(store.canUndo).toBe(false) // history cleared (inverses now reference a dead state)
+    expect(store.canRedo).toBe(false)
+    expect(warnSpy).toHaveBeenCalled()
+  })
+
+  it('updateBody non-409 error: toasts and rethrows (transient path intact)', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>old</p>', revision: 1 })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    patchSpy.mockRejectedValueOnce({ response: { status: 500, data: { detail: { message: '服务器错误' } } } })
+    await expect(store.updateBody('a', '<p>new</p>')).rejects.toBeTruthy()
+    expect(errorSpy).toHaveBeenCalled()
+    expect(store.canUndo).toBe(false) // nothing recorded on failure
+  })
+
+  it('updateForm 409: same reload-wins recovery', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', kind: 'step', revision: 2 })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    patchSpy.mockRejectedValueOnce(conflict409)
+    listSpy.mockResolvedValueOnce([n({ id: 'a', kind: 'step', revision: 7 })]) // refetch
+    await store.updateForm('a', { type: 'NOTE' }, [])
+    expect(store.nodeMap.get('a')?.revision).toBe(7)
+    expect(warnSpy).toHaveBeenCalled()
+  })
+
+  it('E1 fix: undo whose inverse updateBody 409s clears history (no stale re-push)', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>v1</p>', revision: 1 })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    patchSpy.mockResolvedValueOnce(n({ id: 'a', body: '<p>v2</p>', revision: 2 })) // do
+    await store.updateBody('a', '<p>v2</p>')
+    expect(store.canUndo).toBe(true)
+    // undo's inverse re-applies v1, but a concurrent change makes it 409
+    patchSpy.mockRejectedValueOnce(conflict409)
+    listSpy.mockResolvedValueOnce([n({ id: 'a', body: '<p>server</p>', revision: 9 })]) // refetch
+    await store.undo()
+    expect(store.canUndo).toBe(false) // NOT re-pushed (the old inverse is stale)
+    expect(store.canRedo).toBe(false)
+    expect(store.nodeMap.get('a')?.body).toBe('<p>server</p>')
+    expect(warnSpy).toHaveBeenCalled()
   })
 })
