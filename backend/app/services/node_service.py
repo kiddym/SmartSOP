@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request, not_found
+from app.errors import bad_request, not_found, payload_too_large
 from app.services import optimistic_lock
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
@@ -20,6 +20,13 @@ from app.services._invariants import enforce_node_invariants
 from app.services.node_tree import TreeNode, build_tree
 
 _SORT_GAP = 1000
+
+CONTENT_MAX_BYTES = 5 * 1024 * 1024
+
+
+def _body_size_guard(body: str) -> None:
+    if len(body.encode("utf-8")) > CONTENT_MAX_BYTES:
+        raise payload_too_large("CONTENT_TOO_LARGE", "节点正文超过 5 MB 上限")
 
 
 def _active_nodes(db: Session, procedure_id: str) -> list[ProcedureNode]:
@@ -104,6 +111,9 @@ def patch_node(
     if unknown:
         raise bad_request("BAD_FIELD", f"不可更新字段:{sorted(unknown)}")
 
+    if "body" in changes:
+        _body_size_guard(changes["body"])
+
     new_kind = changes.get("kind", node.kind)
     new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
     new_schema = changes.get("input_schema", node.input_schema)
@@ -126,6 +136,7 @@ def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> Procedu
     input_schema = data.get("input_schema", {})
     attachment_marks = data.get("attachment_marks", [])
     enforce_node_invariants(kind, heading_level, input_schema, attachment_marks)
+    _body_size_guard(data.get("body", ""))
 
     if "sort_order" in data and data["sort_order"] is not None:
         sort_order = data["sort_order"]
@@ -173,6 +184,8 @@ def batch_update(
         unknown = set(changes) - _PATCHABLE
         if unknown:
             raise bad_request("BAD_FIELD", f"不可更新字段:{sorted(unknown)}")
+        if "body" in changes:
+            _body_size_guard(changes["body"])
         new_kind = changes.get("kind", node.kind)
         new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
         new_schema = changes.get("input_schema", node.input_schema)

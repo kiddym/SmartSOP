@@ -63,21 +63,18 @@ def test_full_standard_flow(client: TestClient, storage_tmp: Path) -> None:
     proc_id = imported.json()["id"]
     assert imported.json()["status"] == "DRAFT"
 
-    detail = client.get(f"/api/v1/procedures/{proc_id}").json()
-    chapter_titles = [c["title"] for c in detail["chapters"]]
-    assert "目的" in chapter_titles
-
-    # 临时图已提升为永久 asset，内容块（步骤 kind='content'）content 指向永久 URL，可被服务
+    nodes = client.get(f"/api/v1/procedures/{proc_id}/nodes").json()
+    assert any("目的" in n["body"] for n in nodes if n["heading_level"] is not None)
     asset_urls = [
         m.group(0)
-        for s in detail["steps"]
-        for m in [re.search(r"/api/v1/procedures/[^/\"]+/assets/[0-9a-f-]{36}", s["content"])]
+        for n in nodes
+        for m in [re.search(r"/api/v1/procedures/[^/\"]+/assets/[0-9a-f-]{36}", n["body"])]
         if m
     ]
     assert asset_urls, "导入后应有永久 asset URL"
     served = client.get(asset_urls[0])
     assert served.status_code == 200
-    assert served.content  # 有字节
+    assert served.content
 
 
 def test_smart_unstyled_review_carried_into_draft(client: TestClient, storage_tmp: Path) -> None:
@@ -93,10 +90,9 @@ def test_smart_unstyled_review_carried_into_draft(client: TestClient, storage_tm
     assert ok.status_code == 201, ok.text
     pid = ok.json()["id"]
 
-    # review 状态带进草稿：至少一个章节 mark_status == 'review'
-    detail = client.get(f"/api/v1/procedures/{pid}").json()
-    flat = _flatten(detail["chapters"])
-    assert any(n["mark_status"] == "review" for n in flat), "review 应带入草稿"
+    # review 状态带进草稿：至少一个节点 mark_status == 'review'
+    nodes = client.get(f"/api/v1/procedures/{pid}/nodes").json()
+    assert any(n["mark_status"] == "review" for n in nodes), "review 应带入草稿"
 
 
 def test_standard_no_styled_heading_rejected(client: TestClient, storage_tmp: Path) -> None:
@@ -152,19 +148,6 @@ def test_editor_asset_rejects_too_large(client: TestClient, storage_tmp: Path) -
     assert resp.json()["detail"]["code"] == "IMAGE_TOO_LARGE"
 
 
-def test_import_rejects_over_deep_tree(client: TestClient, storage_tmp: Path) -> None:
-    """客户端手改出 4 级章节树 → 后端校验拒绝（H1 评审修复）。"""
-    leaf = _leaf(client)
-
-    def chap(title: str, children: list[dict]) -> dict:
-        return {"title": title, "content_type": "chapter", "children": children}
-
-    deep = [chap("L1", [chap("L2", [chap("L3", [chap("L4", [])])])])]
-    resp = client.post(IMPORT, json={"name": "超深", "folder_id": leaf, "chapters": deep})
-    assert resp.status_code == 400
-    assert resp.json()["detail"]["code"] == "CHAPTER_DEPTH_EXCEEDED"
-
-
 def test_import_content_with_children_dropped(client: TestClient, storage_tmp: Path) -> None:
     """content 节点为叶子：导入时其子内容块被静默丢弃，正常落库（§19 重构）。"""
     leaf = _leaf(client)
@@ -184,11 +167,10 @@ def test_import_content_with_children_dropped(client: TestClient, storage_tmp: P
     resp = client.post(IMPORT, json={"name": "内容子节点", "folder_id": leaf, "chapters": tree})
     assert resp.status_code == 201, resp.text
     pid = resp.json()["id"]
-    detail = client.get(f"/api/v1/procedures/{pid}").json()
-    # 章节为纯标题容器；内容块落成步骤（kind='content'），孙级被丢弃 → 仅 1 个内容步骤
-    contents = [s for s in detail["steps"] if s["kind"] == "content"]
+    nodes = client.get(f"/api/v1/procedures/{pid}/nodes").json()
+    contents = [n for n in nodes if n["heading_level"] is None and n["kind"] == "node"]
     assert len(contents) == 1
-    assert contents[0]["content"] == "<p>x</p>"
+    assert contents[0]["body"] == "<p>x</p>"
 
 
 def test_temp_media_404_for_unknown_token(client: TestClient, storage_tmp: Path) -> None:
@@ -304,10 +286,14 @@ def test_publish_blocked_while_review_pending(client: TestClient, storage_tmp: P
     assert blocked.status_code == 400
     assert blocked.json()["detail"]["code"] == "REVIEW_PENDING"
 
-    # 清掉所有 review 后可发布
-    for n in _flatten(detail["chapters"]):
-        if n["mark_status"] == "review":
-            client.post(f"/api/v1/chapters/{n['id']}/mark-status", json={"mark_status": "unmarked"})
+    # 清掉所有 review 后可发布（节点确认动作：batch 更新会把 review 清回 unmarked）
+    nodes = client.get(f"/api/v1/procedures/{pid}/nodes").json()
+    review_ids = [n["id"] for n in nodes if n["mark_status"] == "review"]
+    assert review_ids  # 导入应产生待确认节点
+    client.patch(
+        f"/api/v1/procedures/{pid}/nodes:batch",
+        json={"updates": {nid: {} for nid in review_ids}},
+    )
     rev2 = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["revision"]
     ok = client.post(
         f"/api/v1/procedures/{pid}/transition",
@@ -315,11 +301,3 @@ def test_publish_blocked_while_review_pending(client: TestClient, storage_tmp: P
         headers={"If-Match": str(rev2)},
     )
     assert ok.status_code == 200, ok.text
-
-
-def _flatten(nodes: list[dict]) -> list[dict]:
-    out: list[dict] = []
-    for n in nodes:
-        out.append(n)
-        out.extend(_flatten(n.get("children", [])))
-    return out

@@ -21,7 +21,7 @@ from app.errors import bad_request, not_found, payload_too_large
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.base import new_uuid, utcnow
 from app.models.procedure import Procedure
-from app.models.step import ProcedureStep
+from app.models.node import ProcedureNode
 from app.parser.utils import images
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB（Q207/Q215）
@@ -183,13 +183,12 @@ def ref_count(db: Session, asset_id: str) -> int:
 
 def _scan_referenced_asset_ids(db: Session, procedure_id: str) -> set[str]:
     ids: set[str] = set()
-    # content 块已迁至 ProcedureStep（kind='content'）；统一扫步骤表（Q25 重构后）
-    for (content,) in db.execute(
-        select(ProcedureStep.content).where(
-            ProcedureStep.procedure_id == procedure_id, ProcedureStep.is_active.is_(True)
+    for (body,) in db.execute(
+        select(ProcedureNode.body).where(
+            ProcedureNode.procedure_id == procedure_id, ProcedureNode.is_active.is_(True)
         )
     ):
-        ids |= extract_asset_ids(content)
+        ids |= extract_asset_ids(body)
     return ids
 
 

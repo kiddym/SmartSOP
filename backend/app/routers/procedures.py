@@ -29,8 +29,7 @@ from app.schemas.procedure import (
     ProcedureDetail,
     ProcedureMeta,
     ProcedureOut,
-    ProcedureSaveIn,
-    ProcedureSaveResult,
+    ProcedureUpdate,
     ReasonIn,
     RestoreIn,
     RestorePreviewOut,
@@ -39,7 +38,6 @@ from app.schemas.procedure import (
 )
 from app.services import (
     asset_service,
-    editor_service,
     import_service,
     layer_apply_service,
     mark_service,
@@ -229,19 +227,19 @@ def create_procedure(
     return procedure_service.to_meta(db, proc)
 
 
-@router.put("/{procedure_id}", response_model=ProcedureSaveResult)
-def save_procedure(
+@router.put("/{procedure_id}", response_model=ProcedureMeta)
+def update_procedure(
     procedure_id: str,
-    payload: ProcedureSaveIn,
+    payload: ProcedureUpdate,
     db: Session = Depends(get_db),
     meta: RequestMeta = Depends(get_request_meta),
     if_match: str | None = Header(default=None, alias="If-Match"),
-) -> ProcedureSaveResult:
-    """编辑器整批保存：程序元字段 + 脏节点 upsert + 删除（§17.2）。返回新 revision + id 映射。"""
+) -> ProcedureMeta:
+    """更新程序元数据（仅 is_current 且 DRAFT；结构改动走 /nodes 颗粒度端点）。"""
     expected = ensure_if_match(if_match)
-    proc, id_map = editor_service.save_procedure(db, procedure_id, payload, expected, meta)
+    proc = procedure_service.update_procedure(db, procedure_id, payload, expected, meta)
     db.commit()
-    return ProcedureSaveResult(**procedure_service.to_meta(db, proc).model_dump(), id_map=id_map)
+    return procedure_service.to_meta(db, proc)
 
 
 @router.post("/{procedure_id}/transition", response_model=ProcedureMeta)

@@ -24,6 +24,7 @@ from app.deps import RequestMeta
 from app.errors import bad_request, not_found
 from app.models.base import new_uuid, utcnow
 from app.models.chapter import ProcedureChapter
+from app.models.node import ProcedureNode
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
@@ -253,6 +254,7 @@ def update_procedure(
         "quality_level": proc.quality_level,
         "level_of_use": proc.level_of_use,
         "version_update_notes": proc.version_update_notes,
+        "signoff_enabled": proc.signoff_enabled,
     }
     proc.name = data.name
     proc.description = data.description
@@ -261,6 +263,7 @@ def update_procedure(
     proc.level_of_use = data.level_of_use
     proc.custom_values = data.custom_values
     proc.version_update_notes = data.version_update_notes
+    proc.signoff_enabled = data.signoff_enabled
     optimistic_lock.bump(proc)
     db.flush()
 
@@ -271,6 +274,7 @@ def update_procedure(
         "quality_level": proc.quality_level,
         "level_of_use": proc.level_of_use,
         "version_update_notes": proc.version_update_notes,
+        "signoff_enabled": proc.signoff_enabled,
     }
     old_value, new_value = audit_service.compute_diff(before, after)
     audit_service.log_procedure_action(
@@ -306,11 +310,11 @@ def transition(
         field_service.validate_values(db, proc.custom_values, require_check=True)
         pending = db.execute(
             select(func.count())
-            .select_from(ProcedureChapter)
+            .select_from(ProcedureNode)
             .where(
-                ProcedureChapter.procedure_id == proc.id,
-                ProcedureChapter.is_active.is_(True),
-                ProcedureChapter.mark_status == "review",
+                ProcedureNode.procedure_id == proc.id,
+                ProcedureNode.is_active.is_(True),
+                ProcedureNode.mark_status == "review",
             )
         ).scalar_one()
         if pending:

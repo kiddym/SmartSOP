@@ -64,20 +64,14 @@ def test_rebuild_references_tracks_and_releases(
     proc = _proc(factory)
     asset = asset_service.find_or_create_asset(db, tiny_png(), ext=".png")
     url = asset_service.asset_url(proc.id, asset.id)
-    chapter = factory.chapter(proc.id)
-    # 内容块=步骤（kind='content'），图片引用嵌在步骤 content
-    content = factory.step(
-        proc.id,
-        chapter_id=chapter.id,
-        kind="content",
-        content=f'<p><img src="{url}"></p>',
-    )
+    # 图片引用嵌在节点 body（统一节点模型）
+    node = factory.node(proc.id, body=f'<p><img src="{url}"></p>', sort_order=1000)
     asset_service.rebuild_references(db, proc.id)
     db.flush()
     assert asset_service.ref_count(db, asset.id) == 1
 
     # 移除引用 → ref_count 归零 + updated_at bump
-    content.content = "<p>无图</p>"
+    node.body = "<p>无图</p>"
     db.flush()
     asset_service.rebuild_references(db, proc.id)
     db.flush()
@@ -109,14 +103,20 @@ def test_gc_skips_recent_and_referenced(db: Session, factory: Factory, storage_t
     assert asset.id not in asset_service.gc_candidates(db, grace_hours=24, now=now)
     # 加引用后即使过期也不删
     url = asset_service.asset_url(proc.id, asset.id)
-    ch = factory.chapter(proc.id)
-    factory.step(
-        proc.id,
-        chapter_id=ch.id,
-        kind="content",
-        content=f'<img src="{url}">',
-    )
+    factory.node(proc.id, body=f'<img src="{url}">', sort_order=1000)
     asset_service.rebuild_references(db, proc.id)
     asset.updated_at = utcnow() - timedelta(hours=25)
     db.flush()
     assert asset.id not in asset_service.gc_candidates(db, grace_hours=24, now=utcnow())
+
+
+def test_scan_referenced_asset_ids_reads_node_bodies(
+    db: Session, factory: Factory, monkeypatch
+) -> None:
+    folder = factory.folder(prefix="QC")
+    proc = factory.procedure(folder.id)
+    factory.node(proc.id, body="NODE_REF", sort_order=1000)
+    factory.step(proc.id, content="STEP_REF")  # legacy row must now be ignored
+    monkeypatch.setattr(asset_service, "extract_asset_ids", lambda s: {s} if s else set())
+    ids = asset_service._scan_referenced_asset_ids(db, proc.id)
+    assert ids == {"NODE_REF"}
