@@ -267,3 +267,25 @@ describe('nodeEditor store — redo + robust undo (E1)', () => {
     expect(listSpy).toHaveBeenCalledTimes(2) // initial load + refetch
   })
 })
+
+describe('nodeEditor store — updateBody no-op guard (undo-on-load fix)', () => {
+  it('unchanged body: no patch, no spurious undo entry', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>x</p>' })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    expect(store.canUndo).toBe(false)
+    await store.updateBody('a', '<p>x</p>') // identical to current body (e.g. editor mount emit)
+    expect(patchSpy).not.toHaveBeenCalled()
+    expect(store.canUndo).toBe(false)
+  })
+
+  it('changed body: patches and records undo', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>x</p>' })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    patchSpy.mockResolvedValueOnce(n({ id: 'a', body: '<p>y</p>', revision: 2 }))
+    await store.updateBody('a', '<p>y</p>')
+    expect(patchSpy).toHaveBeenCalledWith('a', { body: '<p>y</p>' }, 1)
+    expect(store.canUndo).toBe(true)
+  })
+})

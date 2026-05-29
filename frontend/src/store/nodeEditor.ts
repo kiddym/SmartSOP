@@ -230,6 +230,7 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     async updateBody(id: string, body: string): Promise<void> {
       const node = this.nodeMap.get(id)
       if (!node) return
+      if (body === node.body) return // 无变化（挂载初始回发 / 空保存 / 防抖重复）不写库、不入撤销栈
       const prevBody = node.body
       const updated = await api.patchNode(id, { body }, node.revision)
       this._replaceNode(updated)

@@ -89,11 +89,13 @@ function insertSpecial(html: string): void {
   editor.dangerouslyInsertHtml(html)
 }
 
-// wangEditor 空内容会规范化为 <p><br></p>（DOM 里表现为 U+FEFF BOM）。新建步骤挂载时它会
-// 迟发一次 onChange，使「空」被写成非空 HTML，刚保存后又被置脏（逼出二次保存）。空内容统一
-// 回发 ''，与存储侧的空串对齐，杜绝幽灵脏。
+// wangEditor 空内容规范化为 <p><br></p>，且挂载时会迟发一次 onChange（把初始/空内容规范化后
+// 回吐）。空内容统一回发 '' 与存储侧对齐；且仅当结果相对传入 modelValue 真正变化时才回发——
+// 否则「未编辑即落库 + 产生撤销项」（幽灵脏：挂载即点亮撤销按钮）。用户插入/编辑会改变值故照常回发。
 function onChange(editor: IDomEditor): void {
-  emit('update:modelValue', editor.isEmpty() ? '' : editor.getHtml())
+  const v = editor.isEmpty() ? '' : editor.getHtml()
+  if (v === props.modelValue) return
+  emit('update:modelValue', v)
 }
 
 onBeforeUnmount(() => {
