@@ -47,6 +47,10 @@ describe('activePageIndex', () => {
     expect(activePageIndex(300, tops)).toBe(1)   // exact boundary → that page
     expect(activePageIndex(10000, tops)).toBe(2) // past last → last
   })
+  it('attributes the page even when the scroll lands short of its top (snap tolerance)', () => {
+    // real-world: pages at [88,1229,2369,3510,4717], jumped to page idx 3 but scrollTop 65px short
+    expect(activePageIndex(3446, [88, 1229, 2369, 3510, 4717])).toBe(3)
+  })
 })
 
 describe('clampPageInput', () => {
