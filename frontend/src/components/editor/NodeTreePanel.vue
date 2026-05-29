@@ -6,7 +6,7 @@ import { useNodeEditorStore } from '@/store/nodeEditor'
 import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { nextReviewId } from '@/utils/reviewNav'
 import { computeReorder, type DropPosition } from '@/utils/nodeTreeDnd'
-import { subtreeIds, checkStates, type TreeRow } from '@/utils/nodeTree'
+import { subtreeIds, checkStates, indentLevel, type TreeRow } from '@/utils/nodeTree'
 
 const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
 
@@ -50,6 +50,12 @@ function onCheck(id: string, shift: boolean): void {
   store.selection = res.selection
   anchor.value = res.anchor
   for (const wmsg of res.warnings) ElMessage.warning(wmsg)
+}
+function onIndent(id: string, dir: 'in' | 'out'): void {
+  const node = store.nodeMap.get(id)
+  if (!node || node.kind === 'step') return // 步骤不缩进（不能成章节）
+  const next = indentLevel(node.heading_level, dir)
+  if (next !== node.heading_level) void store.setLevel(id, next)
 }
 function addNode(): void {
   void store.createNode({ heading_level: null, kind: 'node' })
@@ -157,6 +163,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
         @check="(shift: boolean) => onCheck(row.node.id, shift)"
         @chip="(c: string) => onChip(row.node.id, c)"
         @remove="store.removeNode(row.node.id)"
+        @indent="(dir: 'in' | 'out') => onIndent(row.node.id, dir)"
         @dragstart="onDragStart(row.node.id)"
         @dragover="(ev: DragEvent) => onDragOver(row.node.id, ev)"
         @drop="onDrop(row.node.id)"

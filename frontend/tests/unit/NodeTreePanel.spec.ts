@@ -192,3 +192,30 @@ describe('NodeTreePanel — readonly', () => {
     expect(warn).toHaveBeenCalled()
   })
 })
+
+describe('NodeTreePanel — indent/outdent', () => {
+  it('indent "in" on a content node promotes it to L1', () => {
+    const { w, store } = setup([n({ id: 'a', heading_level: null, kind: 'node', body: '<p>A</p>' })])
+    const setLevel = vi.spyOn(store, 'setLevel').mockResolvedValue()
+    w.findComponent({ name: 'NodeTreeRow' }).vm.$emit('indent', 'in')
+    expect(setLevel).toHaveBeenCalledWith('a', 1)
+  })
+  it('indent "in" on an L3 heading is a no-op (clamped)', () => {
+    const { w, store } = setup([n({ id: 'a', heading_level: 3, kind: 'node', body: '<p>A</p>' })])
+    const setLevel = vi.spyOn(store, 'setLevel').mockResolvedValue()
+    w.findComponent({ name: 'NodeTreeRow' }).vm.$emit('indent', 'in')
+    expect(setLevel).not.toHaveBeenCalled()
+  })
+  it('indent on a step node is skipped', () => {
+    const { w, store } = setup([n({ id: 'a', heading_level: null, kind: 'step', body: '<p>S</p>' })])
+    const setLevel = vi.spyOn(store, 'setLevel').mockResolvedValue()
+    w.findComponent({ name: 'NodeTreeRow' }).vm.$emit('indent', 'in')
+    expect(setLevel).not.toHaveBeenCalled()
+  })
+  it('indent "out" on an L1 heading demotes to 正文 (null)', () => {
+    const { w, store } = setup([n({ id: 'a', heading_level: 1, kind: 'node', body: '<p>A</p>' })])
+    const setLevel = vi.spyOn(store, 'setLevel').mockResolvedValue()
+    w.findComponent({ name: 'NodeTreeRow' }).vm.$emit('indent', 'out')
+    expect(setLevel).toHaveBeenCalledWith('a', null)
+  })
+})

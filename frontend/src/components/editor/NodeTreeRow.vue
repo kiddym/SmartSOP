@@ -22,6 +22,7 @@ const emit = defineEmits<{
   (e: 'dragover', ev: DragEvent): void
   (e: 'drop', ev: DragEvent): void
   (e: 'dragend'): void
+  (e: 'indent', dir: 'in' | 'out'): void
 }>()
 
 const n = computed(() => props.row.node)
@@ -34,6 +35,13 @@ const levelLabel = computed(() => {
 function onCheck(ev: MouseEvent): void {
   emit('check', ev.shiftKey)
 }
+
+function onKeydown(ev: KeyboardEvent): void {
+  if (props.readonly || ev.key !== 'Tab') return
+  if (ev.target !== ev.currentTarget) return // 仅行本身聚焦（非内部 checkbox/chip）才缩进
+  ev.preventDefault()
+  emit('indent', ev.shiftKey ? 'out' : 'in')
+}
 </script>
 
 <template>
@@ -42,7 +50,9 @@ function onCheck(ev: MouseEvent): void {
     :class="[{ 'ntr--selected': selected }, dropHint ? `ntr--drop-${dropHint}` : '']"
     :style="{ boxSizing: 'border-box', paddingLeft: `${n.depth * 16 + 6}px` }"
     :draggable="!readonly"
+    :tabindex="readonly ? undefined : -1"
     @click="emit('select')"
+    @keydown="onKeydown"
     @dragstart="emit('dragstart', $event)"
     @dragover.prevent="emit('dragover', $event)"
     @drop.prevent="emit('drop', $event)"

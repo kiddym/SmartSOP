@@ -108,3 +108,28 @@ describe('NodeTreeRow — indeterminate', () => {
     expect(w.find('.ntr-check').attributes('aria-checked')).toBe('mixed')
   })
 })
+
+describe('NodeTreeRow — Tab indent', () => {
+  it('Tab on the row emits indent "in"; Shift+Tab emits "out"', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }))
+    await w.find('.ntr').trigger('keydown', { key: 'Tab' })
+    expect(w.emitted('indent')?.[0]).toEqual(['in'])
+    await w.find('.ntr').trigger('keydown', { key: 'Tab', shiftKey: true })
+    expect(w.emitted('indent')?.[1]).toEqual(['out'])
+  })
+  it('Tab from an inner control (checkbox) does not emit indent', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }))
+    await w.find('.ntr-check').trigger('keydown', { key: 'Tab' })
+    expect(w.emitted('indent')).toBeFalsy()
+  })
+  it('readonly row: not focusable, no indent', async () => {
+    const w = mountRow(treeRow({ heading_level: 1 }), { readonly: true })
+    expect(w.find('.ntr').attributes('tabindex')).toBeUndefined()
+    await w.find('.ntr').trigger('keydown', { key: 'Tab' })
+    expect(w.emitted('indent')).toBeFalsy()
+  })
+  it('non-readonly row is click-focusable (tabindex -1)', () => {
+    const w = mountRow(treeRow({ heading_level: 1 }))
+    expect(w.find('.ntr').attributes('tabindex')).toBe('-1')
+  })
+})
