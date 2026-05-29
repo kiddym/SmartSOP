@@ -345,3 +345,14 @@ def test_get_detail_returns_meta_fields_empty_nested(db: Session, factory: Facto
     assert detail.procedure.folder_full_path == leaf.full_path
     assert detail.chapters == []
     assert any(f.key == "risk_cat" for f in detail.fields)
+
+
+def test_publish_blocked_by_review_node(db: Session, factory: Factory) -> None:
+    folder = factory.folder(prefix="QC")
+    proc = factory.procedure(folder.id, status="DRAFT", version=1, is_current=True)
+    factory.node(proc.id, body="<p>x</p>", heading_level=1, mark_status="review", sort_order=1000)
+    with pytest.raises(HTTPException) as exc:
+        procedure_service.transition(
+            db, proc.id, TransitionIn(status="PUBLISHED"), proc.revision, META
+        )
+    assert exc.value.detail["code"] == "REVIEW_PENDING"

@@ -304,10 +304,14 @@ def test_publish_blocked_while_review_pending(client: TestClient, storage_tmp: P
     assert blocked.status_code == 400
     assert blocked.json()["detail"]["code"] == "REVIEW_PENDING"
 
-    # 清掉所有 review 后可发布
-    for n in _flatten(detail["chapters"]):
-        if n["mark_status"] == "review":
-            client.post(f"/api/v1/chapters/{n['id']}/mark-status", json={"mark_status": "unmarked"})
+    # 清掉所有 review 后可发布（节点确认动作：batch 更新会把 review 清回 unmarked）
+    nodes = client.get(f"/api/v1/procedures/{pid}/nodes").json()
+    review_ids = [n["id"] for n in nodes if n["mark_status"] == "review"]
+    assert review_ids  # 导入应产生待确认节点
+    client.patch(
+        f"/api/v1/procedures/{pid}/nodes:batch",
+        json={"updates": {nid: {} for nid in review_ids}},
+    )
     rev2 = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["revision"]
     ok = client.post(
         f"/api/v1/procedures/{pid}/transition",

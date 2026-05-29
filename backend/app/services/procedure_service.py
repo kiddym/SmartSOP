@@ -24,6 +24,7 @@ from app.deps import RequestMeta
 from app.errors import bad_request, not_found
 from app.models.base import new_uuid, utcnow
 from app.models.chapter import ProcedureChapter
+from app.models.node import ProcedureNode
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
@@ -306,11 +307,11 @@ def transition(
         field_service.validate_values(db, proc.custom_values, require_check=True)
         pending = db.execute(
             select(func.count())
-            .select_from(ProcedureChapter)
+            .select_from(ProcedureNode)
             .where(
-                ProcedureChapter.procedure_id == proc.id,
-                ProcedureChapter.is_active.is_(True),
-                ProcedureChapter.mark_status == "review",
+                ProcedureNode.procedure_id == proc.id,
+                ProcedureNode.is_active.is_(True),
+                ProcedureNode.mark_status == "review",
             )
         ).scalar_one()
         if pending:
