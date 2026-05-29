@@ -1,5 +1,6 @@
 import type { Node } from '@/types/node'
 import { nodeTitle } from '@/utils/nodeTree'
+import { htmlToText, similarity } from './charDiff'
 
 export type DiffStatus = 'unchanged' | 'modified' | 'added' | 'removed'
 export interface DiffRow {
@@ -29,6 +30,49 @@ export function changedFields(a: Node, b: Node): string[] {
   }
   if (JSON.stringify(a.input_schema) !== JSON.stringify(b.input_schema)) out.push('执行表单')
   if (JSON.stringify(a.attachment_marks) !== JSON.stringify(b.attachment_marks)) out.push('附件')
+  return out
+}
+
+const RENAME_THRESHOLD = 0.6
+const MAX_RENAME_PAIRS = 2500
+
+/** Post-pass: pair an unmatched removed+added that are the same node renamed/edited
+ *  (body similarity ≥ threshold AND some persistent field changed) into one `modified` row
+ *  (placed at the added slot; the paired removed dropped). Pure renumbers/moves (identical
+ *  content → empty changedFields) are NOT paired. O(R·A), bounded by MAX_RENAME_PAIRS. */
+export function detectRenames(rows: DiffRow[]): DiffRow[] {
+  const removed = rows.map((r, i) => ({ r, i })).filter((x) => x.r.status === 'removed')
+  const added = rows.map((r, i) => ({ r, i })).filter((x) => x.r.status === 'added')
+  if (!removed.length || !added.length || removed.length * added.length > MAX_RENAME_PAIRS) return rows
+  const pairedRemoved = new Set<number>()
+  const mergeAt = new Map<number, DiffRow>()
+  for (const A of added) {
+    let bestIdx = -1
+    let bestFields: string[] = []
+    let bestSim = RENAME_THRESHOLD
+    for (const R of removed) {
+      if (pairedRemoved.has(R.i)) continue
+      const fields = changedFields(R.r.old!, A.r.new!)
+      if (!fields.length) continue // pure move/renumber → don't pair
+      const sim = similarity(htmlToText(R.r.old!.body), htmlToText(A.r.new!.body))
+      if (sim >= bestSim) {
+        bestSim = sim
+        bestIdx = R.i
+        bestFields = fields
+      }
+    }
+    if (bestIdx >= 0) {
+      pairedRemoved.add(bestIdx)
+      mergeAt.set(A.i, { status: 'modified', old: rows[bestIdx].old, new: A.r.new, changedFields: bestFields })
+    }
+  }
+  if (!mergeAt.size) return rows
+  const out: DiffRow[] = []
+  rows.forEach((r, idx) => {
+    if (mergeAt.has(idx)) out.push(mergeAt.get(idx)!)
+    else if (r.status === 'removed' && pairedRemoved.has(idx)) return
+    else out.push(r)
+  })
   return out
 }
 
@@ -72,5 +116,5 @@ export function diffVersions(oldNodes: Node[], newNodes: Node[]): DiffRow[] {
     rows.push({ status: 'added', old: null, new: b[j], changedFields: [] })
     j++
   }
-  return rows
+  return detectRenames(rows)
 }

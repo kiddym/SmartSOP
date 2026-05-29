@@ -63,4 +63,26 @@ describe('diffVersions', () => {
     expect(diffVersions([], [n({ code: '1' })]).map((r) => r.status)).toEqual(['added'])
     expect(diffVersions([n({ code: '1' })], []).map((r) => r.status)).toEqual(['removed'])
   })
+  it('rename: a title change (different signature) → one modified row, not remove+add', () => {
+    const old = [n({ id: 'o', code: '', body: '<p>目的</p><p>本程序适用于公司股东</p>' })]
+    const neu = [n({ id: 'nn', code: '', body: '<p>宗旨</p><p>本程序适用于公司股东</p>' })]
+    const rows = diffVersions(old, neu)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].status).toBe('modified')
+    expect(rows[0].changedFields).toEqual(['正文'])
+    expect(rows[0].old?.id).toBe('o')
+    expect(rows[0].new?.id).toBe('nn')
+  })
+  it('pure renumber (identical body, code differs) stays remove+add', () => {
+    const old = [n({ id: 'o', code: '3.1', body: '<p>多少分</p>' })]
+    const neu = [n({ id: 'nn', code: '4.1', body: '<p>多少分</p>' })]
+    const rows = diffVersions(old, neu)
+    expect(rows.map((r) => r.status).sort()).toEqual(['added', 'removed'])
+  })
+  it('dissimilar add+remove (changed fields but low overlap) stays separate', () => {
+    const old = [n({ id: 'o', code: '', body: '<p>完全旧</p>' })]
+    const neu = [n({ id: 'nn', code: '', body: '<p>毫不相干新内容</p>' })]
+    const rows = diffVersions(old, neu)
+    expect(rows.map((r) => r.status).sort()).toEqual(['added', 'removed'])
+  })
 })

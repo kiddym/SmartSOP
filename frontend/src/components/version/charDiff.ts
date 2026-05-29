@@ -72,6 +72,15 @@ function lcsMiddle(a: string, b: string): DiffSeg[] {
   return out
 }
 
+/** Similarity ratio in [0,1]: 2·commonChars / (|a|+|b|), where commonChars = total length of
+ *  charDiff's equal segments. 1 when both empty; 0 when exactly one is empty. */
+export function similarity(a: string, b: string): number {
+  if (!a && !b) return 1
+  if (!a || !b) return 0
+  const equalLen = charDiff(a, b).reduce((sum, seg) => sum + (seg.type === 'equal' ? seg.text.length : 0), 0)
+  return (2 * equalLen) / (a.length + b.length)
+}
+
 /** Coalesce adjacent same-type segments; drop empties. */
 function merge(segs: DiffSeg[]): DiffSeg[] {
   const out: DiffSeg[] = []
