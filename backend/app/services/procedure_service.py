@@ -254,6 +254,7 @@ def update_procedure(
         "quality_level": proc.quality_level,
         "level_of_use": proc.level_of_use,
         "version_update_notes": proc.version_update_notes,
+        "signoff_enabled": proc.signoff_enabled,
     }
     proc.name = data.name
     proc.description = data.description
@@ -262,6 +263,7 @@ def update_procedure(
     proc.level_of_use = data.level_of_use
     proc.custom_values = data.custom_values
     proc.version_update_notes = data.version_update_notes
+    proc.signoff_enabled = data.signoff_enabled
     optimistic_lock.bump(proc)
     db.flush()
 
@@ -272,6 +274,7 @@ def update_procedure(
         "quality_level": proc.quality_level,
         "level_of_use": proc.level_of_use,
         "version_update_notes": proc.version_update_notes,
+        "signoff_enabled": proc.signoff_enabled,
     }
     old_value, new_value = audit_service.compute_diff(before, after)
     audit_service.log_procedure_action(

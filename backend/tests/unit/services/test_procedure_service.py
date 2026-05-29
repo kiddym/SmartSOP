@@ -356,3 +356,19 @@ def test_publish_blocked_by_review_node(db: Session, factory: Factory) -> None:
             db, proc.id, TransitionIn(status="PUBLISHED"), proc.revision, META
         )
     assert exc.value.detail["code"] == "REVIEW_PENDING"
+
+
+def test_update_procedure_persists_signoff_enabled(db: Session, factory: Factory) -> None:
+    from app.schemas.procedure import ProcedureUpdate
+
+    folder = factory.folder(prefix="QC")
+    proc = factory.procedure(folder.id, status="DRAFT", is_current=True)
+    procedure_service.update_procedure(
+        db,
+        proc.id,
+        ProcedureUpdate(name="N", level_of_use="reference", signoff_enabled=True),
+        proc.revision,
+        META,
+    )
+    db.refresh(proc)
+    assert proc.signoff_enabled is True
