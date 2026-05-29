@@ -18,29 +18,27 @@ from app.errors import bad_request, conflict, not_found
 from app.models.asset import ProcedureAssetReference
 from app.models.attachment import ProcedureAttachment
 from app.models.base import new_uuid, utcnow
-from app.models.chapter import ProcedureChapter
 from app.models.folder import Folder
+from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
 from app.models.settings import ProcedureSettings
-from app.models.step import ProcedureStep
 from app.seed import ARCHIVED_FOLDER_NAME, DEPRECATED_FOLDER_NAME
 from app.services import (
     attachment_service,
     audit_service,
-    numbering_service,
+    node_numbering,
     procedure_service,
     source_docx_service,
     version_service,
 )
 from app.services.sequence_generator import next_sequence_value
 
-# 深拷贝时一并复制的章节 / 步骤字段（id / parent 关系单独重映射）。
-_CHAPTER_COPY = ("title", "sort_order", "level", "skip_numbering")
-_STEP_COPY = (
-    "kind",
-    "title",
-    "content",
+# 深拷贝时一并复制的节点字段（id / procedure_id 单独重映射；mark_status 重置）。
+_NODE_COPY = (
     "sort_order",
+    "heading_level",
+    "kind",
+    "body",
     "skip_numbering",
     "input_schema",
     "attachment_marks",
@@ -138,43 +136,23 @@ def _group_records(db: Session, group_id: str) -> list[Procedure]:
 
 
 def _clone_tree(db: Session, src_id: str, dst_id: str) -> None:
-    """深拷贝 src 程序的章节 / 步骤树到 dst（重映射 id / parent_id / chapter_id），并重算编号。"""
-    chapters = list(
-        db.execute(
-            select(ProcedureChapter)
-            .where(ProcedureChapter.procedure_id == src_id, ProcedureChapter.is_active.is_(True))
-            .order_by(ProcedureChapter.level, ProcedureChapter.sort_order, ProcedureChapter.id)
-        ).scalars()
-    )
-    id_map: dict[str, str] = {ch.id: new_uuid() for ch in chapters}
-    for ch in chapters:
-        clone = ProcedureChapter(
-            id=id_map[ch.id],
-            procedure_id=dst_id,
-            parent_id=id_map.get(ch.parent_id) if ch.parent_id else None,
-            mark_status="unmarked",  # 标记态为编辑期瞬态，复制版重置干净
-            **{f: getattr(ch, f) for f in _CHAPTER_COPY},
-        )
-        db.add(clone)
-
-    steps = list(
-        db.execute(
-            select(ProcedureStep).where(
-                ProcedureStep.procedure_id == src_id, ProcedureStep.is_active.is_(True)
+    """深拷贝 src 程序的 ProcedureNode 行到 dst（新 id；标记态重置；重算编号）。"""
+    nodes = db.execute(
+        select(ProcedureNode)
+        .where(ProcedureNode.procedure_id == src_id, ProcedureNode.is_active.is_(True))
+        .order_by(ProcedureNode.sort_order, ProcedureNode.id)
+    ).scalars()
+    for n in nodes:
+        db.add(
+            ProcedureNode(
+                id=new_uuid(),
+                procedure_id=dst_id,
+                mark_status="unmarked",  # 标记态为编辑期瞬态，复制版重置干净
+                **{f: getattr(n, f) for f in _NODE_COPY},
             )
-        ).scalars()
-    )
-    for st in steps:
-        clone_step = ProcedureStep(
-            id=new_uuid(),
-            procedure_id=dst_id,
-            chapter_id=id_map.get(st.chapter_id) if st.chapter_id else None,
-            **{f: getattr(st, f) for f in _STEP_COPY},
         )
-        db.add(clone_step)
-
     db.flush()
-    numbering_service.recompute(db, dst_id)
+    node_numbering.recompute(db, dst_id)
 
 
 def _fork(
@@ -540,23 +518,8 @@ def delete_group(db: Session, group_id: str, reason: str, meta: RequestMeta) -> 
     )
 
     # FK RESTRICT + 无 cascade → 手动按依赖顺序物理删除。
-    db.execute(delete(ProcedureStep).where(ProcedureStep.procedure_id == proc.id))
-    # 章节自引用：按真实树深拓扑删（叶先于父），不可依赖 level 列（仅 1-3 显示层级，
-    # 同批删父子会触发自引用 FK RESTRICT 冲突，评审 H3）。
-    rows = db.execute(
-        select(ProcedureChapter.id, ProcedureChapter.parent_id).where(
-            ProcedureChapter.procedure_id == proc.id
-        )
-    ).all()
-    parent_of: dict[str, str | None] = {cid: pid for cid, pid in rows}
-    remaining = set(parent_of)
-    while remaining:
-        referenced = {parent_of[c] for c in remaining if parent_of[c] in remaining}
-        leaves = remaining - referenced
-        if not leaves:  # 理论不会有环；兜底避免死循环
-            leaves = remaining
-        db.execute(delete(ProcedureChapter).where(ProcedureChapter.id.in_(leaves)))
-        remaining -= leaves
+    # ProcedureNode 无自引用（树关系由 sort_order+heading_level 派生），平铺一次性删。
+    db.execute(delete(ProcedureNode).where(ProcedureNode.procedure_id == proc.id))
     db.execute(
         delete(ProcedureAssetReference).where(ProcedureAssetReference.procedure_id == proc.id)
     )

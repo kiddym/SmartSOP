@@ -37,7 +37,7 @@ def test_upgrade_forks_new_draft(db: Session, factory: Factory) -> None:
     factory.settings()
     folder = _leaf(factory)
     proc = _published(factory, folder, version=1)
-    factory.chapter(proc.id, title="章A")
+    factory.node(proc.id, body="<p>章A</p>", heading_level=1, sort_order=1000)
     new = version_flow_service.upgrade_version(db, proc.id, META)
 
     assert new.version == 2
@@ -51,11 +51,11 @@ def test_upgrade_forks_new_draft(db: Session, factory: Factory) -> None:
     # 内容已深拷贝
     children = version_flow_service._group_records(db, new.procedure_group_id)
     assert len(children) == 2
-    from app.models.chapter import ProcedureChapter
+    from app.models.node import ProcedureNode
 
     cloned = list(
         db.execute(
-            ProcedureChapter.__table__.select().where(ProcedureChapter.procedure_id == new.id)
+            ProcedureNode.__table__.select().where(ProcedureNode.procedure_id == new.id)
         )
     )
     assert len(cloned) == 1
@@ -263,7 +263,7 @@ def test_copy_creates_new_group(db: Session, factory: Factory) -> None:
     src_folder = _leaf(factory, name="源", prefix="SRC")
     dst_folder = _leaf(factory, name="目标", prefix="DST")
     src = _published(factory, src_folder, name="原程序", version=3)
-    factory.chapter(src.id, title="章")
+    factory.node(src.id, body="<p>章</p>", heading_level=1, sort_order=1000)
     new = version_flow_service.copy_procedure(db, src.id, dst_folder.id, None, META)
     assert new.procedure_group_id != src.procedure_group_id
     assert new.version == 1
@@ -336,16 +336,41 @@ def test_delete_group_v1_draft(db: Session, factory: Factory) -> None:
     assert remaining == []
 
 
-def test_delete_group_topological_chapter_delete(db: Session, factory: Factory) -> None:
-    """评审 H3：嵌套章节须按真实树深删除，不依赖 level 列。"""
+def test_clone_tree_copies_nodes(db: Session, factory: Factory) -> None:
+    from app.models.node import ProcedureNode
+
+    folder = _leaf(factory)
+    src = factory.procedure(folder.id, code="QC-1")
+    dst = factory.procedure(
+        folder.id, code="QC-1", procedure_group_id=src.procedure_group_id,
+        version=2, is_current=False,
+    )
+    factory.node(src.id, body="<p>章</p>", heading_level=1, sort_order=1000)
+    factory.node(src.id, body="<p>正文</p>", heading_level=None, kind="node", sort_order=2000)
+
+    version_flow_service._clone_tree(db, src.id, dst.id)
+
+    cloned = (
+        db.query(ProcedureNode)
+        .filter_by(procedure_id=dst.id, is_active=True)
+        .order_by(ProcedureNode.sort_order)
+        .all()
+    )
+    assert [(n.heading_level, n.body) for n in cloned] == [(1, "<p>章</p>"), (None, "<p>正文</p>")]
+
+
+def test_delete_group_removes_nodes(db: Session, factory: Factory) -> None:
+    from app.models.node import ProcedureNode
+
     folder = _leaf(factory)
     proc = factory.procedure(folder.id, version=1, status="DRAFT", is_current=True)
-    l1 = factory.chapter(proc.id, title="L1", level=1)
-    l2 = factory.chapter(proc.id, title="L2", parent_id=l1.id, level=2)
-    # 叶子项（内容块=步骤 kind='content'）挂在最深章节下
-    factory.step(proc.id, chapter_id=l2.id, kind="content", content="<p>正文</p>")
+    factory.node(proc.id, body="<p>章</p>", heading_level=1, sort_order=1000)
+    factory.node(proc.id, body="<p>正文</p>", sort_order=2000)
+
     version_flow_service.delete_group(db, proc.procedure_group_id, "删", META)
+
     assert version_flow_service._group_records(db, proc.procedure_group_id) == []
+    assert db.query(ProcedureNode).filter_by(procedure_id=proc.id).count() == 0
 
 
 # --------------------------------------------------------------------------- #
