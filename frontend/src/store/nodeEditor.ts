@@ -16,7 +16,7 @@ interface State {
   // 撤销（Task 5）
   undoStack: InverseOp[]
   redoStack: InverseOp[]
-  _suppressUndo: boolean // undo 执行期间抑制逆操作自身入栈
+  _recordMode: 'normal' | 'undoing' | 'redoing' // 撤销/重做录制模式：决定逆操作入哪个栈
 }
 
 // 逆操作（Task 5 填充实现；此处先声明类型，store 形状稳定）。
@@ -35,7 +35,7 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     loadError: false,
     undoStack: [],
     redoStack: [],
-    _suppressUndo: false,
+    _recordMode: 'normal',
   }),
 
   getters: {
@@ -56,6 +56,9 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
     },
     canUndo(state): boolean {
       return state.undoStack.length > 0
+    },
+    canRedo(state): boolean {
+      return state.redoStack.length > 0
     },
   },
 
@@ -94,21 +97,44 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       this.nodes = await api.listNodes(this.procedureId)
     },
 
-    // 逆操作入栈。undo 执行期间（_suppressUndo）逆操作本身不再入栈。
     _pushUndo(inverse: InverseOp): void {
-      if (this._suppressUndo) return
-      this.undoStack.push(inverse)
+      if (this._recordMode === 'normal') {
+        this.undoStack.push(inverse)
+        this.redoStack = [] // 新用户操作令 redo 失效
+      } else if (this._recordMode === 'undoing') {
+        this.redoStack.push(inverse) // 撤销时捕获 redo
+      } else {
+        this.undoStack.push(inverse) // 重做时捕获 re-undo（不清 redo）
+      }
       if (this.undoStack.length > 100) this.undoStack.shift()
+      if (this.redoStack.length > 100) this.redoStack.shift()
     },
 
     async undo(): Promise<void> {
       const inverse = this.undoStack.pop()
       if (!inverse) return
-      this._suppressUndo = true
+      this._recordMode = 'undoing'
       try {
         await inverse()
+      } catch {
+        this.undoStack.push(inverse) // 失败不静默丢弃：重新入栈
+        await this._refetch().catch(() => {}) // 与服务端真态对齐（拦截器已提示错误）
       } finally {
-        this._suppressUndo = false
+        this._recordMode = 'normal'
+      }
+    },
+
+    async redo(): Promise<void> {
+      const inverse = this.redoStack.pop()
+      if (!inverse) return
+      this._recordMode = 'redoing'
+      try {
+        await inverse()
+      } catch {
+        this.redoStack.push(inverse)
+        await this._refetch().catch(() => {})
+      } finally {
+        this._recordMode = 'normal'
       }
     },
 

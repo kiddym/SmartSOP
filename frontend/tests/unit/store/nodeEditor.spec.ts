@@ -218,3 +218,52 @@ describe('nodeEditor store — batchSetKind', () => {
     expect(batchSpy).not.toHaveBeenCalled()
   })
 })
+
+describe('nodeEditor store — redo + robust undo (E1)', () => {
+  it('redo replays setLevel after undo (round-trip)', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', heading_level: null, body: '<p>x</p>' })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1, body: '<p>x</p>' })])
+    await store.setLevel('a', 1)
+    expect(store.canUndo).toBe(true)
+    expect(store.canRedo).toBe(false)
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: null, body: '<p>x</p>' })])
+    await store.undo()
+    expect(store.canUndo).toBe(false)
+    expect(store.canRedo).toBe(true)
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1, body: '<p>x</p>' })])
+    await store.redo()
+    expect(store.nodeMap.get('a')?.heading_level).toBe(1)
+    expect(store.canUndo).toBe(true)
+    expect(store.canRedo).toBe(false)
+  })
+
+  it('a new op after undo clears the redo stack', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', heading_level: null })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    batchSpy.mockResolvedValue([n({ id: 'a', heading_level: 1 })])
+    await store.setLevel('a', 1)
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: null })])
+    await store.undo()
+    expect(store.canRedo).toBe(true)
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', kind: 'step' })])
+    await store.setKind('a', 'step')
+    expect(store.canRedo).toBe(false)
+  })
+
+  it('failed undo re-pushes the entry and refetches (no silent loss)', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', heading_level: null })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    batchSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1 })])
+    await store.setLevel('a', 1)
+    expect(store.canUndo).toBe(true)
+    batchSpy.mockRejectedValueOnce(new Error('conflict'))
+    listSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1 })]) // refetch
+    await store.undo()
+    expect(store.canUndo).toBe(true) // re-pushed, not lost
+    expect(listSpy).toHaveBeenCalledTimes(2) // initial load + refetch
+  })
+})
