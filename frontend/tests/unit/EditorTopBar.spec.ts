@@ -86,4 +86,16 @@ describe('EditorTopBar (B3b-1)', () => {
     expect(w.emitted('publish')).toBeTruthy()
     expect(w.emitted('preview-pdf')).toBeTruthy()
   })
+
+  it('redo button: disabled when canRedo is false, triggers redo when enabled', async () => {
+    const { w, node } = setup()
+    const findRedo = () => w.findAll('button').find((b) => b.text().includes('重做'))
+    expect(findRedo()).toBeTruthy()
+    expect(findRedo()!.attributes('disabled')).toBeDefined()
+    node.redoStack.push(async () => {})
+    await flushPromises()
+    const redo = vi.spyOn(node, 'redo').mockResolvedValue()
+    await findRedo()!.trigger('click')
+    expect(redo).toHaveBeenCalled()
+  })
 })

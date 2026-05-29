@@ -19,6 +19,7 @@ import PdfPreviewDialog from '@/components/PdfPreview/PdfPreviewDialog.vue'
 import EditorPreviewPane from '@/components/editor/EditorPreviewPane.vue'
 import CollapsiblePanel from '@/components/shared/CollapsiblePanel.vue'
 import { useSidebar } from '@/composables/useSidebar'
+import { useEditorShortcuts } from '@/composables/useEditorShortcuts'
 import { shouldAutoCollapse } from '@/utils/editorFocus'
 import type { PanelConfig } from '@/utils/collapsiblePanel'
 
@@ -29,6 +30,8 @@ const router = useRouter()
 const id = computed(() => String(route.params.id))
 const store = useProcedureEditorStore()
 const nodeStore = useNodeEditorStore()
+// 键盘快捷键（E1）：撤销/重做 + 设层级；仅可编辑时生效（/view 只读时 no-op）。
+useEditorShortcuts({ editable: () => store.editable })
 
 const activeTab = ref<'node' | 'attach' | 'history'>('node')
 const publishVisible = ref(false)

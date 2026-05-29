@@ -30,7 +30,7 @@ const inflight = ref(0)
 const saving = ref(false)
 const MUTATING = new Set([
   'setLevel', 'setKind', 'toggleSkip', 'batchSetLevel', 'batchSetKind',
-  'confirmReview', 'createNode', 'removeNode', 'reorder', 'updateBody', 'updateForm', 'undo',
+  'confirmReview', 'createNode', 'removeNode', 'reorder', 'updateBody', 'updateForm', 'undo', 'redo',
 ])
 node.$onAction(({ name, after, onError }) => {
   if (!MUTATING.has(name)) return
@@ -58,6 +58,7 @@ node.$onAction(({ name, after, onError }) => {
 
     <div v-if="store.editable" class="right">
       <el-button class="etb-undo" size="small" :disabled="!node.canUndo" title="撤销 (节点编辑)" @click="node.undo()">↶ 撤销</el-button>
+      <el-button class="etb-redo" size="small" :disabled="!node.canRedo" title="重做 (节点编辑)" @click="node.redo()">↷ 重做</el-button>
       <span class="etb-save" :class="{ 'is-saving': saving }">{{ saving ? '保存中…' : '✓ 已保存' }}</span>
       <el-button size="small" @click="emit('preview-pdf')">PDF 预览</el-button>
       <el-button v-if="showPublish" size="small" type="primary" @click="emit('publish')">发布</el-button>
