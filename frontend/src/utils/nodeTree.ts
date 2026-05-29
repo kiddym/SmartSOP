@@ -62,3 +62,60 @@ export function visibleRows(
   }
   return rows
 }
+
+/** 沿 parent_id 反向闭包，返回 id 的所有后代（不含自身）。 */
+export function descendantIds(nodes: Node[], id: string): string[] {
+  const childrenByParent = new Map<string | null, string[]>()
+  for (const x of nodes) {
+    const arr = childrenByParent.get(x.parent_id)
+    if (arr) arr.push(x.id)
+    else childrenByParent.set(x.parent_id, [x.id])
+  }
+  const out: string[] = []
+  const stack = [...(childrenByParent.get(id) ?? [])]
+  while (stack.length) {
+    const cur = stack.pop() as string
+    out.push(cur)
+    const kids = childrenByParent.get(cur)
+    if (kids) stack.push(...kids)
+  }
+  return out
+}
+
+/** 子树 = 自身 + 所有后代。 */
+export function subtreeIds(nodes: Node[], id: string): string[] {
+  return [id, ...descendantIds(nodes, id)]
+}
+
+export type CheckState = 'checked' | 'indeterminate' | 'unchecked'
+
+/** 每个节点的三态：其子树（含自身）全选=checked，部分=indeterminate，皆未选=unchecked。O(N)。 */
+export function checkStates(nodes: Node[], selection: ReadonlySet<string>): Map<string, CheckState> {
+  const childrenByParent = new Map<string | null, Node[]>()
+  for (const x of nodes) {
+    const arr = childrenByParent.get(x.parent_id)
+    if (arr) arr.push(x)
+    else childrenByParent.set(x.parent_id, [x])
+  }
+  const memo = new Map<string, { sel: number; total: number }>()
+  const visit = (node: Node): { sel: number; total: number } => {
+    const cached = memo.get(node.id)
+    if (cached) return cached
+    let sel = selection.has(node.id) ? 1 : 0
+    let total = 1
+    for (const c of childrenByParent.get(node.id) ?? []) {
+      const r = visit(c)
+      sel += r.sel
+      total += r.total
+    }
+    const r = { sel, total }
+    memo.set(node.id, r)
+    return r
+  }
+  const out = new Map<string, CheckState>()
+  for (const node of nodes) {
+    const { sel, total } = visit(node)
+    out.set(node.id, sel === 0 ? 'unchecked' : sel === total ? 'checked' : 'indeterminate')
+  }
+  return out
+}

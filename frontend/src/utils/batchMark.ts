@@ -66,33 +66,20 @@ export function buildSelection(params: {
   return { selection: sel, anchor: nextAnchor, warnings }
 }
 
-/** 节点级联选择参数。
- * - rootId：被点击的容器节点，仅作为锚点参与 shift-range 计算，**不**进入 selection。
- * - descendantIds：rootId 子树里所有叶子节点 id（DFS 顺序由调用方决定）。
- *   rootId 自身不在此列：容器节点不可被标记/转换。
- * - action：select 加入；deselect 移除。半选/未选/全选的判定在调用方，这里只执行结果。
- * - 100 项上限沿用 buildSelection 的策略：按 Set 插入顺序保留前 100，告警。
- * - anchor 恒为 rootId（不受截断影响，rootId 本身从不进 selection）。
- */
+/** 级联选择：把 ids（调用方已含 root）整批加入/移除；anchor 恒为 rootId；沿用 100 上限。 */
 export interface CascadeParams {
   current: ReadonlySet<string>
-  anchor: string | null
-  rootId: string
-  descendantIds: readonly string[]
+  rootId: string // 仅作 anchor
+  ids: readonly string[] // 要选/取消的节点（调用方决定是否含 root）
   action: 'select' | 'deselect'
 }
 
 export function buildCascadeSelection(p: CascadeParams): SelectionUpdate {
-  const { current, rootId, descendantIds, action } = p
+  const { current, rootId, ids, action } = p
   const sel = new Set(current)
   const warnings: string[] = []
-
-  if (action === 'select') {
-    for (const id of descendantIds) sel.add(id)
-  } else {
-    for (const id of descendantIds) sel.delete(id)
-  }
-
+  if (action === 'select') for (const id of ids) sel.add(id)
+  else for (const id of ids) sel.delete(id)
   if (sel.size > MAX_BATCH_MARK) {
     const trimmed = new Set([...sel].slice(0, MAX_BATCH_MARK))
     warnings.push(`单次最多标记 ${MAX_BATCH_MARK} 项，已保留前 ${MAX_BATCH_MARK} 项`)

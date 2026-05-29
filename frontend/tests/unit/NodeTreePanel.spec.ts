@@ -110,6 +110,37 @@ describe('NodeTreePanel', () => {
   })
 })
 
+describe('NodeTreePanel — cascade multiselect', () => {
+  it('checking a heading cascades to its whole subtree (incl. heading)', async () => {
+    const { w, store } = setup([
+      n({ id: 'c1', heading_level: 1, body: '<p>C1</p>' }),
+      n({ id: 'a', parent_id: 'c1', sort_order: 1000, depth: 1, body: '<p>A</p>' }),
+      n({ id: 'b', parent_id: 'c1', sort_order: 2000, depth: 1, body: '<p>B</p>' }),
+    ])
+    const rowC1 = w.findAllComponents({ name: 'NodeTreeRow' })[0]
+    rowC1.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    expect([...store.selection].sort()).toEqual(['a', 'b', 'c1'])
+    // checking again deselects the whole subtree
+    rowC1.vm.$emit('check', false)
+    await w.vm.$nextTick()
+    expect(store.selection.size).toBe(0)
+  })
+
+  it('heading row gets indeterminate when only some descendants are selected', async () => {
+    const { w, store } = setup([
+      n({ id: 'c1', heading_level: 1, body: '<p>C1</p>' }),
+      n({ id: 'a', parent_id: 'c1', sort_order: 1000, depth: 1, body: '<p>A</p>' }),
+      n({ id: 'b', parent_id: 'c1', sort_order: 2000, depth: 1, body: '<p>B</p>' }),
+    ])
+    store.selection = new Set(['a'])
+    await w.vm.$nextTick()
+    const rowC1 = w.findAllComponents({ name: 'NodeTreeRow' })[0]
+    expect(rowC1.props('indeterminate')).toBe(true)
+    expect(rowC1.props('selectedForMark')).toBe(false)
+  })
+})
+
 describe('NodeTreePanel — readonly', () => {
   it('hides add button and floating bar; passes readonly to rows', async () => {
     const pinia = createPinia()

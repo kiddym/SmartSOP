@@ -3,10 +3,10 @@ import { computed, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import NodeTreeRow from './NodeTreeRow.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
-import { buildSelection } from '@/utils/batchMark'
+import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
 import { nextReviewId } from '@/utils/reviewNav'
 import { computeReorder, type DropPosition } from '@/utils/nodeTreeDnd'
-import type { TreeRow } from '@/utils/nodeTree'
+import { subtreeIds, checkStates, type TreeRow } from '@/utils/nodeTree'
 
 const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: false })
 
@@ -17,6 +17,7 @@ const dropOnId = ref<string | null>(null)
 const dropPos = ref<DropPosition>('before')
 
 const search = computed({ get: () => store.search, set: (v: string) => (store.search = v) })
+const states = computed(() => checkStates(store.nodes, store.selection))
 
 function onSelect(id: string): void {
   store.select(id)
@@ -30,8 +31,22 @@ function onChip(id: string, command: string): void {
   else if (command === 'node') void store.setKind(id, 'node')
 }
 function onCheck(id: string, shift: boolean): void {
-  const rows = store.rows.map((r) => ({ id: r.node.id, parent_id: r.node.parent_id, kind: r.node.kind }))
-  const res = buildSelection({ current: store.selection, anchor: anchor.value, rows, rowId: id, shift })
+  if (shift && anchor.value) {
+    const rows = store.rows.map((r) => ({ id: r.node.id, parent_id: r.node.parent_id, kind: r.node.kind }))
+    const res = buildSelection({ current: store.selection, anchor: anchor.value, rows, rowId: id, shift: true })
+    store.selection = res.selection
+    anchor.value = res.anchor
+    for (const wmsg of res.warnings) ElMessage.warning(wmsg)
+    return
+  }
+  const ids = subtreeIds(store.nodes, id)
+  const allSelected = ids.every((x) => store.selection.has(x))
+  const res = buildCascadeSelection({
+    current: store.selection,
+    rootId: id,
+    ids,
+    action: allSelected ? 'deselect' : 'select',
+  })
   store.selection = res.selection
   anchor.value = res.anchor
   for (const wmsg of res.warnings) ElMessage.warning(wmsg)
@@ -125,7 +140,8 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
         :row="row"
         :readonly="props.readonly"
         :selected="store.selectedId === row.node.id"
-        :selected-for-mark="store.selection.has(row.node.id)"
+        :selected-for-mark="states.get(row.node.id) === 'checked'"
+        :indeterminate="states.get(row.node.id) === 'indeterminate'"
         :drop-hint="hintFor(row)"
         @select="onSelect(row.node.id)"
         @toggle="store.toggleExpand(row.node.id)"
