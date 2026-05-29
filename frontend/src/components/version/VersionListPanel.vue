@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { ElMessage } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import { fetchGroupVersions } from '@/api/procedures'
 import { formatDateTime } from '@/utils/format'
@@ -32,6 +33,15 @@ async function reload(): Promise<void> {
 onMounted(reload)
 defineExpose({ reload })
 
+async function manualRefresh(): Promise<void> {
+  try {
+    await reload()
+    ElMessage.success('已刷新')
+  } catch {
+    /* http 拦截器已提示错误 */
+  }
+}
+
 function toggleNotes(id: string): void {
   const next = new Set(expanded.value)
   if (next.has(id)) next.delete(id)
@@ -45,7 +55,7 @@ function toggleNotes(id: string): void {
     <template #header>
       <div class="hd">
         <span>版本列表（{{ items.length }}）</span>
-        <el-button text size="small" @click="reload">刷新</el-button>
+        <el-button text size="small" :loading="loading" @click="manualRefresh">刷新</el-button>
       </div>
     </template>
 
@@ -76,6 +86,13 @@ function toggleNotes(id: string): void {
         >
           回退到此版本
         </el-button>
+      </div>
+      <div
+        v-if="v.version_update_notes && !expanded.has(v.id)"
+        class="notes-preview"
+        @click="toggleNotes(v.id)"
+      >
+        {{ v.version_update_notes_preview || v.version_update_notes }}
       </div>
       <div v-if="expanded.has(v.id)" class="notes">
         {{ v.version_update_notes || '（无更新说明）' }}
@@ -127,5 +144,14 @@ function toggleNotes(id: string): void {
   font-size: 13px;
   color: #606266;
   white-space: pre-wrap;
+}
+.notes-preview {
+  margin: 4px 0 2px 46px;
+  font-size: 12px;
+  color: #909399;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

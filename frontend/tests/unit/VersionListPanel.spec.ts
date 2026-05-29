@@ -7,6 +7,7 @@ vi.mock('@/api/procedures', () => ({ fetchGroupVersions }))
 
 import VersionListPanel from '@/components/version/VersionListPanel.vue'
 import type { VersionListItem } from '@/types/procedure'
+import { ElMessage } from 'element-plus'
 
 function item(o: Partial<VersionListItem> & { id: string; version: number }): VersionListItem {
   return {
@@ -75,5 +76,42 @@ describe('VersionListPanel', () => {
     const viewBtn = w.findAll('button').find((b) => b.text().trim() === '查看')
     await viewBtn!.trigger('click')
     expect(w.emitted('view')?.[0]).toEqual(['v2'])
+  })
+
+  it('有 notes 且折叠 → 渲染预览片段（version_update_notes_preview）', async () => {
+    const w = await mountPanel(
+      [item({ id: 'v2', version: 2, version_update_notes: '完整说明文本', version_update_notes_preview: '完整说明…' })],
+      'v3',
+    )
+    const preview = w.find('.notes-preview')
+    expect(preview.exists()).toBe(true)
+    expect(preview.text()).toContain('完整说明…')
+  })
+
+  it('无 notes → 不渲染预览片段', async () => {
+    const w = await mountPanel([item({ id: 'v2', version: 2 })], 'v3') // notes 默认 ''
+    expect(w.find('.notes-preview').exists()).toBe(false)
+  })
+
+  it('展开后隐藏预览、显示完整说明', async () => {
+    const w = await mountPanel(
+      [item({ id: 'v2', version: 2, version_update_notes: '完整说明文本', version_update_notes_preview: '完整说明…' })],
+      'v3',
+    )
+    const toggle = w.findAll('button').find((b) => b.text().includes('更新说明'))
+    await toggle!.trigger('click')
+    expect(w.find('.notes-preview').exists()).toBe(false)
+    expect(w.find('.notes').text()).toContain('完整说明文本')
+  })
+
+  it('点击刷新 → 重新拉取并提示「已刷新」', async () => {
+    const w = await mountPanel([item({ id: 'v1', version: 1 })])
+    const successSpy = vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
+    fetchGroupVersions.mockResolvedValue({ count: 1, items: [item({ id: 'v1', version: 1 })] })
+    const refreshBtn = w.findAll('button').find((b) => b.text().trim() === '刷新')
+    await refreshBtn!.trigger('click')
+    await flushPromises()
+    expect(fetchGroupVersions).toHaveBeenCalledTimes(2) // mount + 手动刷新
+    expect(successSpy).toHaveBeenCalledWith('已刷新')
   })
 })
