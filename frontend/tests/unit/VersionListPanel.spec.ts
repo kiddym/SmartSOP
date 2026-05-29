@@ -130,4 +130,51 @@ describe('VersionListPanel', () => {
     const w = await mountPanel([item({ id: 'v3', version: 3, status: 'PUBLISHED', is_current: true })], 'v3')
     expect(w.findAll('button').some((b) => b.text().includes('对比当前'))).toBe(false)
   })
+
+  it('对比所选: pick two out of order → emits the version-ordered pair (old=lower)', async () => {
+    const w = await mountPanel([
+      item({ id: 'v3', version: 3, status: 'PUBLISHED', is_current: true }),
+      item({ id: 'v2', version: 2, status: 'ARCHIVED' }),
+      item({ id: 'v1', version: 1, status: 'ARCHIVED' }),
+    ], 'v3')
+    const checks = w.findAllComponents({ name: 'ElCheckbox' }) // one per row, in item order
+    checks[0].vm.$emit('change', true) // v3
+    checks[2].vm.$emit('change', true) // v1
+    await w.vm.$nextTick()
+    const btn = w.findAll('button').find((b) => b.text().includes('对比所选'))
+    expect(btn?.attributes('disabled')).toBeUndefined() // enabled at exactly 2
+    await btn!.trigger('click')
+    expect(w.emitted('compare')?.[0]).toEqual([
+      { oldId: 'v1', oldVersion: 1, newId: 'v3', newVersion: 3 },
+    ])
+  })
+
+  it('对比所选 is disabled unless exactly two are selected', async () => {
+    const w = await mountPanel([
+      item({ id: 'v2', version: 2, status: 'PUBLISHED', is_current: true }),
+      item({ id: 'v1', version: 1, status: 'ARCHIVED' }),
+    ], 'v2')
+    expect(w.findAll('button').some((b) => b.text().includes('对比所选'))).toBe(false) // none selected → no bar
+    w.findAllComponents({ name: 'ElCheckbox' })[0].vm.$emit('change', true) // 1 selected
+    await w.vm.$nextTick()
+    const btn = w.findAll('button').find((b) => b.text().includes('对比所选'))
+    expect(btn?.attributes('disabled')).toBeDefined() // present but disabled
+  })
+
+  it('selection caps at two (FIFO drops the earliest pick)', async () => {
+    const w = await mountPanel([
+      item({ id: 'v3', version: 3, status: 'PUBLISHED', is_current: true }),
+      item({ id: 'v2', version: 2, status: 'ARCHIVED' }),
+      item({ id: 'v1', version: 1, status: 'ARCHIVED' }),
+    ], 'v3')
+    const checks = w.findAllComponents({ name: 'ElCheckbox' })
+    checks[0].vm.$emit('change', true) // v3
+    checks[1].vm.$emit('change', true) // v2
+    checks[2].vm.$emit('change', true) // v1 → drops v3 (FIFO) → [v2, v1]
+    await w.vm.$nextTick()
+    await w.findAll('button').find((b) => b.text().includes('对比所选'))!.trigger('click')
+    expect(w.emitted('compare')?.[0]).toEqual([
+      { oldId: 'v1', oldVersion: 1, newId: 'v2', newVersion: 2 },
+    ])
+  })
 })
