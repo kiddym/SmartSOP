@@ -12,7 +12,8 @@ from app.models.base import utcnow
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
 from app.models.request_status import RequestStatus, can_transition
-from app.schemas.request import RequestCreate, RequestUpdate
+from app.schemas.request import RequestApprove, RequestCreate, RequestUpdate
+from app.schemas.work_order import WorkOrderCreate
 from app.services import sequence_service
 
 
@@ -125,3 +126,40 @@ def list_activities(db: Session, request_id: str) -> list[RequestActivity]:
         select(RequestActivity).where(RequestActivity.request_id == request_id)
         .order_by(RequestActivity.created_at, RequestActivity.id)
     ).scalars().all())
+
+
+def approve_request(db: Session, r: Request, payload: RequestApprove, company_id: str,
+                    actor_user_id: str | None):
+    """审批通过：复制请求字段生成工单（可附加指派/SOP），双向弱关联。返回生成的 WorkOrder。
+
+    工单服务在函数内部 import 以避免模块级循环依赖。
+    """
+    from app.services import work_order_execution_service as exe
+    from app.services import work_order_service as wos
+
+    if not can_transition(r.status, RequestStatus.APPROVED):
+        raise bad_request("REQUEST_BAD_TRANSITION",
+                          f"非法状态转移 {r.status.value}->APPROVED")
+    wo_payload = WorkOrderCreate(
+        title=r.title, description=r.description, priority=r.priority,
+        due_date=r.due_date, asset_id=r.asset_id, location_id=r.location_id,
+        primary_user_id=payload.primary_user_id,
+        assignee_ids=payload.assignee_ids, team_ids=payload.team_ids,
+    )
+    wo = wos.create_work_order(db, wo_payload, company_id, actor_user_id=actor_user_id)
+    if payload.procedure_id is not None:
+        exe.attach_procedure(db, wo, payload.procedure_id, company_id,
+                             actor_user_id=actor_user_id)
+    wo.request_id = r.id
+    r.status = RequestStatus.APPROVED
+    r.work_order_id = wo.id
+    r.resolved_by_user_id = actor_user_id
+    r.resolved_at = utcnow()
+    _log(db, r.id, company_id, "STATUS_CHANGE", actor_user_id=actor_user_id,
+         from_status=RequestStatus.PENDING.value, to_status=RequestStatus.APPROVED.value,
+         comment=payload.note)
+    _log(db, r.id, company_id, "WO_GENERATED", actor_user_id=actor_user_id, comment=wo.custom_id)
+    db.commit()
+    db.refresh(r)
+    db.refresh(wo)
+    return wo
