@@ -158,6 +158,53 @@ def test_detach_removes_rows_and_blocked_after_complete(db):
     assert exc.value.status_code == 400
 
 
+def test_required_field_zero_value_counts_as_present(db):
+    """falsy 但有效的填值（0 / False）不应被判为必填缺失。"""
+    c = _company(db, "acme")
+    tenant.set_current_company_id(c.id)
+    p = _published_procedure(db, c.id, with_required=True)
+    wo = wos.create_work_order(db, WorkOrderCreate(title="t"), c.id, None)
+    exe.attach_procedure(db, wo, p.id, c.id, None)
+    wos.transition(db, wo, WorkOrderTransition(to_status=WorkOrderStatus.IN_PROGRESS), c.id, None)
+    s2 = [s for s in exe.list_step_results(db, wo.id) if s.node_code == "S2"][0]
+    # torque=0 是有效读数，不应触发 STEP_REQUIRED_MISSING
+    exe.update_step(db, wo, s2, StepResultUpdate(response={"torque": 0}, is_done=True),
+                    c.id, actor_user_id="u1")
+    db.refresh(s2)
+    assert s2.is_done is True
+
+
+def test_set_assignees_writes_assign_activity(db):
+    """spec §3.4：set_assignees/set_teams 写 ASSIGN 时间线活动。"""
+    c = _company(db, "acme")
+    tenant.set_current_company_id(c.id)
+    wo = wos.create_work_order(db, WorkOrderCreate(title="t"), c.id, None)
+    wos.set_assignees(db, wo, [], c.id, actor_user_id="u7")
+    wos.set_teams(db, wo, [], c.id, actor_user_id="u7")
+    acts = wos.list_activities(db, wo.id)
+    assign_acts = [a for a in acts if a.activity_type == "ASSIGN"]
+    assert len(assign_acts) == 2
+    assert all(a.actor_user_id == "u7" for a in assign_acts)
+
+
+def test_step_result_unique_node_constraint(db):
+    """同工单同节点唯一：DB 约束兜底（attach 已清旧建新，此处直插重复行验证约束）。"""
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.work_order_step_result import WorkOrderStepResult
+    c = _company(db, "acme")
+    tenant.set_current_company_id(c.id)
+    wo = wos.create_work_order(db, WorkOrderCreate(title="t"), c.id, None)
+    db.add(WorkOrderStepResult(work_order_id=wo.id, node_id="n1", node_code="X",
+                               node_sort_order=0, response={}, company_id=c.id))
+    db.commit()
+    db.add(WorkOrderStepResult(work_order_id=wo.id, node_id="n1", node_code="X",
+                               node_sort_order=0, response={}, company_id=c.id))
+    with pytest.raises(IntegrityError):
+        db.commit()
+    db.rollback()
+
+
 def test_version_pinning_immutable(db):
     c = _company(db, "acme")
     tenant.set_current_company_id(c.id)

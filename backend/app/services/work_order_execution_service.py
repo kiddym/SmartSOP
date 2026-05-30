@@ -125,8 +125,9 @@ def update_step(db: Session, wo: WorkOrder, sr: WorkOrderStepResult, payload: St
         sr.notes = data["notes"]
     if "is_done" in data and data["is_done"] is not None:
         if data["is_done"]:
+            response = sr.response or {}
             missing = [f for f in _required_fields(db, sr.node_id)
-                       if not (sr.response or {}).get(f)]
+                       if f not in response or response[f] in (None, "")]
             if missing:
                 raise bad_request("STEP_REQUIRED_MISSING", "必填字段缺失", field=",".join(missing))
             sr.is_done = True

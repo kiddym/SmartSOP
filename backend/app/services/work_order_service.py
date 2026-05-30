@@ -50,19 +50,23 @@ def _log(db: Session, work_order_id: str, company_id: str, activity_type: str,
     ))
 
 
-def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: str) -> WorkOrder:
+def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: str,
+                  actor_user_id: str | None = None) -> WorkOrder:
     db.execute(delete(WorkOrderAssignee).where(WorkOrderAssignee.work_order_id == wo.id))
     for uid in dict.fromkeys(user_ids):
         db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=uid, company_id=company_id))
+    _log(db, wo.id, company_id, "ASSIGN", actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
     return wo
 
 
-def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str) -> WorkOrder:
+def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str,
+              actor_user_id: str | None = None) -> WorkOrder:
     db.execute(delete(WorkOrderTeam).where(WorkOrderTeam.work_order_id == wo.id))
     for tid in dict.fromkeys(team_ids_):
         db.add(WorkOrderTeam(work_order_id=wo.id, team_id=tid, company_id=company_id))
+    _log(db, wo.id, company_id, "ASSIGN", actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
     return wo
@@ -70,6 +74,8 @@ def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str)
 
 def create_work_order(db: Session, payload: WorkOrderCreate, company_id: str,
                       actor_user_id: str | None) -> WorkOrder:
+    # actor_user_id 预留：spec §3.4 当前未定义 CREATE 活动类型，建单不写时间线；
+    # 保留参数以便将来补 CREATE 活动而无需改调用方签名。
     seq = sequence_service.next_value(db, "work_order", company_id)
     wo = WorkOrder(
         custom_id=sequence_service.format_custom_id("WO", seq),

@@ -82,7 +82,8 @@ def delete_work_order(work_order_id: str, db: Session = Depends(get_db),
 def set_assignees(work_order_id: str, payload: AssigneesSet, db: Session = Depends(get_db),
                   current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT))):
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
-    wo = svc.set_assignees(db, wo, payload.user_ids, current_user.company_id)
+    wo = svc.set_assignees(db, wo, payload.user_ids, current_user.company_id,
+                           actor_user_id=current_user.id)
     return svc.to_read(db, wo)
 
 
@@ -90,7 +91,8 @@ def set_assignees(work_order_id: str, payload: AssigneesSet, db: Session = Depen
 def set_teams(work_order_id: str, payload: TeamsSet, db: Session = Depends(get_db),
               current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT))):
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
-    wo = svc.set_teams(db, wo, payload.team_ids, current_user.company_id)
+    wo = svc.set_teams(db, wo, payload.team_ids, current_user.company_id,
+                       actor_user_id=current_user.id)
     return svc.to_read(db, wo)
 
 

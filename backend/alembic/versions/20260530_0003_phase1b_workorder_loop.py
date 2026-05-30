@@ -123,6 +123,7 @@ def upgrade() -> None:
         sa.Column("done_at", DATETIME6, nullable=True),
         sa.Column("notes", sa.Text(), nullable=False, server_default=""),
         *_ts(),
+        sa.UniqueConstraint("work_order_id", "node_id", name="uq_work_order_step_result_node"),
     )
     op.create_index("ix_tb_work_order_step_result_company_id", "tb_work_order_step_result", ["company_id"])
     op.create_index("ix_tb_work_order_step_result_work_order_id", "tb_work_order_step_result", ["work_order_id"])

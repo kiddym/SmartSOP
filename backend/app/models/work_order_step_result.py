@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import DATETIME6, Base, UUIDMixin, TimestampMixin, TenantMixin
@@ -29,4 +29,6 @@ class WorkOrderStepResult(Base, UUIDMixin, TimestampMixin, TenantMixin):
     done_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     notes: Mapped[str] = mapped_column(Text, default="", server_default="")
 
-    __table_args__ = ()
+    __table_args__ = (
+        UniqueConstraint("work_order_id", "node_id", name="uq_work_order_step_result_node"),
+    )
