@@ -174,3 +174,12 @@ def storage_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Pa
     root = tmp_path / "storage"
     monkeypatch.setattr(settings, "storage_dir", str(root))
     yield root
+
+
+@pytest.fixture(autouse=True)
+def _clear_tenant_context():
+    """Each test starts/ends with no tenant scope (prevents leakage)."""
+    from app import tenant
+    tenant.set_current_company_id(None)
+    yield
+    tenant.set_current_company_id(None)

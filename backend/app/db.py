@@ -12,6 +12,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import settings
+import app.tenant_isolation  # noqa: F401  registers tenant events
 
 engine = create_engine(
     settings.database_url,
@@ -31,9 +32,12 @@ SessionLocal = sessionmaker(
 
 
 def get_db() -> Generator[Session, None, None]:
-    """FastAPI 依赖：每请求一个 session，结束后关闭。"""
+    """FastAPI 依赖：每请求一个 session，结束后关闭并清理租户上下文。"""
+    from app import tenant
+
     db = SessionLocal()
     try:
         yield db
     finally:
         db.close()
+        tenant.set_current_company_id(None)
