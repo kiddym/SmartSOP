@@ -32,6 +32,7 @@ from app.routers import (
 )
 from app.routers import auth
 from app.routers import company
+from app.routers import roles
 from app.routers import settings as settings_router
 from app.routers import users
 
@@ -41,13 +42,13 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
-    logger.info("Smart SOP API starting env=%s", settings.app_env)
+    logger.info("Smart CMMS API starting env=%s", settings.app_env)
     # 启动时幂等 seed 系统种子数据（system folders / settings / sample field）。
     # seed.run_seed 自身幂等，重复运行不会重复插入。
     with SessionLocal() as db:
         run_seed(db)
     yield
-    logger.info("Smart SOP API shutting down")
+    logger.info("Smart CMMS API shutting down")
 
 
 app = FastAPI(
@@ -99,6 +100,7 @@ app.include_router(fields.router)
 app.include_router(settings_router.router)
 app.include_router(nodes.router)
 app.include_router(company.router)
+app.include_router(roles.router)
 app.include_router(users.router)
 
 
