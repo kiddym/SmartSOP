@@ -9,6 +9,7 @@ from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.attachment import ProcedureAttachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
+from app.models.company import Company
 from app.models.field import ProcedureField
 from app.models.folder import Folder, FolderSequence
 from app.models.node import ProcedureNode
@@ -18,6 +19,7 @@ from app.models.source_docx import ProcedureSourceDocx
 
 __all__ = [
     "Base",
+    "Company",
     "Folder",
     "FolderAuditLog",
     "FolderSequence",
