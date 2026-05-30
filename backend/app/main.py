@@ -22,18 +22,18 @@ from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
 from app.tenant_middleware import TenantContextMiddleware
 from app.routers import (
-from app.routers import assets
-from app.routers import locations
-from app.routers import teams
     asset_categories,
+    assets,
     attachments,
     audit_logs,
     fields,
     folders,
+    locations,
     nodes,
     parse,
     procedure_groups,
     procedures,
+    teams,
 )
 from app.routers import auth
 from app.routers import company
