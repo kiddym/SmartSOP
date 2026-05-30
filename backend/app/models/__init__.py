@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.asset_category import AssetCategory
+from app.models.asset_downtime import AssetDowntime
+from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
 from app.models.location import Location, LocationTeam, LocationUser
 from app.models.team import Team, TeamUser
 from app.models.attachment import ProcedureAttachment
@@ -24,6 +26,10 @@ from app.models.source_docx import ProcedureSourceDocx
 from app.models.user import User
 
 __all__ = [
+    \"AssetUser\",
+    \"AssetTeam\",
+    \"AssetDowntime\",
+    \"Asset\",
     \"LocationUser\",
     \"LocationTeam\",
     \"Location\",
