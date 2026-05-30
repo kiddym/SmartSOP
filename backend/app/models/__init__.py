@@ -24,6 +24,9 @@ from app.models.settings import ProcedureSettings
 from app.models.role import Role
 from app.models.source_docx import ProcedureSourceDocx
 from app.models.user import User
+from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
+from app.models.work_order_activity import WorkOrderActivity
+from app.models.work_order_step_result import WorkOrderStepResult
 
 __all__ = [
     "Asset",
@@ -53,4 +56,9 @@ __all__ = [
     "Role",
     "Sequence",
     "User",
+    "WorkOrder",
+    "WorkOrderActivity",
+    "WorkOrderAssignee",
+    "WorkOrderStepResult",
+    "WorkOrderTeam",
 ]
