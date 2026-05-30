@@ -9,10 +9,16 @@ from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
 
-def create_user(db: Session, payload: UserCreate) -> User:
+def create_user(db: Session, payload: UserCreate, company_id: str | None = None) -> User:
+    # company_id is stamped explicitly from the authenticated caller's tenant.
+    # The before_flush isolation event would normally stamp it from the request
+    # context, but a sync FastAPI dependency's contextvar mutation does not
+    # propagate into the sync endpoint's separate threadpool task, so we pass it
+    # through to guarantee the NOT-NULL tb_user.company_id is set.
     user = User(email=payload.email,
                 password_hash=security.hash_password(payload.password),
-                name=payload.name, role_id=payload.role_id)
+                name=payload.name, role_id=payload.role_id,
+                company_id=company_id)
     db.add(user)
     db.commit()
     db.refresh(user)

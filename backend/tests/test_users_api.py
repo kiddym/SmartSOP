@@ -37,3 +37,32 @@ def test_new_user_can_login(client):
     r = client.post("/api/v1/auth/login", json={
         "email": "bob@acme.com", "password": "secret123", "company_slug": "acme"})
     assert r.status_code == 200, r.text
+
+
+def test_list_users_tenant_isolated(client):
+    """A tenant's user list must never include another tenant's users."""
+    t1 = _admin(client)
+    client.post("/api/v1/users", headers=_h(t1), json={
+        "email": "bob@acme.com", "password": "secret123", "name": "Bob"})
+    t2 = client.post("/api/v1/auth/register", json={
+        "company_name": "Globex", "email": "admin@globex.com",
+        "password": "secret123", "name": "Admin2"}).json()["access_token"]
+    client.post("/api/v1/users", headers=_h(t2), json={
+        "email": "carol@globex.com", "password": "secret123", "name": "Carol"})
+
+    acme = {u["email"] for u in client.get("/api/v1/users", headers=_h(t1)).json()}
+    globex = {u["email"] for u in client.get("/api/v1/users", headers=_h(t2)).json()}
+    assert acme == {"admin@acme.com", "bob@acme.com"}
+    assert globex == {"admin@globex.com", "carol@globex.com"}
+
+
+def test_get_other_tenant_user_404(client):
+    """Cross-tenant fetch by id (db.get bypasses read-scope) must 404."""
+    t1 = _admin(client)
+    bob_id = client.post("/api/v1/users", headers=_h(t1), json={
+        "email": "bob@acme.com", "password": "secret123", "name": "Bob"}).json()["id"]
+    t2 = client.post("/api/v1/auth/register", json={
+        "company_name": "Globex", "email": "admin@globex.com",
+        "password": "secret123", "name": "Admin2"}).json()["access_token"]
+    r = client.get(f"/api/v1/users/{bob_id}", headers=_h(t2))
+    assert r.status_code == 404, r.text
