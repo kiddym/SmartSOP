@@ -1,6 +1,8 @@
 """Security utilities: password hashing and JWT tokens."""
 from __future__ import annotations
 
+import base64
+import hashlib
 from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt
@@ -13,14 +15,27 @@ class TokenError(Exception):
     """Raised when a JWT cannot be decoded or is invalid."""
 
 
+def _prehash(password: str) -> bytes:
+    """SHA-256 then base64 so the bcrypt input is always 44 bytes.
+
+    bcrypt silently caps the password at 72 bytes (and recent bcrypt raises on
+    longer input). Our schemas allow up to 128 chars, and multibyte (e.g.
+    Chinese) passwords reach 72 bytes well under that. Pre-hashing with SHA-256
+    keeps the full password entropy while staying within bcrypt's limit — the
+    standard bcrypt_sha256 construction.
+    """
+    digest = hashlib.sha256(password.encode("utf-8")).digest()
+    return base64.b64encode(digest)
+
+
 def hash_password(password: str) -> str:
-    """Return a bcrypt hash of *password*."""
-    return _bcrypt.hashpw(password.encode("utf-8"), _bcrypt.gensalt()).decode("utf-8")
+    """Return a bcrypt(sha256(password)) hash."""
+    return _bcrypt.hashpw(_prehash(password), _bcrypt.gensalt()).decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    """Return True iff *plain* matches the bcrypt *hashed* value."""
-    return _bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    """Return True iff *plain* matches the bcrypt(sha256(...)) *hashed* value."""
+    return _bcrypt.checkpw(_prehash(plain), hashed.encode("utf-8"))
 
 
 def _create_token(*, user_id: str, company_id: str, role_code: str | None,
