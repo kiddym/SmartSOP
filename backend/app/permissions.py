@@ -29,6 +29,13 @@ ASSET_CATEGORY_MANAGE = "asset_category.manage"
 TEAM_VIEW = "team.view"
 TEAM_MANAGE = "team.manage"
 
+# --- 维护闭环（Phase 1B）---
+WORK_ORDER_VIEW = "work_order.view"
+WORK_ORDER_CREATE = "work_order.create"
+WORK_ORDER_EDIT = "work_order.edit"
+WORK_ORDER_DELETE = "work_order.delete"
+WORK_ORDER_EXECUTE = "work_order.execute"
+
 _PLATFORM = [
     USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
     ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
@@ -39,8 +46,12 @@ _BASE_DOMAIN = [
     ASSET_CATEGORY_VIEW, ASSET_CATEGORY_MANAGE,
     TEAM_VIEW, TEAM_MANAGE,
 ]
+_WORKORDER = [
+    WORK_ORDER_VIEW, WORK_ORDER_CREATE, WORK_ORDER_EDIT,
+    WORK_ORDER_DELETE, WORK_ORDER_EXECUTE,
+]
 
-ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN
+ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN + _WORKORDER
 
 BUILTIN_ROLES: list[dict] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
@@ -48,6 +59,7 @@ BUILTIN_ROLES: list[dict] = [
     {"code": "technician", "name": "技术员", "permissions": [
         USER_VIEW, ROLE_VIEW,
         LOCATION_VIEW, ASSET_VIEW, ASSET_EDIT, ASSET_CATEGORY_VIEW, TEAM_VIEW,
+        WORK_ORDER_VIEW, WORK_ORDER_EXECUTE, WORK_ORDER_EDIT,
     ]},
     {"code": "viewer", "name": "只读", "permissions": [
         c for c in ALL_PERMISSIONS if c.endswith(".view")]},
