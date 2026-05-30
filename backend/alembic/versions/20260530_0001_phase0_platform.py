@@ -115,16 +115,21 @@ def upgrade() -> None:
     op.create_index("ix_tb_user_company_id", "tb_user", ["company_id"])
     op.create_index("ix_tb_user_email", "tb_user", ["email"])
 
+    # SQLite cannot ALTER TABLE ADD a FOREIGN KEY constraint, so on SQLite
+    # (dev/test) we add a plain nullable column — SQLite does not enforce added
+    # FKs anyway. MySQL (prod) gets the real FK to tb_company.
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     for table in _SOP_TABLES:
-        op.add_column(
-            table,
-            sa.Column(
+        if is_sqlite:
+            company_col = sa.Column("company_id", sa.String(36), nullable=True)
+        else:
+            company_col = sa.Column(
                 "company_id",
                 sa.String(36),
                 sa.ForeignKey("tb_company.id", ondelete="CASCADE"),
                 nullable=True,
-            ),
-        )
+            )
+        op.add_column(table, company_col)
         op.create_index(f"ix_{table}_company_id", table, ["company_id"])
 
 
