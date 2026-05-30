@@ -1,10 +1,12 @@
 """Permission-code registry + built-in role defaults.
 
-Phase 0 declares only platform-layer codes. Later phases append module codes
-here; built-in role default sets get extended accordingly.
+Phase 0 declares platform-layer codes; Phase 1A adds maintenance base-domain
+codes (location/asset/asset_category/team). Later phases append more here and
+extend the built-in role default sets accordingly.
 """
 from __future__ import annotations
 
+# --- 平台层（Phase 0）---
 USER_CREATE = "user.create"
 USER_VIEW = "user.view"
 USER_EDIT = "user.edit"
@@ -13,17 +15,40 @@ ROLE_VIEW = "role.view"
 ROLE_MANAGE = "role.manage"
 COMPANY_SETTINGS = "company.settings"
 
-ALL_PERMISSIONS: list[str] = [
+# --- 维护基础域（Phase 1A）---
+LOCATION_VIEW = "location.view"
+LOCATION_CREATE = "location.create"
+LOCATION_EDIT = "location.edit"
+LOCATION_DELETE = "location.delete"
+ASSET_VIEW = "asset.view"
+ASSET_CREATE = "asset.create"
+ASSET_EDIT = "asset.edit"
+ASSET_DELETE = "asset.delete"
+ASSET_CATEGORY_VIEW = "asset_category.view"
+ASSET_CATEGORY_MANAGE = "asset_category.manage"
+TEAM_VIEW = "team.view"
+TEAM_MANAGE = "team.manage"
+
+_PLATFORM = [
     USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
     ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
 ]
+_BASE_DOMAIN = [
+    LOCATION_VIEW, LOCATION_CREATE, LOCATION_EDIT, LOCATION_DELETE,
+    ASSET_VIEW, ASSET_CREATE, ASSET_EDIT, ASSET_DELETE,
+    ASSET_CATEGORY_VIEW, ASSET_CATEGORY_MANAGE,
+    TEAM_VIEW, TEAM_MANAGE,
+]
+
+ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN
 
 BUILTIN_ROLES: list[dict] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
-    {"code": "admin", "name": "管理员", "permissions": [
-        USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
-        ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS]},
-    {"code": "technician", "name": "技术员", "permissions": [USER_VIEW, ROLE_VIEW]},
+    {"code": "admin", "name": "管理员", "permissions": list(ALL_PERMISSIONS)},
+    {"code": "technician", "name": "技术员", "permissions": [
+        USER_VIEW, ROLE_VIEW,
+        LOCATION_VIEW, ASSET_VIEW, ASSET_EDIT, ASSET_CATEGORY_VIEW, TEAM_VIEW,
+    ]},
     {"code": "viewer", "name": "只读", "permissions": [
         c for c in ALL_PERMISSIONS if c.endswith(".view")]},
 ]
