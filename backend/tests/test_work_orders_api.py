@@ -108,6 +108,20 @@ def test_sop_attach_execute_complete(client, db):
                        json={"to_status": "COMPLETE"}).json()["status"] == "COMPLETE"
 
 
+def test_attach_twice_conflicts(client, db):
+    """spec §4.1/§7：已挂接 SOP 的工单再 attach 返回 409。"""
+    t = _admin(client)
+    cid = _company_id(db, "acme")
+    pid = _seed_published_procedure(db, cid)
+    wid = client.post("/api/v1/work-orders", headers=_h(t), json={"title": "t"}).json()["id"]
+    first = client.post(f"/api/v1/work-orders/{wid}/attach-procedure", headers=_h(t),
+                        json={"procedure_id": pid})
+    assert first.status_code == 200, first.text
+    second = client.post(f"/api/v1/work-orders/{wid}/attach-procedure", headers=_h(t),
+                         json={"procedure_id": pid})
+    assert second.status_code == 409, second.text
+
+
 def test_attach_only_published(client, db):
     t = _admin(client)
     cid = _company_id(db, "acme")
