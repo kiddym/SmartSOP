@@ -8,13 +8,20 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import DATETIME6, Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    DATETIME6,
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 if TYPE_CHECKING:
     from app.models.attachment import ProcedureAttachment
 
 
-class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """程序（SOP）。同一逻辑程序的多个版本共享 procedure_group_id。"""
 
     __tablename__ = "tb_procedure"

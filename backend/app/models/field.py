@@ -7,10 +7,16 @@ from typing import Any
 from sqlalchemy import JSON, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
-class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """全局自定义字段定义。key 创建后不可改（Q254）。"""
 
     __tablename__ = "tb_procedure_field"

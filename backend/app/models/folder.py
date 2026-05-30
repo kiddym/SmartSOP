@@ -7,10 +7,17 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import DATETIME6, Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    DATETIME6,
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
-class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """文件夹（树形，max_depth=5）。容器 xor 叶子（Q247）。"""
 
     __tablename__ = "tb_folder"
@@ -30,7 +37,7 @@ class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     sequence: Mapped[FolderSequence | None] = relationship(back_populates="folder", uselist=False)
 
 
-class FolderSequence(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class FolderSequence(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """叶子文件夹的编号序列生成器（1:1）。仅叶子有此记录（Q247）。"""
 
     __tablename__ = "tb_folder_sequence"

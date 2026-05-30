@@ -14,13 +14,20 @@ from typing import TYPE_CHECKING, Any
 from sqlalchemy import JSON, ForeignKey, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import LONGTEXT, Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    LONGTEXT,
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 if TYPE_CHECKING:
     from app.models.procedure import Procedure
 
 
-class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """统一节点(章节 / 正文 / 步骤同表)。"""
 
     __tablename__ = "tb_procedure_node"

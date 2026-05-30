@@ -5,10 +5,16 @@ from __future__ import annotations
 from sqlalchemy import Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
-class ProcedureSettings(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ProcedureSettings(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """全局设置（单例）。seed 时创建唯一一条。"""
 
     __tablename__ = "tb_procedure_settings"

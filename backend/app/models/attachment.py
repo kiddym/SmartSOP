@@ -7,13 +7,19 @@ from typing import TYPE_CHECKING
 from sqlalchemy import BigInteger, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 if TYPE_CHECKING:
     from app.models.procedure import Procedure
 
 
-class ProcedureAttachment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
+class ProcedureAttachment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
     """程序附件（挂在版本；upgrade/rollback/copy 复制元数据，storage_path 复用）。"""
 
     __tablename__ = "tb_procedure_attachment"
