@@ -42,3 +42,11 @@ def gone(code: str, message: str, field: str | None = None) -> HTTPException:
 
 def payload_too_large(code: str, message: str, field: str | None = None) -> HTTPException:
     return app_error(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, code, message, field)
+
+
+def unauthorized(code: str, message: str, field: str | None = None) -> HTTPException:
+    return app_error(status.HTTP_401_UNAUTHORIZED, code, message, field)
+
+
+def forbidden(code: str, message: str, field: str | None = None) -> HTTPException:
+    return app_error(status.HTTP_403_FORBIDDEN, code, message, field)
