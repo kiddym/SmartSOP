@@ -19,6 +19,8 @@ from app.models.field import ProcedureField
 from app.models.folder import Folder, FolderSequence
 from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
+from app.models.request import Request
+from app.models.request_activity import RequestActivity
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.role import Role
@@ -53,6 +55,8 @@ __all__ = [
     "ProcedureNode",
     "ProcedureSettings",
     "ProcedureSourceDocx",
+    "Request",
+    "RequestActivity",
     "Role",
     "Sequence",
     "User",
