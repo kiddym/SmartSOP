@@ -22,6 +22,7 @@ from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
 from app.tenant_middleware import TenantContextMiddleware
 from app.routers import (
+from app.routers import locations
 from app.routers import teams
     asset_categories,
     attachments,
@@ -96,6 +97,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 app.include_router(auth.router)
+app.include_router(locations.router)
 app.include_router(teams.router)
 app.include_router(asset_categories.router)
 app.include_router(folders.router)
