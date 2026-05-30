@@ -30,6 +30,7 @@ from app.routers import (
     procedure_groups,
     procedures,
 )
+from app.routers import auth
 from app.routers import settings as settings_router
 
 logger = logging.getLogger(__name__)
@@ -48,7 +49,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(
-    title="Smart SOP API",
+    title="Smart CMMS API",
     version="0.1.0",
     description="独立的结构化 SOP 管理系统 API。",
     docs_url="/docs",
@@ -85,6 +86,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
     )
 
 
+app.include_router(auth.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
 app.include_router(procedures.router)
