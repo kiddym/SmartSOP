@@ -33,6 +33,7 @@ from app.routers import (
     parse,
     procedure_groups,
     procedures,
+    requests,
     teams,
     work_orders,
 )
@@ -103,6 +104,7 @@ app.include_router(assets.router)
 app.include_router(locations.router)
 app.include_router(teams.router)
 app.include_router(work_orders.router)
+app.include_router(requests.router)
 app.include_router(asset_categories.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
