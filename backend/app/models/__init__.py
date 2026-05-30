@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
+from app.models.asset_category import AssetCategory
 from app.models.attachment import ProcedureAttachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
@@ -21,6 +22,7 @@ from app.models.source_docx import ProcedureSourceDocx
 from app.models.user import User
 
 __all__ = [
+    "AssetCategory",
     "Base",
     "Company",
     "Folder",

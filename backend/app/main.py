@@ -22,6 +22,7 @@ from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
 from app.tenant_middleware import TenantContextMiddleware
 from app.routers import (
+    asset_categories,
     attachments,
     audit_logs,
     fields,
@@ -94,6 +95,7 @@ async def validation_exception_handler(_: Request, exc: RequestValidationError) 
 
 
 app.include_router(auth.router)
+app.include_router(asset_categories.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
 app.include_router(procedures.router)
