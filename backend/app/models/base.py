@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, MetaData, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, MetaData, String, Text
 from sqlalchemy.dialects.mysql import DATETIME as MYSQL_DATETIME
 from sqlalchemy.dialects.mysql import LONGTEXT as MYSQL_LONGTEXT
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -66,3 +66,29 @@ class SoftDeleteMixin:
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
+
+
+class TenantScoped:
+    """Marker base for any entity participating in tenant row-level scoping.
+
+    The isolation events (do_orm_execute / before_flush) target this marker,
+    so both NOT-NULL platform tables and nullable SOP tables are covered.
+    """
+
+
+class TenantMixin(TenantScoped):
+    """Platform tables: company_id is required (NOT NULL)."""
+
+    company_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_company.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+
+
+class NullableTenantMixin(TenantScoped):
+    """SOP tables (Phase 0): company_id nullable; enforcement deferred to Phase 1."""
+
+    company_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tb_company.id", ondelete="CASCADE"),
+        nullable=True, index=True,
+    )
