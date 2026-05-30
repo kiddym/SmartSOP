@@ -58,7 +58,20 @@ class Settings(BaseSettings):
     # 审计 IP 解析（Q324）：可信代理列表，命中才采信 X-Forwarded-For 链尾客户端 IP
     trusted_proxies: list[str] = Field(default_factory=list)
 
-    @field_validator("cors_origins", "trusted_proxies", mode="before")
+    # 品牌
+    app_name: str = "Smart CMMS"
+
+    # 认证 / JWT
+    secret_key: str = "dev-insecure-change-me"
+    algorithm: str = "HS256"
+    access_token_expire_minutes: int = 60
+    refresh_token_expire_days: int = 14
+
+    # i18n
+    default_locale: str = "zh-CN"
+    supported_locales: list[str] = Field(default_factory=lambda: ["zh-CN"])
+
+    @field_validator("cors_origins", "trusted_proxies", "supported_locales", mode="before")
     @classmethod
     def _split_csv(cls, value: object) -> object:
         """允许用逗号分隔的字符串配置列表型字段。"""
