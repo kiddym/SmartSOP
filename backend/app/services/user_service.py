@@ -5,13 +5,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import security
-from app.ids import new_id
 from app.models.user import User
 from app.schemas.user import UserCreate, UserUpdate
 
 
 def create_user(db: Session, payload: UserCreate) -> User:
-    user = User(id=new_id(), email=payload.email,
+    user = User(email=payload.email,
                 password_hash=security.hash_password(payload.password),
                 name=payload.name, role_id=payload.role_id)
     db.add(user)

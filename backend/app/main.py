@@ -32,6 +32,7 @@ from app.routers import (
 )
 from app.routers import auth
 from app.routers import settings as settings_router
+from app.routers import users
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,7 @@ app.include_router(attachments.router)
 app.include_router(fields.router)
 app.include_router(settings_router.router)
 app.include_router(nodes.router)
+app.include_router(users.router)
 
 
 @app.get("/healthz", tags=["health"])
