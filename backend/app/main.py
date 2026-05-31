@@ -29,6 +29,7 @@ from app.routers import (
     fields,
     folders,
     locations,
+    meters,
     nodes,
     parse,
     procedure_groups,
@@ -107,6 +108,7 @@ app.include_router(teams.router)
 app.include_router(work_orders.router)
 app.include_router(requests.router)
 app.include_router(preventive_maintenances.router)
+app.include_router(meters.router)
 app.include_router(asset_categories.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
