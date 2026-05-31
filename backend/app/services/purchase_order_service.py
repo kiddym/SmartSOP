@@ -155,3 +155,29 @@ def reject_purchase_order(db: Session, po: PurchaseOrder, note: str, company_id:
 def cancel_purchase_order(db: Session, po: PurchaseOrder, note: str, company_id: str,
                           actor_user_id: str | None) -> PurchaseOrder:
     return _resolve(db, po, PurchaseOrderStatus.CANCELED, note, company_id, actor_user_id)
+
+
+def approve_purchase_order(db: Session, po: PurchaseOrder, note: str, company_id: str,
+                           actor_user_id: str | None) -> PurchaseOrder:
+    """审批通过=整单入库：逐行把数量加回 Part.quantity（non_stock 跳过、不报错）。
+
+    终态守卫（can_transition）保证库存恰好回写一次；单次 commit。
+    """
+    if not can_transition(po.status, PurchaseOrderStatus.APPROVED):
+        raise bad_request("PURCHASE_ORDER_BAD_TRANSITION",
+                          f"非法状态转移 {po.status.value}->APPROVED")
+    for ln in lines(db, po.id):
+        part = db.get(Part, ln.part_id)
+        if part is not None and part.is_active and not part.non_stock:
+            part.quantity = part.quantity + ln.quantity
+    from_status = po.status.value
+    po.status = PurchaseOrderStatus.APPROVED
+    po.resolution_note = note
+    po.resolved_by_user_id = actor_user_id
+    po.resolved_at = utcnow()
+    _log(db, po.id, company_id, "STATUS_CHANGE", actor_user_id=actor_user_id,
+         from_status=from_status, to_status=PurchaseOrderStatus.APPROVED.value, comment=note)
+    _log(db, po.id, company_id, "RECEIVED", actor_user_id=actor_user_id)
+    db.commit()
+    db.refresh(po)
+    return po
