@@ -19,7 +19,7 @@ from app.errors import app_error, bad_request
 from app.parser import VALID_MODES, parse_docx
 from app.parser.result import ParsedNode, ParseResult, ValidationReport
 from app.schemas.parse import ParseMethodOut, ParseResponse, build_parse_response
-from app.services import heading_rule_service, upload_service
+from app.services import heading_rule_service, numbering_profile_service, upload_service
 
 _METHODS = [
     ParseMethodOut(
@@ -44,12 +44,15 @@ def parse(token: str, mode: str, *, db: Session | None = None) -> ParseResponse:
         raise bad_request("PARSE_FAILED", f"未知解析模式：{mode}", field="parse_mode")
     data = upload_service.read_docx(token)
 
-    # 动态标题字典：读 active 样式规则注入解析（M1）。编号体例(numbering_overrides)留待 P1d。
+    # 动态标题字典：读 active 样式规则 + 编号体例注入解析（M1 + M4b）。
     style_overrides = heading_rule_service.active_style_overrides(db) if db is not None else {}
+    numbering_overrides = (
+        numbering_profile_service.active_numbering_overrides(db) if db is not None else {}
+    )
 
     start = time.monotonic()
     try:
-        result = _run_with_timeout(data, mode, style_overrides)
+        result = _run_with_timeout(data, mode, style_overrides, numbering_overrides)
     except FuturesTimeout as exc:
         raise app_error(
             status.HTTP_504_GATEWAY_TIMEOUT, "PARSE_TIMEOUT", "解析超时（超过 30 秒）"
@@ -71,11 +74,17 @@ def parse(token: str, mode: str, *, db: Session | None = None) -> ParseResponse:
 
 
 def _run_with_timeout(
-    data: bytes, mode: str, style_overrides: dict[str, int] | None = None
+    data: bytes,
+    mode: str,
+    style_overrides: dict[str, int] | None = None,
+    numbering_overrides: dict[str, tuple[str, int | None]] | None = None,
 ) -> ParseResult:
     """线程执行器跑 CPU 密集解析；超时抛 FuturesTimeout（孤儿线程允许跑完，Q345）。"""
     executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(parse_docx, data, mode, style_overrides=style_overrides)
+    future = executor.submit(
+        parse_docx, data, mode,
+        style_overrides=style_overrides, numbering_overrides=numbering_overrides,
+    )
     try:
         return future.result(timeout=settings.parse_timeout_seconds)
     finally:
