@@ -26,6 +26,10 @@ from app.models.pm_activity import PMActivity
 from app.models.meter import Meter
 from app.models.meter_reading import MeterReading
 from app.models.meter_trigger import MeterTrigger, MeterTriggerAssignee, MeterTriggerTeam
+from app.models.part_category import PartCategory
+from app.models.part import Part, PartAssignee, PartTeam, PartAsset
+from app.models.part_consumption import PartConsumption
+from app.models.multi_part import MultiPart, MultiPartItem
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.role import Role
@@ -71,6 +75,14 @@ __all__ = [
     "MeterTrigger",
     "MeterTriggerAssignee",
     "MeterTriggerTeam",
+    "PartCategory",
+    "Part",
+    "PartAssignee",
+    "PartTeam",
+    "PartAsset",
+    "PartConsumption",
+    "MultiPart",
+    "MultiPartItem",
     "Role",
     "Sequence",
     "User",
