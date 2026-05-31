@@ -1,8 +1,10 @@
 """eval.accuracy 纯函数单测（P0）。"""
 from __future__ import annotations
 
-from app.parser.eval.accuracy import level_distribution
+from app.parser.eval.accuracy import evaluate_sample, level_distribution
 from app.parser.result import ParsedNode
+
+from tests.unit.parser._docx_builder import styled_sop
 
 
 def _node(level: int, *children: ParsedNode) -> ParsedNode:
@@ -28,3 +30,13 @@ def test_level_distribution_counts_nested_tree() -> None:
 
 def test_level_distribution_empty() -> None:
     assert level_distribution([]) == {}
+
+
+def test_evaluate_sample_from_bytes() -> None:
+    # 用合成 styled SOP 字节流，验证返回结构与字段（不依赖磁盘样本）
+    metrics = evaluate_sample(styled_sop(), mode="standard")
+    assert set(metrics) == {"distribution", "total_nodes", "review_required", "warning_stages"}
+    assert metrics["distribution"]  # 非空
+    assert metrics["total_nodes"] == sum(metrics["distribution"].values())
+    assert isinstance(metrics["review_required"], int)
+    assert isinstance(metrics["warning_stages"], dict)
