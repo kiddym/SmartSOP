@@ -7,8 +7,8 @@ from sqlalchemy import Boolean, Index, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
-    Base,
     DATETIME6,
+    Base,
     TenantMixin,
     TimestampMixin,
     UUIDMixin,
