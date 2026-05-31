@@ -11,11 +11,11 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.parser.ir import Block
+from app.parser.numbering_profile_rules import load_default_profile
 from app.parser.result import DetectedPattern
 
 # 置信度档阈值（§25.5）
@@ -25,18 +25,8 @@ LOW = 0.3
 _HEURISTIC_CAP = 0.84
 _SHORT_LEN = 30
 
-_CN_NUM = "一二三四五六七八九十百零两"
-
-# list（非标题）：(一)/（1）/N)/N）
-_RE_PAREN = re.compile(rf"^[(（]\s*[{_CN_NUM}\d]+\s*[)）]")
-_RE_NUM_PAREN = re.compile(r"^\d+[)）]")
-_RE_PAGE = re.compile(r"^\d+\s*/\s*\d+$")  # 页码 "1 / 2"
-_RE_CN_DUNHAO = re.compile(rf"^[{_CN_NUM}]+、")  # 一、
-_RE_DI_ZHANG = re.compile(rf"^第[{_CN_NUM}\d]+章")
-_RE_DI_JIE = re.compile(rf"^第[{_CN_NUM}\d]+节")
-_RE_DI_TIAO = re.compile(rf"^第[{_CN_NUM}\d]+条")
-_RE_LEADING_NUM = re.compile(r"^(\d+(?:\.\d+)*)")
-_RE_CJK = re.compile(r"[一-鿿]")
+# 编号正则收口进 NumberingProfile（P4 重构，行为等价）；模块级默认体例。
+_PROFILE = load_default_profile()
 
 
 @dataclass
@@ -83,25 +73,25 @@ def _classify_numbering_base(text: str) -> NumberingMatch | None:
         return None
 
     # 页码
-    if _RE_PAGE.match(t):
+    if _PROFILE.re_page.match(t):
         return None
 
     # list（圆括号 / N)）
-    if _RE_PAREN.match(t) or _RE_NUM_PAREN.match(t):
+    if _PROFILE.re_paren.match(t) or _PROFILE.re_num_paren.match(t):
         return NumberingMatch(kind="list", level=0, pattern_key="(N)")
 
     # 中文编号
-    if _RE_CN_DUNHAO.match(t):
+    if _PROFILE.re_cn_dunhao.match(t):
         return NumberingMatch(kind="heading", level=1, pattern_key="一、")
-    if _RE_DI_ZHANG.match(t):
+    if _PROFILE.re_di_zhang.match(t):
         return NumberingMatch(kind="heading", level=1, pattern_key="第X章")
-    if _RE_DI_JIE.match(t):
+    if _PROFILE.re_di_jie.match(t):
         return NumberingMatch(kind="heading", level=2, pattern_key="第X节")
-    if _RE_DI_TIAO.match(t):
+    if _PROFILE.re_di_tiao.match(t):
         return NumberingMatch(kind="weak_heading", level=3, pattern_key="第X条")
 
     # 阿拉伯编号（带点深度）
-    m = _RE_LEADING_NUM.match(t)
+    m = _PROFILE.re_leading_num.match(t)
     if m:
         num = m.group(1)
         depth = num.count(".") + 1
@@ -124,7 +114,7 @@ def _classify_numbering_base(text: str) -> NumberingMatch | None:
                 return None
             key = "N 空格" if depth == 1 else "N" + ".N" * (depth - 1)
             return NumberingMatch(kind="heading", level=level, pattern_key=key)
-        if rest and _RE_CJK.match(rest):
+        if rest and _PROFILE.re_cjk.match(rest):
             # N+CJK 直连：depth>=2 (3.1质量部 / 4.1.1管理类) 是 unambiguous 融合式真子标题 → heading；
             # depth=1 (6相关文件) 仍歧义 → weak_heading 需 bold（Q217 + eval r3）
             if depth >= 2:
