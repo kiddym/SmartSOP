@@ -15,8 +15,8 @@ from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_status import WorkOrderStatus, can_transition
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
-from app.services import sequence_service
 from app.services import notification_service as _notif
+from app.services import sequence_service
 
 
 def assignee_ids(db: Session, work_order_id: str) -> list[str]:
