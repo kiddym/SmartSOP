@@ -7,11 +7,21 @@
 
 from __future__ import annotations
 
+import sys
+import types
 import uuid
 from collections.abc import Generator
 from pathlib import Path
 
 import pytest
+
+# 让迁移测试可以 `import alembic.versions.<rev>`：把本地迁移目录注册成
+# 已安装 alembic 包的 versions 子包（否则 site-packages 的 alembic 会遮蔽本地目录）。
+_versions_dir = Path(__file__).resolve().parent.parent / "alembic" / "versions"
+if "alembic.versions" not in sys.modules:
+    _vpkg = types.ModuleType("alembic.versions")
+    _vpkg.__path__ = [str(_versions_dir)]
+    sys.modules["alembic.versions"] = _vpkg
 from fastapi.testclient import TestClient
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session
