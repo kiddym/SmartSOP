@@ -178,3 +178,53 @@ def list_activities(db: Session, pm_id: str) -> list[PMActivity]:
     return list(db.execute(
         select(PMActivity).where(PMActivity.pm_id == pm_id)
         .order_by(PMActivity.created_at, PMActivity.id)).scalars().all())
+
+
+def due_candidates(db: Session, *, today: date) -> list[str]:
+    """跨租户取到期 PM id（调用方需已 bypass_tenant_scope）。"""
+    stmt = select(PreventiveMaintenance.id).where(
+        PreventiveMaintenance.is_active.is_(True),
+        PreventiveMaintenance.is_enabled.is_(True),
+        PreventiveMaintenance.next_due_date <= today,
+    ).order_by(PreventiveMaintenance.custom_id)
+    return list(db.execute(stmt).scalars().all())
+
+
+def generate_once(db: Session, pm: PreventiveMaintenance, *, actor_user_id: str | None,
+                  now, enforce_due: bool):
+    """生成一张工单（复制预设）并锥摆推进 next_due_date。返回 WorkOrder。
+
+    调度任务 enforce_due=True（校验到期）；手动端点 enforce_due=False（允许提前）。
+    工单服务在函数内 import 避免模块级循环依赖。
+    """
+    from app.schemas.work_order import WorkOrderCreate
+    from app.services import work_order_execution_service as exe
+    from app.services import work_order_service as wos
+
+    today = now.date()
+    if enforce_due and not (
+        pm.is_active and pm.is_enabled and pm.next_due_date <= today
+    ):
+        raise bad_request("PM_NOT_DUE", "PM 未到期")
+
+    generated_due = pm.next_due_date
+    wo_payload = WorkOrderCreate(
+        title=pm.title, description=pm.description, priority=pm.priority,
+        due_date=generated_due, asset_id=pm.asset_id, location_id=pm.location_id,
+        primary_user_id=pm.primary_user_id,
+        assignee_ids=assignee_ids(db, pm.id), team_ids=team_ids(db, pm.id),
+    )
+    wo = wos.create_work_order(db, wo_payload, pm.company_id, actor_user_id=actor_user_id)
+    if pm.procedure_id is not None:
+        exe.attach_procedure(db, wo, pm.procedure_id, pm.company_id,
+                             actor_user_id=actor_user_id)
+    pm.last_generated_at = now
+    pm.last_work_order_id = wo.id
+    _log(db, pm.id, pm.company_id, "WO_GENERATED", actor_user_id=actor_user_id,
+         comment=wo.custom_id)
+    pm.next_due_date = _advance_due(pm.next_due_date, pm.frequency_unit,
+                                    pm.frequency_value, today=today)
+    db.commit()
+    db.refresh(pm)
+    db.refresh(wo)
+    return wo
