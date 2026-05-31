@@ -28,6 +28,7 @@ from app.routers import (
     audit_logs,
     fields,
     folders,
+    heading_rules,
     locations,
     meters,
     part_categories,
@@ -131,6 +132,7 @@ app.include_router(audit_logs.router)
 app.include_router(procedures.router)
 app.include_router(procedure_groups.router)
 app.include_router(parse.router)
+app.include_router(heading_rules.router)
 app.include_router(attachments.router)
 app.include_router(fields.router)
 app.include_router(settings_router.router)
