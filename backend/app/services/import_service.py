@@ -87,6 +87,7 @@ def import_procedure(
                         body=_chapter_body(n.title),
                         skip_numbering=n.skip_numbering,
                         mark_status="review" if n.mark_status == "review" else "unmarked",
+                        source_style_name=n.source_style_name,
                     )
                 )
                 walk(n.children, level + 1)

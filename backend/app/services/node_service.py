@@ -73,6 +73,7 @@ def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
                 "input_schema": r.input_schema,
                 "attachment_marks": r.attachment_marks,
                 "mark_status": r.mark_status,
+                "source_style_name": r.source_style_name,
                 "revision": r.revision,
                 "parent_id": tn.parent_id,
                 "depth": tn.depth,
