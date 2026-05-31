@@ -8,7 +8,6 @@ from app.parser.eval.accuracy import (
     level_distribution,
 )
 from app.parser.result import ParsedNode
-
 from tests.unit.parser._docx_builder import styled_sop
 
 

@@ -61,7 +61,7 @@ def evaluate_corpus(*, mode: str = "smart", root: Path | None = None) -> dict[st
         rel = path.relative_to(base).as_posix()
         try:
             out[rel] = evaluate_sample(path.read_bytes(), mode=mode)
-        except Exception as exc:  # noqa: BLE001 - 评估工具需健壮遍历
+        except Exception as exc:
             out[rel] = {"error": repr(exc)}
     return out
 
