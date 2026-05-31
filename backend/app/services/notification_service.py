@@ -134,3 +134,63 @@ def disarm(db: Session, company_id: str, key: str) -> None:
             NotificationArm.company_id == company_id, NotificationArm.key == key
         )
     )
+
+
+# --------------------------------------------------------------------------- #
+# 事件组合（内联调用；均不 commit，由调用方事务提交）
+# --------------------------------------------------------------------------- #
+def on_wo_assigned(db: Session, wo: WorkOrder, *, recipient_ids: set[str],
+                   actor_user_id: str | None) -> None:
+    recips = _active_subset(db, wo.company_id, set(recipient_ids), actor_user_id)
+    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_ASSIGNED",
+           entity_type="work_order", entity_id=wo.id,
+           params={"custom_id": wo.custom_id, "title": wo.title},
+           actor_user_id=actor_user_id)
+
+
+def on_wo_status_changed(db: Session, wo: WorkOrder, *, from_status: str,
+                         to_status: str, actor_user_id: str | None) -> None:
+    recips = resolve_wo_recipients(db, wo, exclude_actor_id=actor_user_id)
+    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_STATUS_CHANGED",
+           entity_type="work_order", entity_id=wo.id,
+           params={"custom_id": wo.custom_id, "from_status": from_status,
+                   "to_status": to_status},
+           actor_user_id=actor_user_id)
+
+
+def on_wo_auto_generated(db: Session, wo: WorkOrder, *,
+                         actor_user_id: str | None) -> None:
+    recips = resolve_wo_recipients(db, wo, exclude_actor_id=actor_user_id)
+    if not recips:
+        recips = active_admins(db, wo.company_id)
+        if actor_user_id is not None:
+            recips.discard(actor_user_id)
+    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_AUTO_GENERATED",
+           entity_type="work_order", entity_id=wo.id,
+           params={"custom_id": wo.custom_id, "title": wo.title},
+           actor_user_id=actor_user_id)
+
+
+def on_request_submitted(db: Session, request, *, actor_user_id: str | None) -> None:
+    recips = resolve_permission_holders(db, request.company_id, "request.approve",
+                                        exclude_actor_id=actor_user_id)
+    notify(db, company_id=request.company_id, recipient_ids=recips,
+           type="REQUEST_SUBMITTED", entity_type="request", entity_id=request.id,
+           params={"custom_id": request.custom_id, "title": request.title},
+           actor_user_id=actor_user_id)
+
+
+def on_po_submitted(db: Session, po, *, actor_user_id: str | None) -> None:
+    _notify_po(db, po, "PO_SUBMITTED", actor_user_id)
+
+
+def on_po_approved(db: Session, po, *, actor_user_id: str | None) -> None:
+    _notify_po(db, po, "PO_APPROVED", actor_user_id)
+
+
+def _notify_po(db: Session, po, type_: str, actor_user_id: str | None) -> None:
+    recips = resolve_permission_holders(db, po.company_id, "purchase_order.approve",
+                                        exclude_actor_id=actor_user_id)
+    notify(db, company_id=po.company_id, recipient_ids=recips, type=type_,
+           entity_type="purchase_order", entity_id=po.id,
+           params={"custom_id": po.custom_id}, actor_user_id=actor_user_id)
