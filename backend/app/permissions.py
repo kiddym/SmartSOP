@@ -43,6 +43,12 @@ REQUEST_CANCEL = "request.cancel"
 REQUEST_DELETE = "request.delete"
 REQUEST_APPROVE = "request.approve"
 
+# --- 预防性维护（Phase 2B）---
+PREVENTIVE_MAINTENANCE_VIEW = "preventive_maintenance.view"
+PREVENTIVE_MAINTENANCE_CREATE = "preventive_maintenance.create"
+PREVENTIVE_MAINTENANCE_EDIT = "preventive_maintenance.edit"
+PREVENTIVE_MAINTENANCE_DELETE = "preventive_maintenance.delete"
+
 _PLATFORM = [
     USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
     ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
@@ -61,8 +67,14 @@ _REQUEST = [
     REQUEST_VIEW, REQUEST_CREATE, REQUEST_CANCEL,
     REQUEST_DELETE, REQUEST_APPROVE,
 ]
+_PREVENTIVE_MAINTENANCE = [
+    PREVENTIVE_MAINTENANCE_VIEW, PREVENTIVE_MAINTENANCE_CREATE,
+    PREVENTIVE_MAINTENANCE_EDIT, PREVENTIVE_MAINTENANCE_DELETE,
+]
 
-ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN + _WORKORDER + _REQUEST
+ALL_PERMISSIONS: list[str] = (
+    _PLATFORM + _BASE_DOMAIN + _WORKORDER + _REQUEST + _PREVENTIVE_MAINTENANCE
+)
 
 BUILTIN_ROLES: list[dict] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
@@ -72,6 +84,7 @@ BUILTIN_ROLES: list[dict] = [
         LOCATION_VIEW, ASSET_VIEW, ASSET_EDIT, ASSET_CATEGORY_VIEW, TEAM_VIEW,
         WORK_ORDER_VIEW, WORK_ORDER_EXECUTE, WORK_ORDER_EDIT,
         REQUEST_VIEW, REQUEST_CREATE,
+        PREVENTIVE_MAINTENANCE_VIEW,
     ]},
     {"code": "viewer", "name": "只读", "permissions": [
         c for c in ALL_PERMISSIONS if c.endswith(".view")]},
