@@ -23,13 +23,24 @@ def parse_docx(
     mode: str = "smart",
     *,
     style_overrides: dict[str, int] | None = None,
+    numbering_overrides: dict[str, tuple[str, int | None]] | None = None,
 ) -> ParseResult:
-    """解析 .docx 字节流为 ParseResult（不落库、不做文件 I/O）。"""
+    """解析 .docx 字节流为 ParseResult（不落库、不做文件 I/O）。
+
+    ``numbering_overrides``（M4b 编号体例）：{pattern_key: (kind, level)}，覆盖内置编号判定。
+    """
     pkg = DocxPackage(data)
     syn = synonyms.load_default_synonyms()
     overrides = style_overrides or {}
     nd = normalizer.normalize(pkg, synonyms=syn, style_overrides=overrides)
-    return structurer.structure(nd, pkg=pkg, mode=mode, synonyms=syn, style_overrides=overrides)
+    return structurer.structure(
+        nd,
+        pkg=pkg,
+        mode=mode,
+        synonyms=syn,
+        style_overrides=overrides,
+        numbering_overrides=numbering_overrides or {},
+    )
 
 
 __all__ = ["VALID_MODES", "parse_docx"]
