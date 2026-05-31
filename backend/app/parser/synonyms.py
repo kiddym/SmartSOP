@@ -18,7 +18,11 @@ _LEVEL_KEYS = {"level_1": 1, "level_2": 2, "level_3": 3}
 
 @lru_cache(maxsize=1)
 def load_default_synonyms() -> dict[str, int]:
-    """加载内置同义词词典：``{样式名: 层级}``。文件缺失时返回空字典。"""
+    """加载内置同义词词典：``{样式名: 层级}``。文件缺失时返回空字典。
+
+    平台默认底座；租户特异同义词不进本文件，走动态字典 tb_heading_style_rule（P1b/P2，
+    按 company_id 隔离），解析时以 style_overrides 覆盖本表。
+    """
     if not _DATA_FILE.exists():
         return {}
     raw = yaml.safe_load(_DATA_FILE.read_text(encoding="utf-8")) or {}

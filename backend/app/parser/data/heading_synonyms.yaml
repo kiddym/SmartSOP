@@ -1,3 +1,7 @@
+# 平台默认同义词底座（全局只读，随代码发布，不随租户变）。
+# 租户级覆盖走 tb_heading_style_rule（manual/learned，按 company_id 隔离）；
+# 解析优先级：租户规则(override) > 本文件(synonym) > outlineLvl > basedOn。
+#
 # 标题样式中文同义词词典（内置默认层，§27.4 / Q208 / Q344）
 #
 # 用途：styles.xml 反查时，自定义命名样式（非标准 heading）的 name 命中本表 →
