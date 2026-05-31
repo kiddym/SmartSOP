@@ -20,6 +20,7 @@ from app.models.folder import Folder, FolderSequence
 from app.models.heading_learning_event import HeadingLearningEvent
 from app.models.heading_rule import HeadingStyleRule
 from app.models.node import ProcedureNode
+from app.models.numbering_profile import NumberingProfile
 from app.models.procedure import Procedure
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
@@ -74,6 +75,7 @@ __all__ = [
     "ProcedureAuditLog",
     "ProcedureField",
     "ProcedureNode",
+    "NumberingProfile",
     "ProcedureSettings",
     "ProcedureSourceDocx",
     "Request",
