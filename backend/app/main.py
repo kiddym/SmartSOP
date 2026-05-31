@@ -31,6 +31,7 @@ from app.routers import (
     locations,
     meters,
     part_categories,
+    parts,
     nodes,
     parse,
     procedure_groups,
@@ -111,6 +112,7 @@ app.include_router(requests.router)
 app.include_router(preventive_maintenances.router)
 app.include_router(meters.router)
 app.include_router(part_categories.router)
+app.include_router(parts.router)
 app.include_router(asset_categories.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
