@@ -33,6 +33,11 @@ from app.models.multi_part import MultiPart, MultiPartItem
 from app.models.vendor import Vendor, VendorPart
 from app.models.customer import Customer, CustomerPart
 from app.models.cost_category import CostCategory
+from app.models.purchase_order import (
+    PurchaseOrder,
+    PurchaseOrderActivity,
+    PurchaseOrderLine,
+)
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.role import Role
@@ -91,6 +96,9 @@ __all__ = [
     "Customer",
     "CustomerPart",
     "CostCategory",
+    "PurchaseOrder",
+    "PurchaseOrderLine",
+    "PurchaseOrderActivity",
     "Role",
     "Sequence",
     "User",
