@@ -117,6 +117,31 @@ describe('nodeEditor store — structural edits', () => {
     expect(store.nodeMap.get('a')?.mark_status).toBe('unmarked')
   })
 
+  it('confirmReviewBatch clears only review nodes among ids in one :batch', async () => {
+    listSpy.mockResolvedValue([
+      n({ id: 'a', body: '<p>a</p>', mark_status: 'review' }),
+      n({ id: 'b', sort_order: 1000, body: '<p>b</p>', mark_status: 'unmarked' }),
+      n({ id: 'c', sort_order: 2000, body: '<p>c</p>', mark_status: 'review' }),
+    ])
+    batchSpy.mockResolvedValue([
+      n({ id: 'a', body: '<p>a</p>', mark_status: 'unmarked' }),
+      n({ id: 'c', sort_order: 2000, body: '<p>c</p>', mark_status: 'unmarked' }),
+    ])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.confirmReviewBatch(['a', 'b', 'c'])
+    // b 非 review → 不在 change set；a/c 各发空 change
+    expect(batchSpy).toHaveBeenCalledWith('p1', { a: {}, c: {} })
+  })
+
+  it('confirmReviewBatch is a no-op when no selected node is review', async () => {
+    listSpy.mockResolvedValue([n({ id: 'a', body: '<p>a</p>', mark_status: 'unmarked' })])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.confirmReviewBatch(['a'])
+    expect(batchSpy).not.toHaveBeenCalled()
+  })
+
   it('createNode then re-GETs the full list', async () => {
     listSpy.mockResolvedValueOnce([n({ id: 'a', heading_level: 1, body: '<p>a</p>' })])
     createSpy.mockResolvedValue(n({ id: 'new', body: '' }))
@@ -129,6 +154,47 @@ describe('nodeEditor store — structural edits', () => {
     await store.createNode({ heading_level: null })
     expect(createSpy).toHaveBeenCalledWith('p1', { heading_level: null })
     expect(store.nodes.map((x) => x.id)).toEqual(['a', 'new'])
+  })
+
+  it('createRelative computes sort_order and delegates to createNode (single write)', async () => {
+    listSpy.mockResolvedValueOnce([
+      n({ id: 'c1', heading_level: 1, sort_order: 1000, body: '<p>c1</p>' }),
+      n({ id: 'a', parent_id: 'c1', depth: 1, sort_order: 2000, body: '<p>a</p>' }),
+    ])
+    createSpy.mockResolvedValue(n({ id: 'new' }))
+    listSpy.mockResolvedValueOnce([
+      n({ id: 'c1', heading_level: 1, sort_order: 1000 }),
+      n({ id: 'new', sort_order: 1500 }),
+      n({ id: 'a', parent_id: 'c1', depth: 1, sort_order: 2000 }),
+    ])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.createRelative('c1', 'after-node', { heading_level: null, kind: 'step' })
+    expect(createSpy).toHaveBeenCalledWith('p1', { heading_level: null, kind: 'step', sort_order: 1500 })
+    expect(reorderSpy).not.toHaveBeenCalled()
+  })
+
+  it('createRelative rebalances (reorder) first when neighbours leave no gap', async () => {
+    listSpy.mockResolvedValueOnce([
+      n({ id: 'p', sort_order: 1000, body: '<p>p</p>' }),
+      n({ id: 'q', sort_order: 1001, body: '<p>q</p>' }),
+    ])
+    reorderSpy.mockResolvedValue(undefined)
+    listSpy.mockResolvedValueOnce([ // reorder 重排后 *1000 等距
+      n({ id: 'p', sort_order: 1000 }),
+      n({ id: 'q', sort_order: 2000 }),
+    ])
+    createSpy.mockResolvedValue(n({ id: 'new' }))
+    listSpy.mockResolvedValueOnce([
+      n({ id: 'p', sort_order: 1000 }),
+      n({ id: 'new', sort_order: 1500 }),
+      n({ id: 'q', sort_order: 2000 }),
+    ])
+    const store = useNodeEditorStore()
+    await store.load('p1')
+    await store.createRelative('p', 'after-node', { heading_level: null, kind: 'node' })
+    expect(reorderSpy).toHaveBeenCalledWith('p1', ['p', 'q'])
+    expect(createSpy).toHaveBeenCalledWith('p1', { heading_level: null, kind: 'node', sort_order: 1500 })
   })
 
   it('deleteNode then re-GETs', async () => {

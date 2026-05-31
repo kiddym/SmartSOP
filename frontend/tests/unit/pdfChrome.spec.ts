@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampZoom, stepZoom, fitZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
+import { clampZoom, stepZoom, fitZoom, fitPageZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from '@/components/PdfPreview/pdfChrome'
 
 describe('clampZoom', () => {
   it('clamps below min and above max', () => {
@@ -33,6 +33,18 @@ describe('fitZoom', () => {
     expect(fitZoom(2048, 1000)).toBe(2)     // (2048-48)/1000 = 2.0
     expect(fitZoom(100, 1000)).toBe(0.5)    // tiny → clamp to min
     expect(fitZoom(1000, 0)).toBe(1)        // unmeasured → 1
+  })
+})
+
+describe('fitPageZoom', () => {
+  it('fits page height into the container minus padding', () => {
+    expect(fitPageZoom(1448, 1400)).toBe(1) // (1448-48)/1400
+    expect(fitPageZoom(748, 1400)).toBe(0.5) // (748-48)/1400
+  })
+  it('clamps and handles unmeasured page height', () => {
+    expect(fitPageZoom(2848, 1400)).toBe(2) // (2848-48)/1400 = 2.0
+    expect(fitPageZoom(100, 1400)).toBe(0.5) // tiny → clamp to min
+    expect(fitPageZoom(1000, 0)).toBe(1) // unmeasured → 1
   })
 })
 

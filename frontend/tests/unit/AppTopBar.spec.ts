@@ -11,6 +11,7 @@ function makeRouter() {
       { path: '/folders', component: { template: '<div/>' } },
       { path: '/settings', component: { template: '<div/>' } },
       { path: '/settings/fields', component: { template: '<div/>' } },
+      { path: '/settings/heading-rules', component: { template: '<div/>' } },
       { path: '/audit-logs', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
@@ -71,14 +72,15 @@ describe('AppTopBar', () => {
     expect(badge.find('.badge').text()).toBe('3')
   })
 
-  it('exposes MENU_COMMANDS 命令契约：4 项，路径与现行路由一致', () => {
+  it('exposes MENU_COMMANDS 命令契约：5 项，路径与现行路由一致', () => {
     const w = mountTopBar()
     const commands = (w.vm as unknown as { MENU_COMMANDS: ReadonlyArray<{ group: string; label: string; path: string }> }).MENU_COMMANDS
-    expect(commands).toHaveLength(4)
+    expect(commands).toHaveLength(5)
     expect(commands[0]).toEqual({ group: '配置', label: '文件夹配置', path: '/folders' })
     expect(commands[1]).toEqual({ group: '配置', label: '系统设置', path: '/settings' })
     expect(commands[2]).toEqual({ group: '配置', label: '字段管理', path: '/settings/fields' })
-    expect(commands[3]).toEqual({ group: '历史', label: '审计日志', path: '/audit-logs' })
+    expect(commands[3]).toEqual({ group: '配置', label: '标题字典', path: '/settings/heading-rules' })
+    expect(commands[4]).toEqual({ group: '历史', label: '审计日志', path: '/audit-logs' })
   })
 
   it('onCommand 派发 router.push（mock router 验证路径）', async () => {

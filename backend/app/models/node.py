@@ -45,6 +45,9 @@ class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     mark_status: Mapped[str] = mapped_column(
         String(20), default="unmarked", server_default="unmarked"
     )
+    # 来源样式名(解析归因,动态标题字典方案 M2):样式标题记 Word 样式显示名,供编辑器
+    # 「记住此样式」反查到底是哪个样式被改级(None=非样式标题或零样式编号标题)。
+    source_style_name: Mapped[str | None] = mapped_column(String(255), nullable=True, default=None)
     revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
 
     procedure: Mapped[Procedure] = relationship()

@@ -27,12 +27,13 @@ def table_count_match(body_blocks: Sequence[Block]) -> tuple[bool, int, int]:
 
 
 def paragraph_count_match(nd: NormalizedDoc) -> tuple[bool, int, int]:
-    """C003：body 内原始 <w:p> 数 vs normalize 输出的 paragraph block 数，保留率 ≥ 95% pass。
+    """C003：body 内「应成块」的 <w:p> 数 vs normalize 输出的 paragraph block 数，保留率 ≥ 95% pass。
 
-    本检查作用于全局 blocks（不限 body 范围），denominator 来自 normalize 阶段
-    一次性 `body.iter(qn("w:p"))` 全量计数，触发场景是未来 _iter_body_children
-    或 _emit_txbx_descendants 漏识某种 XML 形态导致段落静默丢失。当前 normalize
-    与 raw 严格 1:1，预期总是 pass；本检查是 forward-looking guard。
+    denominator 来自 normalize 阶段对 body.iter(w:p) 的过滤计数
+    （`_counts_as_block_paragraph`）：顶层段落 + 文本框内段落计入，表格单元格直属
+    段落被折叠进 table 块 HTML、不单独成块，故排除——否则含表文档（连参考模板自身）
+    会因分母虚高而误报。触发场景是未来 _iter_body_children 或 _emit_txbx_descendants
+    漏识某种 XML 形态导致段落静默丢失；当前 normalize 与该口径 1:1，预期总是 pass。
     """
     raw = nd.raw_paragraph_count
     kept = sum(1 for b in nd.blocks if b.kind == "paragraph")

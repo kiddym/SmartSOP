@@ -18,12 +18,17 @@ beforeEach(() => {
 describe('importFromWord', () => {
   it('依次 upload→parse→import，返回新程序', async () => {
     const file = new File(['x'], 'a.docx')
-    const proc = await importFromWord(file, 'f1', '我的程序')
+    const proc = await importFromWord(file, 'f1', '我的程序', 'continuous')
     expect(proc.id).toBe('p1')
     const urls = post.mock.calls.map((c) => c[0])
     expect(urls).toEqual(['/uploads', '/parse', '/procedures/import'])
     const body = post.mock.calls[2][1]
-    expect(body).toMatchObject({ name: '我的程序', folder_id: 'f1', upload_token: 'tok' })
+    expect(body).toMatchObject({
+      name: '我的程序',
+      folder_id: 'f1',
+      level_of_use: 'continuous',
+      upload_token: 'tok',
+    })
     expect(body.chapters).toHaveLength(1)
   })
 })

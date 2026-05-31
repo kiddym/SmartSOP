@@ -21,6 +21,13 @@ export function fitZoom(containerW: number, pageW: number, pad = 48): number {
   return clampZoom((containerW - pad) / pageW)
 }
 
+/** Fit a whole page of height pageH into a container of height containerH (minus padding),
+ *  clamped. Returns 1 when pageH <= 0 (unmeasured). Mirror of fitZoom for the vertical axis. */
+export function fitPageZoom(containerH: number, pageH: number, pad = 48): number {
+  if (pageH <= 0) return 1
+  return clampZoom((containerH - pad) / pageH)
+}
+
 /** Active page index from scroll: the last page whose top offset is <= scrollTop.
  *  pageTops must be ascending. Clamped to [0, len-1]; 0 when empty. */
 export function activePageIndex(scrollTop: number, pageTops: number[]): number {

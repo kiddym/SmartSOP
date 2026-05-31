@@ -20,61 +20,6 @@ services:
       timeout: 5s
       retries: 5
 
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: smart-sop-backend
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      APP_ENV: production
-      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/${MYSQL_DATABASE:-smart_sop}
-      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      STORAGE_DIR: /data/storage
-    ports:
-      - "8000:8000"
-    volumes:
-      - storage_data:/data/storage   # 图片 asset + 临时上传，与 scheduler 共享（GC 需见同一文件）
-    command: >
-      sh -c "alembic upgrade head &&
-             python -m app.seed &&
-             gunicorn app.main:app -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000"
-
-  # 周期清理任务（附件清理 / asset GC / 临时上传清理）。单实例 = 天然单次执行，无需分布式锁（Q331/§53）。
-  scheduler:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: smart-sop-scheduler
-    restart: unless-stopped
-    depends_on:
-      mysql:
-        condition: service_healthy
-    environment:
-      APP_ENV: production
-      DATABASE_URL: mysql+pymysql://root:${MYSQL_ROOT_PASSWORD:-root}@mysql:3306/${MYSQL_DATABASE:-smart_sop}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CLEANUP_HOUR: ${CLEANUP_HOUR:-3}
-      STORAGE_DIR: /data/storage
-    volumes:
-      - storage_data:/data/storage   # 与 backend 共享 asset / 临时上传，GC 行+文件同删
-    command: python -m app.tasks.scheduler   # APScheduler 常驻；勿扩容（保持单实例）
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: smart-sop-frontend
-    restart: unless-stopped
-    depends_on:
-      - backend
-    ports:
-      - "80:80"
-
 volumes:
   mysql_data:
   storage_data:   # 图片 asset + 临时上传，backend 与 scheduler 共享

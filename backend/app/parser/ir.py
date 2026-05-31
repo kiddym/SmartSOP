@@ -42,6 +42,8 @@ class Block:
     is_toc_field: bool = False  # 处于 TOC 字段域内
     has_section_break: bool = False
     numbered: bool = False  # numPr 自动编号
+    num_id: str | None = None  # numPr/numId（多级列表实例标识，跨实例不可直接比 ilvl）
+    num_ilvl: int | None = None  # numPr/ilvl（0-based 列表嵌套深度，扁平样式下的层级信号）
     images: list[ImageRef] = field(default_factory=list)
     raw_image_count: int = 0  # 源元素内 a:blip 总数（含读取失败者），供 C001 对账
     raw_table_count: int = 0  # 源元素内 w:tbl 总数（含嵌套），供 C002 对账

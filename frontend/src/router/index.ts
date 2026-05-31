@@ -56,6 +56,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/settings/FieldManageView.vue'),
     meta: { title: '字段管理' },
   },
+  {
+    path: '/settings/heading-rules',
+    name: 'heading-rules',
+    component: () => import('@/views/settings/HeadingRulesView.vue'),
+    meta: { title: '标题字典' },
+  },
 ]
 
 const router = createRouter({

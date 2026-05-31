@@ -11,6 +11,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 
 from app.parser.result import ParseResult
+from app.schemas.procedure import LevelOfUse
 
 
 # --------------------------------------------------------------------------- #
@@ -49,6 +50,8 @@ class ParsedNodeOut(BaseModel):
     confidence_tier: str
     mark_status: str
     heading_source: str | None
+    source_style_name: str | None = None
+    source_numbering_pattern: str | None = None
     children: list[ParsedNodeOut] = Field(default_factory=list)
 
 
@@ -120,6 +123,9 @@ class ImportNodeIn(BaseModel):
     rich_content: str = ""
     skip_numbering: bool = False
     mark_status: str = "unmarked"
+    # 来源样式名（动态标题字典方案 M2）：随 /parse 响应回传，导入时落到 ProcedureNode，
+    # 供编辑器「记住此样式」反查归因（None=零样式编号标题或正文）。
+    source_style_name: str | None = None
     children: list[ImportNodeIn] = Field(default_factory=list)
 
 
@@ -127,6 +133,7 @@ class ImportRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     folder_id: str
     description: str = Field(default="", max_length=10000)
+    level_of_use: LevelOfUse = "reference"
     upload_token: str | None = None
     chapters: list[ImportNodeIn] = Field(default_factory=list)
 
@@ -163,6 +170,8 @@ def build_parse_response(
             confidence_tier=n.confidence_tier,
             mark_status=n.mark_status,
             heading_source=n.heading_source,
+            source_style_name=n.source_style_name,
+            source_numbering_pattern=n.source_numbering_pattern,
             children=[node(c, i, n.id) for i, c in enumerate(n.children)],
         )
 

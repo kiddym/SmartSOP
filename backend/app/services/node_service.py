@@ -12,10 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import bad_request, not_found, payload_too_large
-from app.services import optimistic_lock
+from app.services import heading_learning_service, node_numbering, optimistic_lock
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
-from app.services import node_numbering
 from app.services._invariants import enforce_node_invariants
 from app.services.node_tree import TreeNode, build_tree
 
@@ -27,6 +26,17 @@ CONTENT_MAX_BYTES = 5 * 1024 * 1024
 def _body_size_guard(body: str) -> None:
     if len(body.encode("utf-8")) > CONTENT_MAX_BYTES:
         raise payload_too_large("CONTENT_TOO_LARGE", "节点正文超过 5 MB 上限")
+
+
+def _learn_from_edit(
+    db: Session, node: ProcedureNode, old_level: int | None, old_mark: str
+) -> None:
+    """采集样式标题校正信号并重聚合动态字典（M3 隐式学习；无来源样式名则 no-op）。"""
+    style = heading_learning_service.observe_node_edit(
+        db, node, old_level=old_level, old_mark=old_mark
+    )
+    if style:
+        heading_learning_service.reaggregate(db, style)
 
 
 def _active_nodes(db: Session, procedure_id: str) -> list[ProcedureNode]:
@@ -73,6 +83,7 @@ def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
                 "input_schema": r.input_schema,
                 "attachment_marks": r.attachment_marks,
                 "mark_status": r.mark_status,
+                "source_style_name": r.source_style_name,
                 "revision": r.revision,
                 "parent_id": tn.parent_id,
                 "depth": tn.depth,
@@ -120,11 +131,13 @@ def patch_node(
     new_marks = changes.get("attachment_marks", node.attachment_marks)
     enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
 
+    old_level, old_mark = node.heading_level, node.mark_status
     for k, v in changes.items():
         setattr(node, k, v)
     optimistic_lock.bump(node)
     db.flush()
     node_numbering.recompute(db, node.procedure_id)
+    _learn_from_edit(db, node, old_level, old_mark)  # M3 隐式学习信号
     return node
 
 
@@ -177,6 +190,7 @@ def batch_update(
     改动后若节点 mark_status=='review' 则清回 'unmarked'(确认动作,spec §6.4)。
     单事务,任一不变量违反则整体抛错(router 不 commit → 回滚)。"""
     changed: list[ProcedureNode] = []
+    observed: list[tuple[ProcedureNode, int | None, str]] = []  # (node, old_level, old_mark) M3
     for node_id, changes in updates.items():
         node = _get_node(db, node_id)
         if node.procedure_id != procedure_id:
@@ -191,6 +205,7 @@ def batch_update(
         new_schema = changes.get("input_schema", node.input_schema)
         new_marks = changes.get("attachment_marks", node.attachment_marks)
         enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
+        observed.append((node, node.heading_level, node.mark_status))
         for k, v in changes.items():
             setattr(node, k, v)
         if node.mark_status == "review":
@@ -199,6 +214,8 @@ def batch_update(
         changed.append(node)
     db.flush()
     node_numbering.recompute(db, procedure_id)
+    for node, old_level, old_mark in observed:  # M3 隐式学习信号
+        _learn_from_edit(db, node, old_level, old_mark)
     return changed
 
 

@@ -38,6 +38,7 @@ def import_procedure(
     folder_id: str,
     description: str,
     chapters: list[ImportNodeIn],
+    level_of_use: LevelOfUse = _DEFAULT_LEVEL_OF_USE,
     upload_token: str | None = None,
     meta: RequestMeta,
 ) -> Procedure:
@@ -50,7 +51,7 @@ def import_procedure(
         ProcedureCreate(
             folder_id=folder_id,
             name=name,
-            level_of_use=_DEFAULT_LEVEL_OF_USE,
+            level_of_use=level_of_use,
             description=description,
         ),
         meta,
@@ -87,6 +88,7 @@ def import_procedure(
                         body=_chapter_body(n.title),
                         skip_numbering=n.skip_numbering,
                         mark_status="review" if n.mark_status == "review" else "unmarked",
+                        source_style_name=n.source_style_name,
                     )
                 )
                 walk(n.children, level + 1)

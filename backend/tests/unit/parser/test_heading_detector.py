@@ -39,9 +39,20 @@ def test_chinese_numerals_and_chapters() -> None:
 
 
 def test_dunhao_is_weak_heading() -> None:
-    # Q217：N、改 weak_heading（需粗体/上下文）
+    # Q217：depth==1 的 N、改 weak_heading（需粗体/上下文）
     m = hd.classify_numbering("1、目的")
     assert m is not None and m.kind == "weak_heading"
+
+
+def test_dotted_dunhao_subsection_is_heading() -> None:
+    # P0：depth≥2 的 N.N、/N.N.N、 点分前缀已表达层级，顿号在此非歧义 → heading
+    #（与 N.N 空格/点同等），修复中文 ISO 程序文件「5.1、顾客沟通」子节召回。
+    m = hd.classify_numbering("5.1、顾客沟通")
+    assert m is not None and m.kind == "heading" and m.level == 2
+    m3 = hd.classify_numbering("5.3.3、合同评审方式")
+    assert m3 is not None and m3.kind == "heading" and m3.level == 3
+    # depth==1 的 N、 仍 weak（危险源正文条款抑制不回归）
+    assert hd.classify_numbering("1、目的").kind == "weak_heading"
 
 
 def test_paren_numbering_is_list() -> None:
@@ -94,6 +105,17 @@ def test_fused_subheading_heading_kind_keeps_half_credit() -> None:
     score, level, _ = hd.score_block(blk, stats)
     assert score >= hd.LOW  # 至少 LOW，才能被结构器升
     assert score < hd.MEDIUM  # 但不要直接 MEDIUM（避免覆盖 heuristic）
+    assert level == 2
+
+
+def test_nonbold_short_dotted_dunhao_reaches_low() -> None:
+    """P0 整体效果：非粗短子节「5.1、顾客沟通」评分达 LOW，可被结构器 'LOW + heading' 规则升 chapter。
+
+    回归前该段为 weak_heading + 非粗 → score 0.10 < LOW，子节被整组丢弃。
+    """
+    stats = hd.DocStats(font_p85=None, single_font=True)
+    score, level, _ = hd.score_block(_para("5.1、顾客沟通", bold=0.0), stats)
+    assert score >= hd.LOW
     assert level == 2
 
 

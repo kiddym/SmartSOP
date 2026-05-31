@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onUnmounted } from 'vue'
 import { downloadPdf, fetchPdfLayout, fetchProcedureDetail } from '@/api/procedures'
 import { listNodes } from '@/api/nodes'
 import type { ProcedureDetail } from '@/types/procedure'
@@ -14,7 +14,7 @@ import {
   fmtDate,
   type PreviewModel,
 } from './pdfModel'
-import { stepZoom, fitZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
+import { stepZoom, fitZoom, fitPageZoom, activePageIndex, clampPageInput, pageLabel, ZOOM_MIN, ZOOM_MAX } from './pdfChrome'
 import { isAlertType } from '@/utils/editor'
 import type { FormType } from '@/types/node'
 
@@ -38,11 +38,14 @@ const model = ref<PreviewModel | null>(null)
 const scrollEl = ref<HTMLElement | null>(null)
 const docEl = ref<HTMLElement | null>(null)
 const zoom = ref(1)
+// 未缩放（zoom=1）时的纸面宽度（px），开窗后测一次。缩放档位据此换算，避免读已缩放的 offsetWidth。
+const basePageW = ref(0)
+const A4_RATIO = 297 / 210 // 纸面高/宽，用名义比例算「适应整页」，不受内容溢出影响
 const pageCount = ref(0)
 const currentPage = ref(0)
 const railOpen = ref(true)
 const railEl = ref<HTMLElement | null>(null)
-const railItems = ref<{ index: number; label: string }[]>([])
+const railItems = ref<{ index: number; label: string; pgLabel: string; overflow: boolean }[]>([])
 const zoomPct = computed(() => Math.round(zoom.value * 100))
 
 function pageEls(): HTMLElement[] {
@@ -55,9 +58,13 @@ function zoomOut(): void {
   zoom.value = stepZoom(zoom.value, -1)
 }
 function fit(): void {
-  const cw = scrollEl.value?.clientWidth ?? 0
-  const pw = pageEls()[0]?.offsetWidth ?? 0
-  zoom.value = fitZoom(cw, pw)
+  zoom.value = fitZoom(scrollEl.value?.clientWidth ?? 0, basePageW.value)
+}
+function fitPage(): void {
+  zoom.value = fitPageZoom(scrollEl.value?.clientHeight ?? 0, basePageW.value * A4_RATIO)
+}
+function resetZoom(): void {
+  zoom.value = 1
 }
 function onScroll(): void {
   const tops = pageEls().map((el) => el.offsetTop)
@@ -84,6 +91,25 @@ function onPageInput(e: Event): void {
   el.value = String(currentPage.value + 1) // re-sync after a jump or an invalid entry
 }
 
+function onKeyDown(e: KeyboardEvent): void {
+  if (!visible.value || pageCount.value === 0) return
+  // 不拦截输入框内的按键（跳页框自己处理方向键）
+  const tag = (e.target as HTMLElement).tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return
+  switch (e.key) {
+    case 'PageDown': e.preventDefault(); nextPage(); break
+    case 'PageUp': e.preventDefault(); prevPage(); break
+    case 'Home': e.preventDefault(); goPage(0); break
+    case 'End': e.preventDefault(); goPage(pageCount.value - 1); break
+  }
+}
+
+watch(visible, (open) => {
+  if (open) document.addEventListener('keydown', onKeyDown)
+  else document.removeEventListener('keydown', onKeyDown)
+})
+onUnmounted(() => document.removeEventListener('keydown', onKeyDown))
+
 const meta = computed(() => detail.value?.procedure ?? null)
 const watermarkText = computed(() => {
   const s = meta.value?.status
@@ -108,8 +134,18 @@ watch(visible, async (open) => {
       await nextTick()
       zoom.value = 1
       currentPage.value = 0
-      pageCount.value = pageEls().length
-      railItems.value = pageEls().map((el, i) => ({ index: i, label: pageLabel(el, i) }))
+      const els = pageEls()
+      pageCount.value = els.length
+      basePageW.value = els[0]?.offsetWidth ?? 0
+      // 297mm × 96/25.4 ≈ 1122 CSS px（名义 A4 高度，与后端 PAGE_SIZE 对齐）
+      const PAGE_H_PX = 1122
+      const overflows = els.map(el => el.offsetHeight > PAGE_H_PX * 1.02)
+      railItems.value = els.map((el, i) => ({
+        index: i,
+        label: pageLabel(el, i),
+        pgLabel: model.value?.layout.page_labels[i] ?? '',
+        overflow: overflows[i],
+      }))
   } catch {
     /* 拦截器已提示 */
     visible.value = false
@@ -156,6 +192,24 @@ const attachmentsLabel = computed(() => {
   return m.layout.page_labels[m.attachmentsPage - 1] ?? String(m.attachmentsPage)
 })
 
+// 3.2 续页标题：某内容页首个块不是章节标题（即承接上一页内容）时，在页首插入「章节（续）」。
+// 只依赖后端已分配的页号，不做 DOM 测量，纯数据推断。
+const continuationHeaders = computed((): Map<number, string> => {
+  if (!model.value) return new Map()
+  const map = new Map<number, string>()
+  let lastCh = { code: '', title: '' }
+  for (const pg of model.value.contentPages) {
+    if (pg.blocks.length > 0 && pg.blocks[0].kind !== 'chapter' && lastCh.title) {
+      const label = lastCh.code ? `${lastCh.code} ${lastCh.title}` : lastCh.title
+      map.set(pg.page, `${label}（续）`)
+    }
+    for (const b of pg.blocks) {
+      if (b.kind === 'chapter') lastCh = { code: b.code ?? '', title: b.title ?? '' }
+    }
+  }
+  return map
+})
+
 defineExpose({ model })
 
 function onPreviewClick(e: MouseEvent): void {
@@ -182,7 +236,9 @@ function onPreviewClick(e: MouseEvent): void {
             <el-button size="small" :disabled="zoom <= ZOOM_MIN" @click="zoomOut">−</el-button>
             <span class="pv-zoom-pct">{{ zoomPct }}%</span>
             <el-button size="small" :disabled="zoom >= ZOOM_MAX" @click="zoomIn">＋</el-button>
-            <el-button size="small" @click="fit">适应</el-button>
+            <el-button size="small" @click="fit">适应宽度</el-button>
+            <el-button size="small" @click="fitPage">适应整页</el-button>
+            <el-button size="small" :disabled="zoom === 1" @click="resetZoom">100%</el-button>
           </div>
           <div v-if="model && pageCount" class="pv-pagenav">
             <el-button size="small" :disabled="currentPage <= 0" @click="prevPage">‹ 上一页</el-button>
@@ -194,6 +250,8 @@ function onPreviewClick(e: MouseEvent): void {
               aria-label="跳转到页"
               @change="onPageInput"
               @keyup.enter="onPageInput"
+              @keydown.up.prevent="prevPage"
+              @keydown.down.prevent="nextPage"
             />
             <span class="pv-pagetotal">/ {{ pageCount }}</span>
             <el-button size="small" :disabled="currentPage >= pageCount - 1" @click="nextPage">下一页 ›</el-button>
@@ -216,6 +274,8 @@ function onPreviewClick(e: MouseEvent): void {
         >
           <span class="pv-rail-num">{{ it.index + 1 }}</span>
           <span class="pv-rail-label">{{ it.label }}</span>
+          <span v-if="it.pgLabel" class="pv-rail-pg">{{ it.pgLabel }}</span>
+          <span v-if="it.overflow" class="pv-rail-warn" title="内容溢出页面边界，下载版分页可能不同">⚠</span>
         </button>
       </aside>
       <div ref="scrollEl" v-loading="loading" class="pv-scroll" @scroll="onScroll">
@@ -295,6 +355,9 @@ function onPreviewClick(e: MouseEvent): void {
               <span>版本: Rev.{{ meta.version }}</span>
               <span>第 {{ pg.label }} 页 / 共 {{ model.layout.total_pages }} 页</span>
             </span>
+          </div>
+          <div v-if="continuationHeaders.get(pg.page)" class="continuation-heading">
+            {{ continuationHeaders.get(pg.page) }}
           </div>
           <p v-if="!pg.blocks.length" class="muted">（程序无内容）</p>
           <template v-for="b in pg.blocks" :key="b.key">
@@ -463,6 +526,26 @@ function onPreviewClick(e: MouseEvent): void {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.pv-rail-pg {
+  flex: none;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-left: 4px;
+}
+.pv-rail-warn {
+  flex: none;
+  font-size: 11px;
+  color: rgba(255, 180, 50, 0.9);
+  margin-left: 2px;
+}
+.continuation-heading {
+  font-size: 11pt;
+  color: #666;
+  font-style: italic;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed #bbb;
+}
 .pv-doc {
   display: flex;
   flex-direction: column;
@@ -483,6 +566,17 @@ function onPreviewClick(e: MouseEvent): void {
   font-size: 12pt;
   line-height: 1.5;
   color: #000;
+}
+/* 3.1 页面边界指示线：297mm 处红色虚线，content 超出则可见，标注"下载版在此换页" */
+.page::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 297mm;
+  border-top: 1.5px dashed rgba(220, 38, 38, 0.35);
+  pointer-events: none;
+  z-index: 10;
 }
 /* 水印（§3.4）：45° 斜纹平铺文字 */
 .page[data-wm]:not([data-wm=''])::before {

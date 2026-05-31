@@ -17,6 +17,7 @@ const emit = defineEmits<{
   (e: 'toggle'): void
   (e: 'check', shift: boolean): void
   (e: 'chip', command: string): void
+  (e: 'add', command: string): void
   (e: 'remove'): void
   (e: 'dragstart', ev: DragEvent): void
   (e: 'dragover', ev: DragEvent): void
@@ -27,6 +28,7 @@ const emit = defineEmits<{
 }>()
 
 const n = computed(() => props.row.node)
+const isHeading = computed(() => n.value.heading_level !== null)
 const levelLabel = computed(() => {
   const h = n.value.heading_level
   const base = h === null ? '正文' : `L${h}`
@@ -84,6 +86,10 @@ function onKeydown(ev: KeyboardEvent): void {
       class="ntr-check"
       @click.stop="onCheck"
     />
+    <span class="ntr-code">{{ n.code }}</span>
+    <span class="ntr-title">{{ row.title }}</span>
+    <span v-if="n.kind === 'step'" class="ntr-kind" title="步骤（带执行表单）">步骤</span>
+    <span v-if="n.mark_status === 'review'" class="ntr-review" title="解析存疑，待确认">待确认</span>
     <span v-if="!readonly" class="ntr-actions" @click.stop>
       <el-dropdown trigger="click" :persistent="false" @command="(c: string) => emit('chip', c)">
         <el-button size="small" text class="ntr-chip">{{ levelLabel }} ▾</el-button>
@@ -98,11 +104,25 @@ function onKeydown(ev: KeyboardEvent): void {
           </el-dropdown-menu>
         </template>
       </el-dropdown>
+      <el-dropdown trigger="click" :persistent="false" @command="(c: string) => emit('add', c)">
+        <el-button size="small" text class="ntr-add" title="在此处新增">＋</el-button>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <template v-if="isHeading">
+              <el-dropdown-item command="chapter">新增同级章节</el-dropdown-item>
+              <el-dropdown-item command="subchapter">新增子章节</el-dropdown-item>
+              <el-dropdown-item command="step" divided>新增步骤</el-dropdown-item>
+              <el-dropdown-item command="body">新增正文</el-dropdown-item>
+            </template>
+            <template v-else>
+              <el-dropdown-item command="step">新增步骤</el-dropdown-item>
+              <el-dropdown-item command="body">新增正文</el-dropdown-item>
+            </template>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <el-button class="ntr-del" size="small" text title="删除" @click.stop="emit('remove')">✕</el-button>
     </span>
-    <span class="ntr-code">{{ n.code }}</span>
-    <span class="ntr-title">{{ row.title }}</span>
-    <span v-if="n.mark_status === 'review'" class="ntr-review" title="解析存疑，待确认">待确认</span>
-    <el-button v-if="!readonly" class="ntr-del" size="small" text title="删除" @click.stop="emit('remove')">✕</el-button>
   </div>
 </template>
 
@@ -115,11 +135,14 @@ function onKeydown(ev: KeyboardEvent): void {
 .ntr-caret { width: 14px; text-align: center; color: #999; flex: none; }
 .ntr-caret--hidden { visibility: hidden; }
 .ntr-check { flex: none; }
-.ntr-actions { flex: none; }
-.ntr-chip { font-variant-numeric: tabular-nums; }
 .ntr-code { color: #888; font-variant-numeric: tabular-nums; flex: none; }
 .ntr-title { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
+.ntr-kind { flex: none; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: #4d6bb5; background: #eef2fb; border: 1px solid #c9d6f0; }
 .ntr-review { flex: none; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: #b88230; background: #fdf6ec; border: 1px solid #f5dab1; }
-.ntr-del { flex: none; display: none; }
-.ntr:hover .ntr-del { display: inline-flex; }
+/* 行操作组：默认隐藏，hover 或选中时统一出现（层级/新增/删除显示时机一致）。 */
+.ntr-actions { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; visibility: hidden; }
+.ntr:hover .ntr-actions, .ntr--selected .ntr-actions { visibility: visible; }
+.ntr-chip { font-variant-numeric: tabular-nums; }
+.ntr-add { color: var(--el-color-primary, #d97757); font-weight: 600; padding: 0 4px; }
+.ntr-del { flex: none; }
 </style>

@@ -88,12 +88,18 @@ describe('parse api', () => {
       new File([new Uint8Array([1])], 'a.docx'),
       'f1',
       '名',
+      'continuous',
       (s) => stages.push(s),
     )
     expect(out.id).toBe('p1')
     expect(stages).toEqual(['uploading', 'parsing', 'creating'])
     const importCall = post.mock.calls.find((c) => c[0] === '/procedures/import')
-    expect(importCall?.[1]).toMatchObject({ name: '名', folder_id: 'f1', upload_token: 'tk' })
+    expect(importCall?.[1]).toMatchObject({
+      name: '名',
+      folder_id: 'f1',
+      level_of_use: 'continuous',
+      upload_token: 'tk',
+    })
   })
 
   it('uploadAsset 以 multipart 发到 /procedures/{id}/assets', async () => {

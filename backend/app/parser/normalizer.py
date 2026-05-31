@@ -262,6 +262,8 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
     style_id = None
     outline_lvl = None
     numbered = False
+    num_id: str | None = None
+    num_ilvl: int | None = None
     if ppr is not None:
         pstyle = ppr.find(qn("w:pStyle"))
         if pstyle is not None:
@@ -270,7 +272,16 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
         if ol is not None:
             val = ol.get(qn("w:val"))
             outline_lvl = int(val) if val and val.isdigit() else None
-        numbered = ppr.find(qn("w:numPr")) is not None
+        numpr = ppr.find(qn("w:numPr"))
+        numbered = numpr is not None
+        if numpr is not None:
+            ilvl_el = numpr.find(qn("w:ilvl"))
+            if ilvl_el is not None:
+                iv = ilvl_el.get(qn("w:val"))
+                num_ilvl = int(iv) if iv and iv.isdigit() else None
+            numid_el = numpr.find(qn("w:numId"))
+            if numid_el is not None:
+                num_id = numid_el.get(qn("w:val"))
 
     out = _serialize_runs(para, ctx)
     raw_blips = _count_raw_images(para)
@@ -304,6 +315,8 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
         alignment=alignment,
         has_section_break=has_sect,
         numbered=numbered,
+        num_id=num_id,
+        num_ilvl=num_ilvl,
         images=out.images,
         raw_image_count=raw_blips,
     )
@@ -414,6 +427,25 @@ def emit_table(tbl: etree._Element, ctx: _Ctx, index: int) -> Block:
 # --------------------------------------------------------------------------- #
 # body 顶层迭代（SDT 递归 + 字段跟踪）
 # --------------------------------------------------------------------------- #
+def _counts_as_block_paragraph(p: etree._Element) -> bool:
+    """该 <w:p> 是否会被 normalize 产出为独立 paragraph block（C003 分母口径）。
+
+    顶层段落、文本框内段落（_emit_txbx_descendants hoist 成块）计入；表格单元格
+    直属段落被折叠进 table 块 HTML、不单独成块，故不计入——否则含表文档（连参考
+    模板自身）会因分母虚高而误报「段落可能遗漏」。从段落上溯，先遇 txbxContent
+    则计入（文本框内，即便其外层在单元格内也会被 hoist），先遇 tc 则不计入。
+    """
+    cur = p.getparent()
+    while cur is not None:
+        tag = local(cur.tag)
+        if tag == "txbxContent":
+            return True
+        if tag == "tc":
+            return False
+        cur = cur.getparent()
+    return True
+
+
 def _iter_body_children(container: etree._Element) -> list[etree._Element]:
     """展开 SDT，返回顶层 p/tbl 元素（顺序保真）。"""
     result: list[etree._Element] = []
@@ -495,7 +527,9 @@ def normalize(
             _append(block)
             _emit_txbx_descendants(el, i)
 
-    raw_paragraph_count = sum(1 for _ in body.iter(qn("w:p")))
+    raw_paragraph_count = sum(
+        1 for p in body.iter(qn("w:p")) if _counts_as_block_paragraph(p)
+    )
     return NormalizedDoc(
         blocks=blocks,
         total_image_count=image_count,

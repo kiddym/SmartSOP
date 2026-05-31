@@ -4,6 +4,13 @@ import { ElMessage } from 'element-plus'
 import { fetchFolderTree } from '@/api/folders'
 import { importFromWord, type ImportStage } from '@/api/parse'
 import type { FolderTreeNode } from '@/types/folder'
+import type { LevelOfUse } from '@/types/procedure'
+
+const LEVEL_OPTIONS: { value: LevelOfUse; label: string }[] = [
+  { value: 'reference', label: '参考 (reference)' },
+  { value: 'continuous', label: '连续使用 (continuous)' },
+  { value: 'information', label: '信息 (information)' },
+]
 
 const props = defineProps<{ modelValue: boolean }>()
 const emit = defineEmits<{
@@ -15,7 +22,11 @@ const visible = computed({ get: () => props.modelValue, set: (v) => emit('update
 interface LeafOption { id: string; label: string }
 const leaves = ref<LeafOption[]>([])
 const file = ref<File | null>(null)
-const form = reactive({ folder_id: '', name: '' })
+const form = reactive<{ folder_id: string; name: string; level_of_use: LevelOfUse }>({
+  folder_id: '',
+  name: '',
+  level_of_use: 'continuous',
+})
 const stage = ref<ImportStage | ''>('')
 const uploadPct = ref(0)
 const errorMsg = ref('')
@@ -49,6 +60,7 @@ watch(visible, (open) => {
     file.value = null
     form.folder_id = ''
     form.name = ''
+    form.level_of_use = 'continuous'
     stage.value = ''
     uploadPct.value = 0
     errorMsg.value = ''
@@ -66,10 +78,16 @@ async function submit(): Promise<void> {
   if (!form.name.trim()) { ElMessage.warning('请输入程序名称'); return }
   errorMsg.value = ''
   try {
-    const proc = await importFromWord(file.value, form.folder_id, form.name.trim(), (s, pct) => {
-      stage.value = s
-      if (pct !== undefined) uploadPct.value = pct
-    })
+    const proc = await importFromWord(
+      file.value,
+      form.folder_id,
+      form.name.trim(),
+      form.level_of_use,
+      (s, pct) => {
+        stage.value = s
+        if (pct !== undefined) uploadPct.value = pct
+      },
+    )
     ElMessage.success(`已创建 ${proc.code}`)
     visible.value = false
     emit('imported', proc.id)
@@ -95,6 +113,16 @@ async function submit(): Promise<void> {
       </el-form-item>
       <el-form-item label="程序名称" required>
         <el-input v-model="form.name" maxlength="200" placeholder="默认取文件名" />
+      </el-form-item>
+      <el-form-item label="使用级别" required>
+        <el-select v-model="form.level_of_use" class="full">
+          <el-option
+            v-for="opt in LEVEL_OPTIONS"
+            :key="opt.value"
+            :label="opt.label"
+            :value="opt.value"
+          />
+        </el-select>
       </el-form-item>
       <div v-if="busy" class="phase">{{ stageLabel }}</div>
       <div v-if="errorMsg" class="err">{{ errorMsg }}</div>

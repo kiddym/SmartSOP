@@ -362,6 +362,7 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
           </div>
         </div>
         <div class="actions">
+          <!-- 主操作组 -->
           <el-button
             type="primary"
             plain
@@ -369,31 +370,36 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
           >
             {{ editable ? '进入编辑器' : '查看内容' }}
           </el-button>
-          <el-button v-if="editable" @click="openEdit">快速编辑</el-button>
           <el-button v-if="editable" type="primary" @click="doTransition('PUBLISHED', '发布')">
             发布
           </el-button>
-          <el-button v-if="canPdf" @click="previewVisible = true">PDF 预览</el-button>
-          <el-button v-if="canPdf" :loading="pdfBusy" @click="onDownloadPdf">PDF 下载</el-button>
           <el-button v-if="canUpgrade" type="primary" plain :disabled="busy" @click="onUpgrade">
             升级版本
           </el-button>
-          <el-button v-if="canUpgrade" type="warning" @click="doTransition('ARCHIVED', '归档')">
-            归档
-          </el-button>
-          <el-button :disabled="busy" @click="openCopy">复制为新程序</el-button>
-          <el-button v-if="!deprecated" type="warning" plain :disabled="busy" @click="openDeprecate">
-            废弃
-          </el-button>
-          <el-button v-if="canArchive" type="warning" link :disabled="busy" @click="openArchive">
-            归档整版本族
-          </el-button>
-          <el-button v-if="deprecated" type="success" plain :disabled="busy" @click="openRestore">
-            恢复
-          </el-button>
-          <el-button v-if="canDelete" type="danger" plain :disabled="busy" @click="remove">
-            删除
-          </el-button>
+
+          <!-- 输出组 -->
+          <template v-if="canPdf">
+            <el-divider direction="vertical" />
+            <el-button @click="previewVisible = true">PDF 预览</el-button>
+            <el-button :loading="pdfBusy" @click="onDownloadPdf">PDF 下载</el-button>
+          </template>
+
+          <!-- 更多：编辑 / 版本生命周期 / 破坏性操作收进下拉 -->
+          <el-divider direction="vertical" />
+          <el-dropdown trigger="click" popper-class="pd-actions-menu">
+            <el-button>更多 ▾</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item v-if="editable" @click="openEdit">快速编辑</el-dropdown-item>
+                <el-dropdown-item @click="openCopy">复制为新程序</el-dropdown-item>
+                <el-dropdown-item v-if="canUpgrade" divided @click="doTransition('ARCHIVED', '归档')">归档</el-dropdown-item>
+                <el-dropdown-item v-if="canArchive" @click="openArchive">归档整版本族</el-dropdown-item>
+                <el-dropdown-item v-if="!deprecated" @click="openDeprecate">废弃</el-dropdown-item>
+                <el-dropdown-item v-if="deprecated" @click="openRestore">恢复</el-dropdown-item>
+                <el-dropdown-item v-if="canDelete" divided class="danger-item" @click="remove">删除</el-dropdown-item>
+              </el-dropdown-menu>
+            </template>
+          </el-dropdown>
         </div>
       </div>
 
@@ -579,5 +585,12 @@ async function onDialogConfirm(payload: VersionActionResult): Promise<void> {
 }
 .full {
   width: 100%;
+}
+</style>
+
+<!-- 下拉菜单 teleport 到 body，scoped 无法命中：用 popper-class 命名空间限定。 -->
+<style>
+.pd-actions-menu .danger-item {
+  color: var(--el-color-danger, #f56c6c);
 }
 </style>

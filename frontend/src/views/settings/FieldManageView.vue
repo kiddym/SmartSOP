@@ -196,6 +196,15 @@ async function toggleStatus(row: FieldDetailOut) {
 // ── single delete ──────────────────────────────────────────
 async function handleDelete(row: FieldDetailOut) {
   try {
+    await ElMessageBox.confirm(`确认删除字段「${row.name}」？`, '删除字段', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return // 用户取消
+  }
+  try {
     await deleteField(row.id)
     ElMessage.success('已删除')
     await fetchFields()
@@ -325,7 +334,7 @@ async function moveField(index: number, direction: 'up' | 'down') {
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="260" align="center" fixed="right">
+      <el-table-column label="操作" width="190" align="center" fixed="right">
         <template #default="{ row, $index }">
           <el-button
             :icon="ArrowUp"
@@ -342,19 +351,15 @@ async function moveField(index: number, direction: 'up' | 'down') {
             @click="moveField($index, 'down')"
           />
           <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link @click="toggleStatus(row)">
-            {{ row.status === 'active' ? '归档' : '激活' }}
-          </el-button>
-          <el-popconfirm
-            :title="`确认删除字段「${row.name}」？`"
-            confirm-button-text="删除"
-            cancel-button-text="取消"
-            @confirm="handleDelete(row)"
-          >
-            <template #reference>
-              <el-button link type="danger">删除</el-button>
+          <el-dropdown trigger="click" popper-class="field-row-menu">
+            <el-button link>更多 ▾</el-button>
+            <template #dropdown>
+              <el-dropdown-menu>
+                <el-dropdown-item @click="toggleStatus(row)">归档</el-dropdown-item>
+                <el-dropdown-item divided class="danger-item" @click="handleDelete(row)">删除</el-dropdown-item>
+              </el-dropdown-menu>
             </template>
-          </el-popconfirm>
+          </el-dropdown>
         </template>
       </el-table-column>
     </el-table>
@@ -377,16 +382,7 @@ async function moveField(index: number, direction: 'up' | 'down') {
             <template #default="{ row }">
               <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
               <el-button link type="success" @click="toggleStatus(row)">激活</el-button>
-              <el-popconfirm
-                :title="`确认删除字段「${row.name}」？`"
-                confirm-button-text="删除"
-                cancel-button-text="取消"
-                @confirm="handleDelete(row)"
-              >
-                <template #reference>
-                  <el-button link type="danger">删除</el-button>
-                </template>
-              </el-popconfirm>
+              <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -517,5 +513,12 @@ async function moveField(index: number, direction: 'up' | 'down') {
   display: flex;
   align-items: center;
   margin-bottom: 8px;
+}
+</style>
+
+<!-- 下拉菜单 teleport 到 body，scoped 无法命中：用 popper-class 命名空间限定。 -->
+<style>
+.field-row-menu .danger-item {
+  color: var(--el-color-danger, #f56c6c);
 }
 </style>

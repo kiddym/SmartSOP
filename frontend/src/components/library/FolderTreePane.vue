@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { Plus } from '@element-plus/icons-vue'
 import FolderTree from '@/components/FolderTree.vue'
 import { useFolderStore } from '@/store/folders'
 import type { FolderTreeNode } from '@/types/folder'
@@ -9,6 +11,11 @@ defineEmits<{
 }>()
 
 const store = useFolderStore()
+const router = useRouter()
+
+function manageFolders(): void {
+  void router.push('/folders')
+}
 
 onMounted(() => {
   void store.loadTree()
@@ -19,6 +26,14 @@ onMounted(() => {
   <div class="folder-tree-pane">
     <header class="pane-header">
       <span class="title">文件夹</span>
+      <el-button
+        data-test="manage-folders-btn"
+        :icon="Plus"
+        size="small"
+        text
+        title="新建 / 管理文件夹"
+        @click="manageFolders"
+      />
     </header>
     <div class="tree-body">
       <FolderTree
@@ -44,7 +59,8 @@ onMounted(() => {
   height: 40px;
   display: flex;
   align-items: center;
-  padding: 0 14px;
+  justify-content: space-between;
+  padding: 0 8px 0 14px;
   border-bottom: 1px solid #e0dbd3;
   flex-shrink: 0;
 }

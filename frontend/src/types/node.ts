@@ -67,6 +67,7 @@ export interface Node {
   input_schema: InputSchema | Record<string, never>
   attachment_marks: AttachmentMark[]
   mark_status: MarkStatus // 统一模型只用 'unmarked' | 'review'
+  source_style_name?: string | null // 来源样式名（动态字典「记住此样式」归因，M2；旧数据可空缺）
   revision: number // 乐观锁（仅 PATCH /nodes/{id} 用）
   parent_id: string | null // 派生
   depth: number // 派生

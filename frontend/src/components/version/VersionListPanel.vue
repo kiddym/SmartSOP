@@ -106,34 +106,36 @@ function toggleNotes(id: string): void {
         <el-tag v-if="v.is_current" size="small" type="success" disable-transitions>当前</el-tag>
         <span class="time">{{ formatDateTime(v.created_at) }}</span>
         <span class="spacer" />
-        <el-button
-          v-if="v.version_update_notes"
-          text
-          size="small"
-          @click="toggleNotes(v.id)"
-        >
-          {{ expanded.has(v.id) ? '收起说明' : '更新说明' }}
-        </el-button>
-        <el-button v-if="v.id !== viewingId" text size="small" @click="emit('view', v.id)">
-          查看
-        </el-button>
-        <el-button
-          v-if="!v.is_current && current"
-          text
-          size="small"
-          @click="emitCompare(v)"
-        >
-          对比当前
-        </el-button>
-        <el-button
-          v-if="currentPublished && v.status === 'ARCHIVED' && !v.is_current"
-          text
-          size="small"
-          type="warning"
-          @click="emit('rollback', v.version, currentPublished.id)"
-        >
-          回退到此版本
-        </el-button>
+        <span class="vrow-actions">
+          <el-button
+            v-if="v.version_update_notes"
+            text
+            size="small"
+            @click="toggleNotes(v.id)"
+          >
+            {{ expanded.has(v.id) ? '收起说明' : '更新说明' }}
+          </el-button>
+          <el-button v-if="v.id !== viewingId" text size="small" @click="emit('view', v.id)">
+            查看
+          </el-button>
+          <el-button
+            v-if="!v.is_current && current"
+            text
+            size="small"
+            @click="emitCompare(v)"
+          >
+            对比当前
+          </el-button>
+          <el-button
+            v-if="currentPublished && v.status === 'ARCHIVED' && !v.is_current"
+            text
+            size="small"
+            type="warning"
+            @click="emit('rollback', v.version, currentPublished.id)"
+          >
+            回退到此版本
+          </el-button>
+        </span>
       </div>
       <div
         v-if="v.version_update_notes && !expanded.has(v.id)"
@@ -183,6 +185,17 @@ function toggleNotes(id: string): void {
 }
 .spacer {
   flex: 1;
+}
+/* 行操作：默认隐藏，hover 或正在查看的行显示（减少常驻按钮噪音）。 */
+.vrow-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  visibility: hidden;
+}
+.vrow:hover .vrow-actions,
+.vrow.viewing .vrow-actions {
+  visibility: visible;
 }
 .notes {
   margin: 6px 0 2px 46px;

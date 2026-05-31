@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDebounceFn } from '@vueuse/core'
 import RichTextEditor from './RichTextEditor.vue'
 import StepFormFields from './StepFormFields.vue'
 import FormFieldPreview from './FormFieldPreview.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
+import { createHeadingRule } from '@/api/headingRules'
+import { errorMessage } from '@/api/http'
 import { FORM_TYPE_META, isAlertType, isRichTextType } from '@/utils/editor'
 import { FORM_TYPES } from '@/types/node'
 import type { AttachmentMark, FormType, InputSchema } from '@/types/node'
@@ -15,6 +17,30 @@ const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: fa
 const store = useNodeEditorStore()
 const node = computed(() => store.selectedNode)
 const procId = computed(() => store.procedureId ?? undefined)
+const isHeading = computed(() => node.value?.heading_level !== null)
+
+// 「记住此样式」（动态标题字典 M2）：样式标题 review 时可一键把「样式名→当前层级」写入
+// 动态字典（即时 active），下次同样式免确认；同时确认本节点。仅样式来源标题可记。
+const LEVEL_LABEL: Record<number, string> = { 1: '一级章节', 2: '二级章节', 3: '三级章节' }
+const sourceStyle = computed(() => node.value?.source_style_name ?? null)
+const canRemember = computed(
+  () => !!sourceStyle.value && node.value?.heading_level != null && !props.readonly,
+)
+async function rememberStyle(): Promise<void> {
+  const n = node.value
+  if (!n || !n.source_style_name || n.heading_level == null) return
+  try {
+    await createHeadingRule(n.source_style_name, n.heading_level)
+    await store.confirmReview(n.id) // 记住即确认
+    ElMessage.success(`已记住「${n.source_style_name}」为${LEVEL_LABEL[n.heading_level] ?? '章节'}，下次同样式免确认`)
+  } catch (err) {
+    ElMessage.error(errorMessage(err) ?? '记住样式失败，请重试')
+  }
+}
+
+function onRemove(): void {
+  if (node.value) void store.removeNode(node.value.id)
+}
 
 const LEVELS = [
   { value: null as number | null, label: '正文' },
@@ -86,6 +112,11 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
 
 <template>
   <div v-if="node" class="node-detail">
+    <div v-if="!props.readonly" class="node-ops">
+      <span class="node-ops-title">{{ node.kind === 'step' ? '步骤' : isHeading ? '章节' : '正文' }} · {{ node.code }}</span>
+      <el-button class="node-del" size="small" text type="danger" title="删除此节点（可撤销）" @click="onRemove">删除此节点</el-button>
+    </div>
+
     <el-form v-if="!props.readonly" label-position="top">
       <el-form-item label="层级">
         <el-select :model-value="node.heading_level" @change="onLevel">
@@ -150,6 +181,13 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
     <div v-if="node.mark_status === 'review' && !props.readonly" class="review-bar">
       <span class="review-tag">待确认</span>
       <el-button class="confirm-review" size="small" type="primary" @click="store.confirmReview(node.id)">确认</el-button>
+      <el-button
+        v-if="canRemember"
+        class="remember-style"
+        size="small"
+        title="把此样式→当前层级写入字典，下次同样式自动识别、免确认"
+        @click="rememberStyle"
+      >记住「{{ sourceStyle }}」样式</el-button>
     </div>
   </div>
   <el-empty v-else description="选择左侧节点进行编辑" />
@@ -157,6 +195,8 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
 
 <style scoped>
 .node-detail { padding: 8px 0 40px; }
+.node-ops { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5); }
+.node-ops-title { font-size: 13px; font-weight: 600; color: #606266; font-variant-numeric: tabular-nums; }
 .inline { display: flex; gap: 16px; }
 .config-preview { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
 .cp-config, .cp-preview { flex: 1 1 280px; min-width: 0; }
@@ -167,6 +207,6 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
 .rt-hint { font-size: 12px; color: #909399; }
 .mark-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
 .mark-kind { width: 120px; flex: none; }
-.review-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.review-bar { display: flex; align-items: center; gap: 8px; margin-top: 12px; position: sticky; bottom: 0; padding: 8px 0; background: var(--el-bg-color, #fff); border-top: 1px solid var(--el-border-color-lighter, #ebeef5); z-index: 1; }
 .review-tag { font-size: 12px; color: #b88230; background: #fdf6ec; border: 1px solid #f5dab1; border-radius: 3px; padding: 1px 6px; }
 </style>

@@ -75,7 +75,9 @@ describe('CreateFromWordDialog', () => {
     ])
     const wrapper = await open()
     // sys 系统排除；mid 非叶且无 prefix 排除 → 仅 f1、f2
-    expect(wrapper.findAllComponents(OptionStub)).toHaveLength(2)
+    // 仅数第一个 select（目标文件夹）下的选项，排除"使用级别" select 的固定选项。
+    const folderSelect = wrapper.findAllComponents(SelectStub)[0]
+    expect(folderSelect.findAllComponents(OptionStub)).toHaveLength(2)
   })
 
   it('选文件后用文件名（去 .docx）自动填充名称', async () => {
@@ -100,7 +102,7 @@ describe('CreateFromWordDialog', () => {
     await setFolder(wrapper, 'f1')
     await clickSubmit(wrapper)
     await flushPromises()
-    expect(importFromWord).toHaveBeenCalledWith(file, 'f1', '记录控制', expect.any(Function))
+    expect(importFromWord).toHaveBeenCalledWith(file, 'f1', '记录控制', 'continuous', expect.any(Function))
     expect(wrapper.emitted('imported')?.[0]).toEqual(['p9'])
     expect(wrapper.emitted('update:modelValue')?.some((e) => e[0] === false)).toBe(true)
   })

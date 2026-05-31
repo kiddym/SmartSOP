@@ -1,6 +1,7 @@
 // Word 上传 / 解析 / 导入类型（与后端 app/schemas/parse.py 对齐，全 snake_case，Q350）。
 
 import type { MarkStatus } from '@/types/node'
+import type { LevelOfUse } from '@/types/procedure'
 
 // ---- 上传 ---- //
 export interface UploadResult {
@@ -33,6 +34,9 @@ export interface ParsedNode {
   confidence_tier: ConfidenceTier
   mark_status: MarkStatus
   heading_source: string | null
+  // 学习闭环归因键（动态标题字典 M1/M2）：样式标题记来源样式名；启发式编号标题记 pattern_key。
+  source_style_name: string | null
+  source_numbering_pattern: string | null
   children: ParsedNode[]
 }
 
@@ -103,6 +107,7 @@ export interface ImportNode {
   rich_content: string
   skip_numbering: boolean
   mark_status: MarkStatus
+  source_style_name?: string | null // 来源样式名（动态字典 M2），随导入持久化
   children: ImportNode[]
 }
 
@@ -110,6 +115,7 @@ export interface ImportRequest {
   name: string
   folder_id: string
   description?: string
+  level_of_use?: LevelOfUse
   upload_token?: string
   chapters: ImportNode[]
 }

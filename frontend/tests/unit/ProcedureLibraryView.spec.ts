@@ -63,19 +63,19 @@ async function mountView() {
 describe('ProcedureLibraryView', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('mount 时无选中文件夹：query.status=PUBLISHED, folder_id=undefined', async () => {
+  it('mount 时无选中文件夹：query.status=空（全部状态）, folder_id=undefined', async () => {
     const w = await mountView()
     const vm = w.vm as unknown as { query: { status: string; folder_id?: string } }
-    expect(vm.query.status).toBe('PUBLISHED')
+    expect(vm.query.status).toBe('')
     expect(vm.query.folder_id).toBeUndefined()
   })
 
-  it('选中普通文件夹：query.status=PUBLISHED + folder_id 设入', async () => {
+  it('选中普通文件夹：query.status=空（全部状态）+ folder_id 设入', async () => {
     const w = await mountView()
     const tree = w.findComponent({ name: 'FolderTreePane' })
     await tree.vm.$emit('select', normalFolder)
     const vm = w.vm as unknown as { query: { status: string; folder_id?: string } }
-    expect(vm.query.status).toBe('PUBLISHED')
+    expect(vm.query.status).toBe('')
     expect(vm.query.folder_id).toBe('f-normal')
   })
 

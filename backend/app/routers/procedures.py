@@ -130,6 +130,7 @@ def import_procedure(
         folder_id=payload.folder_id,
         description=payload.description,
         chapters=payload.chapters,
+        level_of_use=payload.level_of_use,
         upload_token=payload.upload_token,
         meta=meta,
     )

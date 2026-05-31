@@ -50,9 +50,33 @@ class NumberingMatch:
 class DocStats:
     font_p85: float | None
     single_font: bool
+    # 编号体例覆盖（动态字典 M4b）：{pattern_key: (kind, level)}，命中即覆盖内置编号判定。
+    # 空 = 无覆盖、行为与内置完全一致。随 DocStats 一次构建、流经 score_block。
+    numbering_overrides: dict[str, tuple[str, int | None]] = field(default_factory=dict)
 
 
-def classify_numbering(text: str) -> NumberingMatch | None:
+def classify_numbering(
+    text: str, overrides: dict[str, tuple[str, int | None]] | None = None
+) -> NumberingMatch | None:
+    """内置编号词典 + 可选体例覆盖（M4b）。``overrides`` 空/None 时与内置完全一致。
+
+    覆盖按 ``pattern_key`` 命中：替换 ``kind``（可把顿号 weak→heading，或 heading→list 压制），
+    ``level`` 为 None 时沿用内置层级。仅对已产出 match 的文本生效（无编号信号者不变）。
+    """
+    m = _classify_numbering_base(text)
+    if m is not None and overrides:
+        ov = overrides.get(m.pattern_key)
+        if ov is not None:
+            kind, level = ov
+            return NumberingMatch(
+                kind=kind,
+                level=level if level is not None else m.level,
+                pattern_key=m.pattern_key,
+            )
+    return m
+
+
+def _classify_numbering_base(text: str) -> NumberingMatch | None:
     """编号分级字典 v4。返回 None 表示无编号信号。"""
     t = text.strip()
     if not t:
@@ -83,9 +107,15 @@ def classify_numbering(text: str) -> NumberingMatch | None:
         depth = num.count(".") + 1
         level = min(depth, 3)
         rest = t[m.end() :]
-        if rest.startswith("、"):  # N、/N.N、 → 顿号歧义 weak（Q217）
-            key = "N、" if depth == 1 else "N" + ".N" * (depth - 1) + "、"
-            return NumberingMatch(kind="weak_heading", level=level, pattern_key=key)
+        if rest.startswith("、"):
+            # depth==1 的 N、 顿号歧义（危险源正文条款「1、设有消防…」）→ weak_heading，需粗体/上下文；
+            # depth≥2 的 N.N、 点分前缀已表达层级，顿号在此非歧义（「5.1、顾客沟通」中文 ISO 程序文件
+            # 主流写法）→ heading，与 N.N 空格(:96)/N.N.(:90)/N.N直连中文(:100) 同等对待（修复子节召回）。
+            if depth >= 2:
+                return NumberingMatch(
+                    kind="heading", level=level, pattern_key="N" + ".N" * (depth - 1) + "、"
+                )
+            return NumberingMatch(kind="weak_heading", level=level, pattern_key="N、")
         if rest.startswith("."):  # 末尾点 "1." → heading
             return NumberingMatch(kind="heading", level=level, pattern_key="N.")
         if rest[:1].isspace():
@@ -103,8 +133,14 @@ def classify_numbering(text: str) -> NumberingMatch | None:
     return None
 
 
-def compute_doc_stats(blocks: list[Block]) -> DocStats:
-    """全文字号分布：算 85 分位；单一字号时关闭字号信号（等字号自适应）。"""
+def compute_doc_stats(
+    blocks: list[Block], numbering_overrides: dict[str, tuple[str, int | None]] | None = None
+) -> DocStats:
+    """全文字号分布：算 85 分位；单一字号时关闭字号信号（等字号自适应）。
+
+    ``numbering_overrides``（M4b 编号体例）随 stats 携带，供 score_block 内部编号判定使用。
+    """
+    ov = numbering_overrides or {}
     fonts = [
         b.max_font_pt
         for b in blocks
@@ -112,10 +148,10 @@ def compute_doc_stats(blocks: list[Block]) -> DocStats:
     ]
     distinct = sorted(set(fonts))
     if len(distinct) < 2:
-        return DocStats(font_p85=None, single_font=True)
+        return DocStats(font_p85=None, single_font=True, numbering_overrides=ov)
     ordered = sorted(fonts)
     idx = max(0, min(len(ordered) - 1, round(0.85 * (len(ordered) - 1))))
-    return DocStats(font_p85=ordered[idx], single_font=False)
+    return DocStats(font_p85=ordered[idx], single_font=False, numbering_overrides=ov)
 
 
 def tier_for(score: float) -> str | None:
@@ -228,7 +264,7 @@ def score_block(block: Block, stats: DocStats) -> tuple[float, int, str]:
     if not text:
         return 0.0, 1, "heuristic"
 
-    num = classify_numbering(text)
+    num = classify_numbering(text, stats.numbering_overrides)
     # ── list 标记 hard veto：(一)/N) 等列表项即便短+粗+大字号也不能升 heading ──
     # 否则其它信号累积可达 MEDIUM (0.5+)，结构器会误升 chapter。
     # 见 eval-r1 调参：有限空间作业 FP 14/35 是 (一)~(六) 项；危险源 FP 中也有 N) 项。

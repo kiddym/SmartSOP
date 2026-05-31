@@ -57,12 +57,17 @@ node.$onAction(({ name, after, onError }) => {
     </div>
 
     <div v-if="store.editable" class="right">
-      <el-button class="etb-undo" size="small" :disabled="!node.canUndo" title="撤销 (节点编辑)" @click="node.undo()">↶ 撤销</el-button>
-      <el-button class="etb-redo" size="small" :disabled="!node.canRedo" title="重做 (节点编辑)" @click="node.redo()">↷ 重做</el-button>
+      <!-- 编辑组：节点编辑级动作 -->
+      <el-button class="etb-undo" size="small" text :disabled="!node.canUndo" title="撤销 (节点编辑)" @click="node.undo()">↶ 撤销</el-button>
+      <el-button class="etb-redo" size="small" text :disabled="!node.canRedo" title="重做 (节点编辑)" @click="node.redo()">↷ 重做</el-button>
       <span class="etb-save" :class="{ 'is-saving': saving }">{{ saving ? '保存中…' : '✓ 已保存' }}</span>
+      <el-divider direction="vertical" />
+      <!-- 输出组 -->
       <el-button size="small" @click="emit('preview-pdf')">PDF 预览</el-button>
-      <el-button v-if="showPublish" size="small" type="primary" @click="emit('publish')">发布</el-button>
+      <el-divider direction="vertical" />
+      <!-- 生命周期组 -->
       <el-button v-if="showUpgrade" size="small" @click="emit('upgrade')">升级版本</el-button>
+      <el-button v-if="showPublish" size="small" type="primary" @click="emit('publish')">发布</el-button>
       <el-dropdown trigger="click">
         <el-button size="small" text>⋮</el-button>
         <template #dropdown>

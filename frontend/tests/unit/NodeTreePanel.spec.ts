@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { setActivePinia, createPinia } from 'pinia'
 import ElementPlus from 'element-plus'
 import NodeTreePanel from '@/components/editor/NodeTreePanel.vue'
@@ -72,6 +72,26 @@ describe('NodeTreePanel', () => {
     expect(create).toHaveBeenCalledWith({ heading_level: null, kind: 'node' })
   })
 
+  it('row add commands map to createRelative (position + attrs)', async () => {
+    const { w, store } = setup([
+      n({ id: 'c1', heading_level: 1, body: '<p>C1</p>' }),
+      n({ id: 's1', parent_id: 'c1', depth: 1, kind: 'step', sort_order: 1000, body: '<p>S</p>' }),
+    ])
+    const rel = vi.spyOn(store, 'createRelative').mockResolvedValue()
+    const rows = w.findAllComponents({ name: 'NodeTreeRow' })
+    rows[0].vm.$emit('add', 'chapter') // 标题行：同级章节
+    expect(rel).toHaveBeenCalledWith('c1', 'after-subtree', { heading_level: 1, kind: 'node' })
+    rows[0].vm.$emit('add', 'subchapter')
+    expect(rel).toHaveBeenCalledWith('c1', 'after-node', { heading_level: 2, kind: 'node' })
+    rows[0].vm.$emit('add', 'step')
+    expect(rel).toHaveBeenCalledWith('c1', 'after-node', { heading_level: null, kind: 'step' })
+    rows[0].vm.$emit('add', 'body')
+    expect(rel).toHaveBeenCalledWith('c1', 'after-node', { heading_level: null, kind: 'node' })
+    // 叶子行：新增正文挂同一父级
+    rows[1].vm.$emit('add', 'body')
+    expect(rel).toHaveBeenCalledWith('s1', 'after-node', { heading_level: null, kind: 'node' })
+  })
+
   it('check builds selection; floating bar 设为L1 calls batchSetLevel then clears selection', async () => {
     const { w, store } = setup([
       n({ id: 'a', body: '<p>A</p>' }),
@@ -96,6 +116,43 @@ describe('NodeTreePanel', () => {
     expect(w.find('.np-review-count').text()).toContain('1')
     await w.find('.np-review-toggle').trigger('click')
     expect(store.reviewOnly).toBe(true)
+  })
+
+  it('全部确认 confirms all review nodes after dialog accept', async () => {
+    const { w, store } = setup([
+      n({ id: 'a', body: '<p>A</p>', mark_status: 'review' }),
+      n({ id: 'b', sort_order: 1000, body: '<p>B</p>', mark_status: 'review' }),
+      n({ id: 'c', sort_order: 2000, body: '<p>C</p>' }),
+    ])
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
+    vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
+    const batch = vi.spyOn(store, 'confirmReviewBatch').mockResolvedValue()
+    await w.find('.np-review-all').trigger('click')
+    await flushPromises()
+    expect(batch).toHaveBeenCalledWith(['a', 'b'])
+  })
+
+  it('全部确认 aborts when dialog cancelled', async () => {
+    const { w, store } = setup([n({ id: 'a', body: '<p>A</p>', mark_status: 'review' })])
+    vi.spyOn(ElMessageBox, 'confirm').mockRejectedValue('cancel')
+    const batch = vi.spyOn(store, 'confirmReviewBatch').mockResolvedValue()
+    await w.find('.np-review-all').trigger('click')
+    await flushPromises()
+    expect(batch).not.toHaveBeenCalled()
+  })
+
+  it('确认所选 confirms review nodes among selection', async () => {
+    const { w, store } = setup([
+      n({ id: 'a', body: '<p>A</p>', mark_status: 'review' }),
+      n({ id: 'b', sort_order: 1000, body: '<p>B</p>' }),
+    ])
+    vi.spyOn(ElMessage, 'success').mockImplementation(() => ({}) as never)
+    const batch = vi.spyOn(store, 'confirmReviewBatch').mockResolvedValue()
+    w.findAllComponents({ name: 'NodeTreeRow' })[0].vm.$emit('check', false)
+    await w.vm.$nextTick()
+    await w.find('.np-bar-confirm').trigger('click')
+    expect(batch).toHaveBeenCalledWith(['a'])
+    expect(store.selection.size).toBe(0)
   })
 
   it('drop reorders via computeReorder → store.reorder', async () => {

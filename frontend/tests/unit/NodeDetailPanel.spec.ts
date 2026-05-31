@@ -6,6 +6,9 @@ import NodeDetailPanel from '@/components/editor/NodeDetailPanel.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
 import type { Node } from '@/types/node'
 
+const { createHeadingRule } = vi.hoisted(() => ({ createHeadingRule: vi.fn() }))
+vi.mock('@/api/headingRules', () => ({ createHeadingRule }))
+
 function n(over: Partial<Node>): Node {
   return {
     id: 'x', procedure_id: 'p1', sort_order: 0, heading_level: null, kind: 'node',
@@ -87,6 +90,29 @@ describe('NodeDetailPanel', () => {
     await w.vm.$nextTick()
     await w.find('.confirm-review').trigger('click')
     expect(spy).toHaveBeenCalledWith('a')
+  })
+
+  it('review heading with source style shows 记住此样式 → writes rule + confirms', async () => {
+    createHeadingRule.mockReset().mockResolvedValue({})
+    const { w, store } = mountPanel()
+    store.nodes = [n({ id: 'a', mark_status: 'review', heading_level: 2, source_style_name: '章节标题' })]
+    store.selectedId = 'a'
+    const confirm = vi.spyOn(store, 'confirmReview').mockResolvedValue()
+    await w.vm.$nextTick()
+    expect(w.find('.remember-style').exists()).toBe(true)
+    await w.find('.remember-style').trigger('click')
+    expect(createHeadingRule).toHaveBeenCalledWith('章节标题', 2)
+    await w.vm.$nextTick()
+    expect(confirm).toHaveBeenCalledWith('a')
+  })
+
+  it('review heading WITHOUT source style hides 记住此样式 (heuristic/zero-style)', async () => {
+    const { w, store } = mountPanel()
+    store.nodes = [n({ id: 'a', mark_status: 'review', heading_level: 1, source_style_name: null })]
+    store.selectedId = 'a'
+    await w.vm.$nextTick()
+    expect(w.find('.confirm-review').exists()).toBe(true)
+    expect(w.find('.remember-style').exists()).toBe(false)
   })
 })
 

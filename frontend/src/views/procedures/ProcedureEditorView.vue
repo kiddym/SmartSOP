@@ -137,15 +137,19 @@ async function onCopyConfirm(payload: VersionActionResult): Promise<void> {
   }
 }
 
-onMounted(async () => {
+async function loadProcedure(): Promise<void> {
   await store.load(id.value)
   if (store.loadError) return
   await nodeStore.load(id.value) // 结构（即时·乐观）；在 /edit→/view 重定向前加载，否则复用组件的 /view 实例树为空
   // 访问 /edit 但不可编辑 → 跳只读 /view（不留历史）。
   if (route.name === 'procedure-edit' && !store.editable) {
     void router.replace({ name: 'procedure-view', params: { id: id.value } })
-    return
   }
+}
+
+onMounted(async () => {
+  await loadProcedure()
+  if (store.loadError) return
 
   // Word 导入进入 → 专注模式：自动折叠侧边栏（离开恢复）。
   if (shouldAutoCollapse(route.query.from, sidebar.collapsed.value)) {
@@ -160,6 +164,12 @@ onMounted(async () => {
       autoCollapsed.value = false
     },
   )
+})
+
+// 复用同一组件实例切换程序（如 升级版本 / 历史版本跳转 / 连续导入）时，
+// onMounted 不再触发：监听 id 变化主动重载，否则编辑器与 Word 原文预览停留在前一程序。
+watch(id, (next, prev) => {
+  if (next && next !== prev) void loadProcedure()
 })
 
 onUnmounted(() => {
@@ -274,10 +284,11 @@ function goBack(): void {
   flex: 1;
   display: flex;
   min-height: 0;
+  overflow-x: auto;
 }
 .left {
   flex: 1;
-  min-width: 280px;
+  min-width: 220px;
   min-height: 0;
 }
 .right-scroll {

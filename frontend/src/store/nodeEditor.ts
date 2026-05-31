@@ -4,6 +4,7 @@ import * as api from '@/api/nodes'
 import { isVersionConflict, errorMessage } from '@/api/http'
 import type { Node } from '@/types/node'
 import { visibleRows, nodeTitle, type TreeRow } from '@/utils/nodeTree'
+import { insertSortOrder } from '@/utils/nodeInsert'
 
 interface State {
   procedureId: string | null
@@ -205,12 +206,41 @@ export const useNodeEditorStore = defineStore('nodeEditor', {
       // 确认动作不入撤销栈（清 review 不可逆且无害）。
     },
 
+    /** 批量确认 review（P3：零样式文档逐条确认成本高）。仅取 ids 中仍 review 的节点，
+     * 一次 batch 空 change 全部清回 unmarked。不入撤销栈（与单条确认一致）。 */
+    async confirmReviewBatch(ids: string[]): Promise<void> {
+      if (!this.procedureId) return
+      const targets = ids.filter((i) => this.nodeMap.get(i)?.mark_status === 'review')
+      if (targets.length === 0) return
+      const updates: Record<string, Record<string, never>> = {}
+      for (const i of targets) updates[i] = {}
+      this.nodes = await api.batchUpdateNodes(this.procedureId, updates)
+    },
+
     async createNode(payload: import('@/types/node').NodeCreate): Promise<void> {
       if (!this.procedureId) return
       const created = await api.createNode(this.procedureId, payload)
       await this._refetch()
       this.selectedId = created.id
       this._pushUndo(() => this.removeNode(created.id))
+    },
+
+    /**
+     * 行级新增：相对参考节点插入（after-node=紧跟其后，after-subtree=跳过整棵子树）。
+     * 委托 createNode 单次写入（保持单条 undo）；相邻无空隙时先 reorder 重排再重算。
+     */
+    async createRelative(
+      refId: string,
+      mode: import('@/utils/nodeInsert').InsertMode,
+      attrs: Omit<import('@/types/node').NodeCreate, 'sort_order'>,
+    ): Promise<void> {
+      if (!this.procedureId) return
+      let sort = insertSortOrder(this.nodes, refId, mode)
+      if (sort === null) {
+        await this.reorder(this.nodes.map((x) => x.id)) // 重排至 *1000 等距，恢复空隙
+        sort = insertSortOrder(this.nodes, refId, mode)
+      }
+      await this.createNode({ ...attrs, sort_order: sort ?? undefined })
     },
 
     async removeNode(id: string): Promise<void> {

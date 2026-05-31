@@ -23,6 +23,7 @@ class NodeOut(BaseModel):
     input_schema: dict[str, Any]
     attachment_marks: list[dict[str, Any]]
     mark_status: str
+    source_style_name: str | None = None  # 来源样式名（动态字典「记住此样式」归因，M2）
     revision: int
     parent_id: str | None
     depth: int

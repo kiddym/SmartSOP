@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch, nextTick } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import NodeTreeRow from './NodeTreeRow.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
 import { buildSelection, buildCascadeSelection } from '@/utils/batchMark'
@@ -89,12 +89,43 @@ function onNav(currentId: string, dir: 'up' | 'down' | 'left' | 'right'): void {
 function addNode(): void {
   void store.createNode({ heading_level: null, kind: 'node' })
 }
+// 行级新增：位置相对该行，类型由命令决定（章节项仅在标题行出现）。
+function onAdd(id: string, command: string): void {
+  const ref = store.nodeMap.get(id)
+  if (!ref) return
+  if (command === 'chapter') {
+    void store.createRelative(id, 'after-subtree', { heading_level: ref.heading_level ?? 1, kind: 'node' })
+  } else if (command === 'subchapter') {
+    void store.createRelative(id, 'after-node', { heading_level: (ref.heading_level ?? 0) + 1, kind: 'node' })
+  } else if (command === 'step') {
+    void store.createRelative(id, 'after-node', { heading_level: null, kind: 'step' })
+  } else if (command === 'body') {
+    void store.createRelative(id, 'after-node', { heading_level: null, kind: 'node' })
+  }
+}
 function gotoNextReview(): void {
   const id = nextReviewId(
     store.rows.map((r) => ({ id: r.node.id, mark_status: r.node.mark_status })),
     store.selectedId,
   )
   if (id) store.select(id)
+}
+// P3：一键确认全部待确认（先二次确认，避免误清）。
+async function confirmAllReview(): Promise<void> {
+  const n = store.reviewCount
+  if (!n) return
+  try {
+    await ElMessageBox.confirm(`确认全部 ${n} 处「待确认」节点？此操作不可撤销。`, '批量确认', {
+      type: 'warning',
+      confirmButtonText: '全部确认',
+      cancelButtonText: '取消',
+    })
+  } catch {
+    return // 用户取消
+  }
+  const ids = store.nodes.filter((x) => x.mark_status === 'review').map((x) => x.id)
+  await store.confirmReviewBatch(ids)
+  ElMessage.success(`已确认 ${ids.length} 处`)
 }
 
 // γ 浮动条
@@ -118,6 +149,17 @@ async function barStep(): Promise<void> {
   }
   if (skipped) ElMessage.warning(`${skipped} 个章节标题不能设为步骤，已跳过`)
   await store.batchSetKind(leafIds, 'step')
+  clearSel()
+}
+// 确认所选中仍待确认的节点（配合 shift 范围选可按组批量确认）。
+const selReviewCount = computed(
+  () => selectedIds.value.filter((id) => store.nodeMap.get(id)?.mark_status === 'review').length,
+)
+async function barConfirm(): Promise<void> {
+  const n = selReviewCount.value
+  if (!n) return
+  await store.confirmReviewBatch(selectedIds.value)
+  ElMessage.success(`已确认 ${n} 处`)
   clearSel()
 }
 
@@ -154,17 +196,28 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
   <div class="node-tree">
     <div class="np-toolbar">
       <el-input v-model="search" class="np-search" size="small" placeholder="搜索标题…" clearable />
-      <el-button v-if="!props.readonly" class="np-add" size="small" @click="addNode">＋ 新增节点</el-button>
-      <span class="np-review-count">待确认 {{ store.reviewCount }}</span>
-      <el-button
-        class="np-review-toggle"
-        size="small"
-        :type="store.reviewOnly ? 'primary' : 'default'"
-        @click="store.reviewOnly = !store.reviewOnly"
-      >
-        仅看待确认
-      </el-button>
-      <el-button class="np-review-next" size="small" :disabled="!store.reviewCount" @click="gotoNextReview">下一个</el-button>
+      <el-button v-if="!props.readonly" class="np-add" size="small" @click="addNode">＋ 末尾新增</el-button>
+      <div class="np-review">
+        <span class="np-review-count">待确认 {{ store.reviewCount }}</span>
+        <el-button
+          class="np-review-toggle"
+          size="small"
+          :type="store.reviewOnly ? 'primary' : 'default'"
+          @click="store.reviewOnly = !store.reviewOnly"
+        >
+          仅看待确认
+        </el-button>
+        <el-button class="np-review-next" size="small" :disabled="!store.reviewCount" @click="gotoNextReview">下一处待确认</el-button>
+        <el-button
+          v-if="!props.readonly"
+          class="np-review-all"
+          size="small"
+          :disabled="!store.reviewCount"
+          @click="confirmAllReview"
+        >
+          全部确认
+        </el-button>
+      </div>
     </div>
 
     <div v-if="!props.readonly && store.selection.size" class="np-bar">
@@ -174,6 +227,9 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
       <el-button class="np-bar-l2" size="small" @click="barLevel(2)">设为 L2</el-button>
       <el-button class="np-bar-l3" size="small" @click="barLevel(3)">设为 L3</el-button>
       <el-button class="np-bar-step" size="small" @click="barStep">设为步骤</el-button>
+      <el-button v-if="selReviewCount" class="np-bar-confirm" size="small" @click="barConfirm">
+        确认所选 ({{ selReviewCount }})
+      </el-button>
       <el-button size="small" text @click="clearSel">清空选择</el-button>
     </div>
 
@@ -193,6 +249,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
           @toggle="store.toggleExpand(row.node.id)"
           @check="(shift: boolean) => onCheck(row.node.id, shift)"
           @chip="(c: string) => onChip(row.node.id, c)"
+          @add="(c: string) => onAdd(row.node.id, c)"
           @remove="store.removeNode(row.node.id)"
           @indent="(dir: 'in' | 'out') => onIndent(row.node.id, dir)"
           @nav="(dir: 'up' | 'down' | 'left' | 'right') => onNav(row.node.id, dir)"
@@ -212,6 +269,7 @@ function hintFor(row: TreeRow): '' | 'before' | 'after' {
 .node-tree { display: flex; flex-direction: column; height: 100%; min-height: 0; }
 .np-toolbar { display: flex; align-items: center; gap: 8px; padding: 8px; flex-wrap: wrap; border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5); }
 .np-search { width: 180px; }
+.np-review { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .np-review-count { font-size: 12px; color: #b88230; }
 .np-bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; background: var(--el-color-primary-light-9, #fbf1ee); flex-wrap: wrap; }
 .np-rows { flex: 1; overflow-y: auto; min-height: 0; }

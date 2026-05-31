@@ -25,6 +25,7 @@ from app.routers import (
     audit_logs,
     fields,
     folders,
+    heading_rules,
     nodes,
     parse,
     procedure_groups,
@@ -94,6 +95,7 @@ app.include_router(attachments.router)
 app.include_router(fields.router)
 app.include_router(settings_router.router)
 app.include_router(nodes.router)
+app.include_router(heading_rules.router)
 
 
 @app.get("/healthz", tags=["health"])

@@ -8,7 +8,7 @@ import type {
   ParseResponse,
   UploadResult,
 } from '@/types/parse'
-import type { ProcedureMeta } from '@/types/procedure'
+import type { LevelOfUse, ProcedureMeta } from '@/types/procedure'
 
 const MULTIPART = { headers: { 'Content-Type': 'multipart/form-data' } }
 
@@ -56,6 +56,7 @@ export const importFromWord = async (
   file: File,
   folderId: string,
   name: string,
+  levelOfUse: LevelOfUse,
   onStage?: (stage: ImportStage, uploadPct?: number) => void,
 ): Promise<ProcedureMeta> => {
   onStage?.('uploading', 0)
@@ -68,6 +69,7 @@ export const importFromWord = async (
   return importProcedure({
     name,
     folder_id: folderId,
+    level_of_use: levelOfUse,
     upload_token: up.upload_token,
     chapters: parsed.chapters,
   })
