@@ -21,6 +21,8 @@ from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
+from app.models.preventive_maintenance import PMAssignee, PMTeam, PreventiveMaintenance
+from app.models.pm_activity import PMActivity
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.role import Role
@@ -57,6 +59,10 @@ __all__ = [
     "ProcedureSourceDocx",
     "Request",
     "RequestActivity",
+    "PMActivity",
+    "PMAssignee",
+    "PMTeam",
+    "PreventiveMaintenance",
     "Role",
     "Sequence",
     "User",
