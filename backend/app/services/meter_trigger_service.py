@@ -134,3 +134,30 @@ def disable_trigger(db: Session, trig: MeterTrigger, company_id: str,
     db.commit()
     db.refresh(trig)
     return trig
+
+
+def generate_from_trigger(db: Session, trig: MeterTrigger, *, reading,
+                          actor_user_id: str | None):
+    """复制 trigger 预设生成工单，置 last_* 并解除武装。返回 WorkOrder。
+
+    工单服务在函数内 import 避免模块级循环依赖。due_date 留空（反应式工单）。
+    create_work_order 内部 commit；trigger 字段变更随调用方末尾 commit 落地。
+    """
+    from app.schemas.work_order import WorkOrderCreate
+    from app.services import work_order_execution_service as exe
+    from app.services import work_order_service as wos
+
+    wo_payload = WorkOrderCreate(
+        title=trig.title, description=trig.description, priority=trig.priority,
+        due_date=None, asset_id=None, location_id=None,
+        primary_user_id=trig.primary_user_id,
+        assignee_ids=assignee_ids(db, trig.id), team_ids=team_ids(db, trig.id),
+    )
+    wo = wos.create_work_order(db, wo_payload, trig.company_id, actor_user_id=actor_user_id)
+    if trig.procedure_id is not None:
+        exe.attach_procedure(db, wo, trig.procedure_id, trig.company_id,
+                             actor_user_id=actor_user_id)
+    trig.last_triggered_at = reading.reading_at
+    trig.last_work_order_id = wo.id
+    trig.is_armed = False
+    return wo
