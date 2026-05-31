@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.models.base import utcnow
 from app.models.meter import Meter
 from app.models.meter_reading import MeterReading
+from app.models.meter_trigger import MeterTrigger
 from app.schemas.meter import MeterCreate, MeterReadingCreate, MeterUpdate
 from app.services import meter_trigger_service as ts
 from app.services import sequence_service
@@ -68,3 +69,38 @@ def list_readings(db: Session, meter_id: str) -> list[MeterReading]:
     return list(db.execute(
         select(MeterReading).where(MeterReading.meter_id == meter_id)
         .order_by(MeterReading.reading_at, MeterReading.id)).scalars().all())
+
+
+def submit_reading(db: Session, m: Meter, payload: MeterReadingCreate, company_id: str,
+                   actor_user_id: str | None):
+    """插入读数并同步评估该 meter 全部启用 trigger（边沿决策）。
+
+    返回 (reading, generated_work_orders)。FIRE 复用 generate_from_trigger 生单
+    （内部 commit 工单）；trigger 状态与读数末尾统一 commit。
+    """
+    reading = MeterReading(
+        meter_id=m.id, value=payload.value,
+        reading_at=payload.reading_at or utcnow(),
+        recorded_by_user_id=actor_user_id, company_id=company_id,
+    )
+    db.add(reading)
+    db.flush()
+    triggers = list(db.execute(
+        select(MeterTrigger).where(
+            MeterTrigger.meter_id == m.id,
+            MeterTrigger.is_active.is_(True),
+            MeterTrigger.is_enabled.is_(True),
+        ).order_by(MeterTrigger.created_at, MeterTrigger.id)).scalars().all())
+    generated = []
+    for trig in triggers:
+        met = ts._condition_met(trig.comparator, reading.value, trig.threshold)
+        action = ts._decide(is_armed=trig.is_armed, met=met)
+        if action == "FIRE":
+            wo = ts.generate_from_trigger(db, trig, reading=reading,
+                                          actor_user_id=actor_user_id)
+            generated.append(wo)
+        elif action == "REARM":
+            trig.is_armed = True
+    db.commit()
+    db.refresh(reading)
+    return reading, generated
