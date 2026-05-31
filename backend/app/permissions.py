@@ -57,6 +57,15 @@ METER_DELETE = "meter.delete"
 READING_VIEW = "reading.view"
 READING_CREATE = "reading.create"
 
+# --- 库存（Phase 3A）---
+PART_VIEW = "part.view"
+PART_CREATE = "part.create"
+PART_EDIT = "part.edit"
+PART_DELETE = "part.delete"
+PART_CONSUME = "part.consume"
+PART_CATEGORY_VIEW = "part_category.view"
+PART_CATEGORY_MANAGE = "part_category.manage"
+
 _PLATFORM = [
     USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
     ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
@@ -81,10 +90,12 @@ _PREVENTIVE_MAINTENANCE = [
 ]
 _METER = [METER_VIEW, METER_CREATE, METER_EDIT, METER_DELETE]
 _READING = [READING_VIEW, READING_CREATE]
+_PART = [PART_VIEW, PART_CREATE, PART_EDIT, PART_DELETE, PART_CONSUME]
+_PART_CATEGORY = [PART_CATEGORY_VIEW, PART_CATEGORY_MANAGE]
 
 ALL_PERMISSIONS: list[str] = (
     _PLATFORM + _BASE_DOMAIN + _WORKORDER + _REQUEST + _PREVENTIVE_MAINTENANCE
-    + _METER + _READING
+    + _METER + _READING + _PART + _PART_CATEGORY
 )
 
 BUILTIN_ROLES: list[dict] = [
@@ -97,6 +108,7 @@ BUILTIN_ROLES: list[dict] = [
         REQUEST_VIEW, REQUEST_CREATE,
         PREVENTIVE_MAINTENANCE_VIEW,
         METER_VIEW, READING_VIEW, READING_CREATE,
+        PART_VIEW, PART_CONSUME, PART_CATEGORY_VIEW,
     ]},
     {"code": "viewer", "name": "只读", "permissions": [
         c for c in ALL_PERMISSIONS if c.endswith(".view")]},
