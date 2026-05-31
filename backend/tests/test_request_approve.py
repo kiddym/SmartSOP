@@ -21,14 +21,18 @@ def _company(db, slug):
 
 def _published_procedure(db, company_id, *, status="PUBLISHED"):
     p = Procedure(
-        company_id=company_id, folder_id=None, procedure_group_id=None,
-        name="SOP-A", code="SOP-A", status=status, version=1, current_version=1,
+        procedure_group_id="grp-1", folder_id="f1", code="SOP-A", name="SOP-A",
+        version=1, level_of_use="reference", status=status, company_id=company_id,
     )
     db.add(p)
     db.flush()
     db.add(ProcedureNode(
-        company_id=company_id, procedure_id=p.id, sort_order=1,
-        kind="step", title="Step 1", body="do it", code="N1",
+        procedure_id=p.id, sort_order=0, heading_level=1, kind="node",
+        body="章", code="C1", company_id=company_id,
+    ))
+    db.add(ProcedureNode(
+        procedure_id=p.id, sort_order=1, heading_level=None, kind="step",
+        body="步1", code="S1", input_schema={}, company_id=company_id,
     ))
     db.commit()
     db.refresh(p)

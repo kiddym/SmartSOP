@@ -22,7 +22,7 @@ def test_register_creates_company_and_4_roles(db):
         roles = db.execute(select(Role)).scalars().all()
     finally:
         tenant.reset_current_company_id(token)
-    assert {r.code for r in roles} == {"super_admin", "admin", "technician", "viewer"}
+    assert {r.code for r in roles} == {"super_admin", "admin", "technician", "viewer", "requester"}
     sa = next(r for r in roles if r.code == "super_admin")
     assert user.role_id == sa.id
 

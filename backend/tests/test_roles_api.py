@@ -11,7 +11,7 @@ def _h(t):
 def test_list_seeded_roles(client):
     t = _admin(client)
     codes = {x["code"] for x in client.get("/api/v1/roles", headers=_h(t)).json()}
-    assert codes == {"super_admin", "admin", "technician", "viewer"}
+    assert codes == {"super_admin", "admin", "technician", "viewer", "requester"}
 
 
 def test_create_custom_role(client):

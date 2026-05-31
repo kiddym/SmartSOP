@@ -43,6 +43,8 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     procedure_group_id: Mapped[str | None] = mapped_column(String(36), default=None)
     procedure_attached_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     completed_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
+    # 来源请求（弱引用，无 FK；直建工单时为 None）
+    request_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
 
 
 class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):

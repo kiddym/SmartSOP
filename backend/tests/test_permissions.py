@@ -9,7 +9,7 @@ def test_registry_contains_platform_codes():
 
 def test_builtin_roles_present():
     assert {r["code"] for r in perms.BUILTIN_ROLES} == {
-        "super_admin", "admin", "technician", "viewer"}
+        "super_admin", "admin", "technician", "viewer", "requester"}
 
 
 def test_super_admin_gets_all():

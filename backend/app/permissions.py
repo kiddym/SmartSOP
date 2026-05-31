@@ -36,6 +36,13 @@ WORK_ORDER_EDIT = "work_order.edit"
 WORK_ORDER_DELETE = "work_order.delete"
 WORK_ORDER_EXECUTE = "work_order.execute"
 
+# --- 维修请求（Phase 2A）---
+REQUEST_VIEW = "request.view"
+REQUEST_CREATE = "request.create"
+REQUEST_CANCEL = "request.cancel"
+REQUEST_DELETE = "request.delete"
+REQUEST_APPROVE = "request.approve"
+
 _PLATFORM = [
     USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
     ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
@@ -50,8 +57,12 @@ _WORKORDER = [
     WORK_ORDER_VIEW, WORK_ORDER_CREATE, WORK_ORDER_EDIT,
     WORK_ORDER_DELETE, WORK_ORDER_EXECUTE,
 ]
+_REQUEST = [
+    REQUEST_VIEW, REQUEST_CREATE, REQUEST_CANCEL,
+    REQUEST_DELETE, REQUEST_APPROVE,
+]
 
-ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN + _WORKORDER
+ALL_PERMISSIONS: list[str] = _PLATFORM + _BASE_DOMAIN + _WORKORDER + _REQUEST
 
 BUILTIN_ROLES: list[dict] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
@@ -60,9 +71,13 @@ BUILTIN_ROLES: list[dict] = [
         USER_VIEW, ROLE_VIEW,
         LOCATION_VIEW, ASSET_VIEW, ASSET_EDIT, ASSET_CATEGORY_VIEW, TEAM_VIEW,
         WORK_ORDER_VIEW, WORK_ORDER_EXECUTE, WORK_ORDER_EDIT,
+        REQUEST_VIEW, REQUEST_CREATE,
     ]},
     {"code": "viewer", "name": "只读", "permissions": [
         c for c in ALL_PERMISSIONS if c.endswith(".view")]},
+    {"code": "requester", "name": "报修人", "permissions": [
+        REQUEST_VIEW, REQUEST_CREATE,
+    ]},
 ]
 
 
