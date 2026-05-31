@@ -30,6 +30,7 @@ const MENU_COMMANDS: readonly MenuCommand[] = [
   { group: '配置', label: '文件夹配置', path: '/folders' },
   { group: '配置', label: '系统设置', path: '/settings' },
   { group: '配置', label: '字段管理', path: '/settings/fields' },
+  { group: '配置', label: '标题字典', path: '/settings/heading-rules' },
   { group: '历史', label: '审计日志', path: '/audit-logs' },
 ]
 
