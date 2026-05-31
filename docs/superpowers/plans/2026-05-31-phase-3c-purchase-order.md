@@ -1628,4 +1628,3 @@ Expected: `alembic heads` 仅 `phase3c_purchase_order (head)`；Atlas 计数全 
 - `/purchase-orders` 全套端点工作；状态机 DRAFT→SUBMITTED→APPROVED|REJECTED|CANCELED 守卫正确；approve 整单入库回写 `Part.quantity`（普通增、non_stock 不增、恰回写一次、Part.cost 不变）；submit 空单 400；非 DRAFT 编辑 400；`/mini`；technician 只读、非 admin 不能 approve；跨租户隔离 404。
 - clean-room（无 "Atlas" 字样）。
 - `git status --porcelain` 干净，alembic 单 head `phase3c_purchase_order`。
-```
