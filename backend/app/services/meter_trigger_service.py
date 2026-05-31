@@ -160,4 +160,6 @@ def generate_from_trigger(db: Session, trig: MeterTrigger, *, reading,
     trig.last_triggered_at = reading.reading_at
     trig.last_work_order_id = wo.id
     trig.is_armed = False
+    from app.services import notification_service as _notif
+    _notif.on_wo_auto_generated(db, wo, actor_user_id=actor_user_id)
     return wo

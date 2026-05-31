@@ -224,6 +224,8 @@ def generate_once(db: Session, pm: PreventiveMaintenance, *, actor_user_id: str 
          comment=wo.custom_id)
     pm.next_due_date = _advance_due(pm.next_due_date, pm.frequency_unit,
                                     pm.frequency_value, today=today)
+    from app.services import notification_service as _notif
+    _notif.on_wo_auto_generated(db, wo, actor_user_id=actor_user_id)
     db.commit()
     db.refresh(pm)
     db.refresh(wo)
