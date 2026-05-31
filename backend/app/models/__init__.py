@@ -30,6 +30,9 @@ from app.models.part_category import PartCategory
 from app.models.part import Part, PartAssignee, PartTeam, PartAsset
 from app.models.part_consumption import PartConsumption
 from app.models.multi_part import MultiPart, MultiPartItem
+from app.models.vendor import Vendor, VendorPart
+from app.models.customer import Customer, CustomerPart
+from app.models.cost_category import CostCategory
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.role import Role
@@ -83,6 +86,11 @@ __all__ = [
     "PartConsumption",
     "MultiPart",
     "MultiPartItem",
+    "Vendor",
+    "VendorPart",
+    "Customer",
+    "CustomerPart",
+    "CostCategory",
     "Role",
     "Sequence",
     "User",
