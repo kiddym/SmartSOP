@@ -14,14 +14,14 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, utcnow
+from app.models.base import DATETIME6, Base, NullableTenantMixin, utcnow
 
 # 仿 audit.py：MySQL BIGINT 自增；SQLite 须 INTEGER 才能复用 rowid 自增。
 _EVENT_PK = BigInteger().with_variant(Integer, "sqlite")
 
 
-class HeadingLearningEvent(Base):
-    """一条样式标题的用户校正信号（append-only）。"""
+class HeadingLearningEvent(Base, NullableTenantMixin):
+    """一条样式标题的用户校正信号（append-only，按租户隔离）。"""
 
     __tablename__ = "tb_heading_learning_event"
 
@@ -40,6 +40,13 @@ class HeadingLearningEvent(Base):
     __table_args__ = (
         Index(
             "ix_tb_heading_learning_event_style_name_procedure_id",
+            "style_name",
+            "procedure_id",
+        ),
+        # 投票按租户分区的索引基础（company_id, style_name, procedure_id）。
+        Index(
+            "ix_tb_heading_learning_event_company_style_proc",
+            "company_id",
             "style_name",
             "procedure_id",
         ),

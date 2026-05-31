@@ -12,19 +12,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import JSON, Float, Integer, String
+from sqlalchemy import JSON, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
-class HeadingStyleRule(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
-    """样式名 → 层级 的动态规则（全局单租户，样式名唯一）。"""
+class HeadingStyleRule(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+    """样式名 → 层级 的动态规则（按租户隔离，(company_id, 样式名) 唯一）。"""
 
     __tablename__ = "tb_heading_style_rule"
 
-    # Word 样式显示名（如「章节标题」），动态字典 key。
-    style_name: Mapped[str] = mapped_column(String(255), unique=True)
+    # Word 样式显示名（如「章节标题」），动态字典 key（租户内唯一）。
+    style_name: Mapped[str] = mapped_column(String(255))
     # 1/2/3 = 标题层级；0/null = 显式判定「非标题/正文」。
     level: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     # 'manual'（手动钉死）| 'learned'（自学习）| 'disabled'（停用）。
@@ -37,3 +43,7 @@ class HeadingStyleRule(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     agreement: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     # 乐观锁版本号（对齐 ProcedureSettings.revision 习惯）。
     revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+    __table_args__ = (
+        UniqueConstraint("company_id", "style_name", name="uq_heading_style_rule_company_style"),
+    )

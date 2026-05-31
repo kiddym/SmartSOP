@@ -12,19 +12,25 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import JSON, Float, Integer, String
+from sqlalchemy import JSON, Float, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, SoftDeleteMixin, TimestampMixin, UUIDMixin
+from app.models.base import (
+    Base,
+    NullableTenantMixin,
+    SoftDeleteMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
-class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
-    """编号 pattern_key → (kind, level) 的体例覆盖（全局单租户，pattern_key 唯一）。"""
+class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+    """编号 pattern_key → (kind, level) 的体例覆盖（按租户隔离，(company_id, pattern_key) 唯一）。"""
 
     __tablename__ = "tb_numbering_profile"
 
-    # classify_numbering 产出的 pattern_key（如「第X条」「N.N、」「一、」）。
-    pattern_key: Mapped[str] = mapped_column(String(64), unique=True)
+    # classify_numbering 产出的 pattern_key（如「第X条」「N.N、」「一、」），租户内唯一。
+    pattern_key: Mapped[str] = mapped_column(String(64))
     # 覆盖判定：'heading' | 'weak_heading' | 'list'（list=压制为非标题）。
     kind: Mapped[str] = mapped_column(String(20), default="heading", server_default="heading")
     # 1/2/3 = 标题层级；null = 沿用内置层级。
@@ -36,3 +42,9 @@ class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin):
     evidence_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     agreement: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
     revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id", "pattern_key", name="uq_numbering_profile_company_pattern"
+        ),
+    )
