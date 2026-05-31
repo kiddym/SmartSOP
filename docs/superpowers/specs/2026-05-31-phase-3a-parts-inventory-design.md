@@ -125,7 +125,7 @@ multi_part_id (FK tb_multi_part CASCADE, index) + part_id (FK tb_part CASCADE, i
 ### API（挂 `/api/v1`）
 | 方法 路径 | 权限 |
 |---|---|
-| GET `/parts`（filter category_id / asset_id / low_stock；`?mini=true` 精简下拉）| part.view |
+| GET `/parts`（filter category_id / asset_id / low_stock）· GET `/parts/mini`（精简下拉，镜像既有 assets/locations 的 `/mini` 端点 + PartMini schema）| part.view |
 | POST `/parts` | part.create |
 | GET `/parts/{id}` | part.view |
 | PATCH `/parts/{id}`（含改 quantity / min_quantity / cost 等）| part.edit |
@@ -142,7 +142,7 @@ multi_part_id (FK tb_multi_part CASCADE, index) + part_id (FK tb_part CASCADE, i
 - 无独立"立即建单/手动扣库存以外"的端点（YAGNI）。
 
 ### Schemas `app/schemas/part.py`
-- `PartCreate` / `PartUpdate`（全可选）/ `PartRead`（含计算 `is_low_stock`、assignee_ids/team_ids/asset_ids 由 router 在 model_validate 后填充，同 2C `_read_trigger`）。
+- `PartCreate` / `PartUpdate`（全可选）/ `PartRead`（含计算 `is_low_stock`、assignee_ids/team_ids/asset_ids 由 router 在 model_validate 后填充，同 2C `_read_trigger`）/ `PartMini`（id/name/custom_id，下拉用）。
 - `PartCategoryCreate` / `PartCategoryUpdate` / `PartCategoryRead`。
 - `PartConsumptionCreate`（part_id 必填、quantity 必填）/ `PartConsumptionRead`（含 unit_cost + 计算 `total_cost = quantity * unit_cost`）。
 - `MultiPartCreate` / `MultiPartUpdate`（part_ids 可选）/ `MultiPartRead`（含 part_ids）。
