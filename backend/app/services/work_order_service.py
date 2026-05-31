@@ -16,6 +16,7 @@ from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_status import WorkOrderStatus, can_transition
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
 from app.services import sequence_service
+from app.services import notification_service as _notif
 
 
 def assignee_ids(db: Session, work_order_id: str) -> list[str]:
@@ -52,10 +53,15 @@ def _log(db: Session, work_order_id: str, company_id: str, activity_type: str,
 
 def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: str,
                   actor_user_id: str | None = None) -> WorkOrder:
+    prior = {r for (r,) in db.execute(
+        select(WorkOrderAssignee.user_id).where(WorkOrderAssignee.work_order_id == wo.id)
+    ).all()}
     db.execute(delete(WorkOrderAssignee).where(WorkOrderAssignee.work_order_id == wo.id))
     for uid in dict.fromkeys(user_ids):
         db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=uid, company_id=company_id))
     _log(db, wo.id, company_id, "ASSIGN", actor_user_id=actor_user_id)
+    added = set(dict.fromkeys(user_ids)) - prior
+    _notif.on_wo_assigned(db, wo, recipient_ids=added, actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
     return wo
@@ -63,10 +69,16 @@ def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: s
 
 def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str,
               actor_user_id: str | None = None) -> WorkOrder:
+    prior = {r for (r,) in db.execute(
+        select(WorkOrderTeam.team_id).where(WorkOrderTeam.work_order_id == wo.id)
+    ).all()}
     db.execute(delete(WorkOrderTeam).where(WorkOrderTeam.work_order_id == wo.id))
     for tid in dict.fromkeys(team_ids_):
         db.add(WorkOrderTeam(work_order_id=wo.id, team_id=tid, company_id=company_id))
     _log(db, wo.id, company_id, "ASSIGN", actor_user_id=actor_user_id)
+    added_teams = set(dict.fromkeys(team_ids_)) - prior
+    members = _notif.resolve_team_members(db, company_id, added_teams)
+    _notif.on_wo_assigned(db, wo, recipient_ids=members, actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
     return wo
@@ -148,6 +160,8 @@ def transition(db: Session, wo: WorkOrder, payload: WorkOrderTransition, company
     wo.status = dst
     _log(db, wo.id, company_id, "STATUS_CHANGE", actor_user_id=actor_user_id,
          from_status=src.value, to_status=dst.value, comment=payload.note)
+    _notif.on_wo_status_changed(db, wo, from_status=src.value, to_status=dst.value,
+                                actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
     return wo
