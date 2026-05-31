@@ -7,8 +7,10 @@ POST /uploads（multipart）→ upload_token；GET /uploads/{token}/media/{filen
 
 from __future__ import annotations
 
-from fastapi import APIRouter, File, Response, UploadFile
+from fastapi import APIRouter, Depends, File, Response, UploadFile
+from sqlalchemy.orm import Session
 
+from app.deps import get_db
 from app.schemas.parse import ParseMethodOut, ParseRequest, ParseResponse, UploadResult
 from app.services import parse_service, upload_service
 
@@ -33,5 +35,5 @@ def parse_methods() -> list[ParseMethodOut]:
 
 
 @router.post("/parse", response_model=ParseResponse)
-def parse(payload: ParseRequest) -> ParseResponse:
-    return parse_service.parse(payload.upload_token, payload.parse_mode)
+def parse(payload: ParseRequest, db: Session = Depends(get_db)) -> ParseResponse:
+    return parse_service.parse(payload.upload_token, payload.parse_mode, db=db)

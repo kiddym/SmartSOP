@@ -23,7 +23,7 @@ def test_parse_timeout(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> No
     token = upload_service.save_upload(styled_sop(), "a.docx").upload_token
     monkeypatch.setattr(settings, "parse_timeout_seconds", 1)
 
-    def _slow(_data: bytes, _mode: str) -> ParseResult:
+    def _slow(_data: bytes, _mode: str, **_kw: object) -> ParseResult:
         time.sleep(3)
         raise AssertionError("不应返回")
 
@@ -37,7 +37,7 @@ def test_parse_timeout(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> No
 def test_parse_failed_wraps_exception(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     token = upload_service.save_upload(styled_sop(), "a.docx").upload_token
 
-    def _boom(_data: bytes, _mode: str) -> ParseResult:
+    def _boom(_data: bytes, _mode: str, **_kw: object) -> ParseResult:
         raise RuntimeError("xml broken")
 
     monkeypatch.setattr(parse_service, "parse_docx", _boom)
@@ -56,7 +56,7 @@ def test_parse_unknown_mode(storage_tmp: Path) -> None:
 def test_no_headings_smart(storage_tmp: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     token = upload_service.save_upload(styled_sop(), "a.docx").upload_token
 
-    def _empty(_data: bytes, _mode: str) -> ParseResult:
+    def _empty(_data: bytes, _mode: str, **_kw: object) -> ParseResult:
         return ParseResult(
             metadata=ParseMetadata(
                 total_chapters=0,

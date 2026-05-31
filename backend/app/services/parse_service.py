@@ -12,13 +12,14 @@ from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
 
 from fastapi import HTTPException, status
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.errors import app_error, bad_request
 from app.parser import VALID_MODES, parse_docx
 from app.parser.result import ParsedNode, ParseResult, ValidationReport
 from app.schemas.parse import ParseMethodOut, ParseResponse, build_parse_response
-from app.services import upload_service
+from app.services import heading_rule_service, upload_service
 
 _METHODS = [
     ParseMethodOut(
@@ -38,14 +39,17 @@ def list_methods() -> list[ParseMethodOut]:
     return _METHODS
 
 
-def parse(token: str, mode: str) -> ParseResponse:
+def parse(token: str, mode: str, *, db: Session | None = None) -> ParseResponse:
     if mode not in VALID_MODES:
         raise bad_request("PARSE_FAILED", f"未知解析模式：{mode}", field="parse_mode")
     data = upload_service.read_docx(token)
 
+    # 动态标题字典：读 active 样式规则注入解析（M1）。编号体例(numbering_overrides)留待 P1d。
+    style_overrides = heading_rule_service.active_style_overrides(db) if db is not None else {}
+
     start = time.monotonic()
     try:
-        result = _run_with_timeout(data, mode)
+        result = _run_with_timeout(data, mode, style_overrides)
     except FuturesTimeout as exc:
         raise app_error(
             status.HTTP_504_GATEWAY_TIMEOUT, "PARSE_TIMEOUT", "解析超时（超过 30 秒）"
@@ -66,10 +70,12 @@ def parse(token: str, mode: str) -> ParseResponse:
     return build_parse_response(result, assets, parse_time_ms)
 
 
-def _run_with_timeout(data: bytes, mode: str) -> ParseResult:
+def _run_with_timeout(
+    data: bytes, mode: str, style_overrides: dict[str, int] | None = None
+) -> ParseResult:
     """线程执行器跑 CPU 密集解析；超时抛 FuturesTimeout（孤儿线程允许跑完，Q345）。"""
     executor = ThreadPoolExecutor(max_workers=1)
-    future = executor.submit(parse_docx, data, mode)
+    future = executor.submit(parse_docx, data, mode, style_overrides=style_overrides)
     try:
         return future.result(timeout=settings.parse_timeout_seconds)
     finally:
