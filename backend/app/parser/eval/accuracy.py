@@ -7,9 +7,14 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Iterable
+from pathlib import Path
 
 from app.parser import parse_docx
 from app.parser.result import ParsedNode
+
+# accuracy.py 在 backend/app/parser/eval/ → 上溯 4 层到仓库根，再进样本目录
+_REPO_ROOT = Path(__file__).resolve().parents[4]
+SAMPLE_ROOT = _REPO_ROOT / "docs" / "reference doc" / "typical word doc"
 
 
 def level_distribution(chapters: Iterable[ParsedNode]) -> dict[int, int]:
@@ -43,3 +48,31 @@ def evaluate_sample(data: bytes, *, mode: str = "smart") -> dict:
         "review_required": result.review_required,
         "warning_stages": dict(sorted(warn_stages.items())),
     }
+
+
+def evaluate_corpus(*, mode: str = "smart", root: Path | None = None) -> dict[str, dict]:
+    """遍历样本根下全部 .docx，返回 {相对posix路径: 指标}。
+
+    单文档解析异常不应中断整体评估：记为 {"error": "<repr>"}。
+    """
+    base = root or SAMPLE_ROOT
+    out: dict[str, dict] = {}
+    for path in sorted(base.rglob("*.docx")):
+        rel = path.relative_to(base).as_posix()
+        try:
+            out[rel] = evaluate_sample(path.read_bytes(), mode=mode)
+        except Exception as exc:  # noqa: BLE001 - 评估工具需健壮遍历
+            out[rel] = {"error": repr(exc)}
+    return out
+
+
+def _main() -> None:  # pragma: no cover - CLI 手动核对入口
+    import json
+    import sys
+
+    mode = sys.argv[1] if len(sys.argv) > 1 else "smart"
+    print(json.dumps(evaluate_corpus(mode=mode), ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":  # pragma: no cover
+    _main()

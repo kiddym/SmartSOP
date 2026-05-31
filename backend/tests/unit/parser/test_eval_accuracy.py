@@ -1,7 +1,12 @@
 """eval.accuracy 纯函数单测（P0）。"""
 from __future__ import annotations
 
-from app.parser.eval.accuracy import evaluate_sample, level_distribution
+from app.parser.eval.accuracy import (
+    SAMPLE_ROOT,
+    evaluate_corpus,
+    evaluate_sample,
+    level_distribution,
+)
 from app.parser.result import ParsedNode
 
 from tests.unit.parser._docx_builder import styled_sop
@@ -40,3 +45,18 @@ def test_evaluate_sample_from_bytes() -> None:
     assert metrics["total_nodes"] == sum(metrics["distribution"].values())
     assert isinstance(metrics["review_required"], int)
     assert isinstance(metrics["warning_stages"], dict)
+
+
+def test_sample_root_exists_and_has_docx() -> None:
+    assert SAMPLE_ROOT.is_dir(), f"样本根不存在: {SAMPLE_ROOT}"
+    assert list(SAMPLE_ROOT.rglob("*.docx")), "样本根下无 .docx"
+
+
+def test_evaluate_corpus_keys_are_relative_posix() -> None:
+    corpus = evaluate_corpus(mode="smart")
+    assert corpus, "语料结果为空"
+    # 键是相对 SAMPLE_ROOT 的 posix 路径，稳定可跨平台比对
+    for key, metrics in corpus.items():
+        assert not key.startswith("/")
+        assert "\\" not in key
+        assert set(metrics) == {"distribution", "total_nodes", "review_required", "warning_stages"}
