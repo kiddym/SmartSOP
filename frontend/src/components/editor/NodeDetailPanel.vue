@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useDebounceFn } from '@vueuse/core'
+import { createHeadingRule } from '@/api/headingRules'
+import { errorMessage } from '@/api/http'
 import RichTextEditor from './RichTextEditor.vue'
 import StepFormFields from './StepFormFields.vue'
 import FormFieldPreview from './FormFieldPreview.vue'
@@ -15,6 +17,26 @@ const props = withDefaults(defineProps<{ readonly?: boolean }>(), { readonly: fa
 const store = useNodeEditorStore()
 const node = computed(() => store.selectedNode)
 const procId = computed(() => store.procedureId ?? undefined)
+
+// 「记住此样式」（动态标题字典 M2）：仅样式来源的 review 标题可见，把样式→当前层级钉入字典。
+const LEVEL_LABEL: Record<number, string> = { 1: '一级章节', 2: '二级章节', 3: '三级章节' }
+const sourceStyle = computed(() => node.value?.source_style_name ?? null)
+const canRemember = computed(
+  () => !!sourceStyle.value && node.value?.heading_level != null && !props.readonly,
+)
+async function rememberStyle(): Promise<void> {
+  const n = node.value
+  if (!n || !n.source_style_name || n.heading_level == null) return
+  try {
+    await createHeadingRule(n.source_style_name, n.heading_level)
+    await store.confirmReview(n.id) // 记住即确认
+    ElMessage.success(
+      `已记住「${n.source_style_name}」为${LEVEL_LABEL[n.heading_level] ?? '章节'}，下次同样式免确认`,
+    )
+  } catch (err) {
+    ElMessage.error(errorMessage(err) ?? '记住样式失败，请重试')
+  }
+}
 
 const LEVELS = [
   { value: null as number | null, label: '正文' },
@@ -150,6 +172,13 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
     <div v-if="node.mark_status === 'review' && !props.readonly" class="review-bar">
       <span class="review-tag">待确认</span>
       <el-button class="confirm-review" size="small" type="primary" @click="store.confirmReview(node.id)">确认</el-button>
+      <el-button
+        v-if="canRemember"
+        class="remember-style"
+        size="small"
+        title="把此样式→当前层级写入字典，下次同样式自动识别、免确认"
+        @click="rememberStyle"
+      >记住「{{ sourceStyle }}」样式</el-button>
     </div>
   </div>
   <el-empty v-else description="选择左侧节点进行编辑" />
