@@ -9,6 +9,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import tenant
 from app.errors import conflict, not_found
 from app.models.base import utcnow
 from app.models.heading_rule import HeadingStyleRule
@@ -47,8 +48,17 @@ def list_rules(db: Session) -> list[HeadingStyleRule]:
 
 
 def get_or_404(db: Session, rule_id: str) -> HeadingStyleRule:
-    rule = db.get(HeadingStyleRule, rule_id)
-    if rule is None or not rule.is_active:
+    # 显式 company 过滤：do_orm_execute 的 with_loader_criteria 不作用于 Session.get()
+    # /identity-map 命中，故 IDOR 须靠带 company_id 的 SELECT（租户上下文为 None 时不加，
+    # 与无租户路径行为一致）。
+    q = select(HeadingStyleRule).where(
+        HeadingStyleRule.id == rule_id, HeadingStyleRule.is_active.is_(True)
+    )
+    cid = tenant.get_current_company_id()
+    if cid is not None:
+        q = q.where(HeadingStyleRule.company_id == cid)
+    rule = db.scalars(q).first()
+    if rule is None:
         raise not_found("HEADING_RULE_NOT_FOUND", "样式规则不存在", field="id")
     return rule
 

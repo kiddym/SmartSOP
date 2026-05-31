@@ -9,6 +9,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import tenant
 from app.errors import conflict, not_found
 from app.models.base import utcnow
 from app.models.numbering_profile import NumberingProfile
@@ -43,8 +44,17 @@ def list_profiles(db: Session) -> list[NumberingProfile]:
 
 
 def get_or_404(db: Session, profile_id: str) -> NumberingProfile:
-    p = db.get(NumberingProfile, profile_id)
-    if p is None or not p.is_active:
+    # 显式 company 过滤：do_orm_execute 的 with_loader_criteria 不作用于 Session.get()
+    # /identity-map 命中，故 IDOR 须靠带 company_id 的 SELECT（租户上下文为 None 时不加，
+    # 与无租户路径行为一致）。
+    q = select(NumberingProfile).where(
+        NumberingProfile.id == profile_id, NumberingProfile.is_active.is_(True)
+    )
+    cid = tenant.get_current_company_id()
+    if cid is not None:
+        q = q.where(NumberingProfile.company_id == cid)
+    p = db.scalars(q).first()
+    if p is None:
         raise not_found("NUMBERING_PROFILE_NOT_FOUND", "编号体例不存在", field="id")
     return p
 
