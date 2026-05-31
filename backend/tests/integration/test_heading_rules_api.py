@@ -1,10 +1,11 @@
 """heading-rules REST CRUD（P1b）。"""
 from __future__ import annotations
 
+from app.models.node import ProcedureNode
 from app.parser import parse_docx
 from app.parser.eval.accuracy import level_distribution
 from app.schemas.heading_rule import HeadingRuleCreate
-from app.services import heading_rule_service
+from app.services import heading_learning_service, heading_rule_service
 from tests.unit.parser._docx_builder import styled_sop
 
 
@@ -48,3 +49,32 @@ def test_active_overrides_feed_parse_docx(db) -> None:
     # 把 override 喂进 parse_docx：注入参数被解析链接受（不抛错、产出章节树）
     res = parse_docx(styled_sop(), "standard", style_overrides=overrides)
     assert level_distribution(res.chapters)  # 非空，注入链通
+
+
+def _styled_node(db, pid: str, level: int, style: str = "章节标题") -> ProcedureNode:
+    # 主线 node 无 title 列（标题派生自 body）；kind 默认 'node'。
+    n = ProcedureNode(
+        procedure_id=pid,
+        sort_order=1000,
+        heading_level=level,
+        mark_status="unmarked",
+        source_style_name=style,
+        revision=1,
+    )
+    db.add(n)
+    db.flush()
+    return n
+
+
+def test_three_docs_consistent_relevel_activates_rule(db) -> None:
+    # 3 份文档各有一个「章节标题」节点，用户一致把它改为 L2
+    for i in range(3):
+        pid = f"proc-{i}"
+        node = _styled_node(db, pid, level=1)
+        node.heading_level = 2  # 用户改级
+        heading_learning_service.observe_node_edit(db, node, old_level=1, old_mark="unmarked")
+    rule = heading_learning_service.reaggregate(db, "章节标题")
+    assert rule is not None and rule.source == "learned"
+    assert rule.status == "active" and rule.level == 2  # ≥3 文档一致 → 自动生效
+    # 生效规则进入解析注入
+    assert heading_rule_service.active_style_overrides(db).get("章节标题") == 2
