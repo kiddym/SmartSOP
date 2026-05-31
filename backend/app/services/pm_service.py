@@ -7,7 +7,20 @@ from __future__ import annotations
 import calendar
 from datetime import date
 
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.errors import bad_request
+from app.models.base import utcnow
+from app.models.pm_activity import PMActivity
 from app.models.pm_frequency import PMFrequencyUnit
+from app.models.preventive_maintenance import (
+    PMAssignee,
+    PMTeam,
+    PreventiveMaintenance,
+)
+from app.schemas.pm import PMCreate, PMUpdate
+from app.services import sequence_service
 
 
 def _add_interval(d: date, unit: PMFrequencyUnit, value: int) -> date:
@@ -33,3 +46,135 @@ def _advance_due(next_due: date, unit: PMFrequencyUnit, value: int, *, today: da
     while nd <= today:
         nd = _add_interval(nd, unit, value)
     return nd
+
+
+def _log(db: Session, pm_id: str, company_id: str, activity_type: str,
+         actor_user_id: str | None = None, comment: str = "") -> None:
+    db.add(PMActivity(pm_id=pm_id, company_id=company_id, activity_type=activity_type,
+                      actor_user_id=actor_user_id, comment=comment))
+
+
+def assignee_ids(db: Session, pm_id: str) -> list[str]:
+    return list(db.execute(
+        select(PMAssignee.user_id).where(PMAssignee.pm_id == pm_id)
+        .order_by(PMAssignee.user_id)).scalars().all())
+
+
+def team_ids(db: Session, pm_id: str) -> list[str]:
+    return list(db.execute(
+        select(PMTeam.team_id).where(PMTeam.pm_id == pm_id)
+        .order_by(PMTeam.team_id)).scalars().all())
+
+
+def _set_relations(db: Session, pm: PreventiveMaintenance, company_id: str,
+                   user_ids: list[str], team_id_list: list[str]) -> None:
+    for uid in dict.fromkeys(user_ids):
+        db.add(PMAssignee(pm_id=pm.id, user_id=uid, company_id=company_id))
+    for tid in dict.fromkeys(team_id_list):
+        db.add(PMTeam(pm_id=pm.id, team_id=tid, company_id=company_id))
+
+
+def create_pm(db: Session, payload: PMCreate, company_id: str,
+              actor_user_id: str | None) -> PreventiveMaintenance:
+    seq = sequence_service.next_value(db, "preventive_maintenance", company_id)
+    pm = PreventiveMaintenance(
+        custom_id=sequence_service.format_custom_id("PM", seq),
+        title=payload.title, description=payload.description, priority=payload.priority,
+        asset_id=payload.asset_id, location_id=payload.location_id,
+        primary_user_id=payload.primary_user_id, procedure_id=payload.procedure_id,
+        start_date=payload.start_date, frequency_unit=payload.frequency_unit,
+        frequency_value=payload.frequency_value, next_due_date=payload.start_date,
+        company_id=company_id,
+    )
+    db.add(pm)
+    db.flush()
+    _set_relations(db, pm, company_id, payload.assignee_ids, payload.team_ids)
+    _log(db, pm.id, company_id, "CREATED", actor_user_id=actor_user_id)
+    db.commit()
+    db.refresh(pm)
+    return pm
+
+
+def list_pms(db: Session, *, is_enabled: bool | None = None,
+             asset_id: str | None = None, location_id: str | None = None
+             ) -> list[PreventiveMaintenance]:
+    stmt = select(PreventiveMaintenance).where(PreventiveMaintenance.is_active.is_(True))
+    if is_enabled is not None:
+        stmt = stmt.where(PreventiveMaintenance.is_enabled.is_(is_enabled))
+    if asset_id is not None:
+        stmt = stmt.where(PreventiveMaintenance.asset_id == asset_id)
+    if location_id is not None:
+        stmt = stmt.where(PreventiveMaintenance.location_id == location_id)
+    return list(db.execute(stmt.order_by(PreventiveMaintenance.custom_id)).scalars().all())
+
+
+def get_pm(db: Session, pm_id: str) -> PreventiveMaintenance | None:
+    pm = db.get(PreventiveMaintenance, pm_id)
+    if pm is None or not pm.is_active:
+        return None
+    return pm
+
+
+def update_pm(db: Session, pm: PreventiveMaintenance, payload: PMUpdate, company_id: str,
+              actor_user_id: str | None) -> PreventiveMaintenance:
+    data = payload.model_dump(exclude_unset=True)
+    new_assignees = data.pop("assignee_ids", None)
+    new_teams = data.pop("team_ids", None)
+    for k, v in data.items():
+        setattr(pm, k, v)
+    if "start_date" in data:                       # 改 start_date -> 重置 next_due
+        pm.next_due_date = pm.start_date
+    if pm.frequency_value < 1:
+        raise bad_request("PM_INVALID_FREQUENCY", "频率间隔需≥1")
+    if new_assignees is not None:
+        db.execute(PMAssignee.__table__.delete().where(PMAssignee.pm_id == pm.id))
+        for uid in dict.fromkeys(new_assignees):
+            db.add(PMAssignee(pm_id=pm.id, user_id=uid, company_id=company_id))
+    if new_teams is not None:
+        db.execute(PMTeam.__table__.delete().where(PMTeam.pm_id == pm.id))
+        for tid in dict.fromkeys(new_teams):
+            db.add(PMTeam(pm_id=pm.id, team_id=tid, company_id=company_id))
+    _log(db, pm.id, company_id, "UPDATED", actor_user_id=actor_user_id)
+    db.commit()
+    db.refresh(pm)
+    return pm
+
+
+def delete_pm(db: Session, pm: PreventiveMaintenance) -> None:
+    pm.is_active = False
+    pm.deleted_at = utcnow()
+    db.commit()
+
+
+def enable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
+              actor_user_id: str | None) -> PreventiveMaintenance:
+    pm.is_enabled = True
+    _log(db, pm.id, company_id, "ENABLED", actor_user_id=actor_user_id)
+    db.commit()
+    db.refresh(pm)
+    return pm
+
+
+def disable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
+               actor_user_id: str | None) -> PreventiveMaintenance:
+    pm.is_enabled = False
+    _log(db, pm.id, company_id, "DISABLED", actor_user_id=actor_user_id)
+    db.commit()
+    db.refresh(pm)
+    return pm
+
+
+def add_comment(db: Session, pm: PreventiveMaintenance, comment: str, company_id: str,
+                actor_user_id: str | None) -> PMActivity:
+    act = PMActivity(pm_id=pm.id, company_id=company_id, activity_type="COMMENT",
+                     actor_user_id=actor_user_id, comment=comment)
+    db.add(act)
+    db.commit()
+    db.refresh(act)
+    return act
+
+
+def list_activities(db: Session, pm_id: str) -> list[PMActivity]:
+    return list(db.execute(
+        select(PMActivity).where(PMActivity.pm_id == pm_id)
+        .order_by(PMActivity.created_at, PMActivity.id)).scalars().all())
