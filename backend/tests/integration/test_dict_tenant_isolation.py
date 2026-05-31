@@ -90,3 +90,30 @@ def test_reaggregate_partitioned_by_tenant(db, two_companies) -> None:
     rule_b = learn.reaggregate(db, "章节标题")
     # B 无证据 → 无规则或非 active（绝不继承 A 的 L2）
     assert rule_b is None or rule_b.status != "active" or rule_b.level != 2
+
+
+# ---- Task 5(P5): API 层可见性隔离（请求级租户 = bearer token 的 company_id）---- #
+def _h(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def _register(client, *, company, email):
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
+
+
+def test_api_list_isolated_per_tenant(client) -> None:
+    # A 公司经 API 建规则
+    ta = _register(client, company="AcmeDict", email="admin@acmedict.com")
+    r = client.post(
+        "/api/v1/heading-rules", json={"style_name": "A样式", "level": 1}, headers=_h(ta)
+    )
+    assert r.status_code == 201, r.text
+    # A 自己能看到
+    assert any(x["style_name"] == "A样式" for x in client.get("/api/v1/heading-rules", headers=_h(ta)).json())
+    # B 公司 GET 列表看不到 A 的规则（ORM 事件按 token 的 company_id 自动分区）
+    tb = _register(client, company="BetaDict", email="admin@betadict.com")
+    b_list = client.get("/api/v1/heading-rules", headers=_h(tb)).json()
+    assert all(x["style_name"] != "A样式" for x in b_list)
