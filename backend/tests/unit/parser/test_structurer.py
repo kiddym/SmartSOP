@@ -6,6 +6,7 @@ from app.parser import normalizer, structurer, synonyms
 from app.parser.result import ParseResult
 from app.parser.utils.opc import DocxPackage
 from tests.unit.parser._docx_builder import (
+    DocxBuilder,
     empty_sop,
     styled_sop,
     synonym_sop,
@@ -119,7 +120,88 @@ def test_standard_validation_report_present_smart_absent() -> None:
     assert _structure(styled_sop(), "smart").validation is None
 
 
+def test_prose_styled_heading_marked_review() -> None:
+    """作者把整句正文误套标题样式 → 解析当章节但标 review（短名词标题仍 unmarked）。"""
+    prose = "本试验中使用的气体放射性碘131，需建立临时控制区并设置警示标识。"
+    data = (
+        DocxBuilder()
+        .styled_heading("目的", "章节标题")
+        .para("正文一。")
+        .styled_heading(prose, "章节标题")
+        .para("正文二。")
+        .build()
+    )
+    for mode in ("standard", "smart"):
+        res = _structure(data, mode)
+        short = next(c for c in _all_nodes(res) if c.title == "目的")
+        long_ = next(c for c in _all_nodes(res) if c.title == prose)
+        assert short.mark_status == "unmarked", mode
+        assert long_.mark_status == "review", mode
+        assert long_.confidence_tier == "high"  # 仍信样式，只降确认状态
+        assert long_.heading_source in ("style", "synonym")
+        assert res.review_required >= 1
+
+
 def test_standard_validation_fails_without_styled_headings() -> None:
     rep = _structure(unstyled_numbered_sop(), "standard").validation
     assert rep is not None
     assert rep.level == "error"  # H001：无样式标题 → PARSE_TEMPLATE_INVALID
+
+
+# --------------------------------------------------------------------------- #
+# 扁平样式 + 多 numId 混排的跨列表嵌套（P1：_assign_styled_depths）
+# --------------------------------------------------------------------------- #
+def _styled_blk(i: int, num_id: str | None, ilvl: int | None, level: int = 1) -> object:
+    from app.parser.ir import Block
+
+    return Block(
+        kind="paragraph",
+        source_index=i,
+        text=f"标题{i}",
+        style_level=level,
+        num_id=num_id,
+        num_ilvl=ilvl,
+    )
+
+
+def test_assign_styled_depths_nests_foreign_sublist_under_subsection() -> None:
+    """扁平样式文档：作者插入的次要子列表（非主大纲 numId，ilvl 从 0 起）若出现在子节内，
+    应嵌套为当前 section 的下一级，而非被 per-numId 归一抬回 L1（TP试验程序 numId=11 清单）。"""
+    blocks = [
+        _styled_blk(0, "1", 1),  # 主大纲 L1（准备）
+        _styled_blk(1, "1", 2),  # 主大纲 L2（文件准备）
+        _styled_blk(2, "11", 0),  # 次要子列表 → 应 L3（嵌套到 文件准备 之下）
+        _styled_blk(3, "11", 0),  # 同列表兄弟 → L3
+        _styled_blk(4, "1", 2),  # 回到主大纲 L2（现场准备）
+    ]
+    num_floor = {"1": 1, "11": 0}
+    depths = structurer._assign_styled_depths(blocks, num_floor)
+    assert depths[0] == 1
+    assert depths[1] == 2
+    assert depths[2] == 3  # 次要子列表嵌套加深
+    assert depths[3] == 3  # 兄弟同深
+    assert depths[4] == 2  # 主大纲不受影响、正确回到 L2
+
+
+def test_assign_styled_depths_keeps_toplevel_sibling_with_own_numid() -> None:
+    """顶层 section 各用独立 numId（ilvl=0）是常见写法 → 仍为 L1 兄弟，不得被误嵌套。"""
+    blocks = [
+        _styled_blk(0, "2", 0),  # 目的（独立 numId，顶层）
+        _styled_blk(1, "6", 0),  # 范围（另一独立 numId，顶层）
+    ]
+    num_floor = {"2": 0, "6": 0}
+    depths = structurer._assign_styled_depths(blocks, num_floor)
+    assert depths[0] == 1
+    assert depths[1] == 1  # prev_depth==1（顶层）→ 不嵌套
+
+
+def test_assign_styled_depths_no_op_when_styles_encode_levels() -> None:
+    """样式已编码层级（标题1/标题2 混合，非扁平）→ 走基线、不触发跨列表嵌套，规范文档零回归。"""
+    blocks = [
+        _styled_blk(0, "1", 1, level=1),  # 标题1
+        _styled_blk(1, "1", 2, level=2),  # 标题2（样式即 L2）
+        _styled_blk(2, "11", 0, level=1),  # 标题1（独立 numId）→ 应保持 L1，不得嵌套
+    ]
+    num_floor = {"1": 1, "11": 0}
+    depths = structurer._assign_styled_depths(blocks, num_floor)
+    assert depths[2] == 1  # 非扁平 → 不嵌套，忠实样式层级
