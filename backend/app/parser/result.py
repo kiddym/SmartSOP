@@ -25,6 +25,10 @@ class ParsedNode:
     confidence_tier: str = "high"  # high | medium | low
     mark_status: str = "unmarked"  # unmarked | review
     heading_source: str | None = None  # style|synonym|outline|based_on|heuristic
+    # 学习闭环归因键（动态字典方案 M1）：样式标题记来源样式显示名；启发式编号标题记编号 pattern_key。
+    # 供「记住此样式 / 编辑改级」反查到底是哪个样式/编号被改（None=非标题或无信号）。
+    source_style_name: str | None = None
+    source_numbering_pattern: str | None = None
     children: list[ParsedNode] = field(default_factory=list)
 
 
