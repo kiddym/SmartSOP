@@ -5,6 +5,9 @@ import ElementPlus from 'element-plus'
 import NodeDetailPanel from '@/components/editor/NodeDetailPanel.vue'
 import { useNodeEditorStore } from '@/store/nodeEditor'
 import type { Node } from '@/types/node'
+import { createHeadingRule } from '@/api/headingRules'
+
+vi.mock('@/api/headingRules', () => ({ createHeadingRule: vi.fn().mockResolvedValue({}) }))
 
 function n(over: Partial<Node>): Node {
   return {
@@ -120,5 +123,31 @@ describe('NodeDetailPanel — readonly', () => {
     await w.vm.$nextTick()
     expect(w.findComponent({ name: 'RichTextEditor' }).props('readonly')).toBe(true)
     expect(w.findComponent({ name: 'StepFormFields' }).props('readonly')).toBe(true)
+  })
+})
+
+describe('NodeDetailPanel — 记住此样式 (M2)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('shows remember button for a style-sourced review heading and calls createHeadingRule', async () => {
+    const { w, store } = mountPanel()
+    store.nodes = [
+      n({ id: 'a', heading_level: 2, mark_status: 'review', source_style_name: '章节标题' }),
+    ]
+    store.selectedId = 'a'
+    vi.spyOn(store, 'confirmReview').mockResolvedValue()
+    await w.vm.$nextTick()
+    const btn = w.find('.remember-style')
+    expect(btn.exists()).toBe(true)
+    await btn.trigger('click')
+    expect(createHeadingRule).toHaveBeenCalledWith('章节标题', 2)
+  })
+
+  it('hides remember button when node has no source_style_name', async () => {
+    const { w, store } = mountPanel()
+    store.nodes = [n({ id: 'a', heading_level: 2, mark_status: 'review', source_style_name: null })]
+    store.selectedId = 'a'
+    await w.vm.$nextTick()
+    expect(w.find('.remember-style').exists()).toBe(false)
   })
 })
