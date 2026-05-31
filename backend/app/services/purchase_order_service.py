@@ -32,17 +32,18 @@ def _log(db: Session, purchase_order_id: str, company_id: str, activity_type: st
 
 
 def lines(db: Session, purchase_order_id: str) -> list[PurchaseOrderLine]:
+    # 按录入行序 line_no 稳定排序（id 是随机 UUID，不可用作顺序）；line_no 同值再以 id 兜底。
     return list(db.execute(
         select(PurchaseOrderLine)
         .where(PurchaseOrderLine.purchase_order_id == purchase_order_id)
-        .order_by(PurchaseOrderLine.id)).scalars().all())
+        .order_by(PurchaseOrderLine.line_no, PurchaseOrderLine.id)).scalars().all())
 
 
 def _set_lines(db: Session, purchase_order_id: str, company_id: str,
                line_list: list[POLineCreate]) -> None:
-    for ln in line_list:
+    for i, ln in enumerate(line_list):
         db.add(PurchaseOrderLine(
-            purchase_order_id=purchase_order_id, part_id=ln.part_id,
+            purchase_order_id=purchase_order_id, line_no=i, part_id=ln.part_id,
             quantity=ln.quantity, unit_cost=ln.unit_cost, company_id=company_id,
         ))
 

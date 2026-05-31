@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Enum as SAEnum, ForeignKey, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -45,6 +45,8 @@ class PurchaseOrderLine(Base, UUIDMixin, TimestampMixin, TenantMixin):
     purchase_order_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_purchase_order.id", ondelete="CASCADE"), index=True
     )
+    # 行序（0-based 录入顺序）：明细按此稳定排序，避免按随机 UUID id 排序。
+    line_no: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     part_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_part.id", ondelete="RESTRICT"), index=True
     )
