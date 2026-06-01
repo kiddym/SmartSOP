@@ -19,6 +19,7 @@ from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.user import User
 from app.parser.utils import images
 from app.schemas.batch import (
+    ApplyPreviewOut,
     BatchApplyRequest,
     BatchApplyResult,
     BatchImportCreate,
@@ -107,6 +108,16 @@ def apply_batch(
     )
     db.commit()
     return BatchApplyResult(enqueued=n)
+
+
+@router.post("/{job_id}/apply-preview", response_model=ApplyPreviewOut)
+def apply_preview(
+    job_id: str,
+    payload: BatchApplyRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ApplyPreviewOut:
+    return batch_review_service.preview_apply(db, job_id, item_ids=payload.item_ids)
 
 
 @router.get("/{job_id}/items/{item_id}/media/{filename}")

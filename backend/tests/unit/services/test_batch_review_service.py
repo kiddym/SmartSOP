@@ -102,3 +102,16 @@ def test_enqueue_apply_no_review_items_raises(db: Session) -> None:
     with pytest.raises(Exception) as ei:
         batch_review_service.enqueue_apply(db, job.id, item_ids=None, high_confidence_only=False)
     assert "BATCH_NO_APPLICABLE_ITEMS" in str(ei.value)
+
+
+def test_preview_counts_new_and_duplicates(db: Session) -> None:
+    job = _job(db)
+    _item(db, job, status="applied", content_hash="HASH1", procedure_id="p-existing")
+    a = _item(db, job, status="review", content_hash="HASH2")
+    b = _item(db, job, status="review", content_hash="HASH1")  # 与已 applied 重复
+    db.commit()
+
+    out = batch_review_service.preview_apply(db, job.id, item_ids=[a.id, b.id])
+    assert out.to_create == 1
+    assert out.duplicate_skip == 1
+    assert out.target_folder_id == "f1"

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import bad_request
 from app.models.batch import BatchImportItem
+from app.schemas.batch import ApplyPreviewOut
 from app.services import batch_import_service
 
 
@@ -32,3 +33,36 @@ def enqueue_apply(
         item.leased_until = None
     db.flush()
     return len(items)
+
+
+def preview_apply(db: Session, job_id: str, *, item_ids: list[str] | None) -> ApplyPreviewOut:
+    """dry-run：统计新建数 + content_hash 命中已落库的重复跳过数。
+
+    无"编号冲突"——FolderSequence 自增取号不撞号。
+    """
+    job = batch_import_service.get_job(db, job_id)
+    stmt = select(BatchImportItem).where(
+        BatchImportItem.job_id == job_id,
+        BatchImportItem.status == "review",
+        BatchImportItem.is_active.is_(True),
+    )
+    if item_ids is not None:  # 空列表 = 显式未选（与 enqueue_apply 一致）
+        stmt = stmt.where(BatchImportItem.id.in_(item_ids))
+    candidates = list(db.execute(stmt).scalars())
+
+    applied_hashes: set[str] = {
+        h
+        for (h,) in db.execute(
+            select(BatchImportItem.content_hash).where(
+                BatchImportItem.status == "applied",
+                BatchImportItem.content_hash != "",
+                BatchImportItem.is_active.is_(True),
+            )
+        )
+    }
+    duplicate = sum(1 for c in candidates if c.content_hash and c.content_hash in applied_hashes)
+    return ApplyPreviewOut(
+        to_create=len(candidates) - duplicate,
+        duplicate_skip=duplicate,
+        target_folder_id=job.folder_id,
+    )

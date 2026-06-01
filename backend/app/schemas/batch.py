@@ -45,3 +45,9 @@ class BatchApplyRequest(BaseModel):
 
 class BatchApplyResult(BaseModel):
     enqueued: int
+
+
+class ApplyPreviewOut(BaseModel):
+    to_create: int  # 将新建程序数
+    duplicate_skip: int  # content_hash 命中已落库 → 跳过
+    target_folder_id: str
