@@ -3,6 +3,7 @@
 GET/POST/PUT/DELETE /api/v1/heading-rules。事务边界：service 只 flush，本路由 commit。
 编号体例 /numbering-profiles 由 P1d 追加到本 router。
 """
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Response, status
@@ -26,7 +27,9 @@ def list_heading_rules(db: Session = Depends(get_db)) -> list[HeadingRuleOut]:
 
 
 @router.post("/heading-rules", response_model=HeadingRuleOut, status_code=status.HTTP_201_CREATED)
-def create_heading_rule(payload: HeadingRuleCreate, db: Session = Depends(get_db)) -> HeadingRuleOut:
+def create_heading_rule(
+    payload: HeadingRuleCreate, db: Session = Depends(get_db)
+) -> HeadingRuleOut:
     rule = heading_rule_service.create(db, payload)
     db.commit()
     db.refresh(rule)
@@ -58,8 +61,7 @@ def delete_heading_rule(rule_id: str, db: Session = Depends(get_db)) -> Response
 @router.get("/numbering-profiles", response_model=list[NumberingProfileOut])
 def list_numbering_profiles(db: Session = Depends(get_db)) -> list[NumberingProfileOut]:
     return [
-        NumberingProfileOut.model_validate(p)
-        for p in numbering_profile_service.list_profiles(db)
+        NumberingProfileOut.model_validate(p) for p in numbering_profile_service.list_profiles(db)
     ]
 
 

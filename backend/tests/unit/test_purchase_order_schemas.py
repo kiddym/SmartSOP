@@ -28,8 +28,7 @@ def test_line_create_and_default_cost():
 
 
 def test_line_read_line_total_computed():
-    lr = POLineRead(id="l-1", part_id="p-1", quantity=Decimal("3"),
-                    unit_cost=Decimal("2.5"))
+    lr = POLineRead(id="l-1", part_id="p-1", quantity=Decimal("3"), unit_cost=Decimal("2.5"))
     assert lr.line_total == Decimal("7.5")
     assert lr.model_dump()["line_total"] == Decimal("7.5")
 

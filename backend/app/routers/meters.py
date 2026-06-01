@@ -1,4 +1,5 @@
 """计量 API（/api/v1/meters）：仪表、读数、触发器。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -48,87 +49,131 @@ def _read_trigger(db: Session, trig: MeterTrigger) -> TriggerRead:
 
 # ---- 仪表 ----
 @router.get("", response_model=list[MeterRead])
-def list_meters(asset_id: str | None = None, location_id: str | None = None,
-                db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.METER_VIEW))):
+def list_meters(
+    asset_id: str | None = None,
+    location_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_VIEW)),
+):
     return svc.list_meters(db, asset_id=asset_id, location_id=location_id)
 
 
 @router.post("", response_model=MeterRead, status_code=status.HTTP_201_CREATED)
-def create_meter(payload: MeterCreate, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_permission(permissions.METER_CREATE))):
+def create_meter(
+    payload: MeterCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_CREATE)),
+):
     return svc.create_meter(db, payload, current_user.company_id, actor_user_id=current_user.id)
 
 
 @router.get("/{meter_id}", response_model=MeterRead)
-def get_meter(meter_id: str, db: Session = Depends(get_db),
-              current_user: User = Depends(require_permission(permissions.METER_VIEW))):
+def get_meter(
+    meter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_VIEW)),
+):
     return _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
 
 
 @router.patch("/{meter_id}", response_model=MeterRead)
-def update_meter(meter_id: str, payload: MeterUpdate, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_permission(permissions.METER_EDIT))):
+def update_meter(
+    meter_id: str,
+    payload: MeterUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_EDIT)),
+):
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     return svc.update_meter(db, m, payload, current_user.company_id, actor_user_id=current_user.id)
 
 
 @router.delete("/{meter_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_meter(meter_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_permission(permissions.METER_DELETE))):
+def delete_meter(
+    meter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_DELETE)),
+):
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     svc.delete_meter(db, m)
 
 
 # ---- 读数 ----
 @router.get("/{meter_id}/readings", response_model=list[MeterReadingRead])
-def list_readings(meter_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.READING_VIEW))):
+def list_readings(
+    meter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.READING_VIEW)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     return svc.list_readings(db, meter_id)
 
 
-@router.post("/{meter_id}/readings", response_model=ReadingResult,
-             status_code=status.HTTP_201_CREATED)
-def submit_reading(meter_id: str, payload: MeterReadingCreate, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.READING_CREATE))):
+@router.post(
+    "/{meter_id}/readings", response_model=ReadingResult, status_code=status.HTTP_201_CREATED
+)
+def submit_reading(
+    meter_id: str,
+    payload: MeterReadingCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.READING_CREATE)),
+):
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
-    reading, wos = svc.submit_reading(db, m, payload, current_user.company_id,
-                                      actor_user_id=current_user.id)
-    return ReadingResult(reading=MeterReadingRead.model_validate(reading),
-                         generated_work_order_ids=[wo.id for wo in wos])
+    reading, wos = svc.submit_reading(
+        db, m, payload, current_user.company_id, actor_user_id=current_user.id
+    )
+    return ReadingResult(
+        reading=MeterReadingRead.model_validate(reading),
+        generated_work_order_ids=[wo.id for wo in wos],
+    )
 
 
 # ---- 触发器 ----
 @router.get("/{meter_id}/triggers", response_model=list[TriggerRead])
-def list_triggers(meter_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.METER_VIEW))):
+def list_triggers(
+    meter_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_VIEW)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     return [_read_trigger(db, t) for t in ts.list_triggers(db, meter_id)]
 
 
-@router.post("/{meter_id}/triggers", response_model=TriggerRead,
-             status_code=status.HTTP_201_CREATED)
-def create_trigger(meter_id: str, payload: TriggerCreate, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.METER_CREATE))):
+@router.post(
+    "/{meter_id}/triggers", response_model=TriggerRead, status_code=status.HTTP_201_CREATED
+)
+def create_trigger(
+    meter_id: str,
+    payload: TriggerCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_CREATE)),
+):
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
-    trig = ts.create_trigger(db, m.id, payload, current_user.company_id,
-                             actor_user_id=current_user.id)
+    trig = ts.create_trigger(
+        db, m.id, payload, current_user.company_id, actor_user_id=current_user.id
+    )
     return _read_trigger(db, trig)
 
 
 @router.get("/{meter_id}/triggers/{trigger_id}", response_model=TriggerRead)
-def get_trigger(meter_id: str, trigger_id: str, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.METER_VIEW))):
+def get_trigger(
+    meter_id: str,
+    trigger_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_VIEW)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     trig = _ensure_trigger(ts.get_trigger(db, trigger_id), meter_id, current_user.company_id)
     return _read_trigger(db, trig)
 
 
 @router.patch("/{meter_id}/triggers/{trigger_id}", response_model=TriggerRead)
-def update_trigger(meter_id: str, trigger_id: str, payload: TriggerUpdate,
-                   db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.METER_EDIT))):
+def update_trigger(
+    meter_id: str,
+    trigger_id: str,
+    payload: TriggerUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_EDIT)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     trig = _ensure_trigger(ts.get_trigger(db, trigger_id), meter_id, current_user.company_id)
     ts.update_trigger(db, trig, payload, current_user.company_id, actor_user_id=current_user.id)
@@ -136,16 +181,24 @@ def update_trigger(meter_id: str, trigger_id: str, payload: TriggerUpdate,
 
 
 @router.delete("/{meter_id}/triggers/{trigger_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_trigger(meter_id: str, trigger_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.METER_DELETE))):
+def delete_trigger(
+    meter_id: str,
+    trigger_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_DELETE)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     trig = _ensure_trigger(ts.get_trigger(db, trigger_id), meter_id, current_user.company_id)
     ts.delete_trigger(db, trig)
 
 
 @router.post("/{meter_id}/triggers/{trigger_id}/enable", response_model=TriggerRead)
-def enable_trigger(meter_id: str, trigger_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.METER_EDIT))):
+def enable_trigger(
+    meter_id: str,
+    trigger_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_EDIT)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     trig = _ensure_trigger(ts.get_trigger(db, trigger_id), meter_id, current_user.company_id)
     ts.enable_trigger(db, trig, current_user.company_id, actor_user_id=current_user.id)
@@ -153,8 +206,12 @@ def enable_trigger(meter_id: str, trigger_id: str, db: Session = Depends(get_db)
 
 
 @router.post("/{meter_id}/triggers/{trigger_id}/disable", response_model=TriggerRead)
-def disable_trigger(meter_id: str, trigger_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.METER_EDIT))):
+def disable_trigger(
+    meter_id: str,
+    trigger_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.METER_EDIT)),
+):
     _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
     trig = _ensure_trigger(ts.get_trigger(db, trigger_id), meter_id, current_user.company_id)
     ts.disable_trigger(db, trig, current_user.company_id, actor_user_id=current_user.id)

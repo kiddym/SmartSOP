@@ -47,7 +47,9 @@ class Block:
     images: list[ImageRef] = field(default_factory=list)
     raw_image_count: int = 0  # 源元素内 a:blip 总数（含读取失败者），供 C001 对账
     raw_table_count: int = 0  # 源元素内 w:tbl 总数（含嵌套），供 C002 对账
-    raw_placeholder_count: int = 0  # 独立扫描：原始 oMath + 无可用图的 diagram/chart 数，供 C007 对账
+    raw_placeholder_count: int = (
+        0  # 独立扫描：原始 oMath + 无可用图的 diagram/chart 数，供 C007 对账
+    )
     placeholder_count: int = 0  # 实际插入的占位数（公式 span + 图形块），供 C007 对账
 
 

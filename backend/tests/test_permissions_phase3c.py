@@ -2,9 +2,13 @@ from app import permissions as perms
 
 
 def test_phase3c_codes_registered():
-    for code in ["purchase_order.view", "purchase_order.create",
-                 "purchase_order.edit", "purchase_order.delete",
-                 "purchase_order.approve"]:
+    for code in [
+        "purchase_order.view",
+        "purchase_order.create",
+        "purchase_order.edit",
+        "purchase_order.delete",
+        "purchase_order.approve",
+    ]:
         assert code in perms.ALL_PERMISSIONS
 
 
@@ -18,17 +22,25 @@ def test_super_admin_wildcard_includes_po():
 
 def test_admin_has_all_po():
     admin = next(r for r in perms.BUILTIN_ROLES if r["code"] == "admin")
-    for code in ["purchase_order.view", "purchase_order.create",
-                 "purchase_order.edit", "purchase_order.delete",
-                 "purchase_order.approve"]:
+    for code in [
+        "purchase_order.view",
+        "purchase_order.create",
+        "purchase_order.edit",
+        "purchase_order.delete",
+        "purchase_order.approve",
+    ]:
         assert code in admin["permissions"]
 
 
 def test_technician_po_view_only():
     tech = next(r for r in perms.BUILTIN_ROLES if r["code"] == "technician")
     assert "purchase_order.view" in tech["permissions"]
-    for denied in ("purchase_order.create", "purchase_order.edit",
-                   "purchase_order.delete", "purchase_order.approve"):
+    for denied in (
+        "purchase_order.create",
+        "purchase_order.edit",
+        "purchase_order.delete",
+        "purchase_order.approve",
+    ):
         assert denied not in tech["permissions"]
 
 

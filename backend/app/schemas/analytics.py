@@ -1,4 +1,5 @@
 """分析仪表盘响应 schema（Phase 4，只读）。"""
+
 from __future__ import annotations
 
 from datetime import date

@@ -3,7 +3,10 @@ from pydantic import ValidationError
 
 from app.models.work_order_status import WorkOrderPriority
 from app.schemas.request import (
-    RequestApprove, RequestCreate, RequestReason, RequestUpdate,
+    RequestApprove,
+    RequestCreate,
+    RequestReason,
+    RequestUpdate,
 )
 
 

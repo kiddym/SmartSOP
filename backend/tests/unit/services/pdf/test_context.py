@@ -30,7 +30,9 @@ def test_chapter_tree_with_content_step_and_steps(db: Session, factory: Factory)
     proc = _proc(factory)
     # 文档序建 node：L1「目的」+ 内容块；L1「操作」+ 两个 step
     factory.node(proc.id, body="<p>目的</p>", heading_level=1, kind="node", sort_order=1000)
-    factory.node(proc.id, body="<p>本程序用于…</p>", heading_level=None, kind="node", sort_order=2000)
+    factory.node(
+        proc.id, body="<p>本程序用于…</p>", heading_level=None, kind="node", sort_order=2000
+    )
     factory.node(proc.id, body="<p>操作</p>", heading_level=1, kind="node", sort_order=3000)
     factory.node(proc.id, body="<p>启动电源</p>", heading_level=None, kind="step", sort_order=4000)
     factory.node(proc.id, body="<p>检查阀门</p>", heading_level=None, kind="step", sort_order=5000)
@@ -90,10 +92,16 @@ def test_titles_derived_from_node_body(db: Session, factory: Factory) -> None:
     factory.sequence(leaf.id)
     proc = factory.procedure(leaf.id, code="QC-00009", name="派生标题")
     factory.node(proc.id, body="<p>目的</p>", heading_level=1, kind="node", sort_order=1000)
-    factory.node(proc.id, body="<p>检查阀门</p><p>步骤正文</p>", heading_level=None,
-                 kind="step", sort_order=2000)
-    factory.node(proc.id, body="<p>内容块正文</p>", heading_level=None,
-                 kind="node", sort_order=3000)
+    factory.node(
+        proc.id,
+        body="<p>检查阀门</p><p>步骤正文</p>",
+        heading_level=None,
+        kind="step",
+        sort_order=2000,
+    )
+    factory.node(
+        proc.id, body="<p>内容块正文</p>", heading_level=None, kind="node", sort_order=3000
+    )
     node_numbering.recompute(db, proc.id)  # PDF reader 读持久化 node.code
     db.commit()
 
@@ -120,9 +128,17 @@ def test_nested_chapters_and_skip_numbering_from_nodes(db: Session, factory: Fac
     # 文档序：L1 职责 → L2 质量部 → 其下 step 归口 → L1 附录(skip)
     factory.node(proc.id, body="<p>职责</p>", heading_level=1, kind="node", sort_order=1000)
     factory.node(proc.id, body="<p>质量部</p>", heading_level=2, kind="node", sort_order=2000)
-    factory.node(proc.id, body="<p>归口</p><p>x</p>", heading_level=None, kind="step", sort_order=3000)
-    factory.node(proc.id, body="<p>附录</p>", heading_level=1, kind="node",
-                 skip_numbering=True, sort_order=4000)
+    factory.node(
+        proc.id, body="<p>归口</p><p>x</p>", heading_level=None, kind="step", sort_order=3000
+    )
+    factory.node(
+        proc.id,
+        body="<p>附录</p>",
+        heading_level=1,
+        kind="node",
+        skip_numbering=True,
+        sort_order=4000,
+    )
     node_numbering.recompute(db, proc.id)  # PDF reader 读持久化 node.code
     db.commit()
 

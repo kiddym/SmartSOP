@@ -21,6 +21,7 @@ def test_work_order_defaults(db):
 def test_step_result_and_activity_importable(db):
     from app.models.work_order_activity import WorkOrderActivity
     from app.models.work_order_step_result import WorkOrderStepResult
+
     c = Company(name="Acme", slug="acme")
     db.add(c)
     db.commit()
@@ -30,7 +31,9 @@ def test_step_result_and_activity_importable(db):
     sr = WorkOrderStepResult(
         work_order_id=wo.id, node_id="n1", node_code="S1", node_sort_order=0, company_id=c.id
     )
-    act = WorkOrderActivity(work_order_id=wo.id, activity_type="COMMENT", comment="hi", company_id=c.id)
+    act = WorkOrderActivity(
+        work_order_id=wo.id, activity_type="COMMENT", comment="hi", company_id=c.id
+    )
     db.add_all([sr, act])
     db.commit()
     assert sr.is_done is False

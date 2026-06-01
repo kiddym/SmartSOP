@@ -80,8 +80,10 @@ class TenantMixin(TenantScoped):
     """Platform tables: company_id is required (NOT NULL)."""
 
     company_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("tb_company.id", ondelete="CASCADE"),
-        nullable=False, index=True,
+        String(36),
+        ForeignKey("tb_company.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
 
@@ -89,6 +91,8 @@ class NullableTenantMixin(TenantScoped):
     """SOP tables (Phase 0): company_id nullable; enforcement deferred to Phase 1."""
 
     company_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("tb_company.id", ondelete="CASCADE"),
-        nullable=True, index=True,
+        String(36),
+        ForeignKey("tb_company.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )

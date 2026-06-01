@@ -1,10 +1,11 @@
 """团队及其成员（每租户）。成员关系用显式关联类，便于租户作用域。"""
+
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class Team(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):

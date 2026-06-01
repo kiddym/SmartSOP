@@ -1,4 +1,5 @@
 """位置服务：树（防环）、customId、负责人/团队关联。"""
+
 from __future__ import annotations
 
 from sqlalchemy import delete, select
@@ -12,23 +13,33 @@ from app.services import sequence_service
 
 
 def _user_ids(db: Session, location_id: str) -> list[str]:
-    return list(db.execute(
-        select(LocationUser.user_id).where(LocationUser.location_id == location_id)
-    ).scalars().all())
+    return list(
+        db.execute(select(LocationUser.user_id).where(LocationUser.location_id == location_id))
+        .scalars()
+        .all()
+    )
 
 
 def _team_ids(db: Session, location_id: str) -> list[str]:
-    return list(db.execute(
-        select(LocationTeam.team_id).where(LocationTeam.location_id == location_id)
-    ).scalars().all())
+    return list(
+        db.execute(select(LocationTeam.team_id).where(LocationTeam.location_id == location_id))
+        .scalars()
+        .all()
+    )
 
 
 def to_read(db: Session, loc: Location) -> dict:
     return {
-        "id": loc.id, "custom_id": loc.custom_id, "name": loc.name,
-        "description": loc.description, "parent_id": loc.parent_id,
-        "address": loc.address, "longitude": loc.longitude, "latitude": loc.latitude,
-        "assigned_user_ids": _user_ids(db, loc.id), "team_ids": _team_ids(db, loc.id),
+        "id": loc.id,
+        "custom_id": loc.custom_id,
+        "name": loc.name,
+        "description": loc.description,
+        "parent_id": loc.parent_id,
+        "address": loc.address,
+        "longitude": loc.longitude,
+        "latitude": loc.latitude,
+        "assigned_user_ids": _user_ids(db, loc.id),
+        "team_ids": _team_ids(db, loc.id),
     }
 
 
@@ -37,11 +48,15 @@ def _descendant_ids(db: Session, location_id: str) -> set[str]:
     out: set[str] = set()
     frontier = [location_id]
     while frontier:
-        rows = db.execute(
-            select(Location.id).where(
-                Location.parent_id.in_(frontier), Location.is_active.is_(True)
+        rows = (
+            db.execute(
+                select(Location.id).where(
+                    Location.parent_id.in_(frontier), Location.is_active.is_(True)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         rows = [r for r in rows if r not in out]
         out.update(rows)
         frontier = rows
@@ -72,8 +87,12 @@ def create_location(db: Session, payload: LocationCreate, company_id: str) -> Lo
     seq = sequence_service.next_value(db, "location", company_id)
     loc = Location(
         custom_id=sequence_service.format_custom_id("L", seq),
-        name=payload.name, description=payload.description, parent_id=payload.parent_id,
-        address=payload.address, longitude=payload.longitude, latitude=payload.latitude,
+        name=payload.name,
+        description=payload.description,
+        parent_id=payload.parent_id,
+        address=payload.address,
+        longitude=payload.longitude,
+        latitude=payload.latitude,
         company_id=company_id,
     )
     db.add(loc)
@@ -92,11 +111,13 @@ def list_locations(db: Session, parent_id: str | None = None) -> list[Location]:
 
 
 def list_children(db: Session, location_id: str) -> list[Location]:
-    return list(db.execute(
-        select(Location).where(
-            Location.parent_id == location_id, Location.is_active.is_(True)
+    return list(
+        db.execute(
+            select(Location).where(Location.parent_id == location_id, Location.is_active.is_(True))
         )
-    ).scalars().all())
+        .scalars()
+        .all()
+    )
 
 
 def get_location(db: Session, location_id: str) -> Location | None:
@@ -106,7 +127,9 @@ def get_location(db: Session, location_id: str) -> Location | None:
     return loc
 
 
-def update_location(db: Session, loc: Location, payload: LocationUpdate, company_id: str) -> Location:
+def update_location(
+    db: Session, loc: Location, payload: LocationUpdate, company_id: str
+) -> Location:
     data = payload.model_dump(exclude_unset=True)
     if "parent_id" in data:
         _validate_parent(db, loc.id, data["parent_id"])

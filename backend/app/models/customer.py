@@ -1,4 +1,5 @@
 """客户（Customer，每租户）+ M:N 关联备件。billing_currency 为裸货币码（Currency 实体延后）。"""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -33,9 +34,7 @@ class Customer(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
 class CustomerPart(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_customer_part"
-    __table_args__ = (
-        UniqueConstraint("customer_id", "part_id", name="uq_customer_part"),
-    )
+    __table_args__ = (UniqueConstraint("customer_id", "part_id", name="uq_customer_part"),)
 
     customer_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_customer.id", ondelete="CASCADE"), index=True

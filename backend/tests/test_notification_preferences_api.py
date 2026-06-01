@@ -1,4 +1,5 @@
 """偏好 API（/api/v1/notification-preferences）：仅本人、跨租户隔离。"""
+
 from __future__ import annotations
 
 
@@ -7,9 +8,10 @@ def _h(token):
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def test_get_default_when_unset(client):
@@ -21,9 +23,11 @@ def test_get_default_when_unset(client):
 
 def test_put_then_get(client):
     t = _admin(client)
-    put = client.put("/api/v1/notification-preferences",
-                     json={"email_enabled": False, "disabled_types": ["WO_ASSIGNED"]},
-                     headers=_h(t))
+    put = client.put(
+        "/api/v1/notification-preferences",
+        json={"email_enabled": False, "disabled_types": ["WO_ASSIGNED"]},
+        headers=_h(t),
+    )
     assert put.status_code == 200, put.text
     got = client.get("/api/v1/notification-preferences", headers=_h(t)).json()
     assert got["email_enabled"] is False

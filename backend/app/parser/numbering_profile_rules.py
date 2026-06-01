@@ -5,6 +5,7 @@
 仅集中存放。``load_profile_for(company_id)`` 为 Phase 2 / 租户编号体例预留入口（租户特异
 体例已由 P1d 的 numbering_overrides 注入承载，此处暂返回默认 profile）。
 """
+
 from __future__ import annotations
 
 import re

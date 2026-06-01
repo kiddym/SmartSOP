@@ -1,4 +1,5 @@
 """分析 CSV 导出（Phase 4）。"""
+
 from __future__ import annotations
 
 
@@ -7,9 +8,10 @@ def _h(token):
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def test_export_csv_content_type_and_header(client):

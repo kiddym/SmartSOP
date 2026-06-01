@@ -1,4 +1,5 @@
 """资产停机时段（手动登记；无树传播，Phase 4 再做）。"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -6,7 +7,7 @@ from datetime import datetime
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, UUIDMixin, TimestampMixin, TenantMixin
+from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class AssetDowntime(Base, UUIDMixin, TimestampMixin, TenantMixin):

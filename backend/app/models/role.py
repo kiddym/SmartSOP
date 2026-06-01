@@ -1,10 +1,11 @@
 """Role: tenant-scoped role holding a list of permission codes."""
+
 from __future__ import annotations
 
-from sqlalchemy import String, Boolean, JSON, UniqueConstraint
+from sqlalchemy import JSON, Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, TenantMixin
+from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class Role(Base, UUIDMixin, TimestampMixin, TenantMixin):

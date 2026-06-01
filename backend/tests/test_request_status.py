@@ -1,11 +1,12 @@
 from app.models.request_status import (
-    ALLOWED_TRANSITIONS, RequestStatus, can_transition,
+    ALLOWED_TRANSITIONS,
+    RequestStatus,
+    can_transition,
 )
 
 
 def test_status_values():
-    assert {s.value for s in RequestStatus} == {
-        "PENDING", "APPROVED", "REJECTED", "CANCELED"}
+    assert {s.value for s in RequestStatus} == {"PENDING", "APPROVED", "REJECTED", "CANCELED"}
 
 
 def test_legal_transitions():

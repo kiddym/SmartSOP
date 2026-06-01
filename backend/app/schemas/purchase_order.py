@@ -1,4 +1,5 @@
 """采购单 schema（Phase 3C）。lines/total_cost 由 router 填充。"""
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -3,6 +3,7 @@
 node_id 为弱引用（无 FK）：钉定版本不可变且节点属 SOP 聚合。
 node_code/node_sort_order 生成时冗余拷入，使执行视图自包含、排序稳定。
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -11,7 +12,7 @@ from typing import Any
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, UUIDMixin, TimestampMixin, TenantMixin
+from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class WorkOrderStepResult(Base, UUIDMixin, TimestampMixin, TenantMixin):

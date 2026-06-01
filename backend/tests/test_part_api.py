@@ -1,4 +1,5 @@
 """备件 API（Phase 3A）。"""
+
 from __future__ import annotations
 
 
@@ -7,19 +8,24 @@ def _h(token):
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _technician_token(client, admin_token):
     roles = client.get("/api/v1/roles", headers=_h(admin_token)).json()
     rid = next(r["id"] for r in roles if r["code"] == "technician")
-    client.post("/api/v1/users", headers=_h(admin_token), json={
-        "email": "tech@acme.com", "password": "secret123", "name": "T", "role_id": rid})
-    return client.post("/api/v1/auth/login", json={
-        "company_slug": "acme", "email": "tech@acme.com",
-        "password": "secret123"}).json()["access_token"]
+    client.post(
+        "/api/v1/users",
+        headers=_h(admin_token),
+        json={"email": "tech@acme.com", "password": "secret123", "name": "T", "role_id": rid},
+    )
+    return client.post(
+        "/api/v1/auth/login",
+        json={"company_slug": "acme", "email": "tech@acme.com", "password": "secret123"},
+    ).json()["access_token"]
 
 
 def _part(client, token, **kw):
@@ -34,11 +40,11 @@ def test_part_crud(client):
     assert r.status_code == 201, r.text
     pid = r.json()["id"]
     assert r.json()["custom_id"] == "PRT000001"
-    assert r.json()["is_low_stock"] is False              # 10 >= 3
+    assert r.json()["is_low_stock"] is False  # 10 >= 3
     got = client.get(f"/api/v1/parts/{pid}", headers=_h(t))
     assert got.status_code == 200 and got.json()["name"] == "轴承"
     upd = client.patch(f"/api/v1/parts/{pid}", json={"quantity": "1"}, headers=_h(t))
-    assert upd.json()["is_low_stock"] is True             # 1 < 3
+    assert upd.json()["is_low_stock"] is True  # 1 < 3
     assert client.delete(f"/api/v1/parts/{pid}", headers=_h(t)).status_code == 204
 
 

@@ -19,8 +19,7 @@ from app.models.attachment import ProcedureAttachment
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
-from app.services import asset_service
-from app.services import node_service
+from app.services import asset_service, node_service
 
 
 @dataclass

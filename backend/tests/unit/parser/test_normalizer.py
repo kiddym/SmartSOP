@@ -166,33 +166,33 @@ def test_textbox_inside_toc_field_inherits_is_toc_field() -> None:
     # --- 段落 1: TOC 域 begin + instrText(TOC) + separate ---
     p_begin = builder.doc.add_paragraph()
     r1 = p_begin.add_run()
-    fb = _et.SubElement(r1._r, "{%s}fldChar" % _W_NS)
-    fb.set("{%s}fldCharType" % _W_NS, "begin")
+    fb = _et.SubElement(r1._r, f"{{{_W_NS}}}fldChar")
+    fb.set(f"{{{_W_NS}}}fldCharType", "begin")
     r2 = p_begin.add_run()
-    instr = _et.SubElement(r2._r, "{%s}instrText" % _W_NS)
+    instr = _et.SubElement(r2._r, f"{{{_W_NS}}}instrText")
     instr.set("{http://www.w3.org/XML/1998/namespace}space", "preserve")
     instr.text = ' TOC \\o "1-3" '
     r3 = p_begin.add_run()
-    sep = _et.SubElement(r3._r, "{%s}fldChar" % _W_NS)
-    sep.set("{%s}fldCharType" % _W_NS, "separate")
+    sep = _et.SubElement(r3._r, f"{{{_W_NS}}}fldChar")
+    sep.set(f"{{{_W_NS}}}fldCharType", "separate")
 
     # --- 段落 2: 处于 TOC 域内的 textbox 段落（用 lxml 直接构造，避免 python-docx 重置）---
     p_txbx = builder.doc.add_paragraph()
     run_txbx = p_txbx.add_run()
-    pict = _et.SubElement(run_txbx._r, "{%s}pict" % _W_NS)
-    shape = _et.SubElement(pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"})
-    tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
-    tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
-    inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
-    inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
-    inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+    pict = _et.SubElement(run_txbx._r, f"{{{_W_NS}}}pict")
+    shape = _et.SubElement(pict, f"{{{_V_NS}}}shape", attrib={"style": "width:120pt;height:30pt"})
+    tbx = _et.SubElement(shape, f"{{{_V_NS}}}textbox")
+    tcontent = _et.SubElement(tbx, f"{{{_W_NS}}}txbxContent")
+    inner_p = _et.SubElement(tcontent, f"{{{_W_NS}}}p")
+    inner_r = _et.SubElement(inner_p, f"{{{_W_NS}}}r")
+    inner_t = _et.SubElement(inner_r, f"{{{_W_NS}}}t")
     inner_t.text = "TOC 内的注意框"
 
     # --- 段落 3: TOC 域 end ---
     p_end = builder.doc.add_paragraph()
     re = p_end.add_run()
-    fe = _et.SubElement(re._r, "{%s}fldChar" % _W_NS)
-    fe.set("{%s}fldCharType" % _W_NS, "end")
+    fe = _et.SubElement(re._r, f"{{{_W_NS}}}fldChar")
+    fe.set(f"{{{_W_NS}}}fldCharType", "end")
 
     nd = _normalize(builder.build())
 
@@ -242,15 +242,15 @@ def test_nested_textbox_image_attributed_only_to_innermost_block() -> None:
     """
     data = (
         DocxBuilder()
-        .nested_textbox_with_image_para(
-            outer_text="外层文字", inner_text="内层文字"
-        )
+        .nested_textbox_with_image_para(outer_text="外层文字", inner_text="内层文字")
         .build()
     )
     nd = _normalize(data)
     para_blocks = [b for b in nd.blocks if b.kind == "paragraph"]
     # 总图数 == 1（防双计）
-    assert nd.total_image_count == 1, f"total_image_count={nd.total_image_count}, blocks={[(b.text[:20], len(b.images)) for b in para_blocks]}"
+    assert nd.total_image_count == 1, (
+        f"total_image_count={nd.total_image_count}, blocks={[(b.text[:20], len(b.images)) for b in para_blocks]}"
+    )
     # 内层段落（含「内层文字」）拥有这张图
     inner = next((b for b in para_blocks if "内层文字" in b.text), None)
     assert inner is not None, "innermost paragraph missing"
@@ -259,7 +259,9 @@ def test_nested_textbox_image_attributed_only_to_innermost_block() -> None:
     for b in para_blocks:
         if b is inner:
             continue
-        assert len(b.images) == 0, f"block text={b.text!r} should have 0 images, got {len(b.images)}"
+        assert len(b.images) == 0, (
+            f"block text={b.text!r} should have 0 images, got {len(b.images)}"
+        )
 
 
 def test_discarded_parts_detects_non_empty_header() -> None:
@@ -281,9 +283,10 @@ def test_discarded_parts_ignores_empty_header_stub() -> None:
     empty_header = b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>'
     in_buf = io.BytesIO(base)
     out_buf = io.BytesIO()
-    with zipfile.ZipFile(in_buf, "r") as zin, zipfile.ZipFile(
-        out_buf, "w", zipfile.ZIP_DEFLATED
-    ) as zout:
+    with (
+        zipfile.ZipFile(in_buf, "r") as zin,
+        zipfile.ZipFile(out_buf, "w", zipfile.ZIP_DEFLATED) as zout,
+    ):
         for item in zin.namelist():
             zout.writestr(item, zin.read(item))
         zout.writestr("word/header1.xml", empty_header)
@@ -292,23 +295,27 @@ def test_discarded_parts_ignores_empty_header_stub() -> None:
 
 
 def test_formula_inserts_inline_placeholder() -> None:
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().formula_para(before="见公式", after="所示").build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     para = next(b for b in nd.blocks if b.kind == "paragraph" and "见公式" in b.text)
     assert '<span class="sop-ph" data-ph="formula">[公式]</span>' in para.html
-    assert para.html.index("见公式") < para.html.index("data-ph=\"formula\"") < para.html.index("所示")
+    assert (
+        para.html.index("见公式") < para.html.index('data-ph="formula"') < para.html.index("所示")
+    )
     assert para.placeholder_count == 1
     assert para.raw_placeholder_count == 1
 
 
 def test_formula_independent_raw_count() -> None:
     """独立扫描计数：oMathPara 直接子 + 裸 oMath 各算一处，无双计。"""
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().formula_para().formula_para().build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     total_raw = sum(b.raw_placeholder_count for b in nd.blocks)
@@ -318,8 +325,10 @@ def test_formula_independent_raw_count() -> None:
 
 def test_count_raw_placeholders_nested_omath_counts_outermost_only() -> None:
     from lxml import etree
+
     from app.parser.normalizer import _count_raw_placeholders
     from app.parser.utils.opc import qn
+
     # <w:p><m:oMathPara><m:oMath><m:oMath/></m:oMath></m:oMathPara></w:p>
     p = etree.Element(qn("w:p"))
     omathpara = etree.SubElement(p, qn("m:oMathPara"))
@@ -335,9 +344,10 @@ def test_count_raw_placeholders_nested_omath_counts_outermost_only() -> None:
 
 
 def test_chart_inserts_block_placeholder() -> None:
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().chart_para().build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
@@ -347,9 +357,10 @@ def test_chart_inserts_block_placeholder() -> None:
 
 
 def test_multiple_graphics_one_run_insert_per_graphic() -> None:
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().two_charts_one_run().build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
@@ -359,9 +370,10 @@ def test_multiple_graphics_one_run_insert_per_graphic() -> None:
 
 
 def test_smartart_without_fallback_inserts_placeholder() -> None:
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().smartart_para(with_fallback=False).build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
@@ -370,9 +382,10 @@ def test_smartart_without_fallback_inserts_placeholder() -> None:
 
 
 def test_smartart_with_fallback_uses_image_not_placeholder() -> None:
-    from tests.unit.parser._docx_builder import DocxBuilder
     from app.parser.normalizer import normalize
     from app.parser.utils.opc import DocxPackage
+    from tests.unit.parser._docx_builder import DocxBuilder
+
     data = DocxBuilder().smartart_para(with_fallback=True).build()
     nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
     para = next(b for b in nd.blocks if b.kind == "paragraph" and (b.images or "sop-ph" in b.html))

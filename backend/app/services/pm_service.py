@@ -2,6 +2,7 @@
 
 调度任务与手动端点共用 generate_once。工单服务在函数内 import 避免循环依赖。
 """
+
 from __future__ import annotations
 
 import calendar
@@ -27,9 +28,11 @@ def _add_interval(d: date, unit: PMFrequencyUnit, value: int) -> date:
     """在 d 上加 value 个 unit。MONTH 钳制到目标月最后一天。"""
     if unit == PMFrequencyUnit.DAY:
         from datetime import timedelta
+
         return d + timedelta(days=value)
     if unit == PMFrequencyUnit.WEEK:
         from datetime import timedelta
+
         return d + timedelta(days=value * 7)
     # MONTH
     total = (d.year * 12 + (d.month - 1)) + value
@@ -48,42 +51,73 @@ def _advance_due(next_due: date, unit: PMFrequencyUnit, value: int, *, today: da
     return nd
 
 
-def _log(db: Session, pm_id: str, company_id: str, activity_type: str,
-         actor_user_id: str | None = None, comment: str = "") -> None:
-    db.add(PMActivity(pm_id=pm_id, company_id=company_id, activity_type=activity_type,
-                      actor_user_id=actor_user_id, comment=comment))
+def _log(
+    db: Session,
+    pm_id: str,
+    company_id: str,
+    activity_type: str,
+    actor_user_id: str | None = None,
+    comment: str = "",
+) -> None:
+    db.add(
+        PMActivity(
+            pm_id=pm_id,
+            company_id=company_id,
+            activity_type=activity_type,
+            actor_user_id=actor_user_id,
+            comment=comment,
+        )
+    )
 
 
 def assignee_ids(db: Session, pm_id: str) -> list[str]:
-    return list(db.execute(
-        select(PMAssignee.user_id).where(PMAssignee.pm_id == pm_id)
-        .order_by(PMAssignee.user_id)).scalars().all())
+    return list(
+        db.execute(
+            select(PMAssignee.user_id).where(PMAssignee.pm_id == pm_id).order_by(PMAssignee.user_id)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def team_ids(db: Session, pm_id: str) -> list[str]:
-    return list(db.execute(
-        select(PMTeam.team_id).where(PMTeam.pm_id == pm_id)
-        .order_by(PMTeam.team_id)).scalars().all())
+    return list(
+        db.execute(select(PMTeam.team_id).where(PMTeam.pm_id == pm_id).order_by(PMTeam.team_id))
+        .scalars()
+        .all()
+    )
 
 
-def _set_relations(db: Session, pm: PreventiveMaintenance, company_id: str,
-                   user_ids: list[str], team_id_list: list[str]) -> None:
+def _set_relations(
+    db: Session,
+    pm: PreventiveMaintenance,
+    company_id: str,
+    user_ids: list[str],
+    team_id_list: list[str],
+) -> None:
     for uid in dict.fromkeys(user_ids):
         db.add(PMAssignee(pm_id=pm.id, user_id=uid, company_id=company_id))
     for tid in dict.fromkeys(team_id_list):
         db.add(PMTeam(pm_id=pm.id, team_id=tid, company_id=company_id))
 
 
-def create_pm(db: Session, payload: PMCreate, company_id: str,
-              actor_user_id: str | None) -> PreventiveMaintenance:
+def create_pm(
+    db: Session, payload: PMCreate, company_id: str, actor_user_id: str | None
+) -> PreventiveMaintenance:
     seq = sequence_service.next_value(db, "preventive_maintenance", company_id)
     pm = PreventiveMaintenance(
         custom_id=sequence_service.format_custom_id("PM", seq),
-        title=payload.title, description=payload.description, priority=payload.priority,
-        asset_id=payload.asset_id, location_id=payload.location_id,
-        primary_user_id=payload.primary_user_id, procedure_id=payload.procedure_id,
-        start_date=payload.start_date, frequency_unit=payload.frequency_unit,
-        frequency_value=payload.frequency_value, next_due_date=payload.start_date,
+        title=payload.title,
+        description=payload.description,
+        priority=payload.priority,
+        asset_id=payload.asset_id,
+        location_id=payload.location_id,
+        primary_user_id=payload.primary_user_id,
+        procedure_id=payload.procedure_id,
+        start_date=payload.start_date,
+        frequency_unit=payload.frequency_unit,
+        frequency_value=payload.frequency_value,
+        next_due_date=payload.start_date,
         company_id=company_id,
     )
     db.add(pm)
@@ -95,9 +129,13 @@ def create_pm(db: Session, payload: PMCreate, company_id: str,
     return pm
 
 
-def list_pms(db: Session, *, is_enabled: bool | None = None,
-             asset_id: str | None = None, location_id: str | None = None
-             ) -> list[PreventiveMaintenance]:
+def list_pms(
+    db: Session,
+    *,
+    is_enabled: bool | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
+) -> list[PreventiveMaintenance]:
     stmt = select(PreventiveMaintenance).where(PreventiveMaintenance.is_active.is_(True))
     if is_enabled is not None:
         stmt = stmt.where(PreventiveMaintenance.is_enabled.is_(is_enabled))
@@ -115,14 +153,19 @@ def get_pm(db: Session, pm_id: str) -> PreventiveMaintenance | None:
     return pm
 
 
-def update_pm(db: Session, pm: PreventiveMaintenance, payload: PMUpdate, company_id: str,
-              actor_user_id: str | None) -> PreventiveMaintenance:
+def update_pm(
+    db: Session,
+    pm: PreventiveMaintenance,
+    payload: PMUpdate,
+    company_id: str,
+    actor_user_id: str | None,
+) -> PreventiveMaintenance:
     data = payload.model_dump(exclude_unset=True)
     new_assignees = data.pop("assignee_ids", None)
     new_teams = data.pop("team_ids", None)
     for k, v in data.items():
         setattr(pm, k, v)
-    if "start_date" in data:                       # 改 start_date -> 重置 next_due
+    if "start_date" in data:  # 改 start_date -> 重置 next_due
         pm.next_due_date = pm.start_date
     if pm.frequency_value < 1:
         raise bad_request("PM_INVALID_FREQUENCY", "频率间隔需≥1")
@@ -146,8 +189,9 @@ def delete_pm(db: Session, pm: PreventiveMaintenance) -> None:
     db.commit()
 
 
-def enable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
-              actor_user_id: str | None) -> PreventiveMaintenance:
+def enable_pm(
+    db: Session, pm: PreventiveMaintenance, company_id: str, actor_user_id: str | None
+) -> PreventiveMaintenance:
     pm.is_enabled = True
     _log(db, pm.id, company_id, "ENABLED", actor_user_id=actor_user_id)
     db.commit()
@@ -155,8 +199,9 @@ def enable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
     return pm
 
 
-def disable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
-               actor_user_id: str | None) -> PreventiveMaintenance:
+def disable_pm(
+    db: Session, pm: PreventiveMaintenance, company_id: str, actor_user_id: str | None
+) -> PreventiveMaintenance:
     pm.is_enabled = False
     _log(db, pm.id, company_id, "DISABLED", actor_user_id=actor_user_id)
     db.commit()
@@ -164,10 +209,16 @@ def disable_pm(db: Session, pm: PreventiveMaintenance, company_id: str,
     return pm
 
 
-def add_comment(db: Session, pm: PreventiveMaintenance, comment: str, company_id: str,
-                actor_user_id: str | None) -> PMActivity:
-    act = PMActivity(pm_id=pm.id, company_id=company_id, activity_type="COMMENT",
-                     actor_user_id=actor_user_id, comment=comment)
+def add_comment(
+    db: Session, pm: PreventiveMaintenance, comment: str, company_id: str, actor_user_id: str | None
+) -> PMActivity:
+    act = PMActivity(
+        pm_id=pm.id,
+        company_id=company_id,
+        activity_type="COMMENT",
+        actor_user_id=actor_user_id,
+        comment=comment,
+    )
     db.add(act)
     db.commit()
     db.refresh(act)
@@ -175,23 +226,34 @@ def add_comment(db: Session, pm: PreventiveMaintenance, comment: str, company_id
 
 
 def list_activities(db: Session, pm_id: str) -> list[PMActivity]:
-    return list(db.execute(
-        select(PMActivity).where(PMActivity.pm_id == pm_id)
-        .order_by(PMActivity.created_at, PMActivity.id)).scalars().all())
+    return list(
+        db.execute(
+            select(PMActivity)
+            .where(PMActivity.pm_id == pm_id)
+            .order_by(PMActivity.created_at, PMActivity.id)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def due_candidates(db: Session, *, today: date) -> list[str]:
     """跨租户取到期 PM id（调用方需已 bypass_tenant_scope）。"""
-    stmt = select(PreventiveMaintenance.id).where(
-        PreventiveMaintenance.is_active.is_(True),
-        PreventiveMaintenance.is_enabled.is_(True),
-        PreventiveMaintenance.next_due_date <= today,
-    ).order_by(PreventiveMaintenance.custom_id)
+    stmt = (
+        select(PreventiveMaintenance.id)
+        .where(
+            PreventiveMaintenance.is_active.is_(True),
+            PreventiveMaintenance.is_enabled.is_(True),
+            PreventiveMaintenance.next_due_date <= today,
+        )
+        .order_by(PreventiveMaintenance.custom_id)
+    )
     return list(db.execute(stmt).scalars().all())
 
 
-def generate_once(db: Session, pm: PreventiveMaintenance, *, actor_user_id: str | None,
-                  now, enforce_due: bool):
+def generate_once(
+    db: Session, pm: PreventiveMaintenance, *, actor_user_id: str | None, now, enforce_due: bool
+):
     """生成一张工单（复制预设）并锥摆推进 next_due_date。返回 WorkOrder。
 
     调度任务 enforce_due=True（校验到期）；手动端点 enforce_due=False（允许提前）。
@@ -202,29 +264,34 @@ def generate_once(db: Session, pm: PreventiveMaintenance, *, actor_user_id: str 
     from app.services import work_order_service as wos
 
     today = now.date()
-    if enforce_due and not (
-        pm.is_active and pm.is_enabled and pm.next_due_date <= today
-    ):
+    if enforce_due and not (pm.is_active and pm.is_enabled and pm.next_due_date <= today):
         raise bad_request("PM_NOT_DUE", "PM 未到期")
 
     generated_due = pm.next_due_date
     wo_payload = WorkOrderCreate(
-        title=pm.title, description=pm.description, priority=pm.priority,
-        due_date=generated_due, asset_id=pm.asset_id, location_id=pm.location_id,
+        title=pm.title,
+        description=pm.description,
+        priority=pm.priority,
+        due_date=generated_due,
+        asset_id=pm.asset_id,
+        location_id=pm.location_id,
         primary_user_id=pm.primary_user_id,
-        assignee_ids=assignee_ids(db, pm.id), team_ids=team_ids(db, pm.id),
+        assignee_ids=assignee_ids(db, pm.id),
+        team_ids=team_ids(db, pm.id),
     )
     wo = wos.create_work_order(db, wo_payload, pm.company_id, actor_user_id=actor_user_id)
     if pm.procedure_id is not None:
-        exe.attach_procedure(db, wo, pm.procedure_id, pm.company_id,
-                             actor_user_id=actor_user_id)
+        exe.attach_procedure(db, wo, pm.procedure_id, pm.company_id, actor_user_id=actor_user_id)
     pm.last_generated_at = now
     pm.last_work_order_id = wo.id
-    _log(db, pm.id, pm.company_id, "WO_GENERATED", actor_user_id=actor_user_id,
-         comment=wo.custom_id)
-    pm.next_due_date = _advance_due(pm.next_due_date, pm.frequency_unit,
-                                    pm.frequency_value, today=today)
+    _log(
+        db, pm.id, pm.company_id, "WO_GENERATED", actor_user_id=actor_user_id, comment=wo.custom_id
+    )
+    pm.next_due_date = _advance_due(
+        pm.next_due_date, pm.frequency_unit, pm.frequency_value, today=today
+    )
     from app.services import notification_service as _notif
+
     _notif.on_wo_auto_generated(db, wo, actor_user_id=actor_user_id)
     db.commit()
     db.refresh(pm)

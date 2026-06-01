@@ -1,12 +1,12 @@
-from app.models.asset_status import AssetStatus, DOWN_STATUSES, UP_STATUSES
+from app.models.asset_status import DOWN_STATUSES, UP_STATUSES, AssetStatus
 from app.models.company import Company
 from app.models.maintenance_asset import Asset
 
 
 def test_status_up_down_partition():
     all_values = set(AssetStatus)
-    assert UP_STATUSES | DOWN_STATUSES == all_values
-    assert UP_STATUSES & DOWN_STATUSES == set()
+    assert all_values == UP_STATUSES | DOWN_STATUSES
+    assert set() == UP_STATUSES & DOWN_STATUSES
     assert AssetStatus.OPERATIONAL in UP_STATUSES
     assert AssetStatus.DOWN in DOWN_STATUSES
     assert AssetStatus.EMERGENCY_SHUTDOWN in DOWN_STATUSES

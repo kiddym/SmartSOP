@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from app.models.meter_comparator import MeterComparator
-from app.schemas.meter import MeterCreate, TriggerCreate, TriggerUpdate, MeterReadingCreate
+from app.schemas.meter import MeterCreate, MeterReadingCreate, TriggerCreate, TriggerUpdate
 
 
 def test_meter_create_defaults():
@@ -19,8 +19,9 @@ def test_meter_create_rejects_blank_name():
 
 
 def test_trigger_create_defaults():
-    t = TriggerCreate(name="高温", comparator="MORE_THAN", threshold=Decimal("100"),
-                      title="处理高温")
+    t = TriggerCreate(
+        name="高温", comparator="MORE_THAN", threshold=Decimal("100"), title="处理高温"
+    )
     assert t.comparator == MeterComparator.MORE_THAN
     assert t.priority.value == "NONE"
     assert t.assignee_ids == [] and t.team_ids == []

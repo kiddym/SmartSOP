@@ -1,6 +1,8 @@
 def _register(client, company="Acme", email="a@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email, "password": "secret123", "name": "Alice"})
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Alice"},
+    )
 
 
 def test_register_returns_tokens(client):

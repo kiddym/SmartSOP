@@ -3,15 +3,17 @@
 注意：文件名为 maintenance_asset 以避开既有 app/models/asset.py（SOP
 ProcedureAsset）。类名 Asset、表名 tb_asset。
 """
+
 from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import Date, Enum as SAEnum, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.asset_status import AssetStatus
-from app.models.base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class Asset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):

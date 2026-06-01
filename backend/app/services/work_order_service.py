@@ -4,6 +4,7 @@ SOP 执行相关逻辑见 work_order_execution_service。挂接了 SOP 的工单
 COMPLETE 的 step 完成校验也在 execution service（避免循环依赖：本模块在
 transition 时按需 import）。
 """
+
 from __future__ import annotations
 
 from sqlalchemy import delete, select
@@ -20,42 +21,83 @@ from app.services import sequence_service
 
 
 def assignee_ids(db: Session, work_order_id: str) -> list[str]:
-    return list(db.execute(
-        select(WorkOrderAssignee.user_id).where(WorkOrderAssignee.work_order_id == work_order_id)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(WorkOrderAssignee.user_id).where(
+                WorkOrderAssignee.work_order_id == work_order_id
+            )
+        )
+        .scalars()
+        .all()
+    )
 
 
 def team_ids(db: Session, work_order_id: str) -> list[str]:
-    return list(db.execute(
-        select(WorkOrderTeam.team_id).where(WorkOrderTeam.work_order_id == work_order_id)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(WorkOrderTeam.team_id).where(WorkOrderTeam.work_order_id == work_order_id)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def to_read(db: Session, wo: WorkOrder) -> dict:
     return {
-        "id": wo.id, "custom_id": wo.custom_id, "title": wo.title,
-        "description": wo.description, "status": wo.status, "priority": wo.priority,
-        "due_date": wo.due_date, "asset_id": wo.asset_id, "location_id": wo.location_id,
-        "primary_user_id": wo.primary_user_id, "procedure_id": wo.procedure_id,
-        "procedure_group_id": wo.procedure_group_id, "completed_at": wo.completed_at,
-        "assignee_ids": assignee_ids(db, wo.id), "team_ids": team_ids(db, wo.id),
+        "id": wo.id,
+        "custom_id": wo.custom_id,
+        "title": wo.title,
+        "description": wo.description,
+        "status": wo.status,
+        "priority": wo.priority,
+        "due_date": wo.due_date,
+        "asset_id": wo.asset_id,
+        "location_id": wo.location_id,
+        "primary_user_id": wo.primary_user_id,
+        "procedure_id": wo.procedure_id,
+        "procedure_group_id": wo.procedure_group_id,
+        "completed_at": wo.completed_at,
+        "assignee_ids": assignee_ids(db, wo.id),
+        "team_ids": team_ids(db, wo.id),
     }
 
 
-def _log(db: Session, work_order_id: str, company_id: str, activity_type: str,
-         actor_user_id: str | None = None, from_status: str | None = None,
-         to_status: str | None = None, comment: str = "") -> None:
-    db.add(WorkOrderActivity(
-        work_order_id=work_order_id, company_id=company_id, activity_type=activity_type,
-        actor_user_id=actor_user_id, from_status=from_status, to_status=to_status, comment=comment,
-    ))
+def _log(
+    db: Session,
+    work_order_id: str,
+    company_id: str,
+    activity_type: str,
+    actor_user_id: str | None = None,
+    from_status: str | None = None,
+    to_status: str | None = None,
+    comment: str = "",
+) -> None:
+    db.add(
+        WorkOrderActivity(
+            work_order_id=work_order_id,
+            company_id=company_id,
+            activity_type=activity_type,
+            actor_user_id=actor_user_id,
+            from_status=from_status,
+            to_status=to_status,
+            comment=comment,
+        )
+    )
 
 
-def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: str,
-                  actor_user_id: str | None = None) -> WorkOrder:
-    prior = {r for (r,) in db.execute(
-        select(WorkOrderAssignee.user_id).where(WorkOrderAssignee.work_order_id == wo.id)
-    ).all()}
+def set_assignees(
+    db: Session,
+    wo: WorkOrder,
+    user_ids: list[str],
+    company_id: str,
+    actor_user_id: str | None = None,
+) -> WorkOrder:
+    prior = {
+        r
+        for (r,) in db.execute(
+            select(WorkOrderAssignee.user_id).where(WorkOrderAssignee.work_order_id == wo.id)
+        ).all()
+    }
     db.execute(delete(WorkOrderAssignee).where(WorkOrderAssignee.work_order_id == wo.id))
     for uid in dict.fromkeys(user_ids):
         db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=uid, company_id=company_id))
@@ -67,11 +109,19 @@ def set_assignees(db: Session, wo: WorkOrder, user_ids: list[str], company_id: s
     return wo
 
 
-def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str,
-              actor_user_id: str | None = None) -> WorkOrder:
-    prior = {r for (r,) in db.execute(
-        select(WorkOrderTeam.team_id).where(WorkOrderTeam.work_order_id == wo.id)
-    ).all()}
+def set_teams(
+    db: Session,
+    wo: WorkOrder,
+    team_ids_: list[str],
+    company_id: str,
+    actor_user_id: str | None = None,
+) -> WorkOrder:
+    prior = {
+        r
+        for (r,) in db.execute(
+            select(WorkOrderTeam.team_id).where(WorkOrderTeam.work_order_id == wo.id)
+        ).all()
+    }
     db.execute(delete(WorkOrderTeam).where(WorkOrderTeam.work_order_id == wo.id))
     for tid in dict.fromkeys(team_ids_):
         db.add(WorkOrderTeam(work_order_id=wo.id, team_id=tid, company_id=company_id))
@@ -84,16 +134,22 @@ def set_teams(db: Session, wo: WorkOrder, team_ids_: list[str], company_id: str,
     return wo
 
 
-def create_work_order(db: Session, payload: WorkOrderCreate, company_id: str,
-                      actor_user_id: str | None) -> WorkOrder:
+def create_work_order(
+    db: Session, payload: WorkOrderCreate, company_id: str, actor_user_id: str | None
+) -> WorkOrder:
     # actor_user_id 预留：spec §3.4 当前未定义 CREATE 活动类型，建单不写时间线；
     # 保留参数以便将来补 CREATE 活动而无需改调用方签名。
     seq = sequence_service.next_value(db, "work_order", company_id)
     wo = WorkOrder(
         custom_id=sequence_service.format_custom_id("WO", seq),
-        title=payload.title, description=payload.description, priority=payload.priority,
-        due_date=payload.due_date, asset_id=payload.asset_id, location_id=payload.location_id,
-        primary_user_id=payload.primary_user_id, company_id=company_id,
+        title=payload.title,
+        description=payload.description,
+        priority=payload.priority,
+        due_date=payload.due_date,
+        asset_id=payload.asset_id,
+        location_id=payload.location_id,
+        primary_user_id=payload.primary_user_id,
+        company_id=company_id,
     )
     db.add(wo)
     db.flush()
@@ -106,10 +162,16 @@ def create_work_order(db: Session, payload: WorkOrderCreate, company_id: str,
     return wo
 
 
-def list_work_orders(db: Session, *, status: str | None = None, priority: str | None = None,
-                     asset_id: str | None = None, location_id: str | None = None,
-                     assignee_id: str | None = None,
-                     procedure_attached: bool | None = None) -> list[WorkOrder]:
+def list_work_orders(
+    db: Session,
+    *,
+    status: str | None = None,
+    priority: str | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
+    assignee_id: str | None = None,
+    procedure_attached: bool | None = None,
+) -> list[WorkOrder]:
     stmt = select(WorkOrder).where(WorkOrder.is_active.is_(True))
     if status is not None:
         stmt = stmt.where(WorkOrder.status == status)
@@ -126,7 +188,8 @@ def list_work_orders(db: Session, *, status: str | None = None, priority: str | 
             stmt = stmt.where(WorkOrder.procedure_id.is_(None))
     if assignee_id is not None:
         sub = select(WorkOrderAssignee.work_order_id).where(
-            WorkOrderAssignee.user_id == assignee_id)
+            WorkOrderAssignee.user_id == assignee_id
+        )
         stmt = stmt.where(WorkOrder.id.in_(sub))
     return list(db.execute(stmt.order_by(WorkOrder.custom_id)).scalars().all())
 
@@ -146,22 +209,37 @@ def update_work_order(db: Session, wo: WorkOrder, payload: WorkOrderUpdate) -> W
     return wo
 
 
-def transition(db: Session, wo: WorkOrder, payload: WorkOrderTransition, company_id: str,
-               actor_user_id: str | None) -> WorkOrder:
+def transition(
+    db: Session,
+    wo: WorkOrder,
+    payload: WorkOrderTransition,
+    company_id: str,
+    actor_user_id: str | None,
+) -> WorkOrder:
     src, dst = wo.status, payload.to_status
     if not can_transition(src, dst):
         raise bad_request("WORKORDER_BAD_TRANSITION", f"非法状态转移 {src.value}->{dst.value}")
     if dst == WorkOrderStatus.COMPLETE:
         from app.services import work_order_execution_service as exe
+
         exe.assert_completable(db, wo)
         wo.completed_at = utcnow()
     if src == WorkOrderStatus.COMPLETE and dst == WorkOrderStatus.IN_PROGRESS:
         wo.completed_at = None
     wo.status = dst
-    _log(db, wo.id, company_id, "STATUS_CHANGE", actor_user_id=actor_user_id,
-         from_status=src.value, to_status=dst.value, comment=payload.note)
-    _notif.on_wo_status_changed(db, wo, from_status=src.value, to_status=dst.value,
-                                actor_user_id=actor_user_id)
+    _log(
+        db,
+        wo.id,
+        company_id,
+        "STATUS_CHANGE",
+        actor_user_id=actor_user_id,
+        from_status=src.value,
+        to_status=dst.value,
+        comment=payload.note,
+    )
+    _notif.on_wo_status_changed(
+        db, wo, from_status=src.value, to_status=dst.value, actor_user_id=actor_user_id
+    )
     db.commit()
     db.refresh(wo)
     return wo
@@ -173,11 +251,15 @@ def delete_work_order(db: Session, wo: WorkOrder) -> None:
     db.commit()
 
 
-def add_comment(db: Session, wo: WorkOrder, comment: str, company_id: str,
-                actor_user_id: str | None) -> WorkOrderActivity:
+def add_comment(
+    db: Session, wo: WorkOrder, comment: str, company_id: str, actor_user_id: str | None
+) -> WorkOrderActivity:
     act = WorkOrderActivity(
-        work_order_id=wo.id, company_id=company_id, activity_type="COMMENT",
-        actor_user_id=actor_user_id, comment=comment,
+        work_order_id=wo.id,
+        company_id=company_id,
+        activity_type="COMMENT",
+        actor_user_id=actor_user_id,
+        comment=comment,
     )
     db.add(act)
     db.commit()
@@ -186,7 +268,12 @@ def add_comment(db: Session, wo: WorkOrder, comment: str, company_id: str,
 
 
 def list_activities(db: Session, work_order_id: str) -> list[WorkOrderActivity]:
-    return list(db.execute(
-        select(WorkOrderActivity).where(WorkOrderActivity.work_order_id == work_order_id)
-        .order_by(WorkOrderActivity.created_at, WorkOrderActivity.id)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(WorkOrderActivity)
+            .where(WorkOrderActivity.work_order_id == work_order_id)
+            .order_by(WorkOrderActivity.created_at, WorkOrderActivity.id)
+        )
+        .scalars()
+        .all()
+    )

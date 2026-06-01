@@ -20,8 +20,8 @@ def test_decide_rearm_when_unmet_and_disarmed():
 
 
 def test_decide_noop_persisting_met():
-    assert _decide(is_armed=False, met=True) == "NOOP"   # 持续满足，已发火抑制
+    assert _decide(is_armed=False, met=True) == "NOOP"  # 持续满足，已发火抑制
 
 
 def test_decide_noop_persisting_unmet():
-    assert _decide(is_armed=True, met=False) == "NOOP"   # 持续未满足
+    assert _decide(is_armed=True, met=False) == "NOOP"  # 持续未满足

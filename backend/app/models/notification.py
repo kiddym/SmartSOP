@@ -1,4 +1,5 @@
 """站内通知模型（Phase 5A）：通知行 + 边沿状态行。append-only，无软删。"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -39,8 +40,6 @@ class NotificationArm(Base, UUIDMixin, TimestampMixin, TenantMixin):
     """边沿状态：记录当前"已武装"的轮询条件（仿 meter is_armed）。"""
 
     __tablename__ = "tb_notification_arm"
-    __table_args__ = (
-        UniqueConstraint("company_id", "key", name="uq_notification_arm"),
-    )
+    __table_args__ = (UniqueConstraint("company_id", "key", name="uq_notification_arm"),)
 
     key: Mapped[str] = mapped_column(String(120))

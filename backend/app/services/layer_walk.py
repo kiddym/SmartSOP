@@ -43,14 +43,12 @@ def _role_level(role: LayerRole) -> int:
     return 3 if role == "chapter_3" else 2 if role == "chapter_2" else 1
 
 
-def compute_layer_updates(
-    rows: list[LayerRow], role_map: dict[str, LayerRole]
-) -> dict[str, dict]:
+def compute_layer_updates(rows: list[LayerRow], role_map: dict[str, LayerRole]) -> dict[str, dict]:
     """对应 frontend computeLayerUpdates。返回 dict[id, LayerUpdate],其中 LayerUpdate 为:
-        {"kind": "reorder",       "parent_id": str|None, "sort_order": int, "level": int}
-      | {"kind": "to-content",    "parent_id": str|None, "sort_order": int}
-      | {"kind": "to-chapter",    "parent_id": str|None, "sort_order": int, "level": int}
-      | {"kind": "leaf-reparent", "parent_id": str|None, "sort_order": int}
+      {"kind": "reorder",       "parent_id": str|None, "sort_order": int, "level": int}
+    | {"kind": "to-content",    "parent_id": str|None, "sort_order": int}
+    | {"kind": "to-chapter",    "parent_id": str|None, "sort_order": int, "level": int}
+    | {"kind": "leaf-reparent", "parent_id": str|None, "sort_order": int}
     """
     out: dict[str, dict] = {}
     l1: str | None = None
@@ -84,19 +82,37 @@ def compute_layer_updates(
         if row.kind == "chapter":
             if role == "content":
                 parent = l3 or l2 or l1
-                out[row.id] = {"kind": "to-content", "parent_id": parent, "sort_order": next_sort(parent)}
+                out[row.id] = {
+                    "kind": "to-content",
+                    "parent_id": parent,
+                    "sort_order": next_sort(parent),
+                }
                 continue
             requested = _role_level(role)
             parent, level = place_chapter(requested)
             set_heading(row.id, level)
-            out[row.id] = {"kind": "reorder", "parent_id": parent, "sort_order": next_sort(parent), "level": level}
+            out[row.id] = {
+                "kind": "reorder",
+                "parent_id": parent,
+                "sort_order": next_sort(parent),
+                "level": level,
+            }
             continue
         if role == "keep":
             parent = l3 or l2 or l1
-            out[row.id] = {"kind": "leaf-reparent", "parent_id": parent, "sort_order": next_sort(parent)}
+            out[row.id] = {
+                "kind": "leaf-reparent",
+                "parent_id": parent,
+                "sort_order": next_sort(parent),
+            }
             continue
         requested = _role_level(role)
         parent, level = place_chapter(requested)
         set_heading(row.id, level)
-        out[row.id] = {"kind": "to-chapter", "parent_id": parent, "sort_order": next_sort(parent), "level": level}
+        out[row.id] = {
+            "kind": "to-chapter",
+            "parent_id": parent,
+            "sort_order": next_sort(parent),
+            "level": level,
+        }
     return out

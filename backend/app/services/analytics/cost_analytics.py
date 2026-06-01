@@ -1,4 +1,5 @@
 """成本聚合（只读）：备件消耗成本 + PO 承诺采购额。金额在 Python 用 Decimal 计算。"""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -17,16 +18,24 @@ from app.services.analytics._common import resolve_window
 
 
 def cost_dashboard(
-    db: Session, *, date_from: date | None = None, date_to: date | None = None,
-    asset_id: str | None = None, location_id: str | None = None,
+    db: Session,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
 ) -> dict:
     start, end_excl, df, dt = resolve_window(date_from, date_to)
 
     # 备件消耗：join WorkOrder 取 asset_id、join Part 取 custom_id/name
     c_stmt = (
         select(
-            PartConsumption.part_id, Part.custom_id, Part.name,
-            PartConsumption.quantity, PartConsumption.unit_cost, WorkOrder.asset_id,
+            PartConsumption.part_id,
+            Part.custom_id,
+            Part.name,
+            PartConsumption.quantity,
+            PartConsumption.unit_cost,
+            WorkOrder.asset_id,
         )
         .join(WorkOrder, PartConsumption.work_order_id == WorkOrder.id)
         .join(Part, PartConsumption.part_id == Part.id)
@@ -42,11 +51,18 @@ def cost_dashboard(
     by_part: dict[str, dict] = {}
     by_asset: dict[str | None, Decimal] = defaultdict(lambda: Decimal("0"))
     for part_id, custom_id, name, qty, unit_cost, a_id in rows:
-        line_cost = (qty * unit_cost)
+        line_cost = qty * unit_cost
         total_consumption += line_cost
         slot = by_part.setdefault(
-            part_id, {"part_id": part_id, "custom_id": custom_id, "name": name,
-                      "qty": Decimal("0"), "cost": Decimal("0")})
+            part_id,
+            {
+                "part_id": part_id,
+                "custom_id": custom_id,
+                "name": name,
+                "qty": Decimal("0"),
+                "cost": Decimal("0"),
+            },
+        )
         slot["qty"] += qty
         slot["cost"] += line_cost
         by_asset[a_id] += line_cost
@@ -54,7 +70,9 @@ def cost_dashboard(
     consumption_by_part = sorted(by_part.values(), key=lambda r: r["cost"], reverse=True)
     consumption_by_asset = sorted(
         ({"asset_id": k, "cost": v} for k, v in by_asset.items()),
-        key=lambda r: r["cost"], reverse=True)
+        key=lambda r: r["cost"],
+        reverse=True,
+    )
 
     # PO 承诺采购额：仅 APPROVED 且 resolved_at 在窗
     p_stmt = (
@@ -75,10 +93,13 @@ def cost_dashboard(
         by_vendor[vendor_id] += line
     po_spend_by_vendor = sorted(
         ({"vendor_id": k, "spend": v} for k, v in by_vendor.items()),
-        key=lambda r: r["spend"], reverse=True)
+        key=lambda r: r["spend"],
+        reverse=True,
+    )
 
     return {
-        "date_from": df, "date_to": dt,
+        "date_from": df,
+        "date_to": dt,
         "parts_consumption_cost": total_consumption,
         "consumption_by_part": consumption_by_part,
         "consumption_by_asset": consumption_by_asset,

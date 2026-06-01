@@ -1,4 +1,5 @@
 """站内通知 API（/api/v1/notifications）。个人数据：仅本人，无需额外权限码。"""
+
 from __future__ import annotations
 
 import json
@@ -22,9 +23,15 @@ router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
 def _to_read(n: Notification) -> NotificationRead:
     return NotificationRead(
-        id=n.id, type=n.type, entity_type=n.entity_type, entity_id=n.entity_id,
-        params=json.loads(n.params or "{}"), actor_user_id=n.actor_user_id,
-        is_read=n.is_read, read_at=n.read_at, created_at=n.created_at,
+        id=n.id,
+        type=n.type,
+        entity_type=n.entity_type,
+        entity_id=n.entity_id,
+        params=json.loads(n.params or "{}"),
+        actor_user_id=n.actor_user_id,
+        is_read=n.is_read,
+        read_at=n.read_at,
+        created_at=n.created_at,
     )
 
 
@@ -45,29 +52,43 @@ def list_notifications(
     if type is not None:
         conds.append(Notification.type == type)
     if date_from is not None:
-        conds.append(Notification.created_at >= datetime(date_from.year, date_from.month, date_from.day))
+        conds.append(
+            Notification.created_at >= datetime(date_from.year, date_from.month, date_from.day)
+        )
     if date_to is not None:
         end = datetime(date_to.year, date_to.month, date_to.day)
         conds.append(Notification.created_at < end + timedelta(days=1))
 
     total = db.execute(select(func.count()).select_from(Notification).where(*conds)).scalar_one()
-    rows = db.execute(
-        select(Notification).where(*conds)
-        .order_by(Notification.created_at.desc())
-        .limit(page_size).offset((page - 1) * page_size)
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(Notification)
+            .where(*conds)
+            .order_by(Notification.created_at.desc())
+            .limit(page_size)
+            .offset((page - 1) * page_size)
+        )
+        .scalars()
+        .all()
+    )
     return Page[NotificationRead](
-        items=[_to_read(n) for n in rows], total=total, page=page, page_size=page_size,
+        items=[_to_read(n) for n in rows],
+        total=total,
+        page=page,
+        page_size=page_size,
         total_pages=math.ceil(total / page_size) if page_size else 0,
     )
 
 
 @router.get("/unread-count", response_model=UnreadCount)
 def unread_count(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     n = db.execute(
-        select(func.count()).select_from(Notification).where(
+        select(func.count())
+        .select_from(Notification)
+        .where(
             Notification.recipient_user_id == current_user.id,
             Notification.is_read.is_(False),
         )
@@ -78,7 +99,8 @@ def unread_count(
 @router.post("/{notification_id}/read", response_model=NotificationRead)
 def mark_read(
     notification_id: str,
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     n = db.get(Notification, notification_id)
     if n is None or n.recipient_user_id != current_user.id:
@@ -93,14 +115,19 @@ def mark_read(
 
 @router.post("/read-all", response_model=ReadAllResult)
 def mark_all_read(
-    db: Session = Depends(get_db), current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    rows = db.execute(
-        select(Notification).where(
-            Notification.recipient_user_id == current_user.id,
-            Notification.is_read.is_(False),
+    rows = (
+        db.execute(
+            select(Notification).where(
+                Notification.recipient_user_id == current_user.id,
+                Notification.is_read.is_(False),
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
     now = utcnow()
     for n in rows:
         n.is_read = True

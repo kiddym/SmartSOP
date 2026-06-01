@@ -1,4 +1,5 @@
 """资产分类服务（租户作用域由 ORM 事件 + 显式 company_id 双重保证）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -19,9 +20,7 @@ def create_category(db: Session, payload: AssetCategoryCreate, company_id: str) 
 
 def list_categories(db: Session) -> list[AssetCategory]:
     return list(
-        db.execute(
-            select(AssetCategory).where(AssetCategory.is_active.is_(True))
-        ).scalars().all()
+        db.execute(select(AssetCategory).where(AssetCategory.is_active.is_(True))).scalars().all()
     )
 
 

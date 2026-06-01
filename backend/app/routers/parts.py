@@ -1,4 +1,5 @@
 """备件 API（/api/v1/parts）。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -30,44 +31,65 @@ def _read_part(db: Session, p: Part) -> PartRead:
 
 
 @router.get("", response_model=list[PartRead])
-def list_parts(category_id: str | None = None, asset_id: str | None = None,
-               low_stock: bool | None = None, db: Session = Depends(get_db),
-               current_user: User = Depends(require_permission(permissions.PART_VIEW))):
-    return [_read_part(db, p) for p in svc.list_parts(
-        db, category_id=category_id, asset_id=asset_id, low_stock=low_stock)]
+def list_parts(
+    category_id: str | None = None,
+    asset_id: str | None = None,
+    low_stock: bool | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_VIEW)),
+):
+    return [
+        _read_part(db, p)
+        for p in svc.list_parts(db, category_id=category_id, asset_id=asset_id, low_stock=low_stock)
+    ]
 
 
 @router.post("", response_model=PartRead, status_code=status.HTTP_201_CREATED)
-def create_part(payload: PartCreate, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.PART_CREATE))):
+def create_part(
+    payload: PartCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_CREATE)),
+):
     p = svc.create_part(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read_part(db, p)
 
 
 # 注：/mini 必须注册在 /{part_id} 之前，否则会被路径参数吞掉
 @router.get("/mini", response_model=list[PartMini])
-def list_parts_mini(db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.PART_VIEW))):
+def list_parts_mini(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_VIEW)),
+):
     return svc.list_parts(db)
 
 
 @router.get("/{part_id}", response_model=PartRead)
-def get_part(part_id: str, db: Session = Depends(get_db),
-             current_user: User = Depends(require_permission(permissions.PART_VIEW))):
+def get_part(
+    part_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_VIEW)),
+):
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     return _read_part(db, p)
 
 
 @router.patch("/{part_id}", response_model=PartRead)
-def update_part(part_id: str, payload: PartUpdate, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.PART_EDIT))):
+def update_part(
+    part_id: str,
+    payload: PartUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_EDIT)),
+):
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     svc.update_part(db, p, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read_part(db, p)
 
 
 @router.delete("/{part_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_part(part_id: str, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.PART_DELETE))):
+def delete_part(
+    part_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_DELETE)),
+):
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     svc.delete_part(db, p)

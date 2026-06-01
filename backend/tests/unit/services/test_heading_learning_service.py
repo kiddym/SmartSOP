@@ -12,7 +12,9 @@ from app.services import heading_learning_service as svc
 from app.services import heading_rule_service, node_service
 
 
-def _mk(db: Session, proc: str, style: str, level: int | None, mark: str = "unmarked") -> ProcedureNode:
+def _mk(
+    db: Session, proc: str, style: str, level: int | None, mark: str = "unmarked"
+) -> ProcedureNode:
     n = ProcedureNode(
         procedure_id=proc,
         sort_order=1000,

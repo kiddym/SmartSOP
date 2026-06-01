@@ -3,6 +3,7 @@
 文案用 default_locale（zh-CN）。params 来自 5A notify() 的结构化负载。
 未知类型走通用回退（防御性，不抛）。
 """
+
 from __future__ import annotations
 
 
@@ -18,14 +19,15 @@ def _g(params: dict, key: str, default: str = "") -> str:
 
 def _wo_assigned(p: dict) -> tuple[str, str]:
     cid, title = _g(p, "custom_id"), _g(p, "title")
-    return (f"[工单] 已指派给你：{cid}",
-            f"工单 {cid}「{title}」已指派给你，请及时处理。")
+    return (f"[工单] 已指派给你：{cid}", f"工单 {cid}「{title}」已指派给你，请及时处理。")
 
 
 def _wo_status_changed(p: dict) -> tuple[str, str]:
     cid = _g(p, "custom_id")
-    return (f"[工单] 状态变更：{cid}",
-            f"工单 {cid} 状态由 {_g(p, 'from_status')} 变为 {_g(p, 'to_status')}。")
+    return (
+        f"[工单] 状态变更：{cid}",
+        f"工单 {cid} 状态由 {_g(p, 'from_status')} 变为 {_g(p, 'to_status')}。",
+    )
 
 
 def _wo_auto_generated(p: dict) -> tuple[str, str]:
@@ -35,14 +37,18 @@ def _wo_auto_generated(p: dict) -> tuple[str, str]:
 
 def _wo_due_soon(p: dict) -> tuple[str, str]:
     cid = _g(p, "custom_id")
-    return (f"[工单] 即将到期：{cid}",
-            f"工单 {cid}「{_g(p, 'title')}」将于 {_g(p, 'due_date')} 到期。")
+    return (
+        f"[工单] 即将到期：{cid}",
+        f"工单 {cid}「{_g(p, 'title')}」将于 {_g(p, 'due_date')} 到期。",
+    )
 
 
 def _wo_overdue(p: dict) -> tuple[str, str]:
     cid = _g(p, "custom_id")
-    return (f"[工单] 已逾期：{cid}",
-            f"工单 {cid}「{_g(p, 'title')}」已于 {_g(p, 'due_date')} 逾期。")
+    return (
+        f"[工单] 已逾期：{cid}",
+        f"工单 {cid}「{_g(p, 'title')}」已于 {_g(p, 'due_date')} 逾期。",
+    )
 
 
 def _request_submitted(p: dict) -> tuple[str, str]:
@@ -62,9 +68,10 @@ def _po_approved(p: dict) -> tuple[str, str]:
 
 def _part_low_stock(p: dict) -> tuple[str, str]:
     cid, name = _g(p, "custom_id"), _g(p, "name")
-    return (f"[库存] 低库存告警：{name}（{cid}）",
-            f"备件 {name}（{cid}）当前库存 {_g(p, 'quantity')}，"
-            f"低于最小库存 {_g(p, 'min_quantity')}。")
+    return (
+        f"[库存] 低库存告警：{name}（{cid}）",
+        f"备件 {name}（{cid}）当前库存 {_g(p, 'quantity')}，低于最小库存 {_g(p, 'min_quantity')}。",
+    )
 
 
 def _fallback(p: dict) -> tuple[str, str]:

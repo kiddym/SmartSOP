@@ -44,7 +44,5 @@ class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, Nullabl
     revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     __table_args__ = (
-        UniqueConstraint(
-            "company_id", "pattern_key", name="uq_numbering_profile_company_pattern"
-        ),
+        UniqueConstraint("company_id", "pattern_key", name="uq_numbering_profile_company_pattern"),
     )

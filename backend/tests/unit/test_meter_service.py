@@ -7,8 +7,9 @@ CO = "co-1"
 
 
 def test_create_meter_assigns_custom_id(db: Session):
-    m = svc.create_meter(db, MeterCreate(name="温度", unit="℃", update_frequency_days=7),
-                         CO, actor_user_id="a")
+    m = svc.create_meter(
+        db, MeterCreate(name="温度", unit="℃", update_frequency_days=7), CO, actor_user_id="a"
+    )
     assert m.custom_id == "MTR000001"
     assert m.unit == "℃" and m.update_frequency_days == 7
 

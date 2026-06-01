@@ -24,9 +24,7 @@ def test_step_kind_with_heading_level_rejected() -> None:
 
 def test_heading_level_zero_rejected() -> None:
     with pytest.raises(HTTPException):
-        enforce_node_invariants(
-            kind="node", heading_level=0, input_schema={}, attachment_marks=[]
-        )
+        enforce_node_invariants(kind="node", heading_level=0, input_schema={}, attachment_marks=[])
 
 
 def test_valid_heading_node_ok() -> None:
@@ -89,8 +87,14 @@ def test_patch_roundtrip_strict(factory, db) -> None:
 
 def test_patch_step_with_heading_level_rejected(factory, db) -> None:
     proc = _proc(factory)
-    n = factory.node(proc.id, body="", sort_order=10, kind="step", heading_level=None,
-                     input_schema={"type": "COMMON"})
+    n = factory.node(
+        proc.id,
+        body="",
+        sort_order=10,
+        kind="step",
+        heading_level=None,
+        input_schema={"type": "COMMON"},
+    )
     with pytest.raises(HTTPException):
         node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=1)
 
@@ -134,7 +138,9 @@ def test_batch_update_mark_as_step_clears_review(factory, db) -> None:
     proc = _proc(factory)
     a = factory.node(proc.id, body="", sort_order=10, heading_level=1, mark_status="review")
     node_service.batch_update(
-        db, proc.id, {a.id: {"kind": "step", "heading_level": None, "input_schema": {"type": "COMMON"}}}
+        db,
+        proc.id,
+        {a.id: {"kind": "step", "heading_level": None, "input_schema": {"type": "COMMON"}}},
     )
     assert a.kind == "step" and a.heading_level is None and a.mark_status == "unmarked"
 

@@ -25,14 +25,41 @@ def _ctx(company_id):
 
 def _published_procedure(db, company_id):
     """最小 PUBLISHED 程序：1 章节 + 1 步骤。"""
-    p = Procedure(procedure_group_id="g1", folder_id="f1", code="SOP-1", name="程序",
-                  version=1, level_of_use="reference", status="PUBLISHED", company_id=company_id)
+    p = Procedure(
+        procedure_group_id="g1",
+        folder_id="f1",
+        code="SOP-1",
+        name="程序",
+        version=1,
+        level_of_use="reference",
+        status="PUBLISHED",
+        company_id=company_id,
+    )
     db.add(p)
     db.flush()
-    db.add(ProcedureNode(procedure_id=p.id, sort_order=0, heading_level=1, kind="node",
-                         body="章", code="C1", company_id=company_id))
-    db.add(ProcedureNode(procedure_id=p.id, sort_order=1, heading_level=None, kind="step",
-                         body="步1", code="S1", input_schema={}, company_id=company_id))
+    db.add(
+        ProcedureNode(
+            procedure_id=p.id,
+            sort_order=0,
+            heading_level=1,
+            kind="node",
+            body="章",
+            code="C1",
+            company_id=company_id,
+        )
+    )
+    db.add(
+        ProcedureNode(
+            procedure_id=p.id,
+            sort_order=1,
+            heading_level=None,
+            kind="step",
+            body="步1",
+            code="S1",
+            input_schema={},
+            company_id=company_id,
+        )
+    )
     db.commit()
     return p
 
@@ -48,7 +75,8 @@ def test_create_assigns_custom_id(db):
 
 
 def test_tenants_independent_custom_id(db):
-    c1 = _company(db, "acme"); c2 = _company(db, "globex")
+    c1 = _company(db, "acme")
+    c2 = _company(db, "globex")
     _ctx(c1.id)
     a = svc.create_work_order(db, WorkOrderCreate(title="x"), c1.id, actor_user_id=None)
     _ctx(c2.id)
@@ -61,7 +89,8 @@ def test_assignees_replace_and_dedupe(db):
     _ctx(c.id)
     u1 = User(company_id=c.id, email="u1@a.com", password_hash="x", name="U1")
     u2 = User(company_id=c.id, email="u2@a.com", password_hash="x", name="U2")
-    db.add_all([u1, u2]); db.commit()
+    db.add_all([u1, u2])
+    db.commit()
     wo = svc.create_work_order(db, WorkOrderCreate(title="t"), c.id, actor_user_id=None)
     svc.set_assignees(db, wo, [u1.id, u2.id, u1.id], c.id)
     assert set(svc.assignee_ids(db, wo.id)) == {u1.id, u2.id}
@@ -73,8 +102,9 @@ def test_legal_transition_writes_activity(db):
     c = _company(db, "acme")
     _ctx(c.id)
     wo = svc.create_work_order(db, WorkOrderCreate(title="t"), c.id, actor_user_id="u9")
-    svc.transition(db, wo, WorkOrderTransition(to_status=WorkOrderStatus.IN_PROGRESS),
-                   c.id, actor_user_id="u9")
+    svc.transition(
+        db, wo, WorkOrderTransition(to_status=WorkOrderStatus.IN_PROGRESS), c.id, actor_user_id="u9"
+    )
     assert wo.status == WorkOrderStatus.IN_PROGRESS
     acts = svc.list_activities(db, wo.id)
     assert any(a.activity_type == "STATUS_CHANGE" and a.to_status == "IN_PROGRESS" for a in acts)
@@ -85,8 +115,13 @@ def test_illegal_transition_rejected(db):
     _ctx(c.id)
     wo = svc.create_work_order(db, WorkOrderCreate(title="t"), c.id, actor_user_id=None)
     with pytest.raises(HTTPException) as exc:
-        svc.transition(db, wo, WorkOrderTransition(to_status=WorkOrderStatus.COMPLETE),
-                       c.id, actor_user_id=None)
+        svc.transition(
+            db,
+            wo,
+            WorkOrderTransition(to_status=WorkOrderStatus.COMPLETE),
+            c.id,
+            actor_user_id=None,
+        )
     assert exc.value.status_code == 400
 
 

@@ -18,45 +18,45 @@ from sqlalchemy import text
 from app.config import settings
 from app.db import SessionLocal, engine
 from app.logging_config import configure_logging
-from app.parser.utils import images
-from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
-from app.tenant_middleware import TenantContextMiddleware
+from app.parser.utils import images
 from app.routers import (
+    analytics,
     asset_categories,
     assets,
     attachments,
     audit_logs,
+    auth,
+    company,
+    cost_categories,
+    customers,
     fields,
     folders,
     heading_rules,
     locations,
     meters,
-    part_categories,
-    parts,
     multi_parts,
-    part_consumptions,
-    cost_categories,
-    vendors,
-    customers,
-    purchase_orders,
-    analytics,
-    notifications,
-    notification_preferences,
     nodes,
+    notification_preferences,
+    notifications,
     parse,
+    part_categories,
+    part_consumptions,
+    parts,
+    preventive_maintenances,
     procedure_groups,
     procedures,
-    preventive_maintenances,
+    purchase_orders,
     requests,
+    roles,
     teams,
+    users,
+    vendors,
     work_orders,
 )
-from app.routers import auth
-from app.routers import company
-from app.routers import roles
 from app.routers import settings as settings_router
-from app.routers import users
+from app.seed import run_seed
+from app.tenant_middleware import TenantContextMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +64,7 @@ logger = logging.getLogger(__name__)
 def _probe_soffice() -> None:
     """启动探测 LibreOffice 软依赖；缺失记 warning（EMF/WMF 将无法转换）。"""
     if not images.soffice_available():
-        logger.warning(
-            "LibreOffice (soffice) 不可用：EMF/WMF 矢量图将无法转换，导入时以占位符代替"
-        )
+        logger.warning("LibreOffice (soffice) 不可用：EMF/WMF 矢量图将无法转换，导入时以占位符代替")
 
 
 @asynccontextmanager

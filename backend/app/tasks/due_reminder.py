@@ -4,6 +4,7 @@
 新增条件 -> 解析接收人 + notify + arm；消失条件 -> disarm。边沿语义，零刷屏。
 CLI：python -m app.tasks.due_reminder
 """
+
 from __future__ import annotations
 
 import json
@@ -38,10 +39,18 @@ def _compute_should(db: Session, today, soon_cutoff) -> dict[tuple[str, str], di
     """跨租户计算应武装条件集：{(company_id, key): info}。"""
     should: dict[tuple[str, str], dict] = {}
     wo_rows = db.execute(
-        select(WorkOrder.id, WorkOrder.company_id, WorkOrder.custom_id,
-               WorkOrder.title, WorkOrder.due_date, WorkOrder.status)
-        .where(WorkOrder.is_active.is_(True), WorkOrder.due_date.is_not(None),
-               WorkOrder.status.not_in(_TERMINAL))
+        select(
+            WorkOrder.id,
+            WorkOrder.company_id,
+            WorkOrder.custom_id,
+            WorkOrder.title,
+            WorkOrder.due_date,
+            WorkOrder.status,
+        ).where(
+            WorkOrder.is_active.is_(True),
+            WorkOrder.due_date.is_not(None),
+            WorkOrder.status.not_in(_TERMINAL),
+        )
     ).all()
     for wid, cid, cust, title, due, _status in wo_rows:
         if due < today:
@@ -53,23 +62,34 @@ def _compute_should(db: Session, today, soon_cutoff) -> dict[tuple[str, str], di
         else:
             continue
         should[(cid, key)] = {
-            "kind": kind, "key": key, "company_id": cid, "entity_id": wid,
+            "kind": kind,
+            "key": key,
+            "company_id": cid,
+            "entity_id": wid,
             "entity_type": "work_order",
             "params": {"custom_id": cust, "title": title, "due_date": due.isoformat()},
         }
     part_rows = db.execute(
-        select(Part.id, Part.company_id, Part.custom_id, Part.name,
-               Part.quantity, Part.min_quantity)
-        .where(Part.is_active.is_(True), Part.non_stock.is_(False),
-               Part.quantity < Part.min_quantity)
+        select(
+            Part.id, Part.company_id, Part.custom_id, Part.name, Part.quantity, Part.min_quantity
+        ).where(
+            Part.is_active.is_(True), Part.non_stock.is_(False), Part.quantity < Part.min_quantity
+        )
     ).all()
     for pid, cid, cust, name, qty, minq in part_rows:
         key = f"PART_LOW_STOCK:{pid}"
         should[(cid, key)] = {
-            "kind": "PART_LOW_STOCK", "key": key, "company_id": cid, "entity_id": pid,
+            "kind": "PART_LOW_STOCK",
+            "key": key,
+            "company_id": cid,
+            "entity_id": pid,
             "entity_type": "part",
-            "params": {"custom_id": cust, "name": name,
-                       "quantity": str(qty), "min_quantity": str(minq)},
+            "params": {
+                "custom_id": cust,
+                "name": name,
+                "quantity": str(qty),
+                "min_quantity": str(minq),
+            },
         }
     return should
 
@@ -82,9 +102,17 @@ def _fire(db: Session, info: dict) -> None:
         recips = notif.resolve_wo_recipients(db, wo, exclude_actor_id=None) if wo else set()
     else:  # PART_LOW_STOCK
         recips = notif.resolve_permission_holders(db, cid, "part.edit", exclude_actor_id=None)
-    notif.notify(db, company_id=cid, recipient_ids=recips, type=kind,
-                 entity_type=info["entity_type"], entity_id=info["entity_id"],
-                 params=info["params"], actor_user_id=None, dedup_key=info["key"])
+    notif.notify(
+        db,
+        company_id=cid,
+        recipient_ids=recips,
+        type=kind,
+        entity_type=info["entity_type"],
+        entity_id=info["entity_id"],
+        params=info["params"],
+        actor_user_id=None,
+        dedup_key=info["key"],
+    )
     notif.arm(db, cid, info["key"])
 
 
@@ -95,8 +123,7 @@ def run(db: Session, *, now: datetime | None = None) -> dict[str, int]:
 
     with bypass_tenant_scope():
         should = _compute_should(db, today, soon_cutoff)
-        armed = {(a.company_id, a.key)
-                 for a in db.execute(select(NotificationArm)).scalars().all()}
+        armed = {(a.company_id, a.key) for a in db.execute(select(NotificationArm)).scalars().all()}
 
     fired = 0
     for (cid, key), info in should.items():
@@ -123,8 +150,11 @@ def run(db: Session, *, now: datetime | None = None) -> dict[str, int]:
 
     db.commit()
     summary = {"fired": fired, "disarmed": disarmed, "armed_before": len(armed)}
-    logger.info(json.dumps({"task": TASK_NAME, "started_at": started.isoformat(), **summary},
-                           ensure_ascii=False))
+    logger.info(
+        json.dumps(
+            {"task": TASK_NAME, "started_at": started.isoformat(), **summary}, ensure_ascii=False
+        )
+    )
     return summary
 
 

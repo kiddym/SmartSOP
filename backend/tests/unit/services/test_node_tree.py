@@ -19,10 +19,12 @@ def _flat(rows: list[tuple[str, int | None]]) -> list[Row]:
 
 def _by_id(tree_nodes):
     out = {}
+
     def walk(nodes):
         for n in nodes:
             out[n.id] = n
             walk(n.children)
+
     walk(tree_nodes)
     return out
 

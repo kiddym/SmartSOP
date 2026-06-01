@@ -14,8 +14,17 @@ CO = "co-1"
 
 
 def _user(db, uid, status=UserStatus.active, role_id=None):
-    db.add(User(id=uid, email=f"{uid}@x.com", password_hash="x", name=uid,
-                status=status, role_id=role_id, company_id=CO))
+    db.add(
+        User(
+            id=uid,
+            email=f"{uid}@x.com",
+            password_hash="x",
+            name=uid,
+            status=status,
+            role_id=role_id,
+            company_id=CO,
+        )
+    )
     db.commit()
 
 
@@ -28,9 +37,16 @@ def _wo(db, wid="wo-1", primary=None):
 
 
 def test_notify_one_row_per_recipient(db: Session):
-    n = svc.notify(db, company_id=CO, recipient_ids={"u-1", "u-2"}, type="WO_ASSIGNED",
-                   entity_type="work_order", entity_id="wo-1",
-                   params={"custom_id": "WO1"}, actor_user_id=None)
+    n = svc.notify(
+        db,
+        company_id=CO,
+        recipient_ids={"u-1", "u-2"},
+        type="WO_ASSIGNED",
+        entity_type="work_order",
+        entity_id="wo-1",
+        params={"custom_id": "WO1"},
+        actor_user_id=None,
+    )
     db.commit()
     assert n == 2
     rows = db.execute(select(Notification)).scalars().all()
@@ -39,8 +55,19 @@ def test_notify_one_row_per_recipient(db: Session):
 
 
 def test_notify_empty_recipients_noop(db: Session):
-    assert svc.notify(db, company_id=CO, recipient_ids=set(), type="X",
-                      entity_type=None, entity_id=None, params={}, actor_user_id=None) == 0
+    assert (
+        svc.notify(
+            db,
+            company_id=CO,
+            recipient_ids=set(),
+            type="X",
+            entity_type=None,
+            entity_id=None,
+            params={},
+            actor_user_id=None,
+        )
+        == 0
+    )
 
 
 def test_resolve_wo_recipients_merges_and_filters_active(db: Session):
@@ -70,8 +97,14 @@ def test_resolve_wo_recipients_excludes_actor(db: Session):
 
 
 def test_resolve_permission_holders_by_code(db: Session):
-    db.add(Role(id="r-appr", code="approver", name="A", permissions=["request.approve"], company_id=CO))
-    db.add(Role(id="r-tech", code="technician", name="T", permissions=["work_order.view"], company_id=CO))
+    db.add(
+        Role(id="r-appr", code="approver", name="A", permissions=["request.approve"], company_id=CO)
+    )
+    db.add(
+        Role(
+            id="r-tech", code="technician", name="T", permissions=["work_order.view"], company_id=CO
+        )
+    )
     db.commit()
     _user(db, "appr", role_id="r-appr")
     _user(db, "tech", role_id="r-tech")

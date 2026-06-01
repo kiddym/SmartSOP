@@ -1,4 +1,5 @@
 """站内通知响应 schema（Phase 5A）。"""
+
 from __future__ import annotations
 
 from datetime import datetime

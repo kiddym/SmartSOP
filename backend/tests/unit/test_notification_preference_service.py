@@ -1,4 +1,5 @@
 """偏好服务：黑名单语义、未建记录默认全开、全量替换。"""
+
 from __future__ import annotations
 
 from sqlalchemy.orm import Session

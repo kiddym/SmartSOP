@@ -1,4 +1,5 @@
 """备件消耗 API（/api/v1/work-orders/{wo_id}/part-consumptions）。独立 router，不改 work_orders.py。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -14,8 +15,9 @@ from app.services import part_consumption_service as svc
 from app.services import part_service as ps
 from app.services import work_order_service as wos
 
-router = APIRouter(prefix="/api/v1/work-orders/{work_order_id}/part-consumptions",
-                   tags=["part-consumptions"])
+router = APIRouter(
+    prefix="/api/v1/work-orders/{work_order_id}/part-consumptions", tags=["part-consumptions"]
+)
 
 
 def _ensure_wo(db: Session, work_order_id: str, company_id: str) -> WorkOrder:
@@ -26,18 +28,26 @@ def _ensure_wo(db: Session, work_order_id: str, company_id: str) -> WorkOrder:
 
 
 @router.get("", response_model=list[PartConsumptionRead])
-def list_consumptions(work_order_id: str, db: Session = Depends(get_db),
-                      current_user: User = Depends(require_permission(permissions.PART_VIEW))):
+def list_consumptions(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_VIEW)),
+):
     _ensure_wo(db, work_order_id, current_user.company_id)
     return svc.list_consumptions(db, work_order_id)
 
 
 @router.post("", response_model=PartConsumptionRead, status_code=status.HTTP_201_CREATED)
-def consume(work_order_id: str, payload: PartConsumptionCreate, db: Session = Depends(get_db),
-            current_user: User = Depends(require_permission(permissions.PART_CONSUME))):
+def consume(
+    work_order_id: str,
+    payload: PartConsumptionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PART_CONSUME)),
+):
     wo = _ensure_wo(db, work_order_id, current_user.company_id)
     part = ps.get_part(db, payload.part_id)
     if part is None or part.company_id != current_user.company_id:
         raise not_found("PART_NOT_FOUND", "备件不存在")
-    return svc.consume_part(db, wo, part, payload.quantity, current_user.company_id,
-                            actor_user_id=current_user.id)
+    return svc.consume_part(
+        db, wo, part, payload.quantity, current_user.company_id, actor_user_id=current_user.id
+    )

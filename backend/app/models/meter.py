@@ -2,6 +2,7 @@
 
 读数命中触发器阈值→自动生成工单（见 meter_trigger）。
 """
+
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey, Integer, String

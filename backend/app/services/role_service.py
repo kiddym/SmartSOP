@@ -1,4 +1,5 @@
 """Role management service (tenant-scoped; company_id passed explicitly)."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -9,9 +10,13 @@ from app.schemas.role import RoleCreate, RoleUpdate
 
 
 def create_role(db: Session, payload: RoleCreate, company_id: str) -> Role:
-    role = Role(code=payload.code, name=payload.name,
-                is_builtin=False, permissions=payload.permissions,
-                company_id=company_id)
+    role = Role(
+        code=payload.code,
+        name=payload.name,
+        is_builtin=False,
+        permissions=payload.permissions,
+        company_id=company_id,
+    )
     db.add(role)
     db.commit()
     db.refresh(role)

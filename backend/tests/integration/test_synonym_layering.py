@@ -1,4 +1,5 @@
 """同义词分层：租户规则 > 平台默认 yaml > 回退默认（P3）。"""
+
 from __future__ import annotations
 
 import pytest

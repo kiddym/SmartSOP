@@ -20,13 +20,26 @@ def _leaf(factory: Factory) -> str:
 def test_import_builds_nodes_in_document_order(db: Session, factory: Factory, storage_tmp) -> None:
     # 「引言」下：正文A 然后 子标题「子节」（子节下含正文B）——不再下沉/归一化，保留文档序
     proc = import_service.import_procedure(
-        db, name="P", folder_id=_leaf(factory), description="",
-        chapters=[ImportNodeIn(title="引言", content_type="chapter", children=[
-            ImportNodeIn(content_type="content", rich_content="<p>A</p>"),
-            ImportNodeIn(title="子节", content_type="chapter", children=[
-                ImportNodeIn(content_type="content", rich_content="<p>B</p>"),
-            ]),
-        ])],
+        db,
+        name="P",
+        folder_id=_leaf(factory),
+        description="",
+        chapters=[
+            ImportNodeIn(
+                title="引言",
+                content_type="chapter",
+                children=[
+                    ImportNodeIn(content_type="content", rich_content="<p>A</p>"),
+                    ImportNodeIn(
+                        title="子节",
+                        content_type="chapter",
+                        children=[
+                            ImportNodeIn(content_type="content", rich_content="<p>B</p>"),
+                        ],
+                    ),
+                ],
+            )
+        ],
         meta=META,
     )
     nodes = (
@@ -45,7 +58,10 @@ def test_import_builds_nodes_in_document_order(db: Session, factory: Factory, st
 
 def test_import_carries_review_mark_on_heading(db: Session, factory: Factory, storage_tmp) -> None:
     proc = import_service.import_procedure(
-        db, name="P", folder_id=_leaf(factory), description="",
+        db,
+        name="P",
+        folder_id=_leaf(factory),
+        description="",
         chapters=[ImportNodeIn(title="待审", content_type="chapter", mark_status="review")],
         meta=META,
     )
@@ -57,7 +73,10 @@ def test_import_carries_review_mark_on_heading(db: Session, factory: Factory, st
 
 def test_import_notes_defaults_to_empty_list(db: Session, factory: Factory, storage_tmp) -> None:
     proc = import_service.import_procedure(
-        db, name="P", folder_id=_leaf(factory), description="",
+        db,
+        name="P",
+        folder_id=_leaf(factory),
+        description="",
         chapters=[ImportNodeIn(title="引言", content_type="chapter")],
         meta=META,
     )
@@ -66,8 +85,12 @@ def test_import_notes_defaults_to_empty_list(db: Session, factory: Factory, stor
 
 def test_import_persists_import_notes(db: Session, factory: Factory, storage_tmp) -> None:
     from app.schemas.parse import ParseWarningOut
+
     proc = import_service.import_procedure(
-        db, name="P", folder_id=_leaf(factory), description="",
+        db,
+        name="P",
+        folder_id=_leaf(factory),
+        description="",
         chapters=[ImportNodeIn(title="引言", content_type="chapter")],
         import_notes=[
             ParseWarningOut(stage="completeness", message="缺图 1/0", severity="blocking"),
@@ -81,11 +104,23 @@ def test_import_persists_import_notes(db: Session, factory: Factory, storage_tmp
 
 def test_content_node_review_persisted(db: Session, factory: Factory, storage_tmp) -> None:
     proc = import_service.import_procedure(
-        db, name="P", folder_id=_leaf(factory), description="",
-        chapters=[ImportNodeIn(title="目的", content_type="chapter", children=[
-            ImportNodeIn(content_type="content", rich_content='<p><span class="sop-ph">[公式]</span></p>',
-                         mark_status="review"),
-        ])],
+        db,
+        name="P",
+        folder_id=_leaf(factory),
+        description="",
+        chapters=[
+            ImportNodeIn(
+                title="目的",
+                content_type="chapter",
+                children=[
+                    ImportNodeIn(
+                        content_type="content",
+                        rich_content='<p><span class="sop-ph">[公式]</span></p>',
+                        mark_status="review",
+                    ),
+                ],
+            )
+        ],
         meta=META,
     )
     nodes = db.query(ProcedureNode).filter_by(procedure_id=proc.id, is_active=True).all()

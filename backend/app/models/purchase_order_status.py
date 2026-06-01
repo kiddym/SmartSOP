@@ -1,10 +1,11 @@
 """采购单状态机（DRAFT→SUBMITTED→APPROVED/REJECTED/CANCELED 终态）。"""
+
 from __future__ import annotations
 
 import enum
 
 
-class PurchaseOrderStatus(str, enum.Enum):
+class PurchaseOrderStatus(enum.StrEnum):
     DRAFT = "DRAFT"
     SUBMITTED = "SUBMITTED"
     APPROVED = "APPROVED"
@@ -18,8 +19,7 @@ ALLOWED_TRANSITIONS: dict[PurchaseOrderStatus, frozenset[PurchaseOrderStatus]] =
         {PurchaseOrderStatus.SUBMITTED, PurchaseOrderStatus.CANCELED}
     ),
     PurchaseOrderStatus.SUBMITTED: frozenset(
-        {PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.REJECTED,
-         PurchaseOrderStatus.CANCELED}
+        {PurchaseOrderStatus.APPROVED, PurchaseOrderStatus.REJECTED, PurchaseOrderStatus.CANCELED}
     ),
     PurchaseOrderStatus.APPROVED: frozenset(),
     PurchaseOrderStatus.REJECTED: frozenset(),

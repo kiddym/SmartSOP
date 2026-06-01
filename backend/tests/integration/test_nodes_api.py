@@ -50,9 +50,11 @@ def test_batch_endpoint(client, factory: Factory) -> None:
     b = factory.node(proc.id, body="<p>b</p>", sort_order=20, heading_level=None)
     resp = client.patch(
         f"/api/v1/procedures/{proc.id}/nodes:batch",
-        json={"updates": {
-            a.id: {"heading_level": 3, "set_heading_level": True},
-            b.id: {"heading_level": 3, "set_heading_level": True},
-        }},
+        json={
+            "updates": {
+                a.id: {"heading_level": 3, "set_heading_level": True},
+                b.id: {"heading_level": 3, "set_heading_level": True},
+            }
+        },
     )
     assert resp.status_code == 200

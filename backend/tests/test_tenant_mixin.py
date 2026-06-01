@@ -1,13 +1,20 @@
 from sqlalchemy import MetaData, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from app.models.base import NAMING_CONVENTION, TenantScoped, TenantMixin, NullableTenantMixin, UUIDMixin
+from app.models.base import (
+    NAMING_CONVENTION,
+    NullableTenantMixin,
+    TenantMixin,
+    TenantScoped,
+    UUIDMixin,
+)
 
 
 class _TestBase(DeclarativeBase):
     """Isolated declarative base for mixin unit tests; keeps _strict_tenant /
     _loose_tenant out of the shared Base.metadata so that conftest create_all
     (which runs before tb_company exists) does not fail on unresolvable FKs."""
+
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 

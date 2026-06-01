@@ -6,15 +6,24 @@ from sqlalchemy.orm import Session
 from app.models.notification import Notification
 from app.models.role import Role
 from app.models.user import User, UserStatus
-from app.models.work_order import WorkOrder, WorkOrderAssignee
+from app.models.work_order import WorkOrder
 from app.services import notification_service as svc
 
 CO = "co-1"
 
 
 def _user(db, uid, role_id=None, status=UserStatus.active):
-    db.add(User(id=uid, email=f"{uid}@x.com", password_hash="x", name=uid,
-                status=status, role_id=role_id, company_id=CO))
+    db.add(
+        User(
+            id=uid,
+            email=f"{uid}@x.com",
+            password_hash="x",
+            name=uid,
+            status=status,
+            role_id=role_id,
+            company_id=CO,
+        )
+    )
     db.commit()
 
 
@@ -41,8 +50,9 @@ def test_on_wo_assigned_notifies_only_added_active_non_actor(db: Session):
 def test_on_wo_status_changed_notifies_recipients(db: Session):
     _user(db, "primary")
     wo = _wo(db, primary="primary")
-    svc.on_wo_status_changed(db, wo, from_status="OPEN", to_status="IN_PROGRESS",
-                             actor_user_id=None)
+    svc.on_wo_status_changed(
+        db, wo, from_status="OPEN", to_status="IN_PROGRESS", actor_user_id=None
+    )
     db.commit()
     row = db.execute(select(Notification)).scalars().one()
     assert row.type == "WO_STATUS_CHANGED"
@@ -63,13 +73,17 @@ def test_on_wo_auto_generated_falls_back_to_admins(db: Session):
 
 
 def test_on_request_submitted_notifies_approvers(db: Session):
-    db.add(Role(id="r-appr", code="approver", name="A",
-                permissions=["request.approve"], company_id=CO))
+    db.add(
+        Role(id="r-appr", code="approver", name="A", permissions=["request.approve"], company_id=CO)
+    )
     db.commit()
     _user(db, "appr", role_id="r-appr")
 
     class _R:  # 轻量替身：on_request_submitted 只读 id/custom_id/title/company_id
-        id = "rq-1"; custom_id = "RQ1"; title = "申请"; company_id = CO
+        id = "rq-1"
+        custom_id = "RQ1"
+        title = "申请"
+        company_id = CO
 
     svc.on_request_submitted(db, _R(), actor_user_id=None)
     db.commit()
@@ -79,13 +93,16 @@ def test_on_request_submitted_notifies_approvers(db: Session):
 
 
 def test_on_po_approved_notifies_po_approvers(db: Session):
-    db.add(Role(id="r-poa", code="po", name="P",
-                permissions=["purchase_order.approve"], company_id=CO))
+    db.add(
+        Role(id="r-poa", code="po", name="P", permissions=["purchase_order.approve"], company_id=CO)
+    )
     db.commit()
     _user(db, "poappr", role_id="r-poa")
 
     class _PO:
-        id = "po-1"; custom_id = "PO1"; company_id = CO
+        id = "po-1"
+        custom_id = "PO1"
+        company_id = CO
 
     svc.on_po_approved(db, _PO(), actor_user_id=None)
     db.commit()

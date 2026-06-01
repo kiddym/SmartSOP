@@ -2,8 +2,14 @@ from app import permissions as perms
 
 
 def test_phase2c_codes_registered():
-    for code in ["meter.view", "meter.create", "meter.edit", "meter.delete",
-                 "reading.view", "reading.create"]:
+    for code in [
+        "meter.view",
+        "meter.create",
+        "meter.edit",
+        "meter.delete",
+        "reading.view",
+        "reading.create",
+    ]:
         assert code in perms.ALL_PERMISSIONS
 
 
@@ -13,8 +19,14 @@ def test_super_admin_wildcard_includes_meter():
 
 def test_admin_has_all_meter():
     admin = next(r for r in perms.BUILTIN_ROLES if r["code"] == "admin")
-    for code in ["meter.view", "meter.create", "meter.edit", "meter.delete",
-                 "reading.view", "reading.create"]:
+    for code in [
+        "meter.view",
+        "meter.create",
+        "meter.edit",
+        "meter.delete",
+        "reading.view",
+        "reading.create",
+    ]:
         assert code in admin["permissions"]
 
 

@@ -1,4 +1,5 @@
 """邮件投递后端（Phase 5B）：SMTP（生产）/ Console（开发）/ Memory（测试）。"""
+
 from __future__ import annotations
 
 import logging
@@ -35,8 +36,7 @@ class ConsoleBackend:
 class SMTPBackend:
     """生产用：stdlib smtplib。"""
 
-    def __init__(self, *, host: str, port: int, user: str, password: str,
-                 use_tls: bool) -> None:
+    def __init__(self, *, host: str, port: int, user: str, password: str, use_tls: bool) -> None:
         self._host, self._port = host, port
         self._user, self._password = user, password
         self._use_tls = use_tls

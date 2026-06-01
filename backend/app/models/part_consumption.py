@@ -2,6 +2,7 @@
 
 挂工单消耗：扣库存（non_stock 除外）并定格 unit_cost 单价快照。
 """
+
 from __future__ import annotations
 
 from datetime import datetime

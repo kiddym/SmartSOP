@@ -3,6 +3,7 @@
 测试可 monkeypatch settings.storage_backend，并调用 reset_storage_backend() 清缓存；
 local 后端的物理根由 settings.storage_dir 决定（沿用 storage_tmp fixture）。
 """
+
 from __future__ import annotations
 
 from app.config import settings

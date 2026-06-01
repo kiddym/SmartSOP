@@ -1,4 +1,5 @@
 """请求 schema（Phase 2A）。"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

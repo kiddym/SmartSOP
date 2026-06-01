@@ -1,10 +1,11 @@
 """工单活动时间线（只增不软删，审计性质）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, TenantMixin
+from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class WorkOrderActivity(Base, UUIDMixin, TimestampMixin, TenantMixin):

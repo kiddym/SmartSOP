@@ -1,4 +1,5 @@
 """请求活动时间线（只增不软删，审计性质）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import ForeignKey, String, Text

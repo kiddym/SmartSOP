@@ -1,7 +1,8 @@
 """Company (tenant) settings schemas."""
+
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.company import CompanyStatus
 

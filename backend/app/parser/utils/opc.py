@@ -141,7 +141,7 @@ class DocxPackage:
         for name in sorted(self._names):
             if not name.startswith("word/"):
                 continue
-            tail = name[len("word/"):]
+            tail = name[len("word/") :]
             # 匹配 header*.xml / footer*.xml / footnotes.xml / endnotes.xml / comments.xml
             if not (
                 (tail.startswith("header") and tail.endswith(".xml"))

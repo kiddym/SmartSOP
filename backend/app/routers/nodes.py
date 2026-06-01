@@ -51,9 +51,7 @@ def patch_node(
     if_match: str | None = Header(default=None, alias="If-Match"),
 ) -> NodeOut:
     expected = optimistic_lock.ensure_if_match(if_match)
-    node_service.patch_node(
-        db, node_id, _changes_from_patch(payload), expected_revision=expected
-    )
+    node_service.patch_node(db, node_id, _changes_from_patch(payload), expected_revision=expected)
     db.commit()
     return NodeOut(**_one(db, node_id))
 
@@ -63,9 +61,7 @@ def patch_node(
     response_model=NodeOut,
     status_code=status.HTTP_201_CREATED,
 )
-def create_node(
-    procedure_id: str, payload: NodeCreateIn, db: Session = Depends(get_db)
-) -> NodeOut:
+def create_node(procedure_id: str, payload: NodeCreateIn, db: Session = Depends(get_db)) -> NodeOut:
     created = node_service.create_node(db, procedure_id, payload.model_dump())
     db.commit()
     return NodeOut(**_one(db, created.id))
@@ -103,9 +99,7 @@ def batch_update(
     "/api/v1/procedures/{procedure_id}/nodes/reorder",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def reorder(
-    procedure_id: str, payload: NodeReorderIn, db: Session = Depends(get_db)
-) -> Response:
+def reorder(procedure_id: str, payload: NodeReorderIn, db: Session = Depends(get_db)) -> Response:
     node_service.reorder(db, procedure_id, payload.ordered_ids)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

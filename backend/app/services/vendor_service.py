@@ -1,4 +1,5 @@
 """供应商服务：CRUD（软删）、M:N 备件（全量替换）、列表过滤（part_id 反查）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -10,23 +11,34 @@ from app.schemas.partner import VendorCreate, VendorUpdate
 
 
 def part_ids(db: Session, vendor_id: str) -> list[str]:
-    return list(db.execute(
-        select(VendorPart.part_id).where(VendorPart.vendor_id == vendor_id)
-        .order_by(VendorPart.part_id)).scalars().all())
+    return list(
+        db.execute(
+            select(VendorPart.part_id)
+            .where(VendorPart.vendor_id == vendor_id)
+            .order_by(VendorPart.part_id)
+        )
+        .scalars()
+        .all()
+    )
 
 
-def _set_parts(db: Session, vendor_id: str, company_id: str,
-               part_id_list: list[str]) -> None:
+def _set_parts(db: Session, vendor_id: str, company_id: str, part_id_list: list[str]) -> None:
     for pid in dict.fromkeys(part_id_list):
         db.add(VendorPart(vendor_id=vendor_id, part_id=pid, company_id=company_id))
 
 
-def create_vendor(db: Session, payload: VendorCreate, company_id: str,
-                  actor_user_id: str | None) -> Vendor:
+def create_vendor(
+    db: Session, payload: VendorCreate, company_id: str, actor_user_id: str | None
+) -> Vendor:
     v = Vendor(
-        name=payload.name, vendor_type=payload.vendor_type,
-        description=payload.description, rate=payload.rate, address=payload.address,
-        phone=payload.phone, email=payload.email, website=payload.website,
+        name=payload.name,
+        vendor_type=payload.vendor_type,
+        description=payload.description,
+        rate=payload.rate,
+        address=payload.address,
+        phone=payload.phone,
+        email=payload.email,
+        website=payload.website,
         company_id=company_id,
     )
     db.add(v)
@@ -40,8 +52,9 @@ def create_vendor(db: Session, payload: VendorCreate, company_id: str,
 def list_vendors(db: Session, *, part_id: str | None = None) -> list[Vendor]:
     stmt = select(Vendor).where(Vendor.is_active.is_(True))
     if part_id is not None:
-        stmt = stmt.where(Vendor.id.in_(
-            select(VendorPart.vendor_id).where(VendorPart.part_id == part_id)))
+        stmt = stmt.where(
+            Vendor.id.in_(select(VendorPart.vendor_id).where(VendorPart.part_id == part_id))
+        )
     return list(db.execute(stmt.order_by(Vendor.name, Vendor.id)).scalars().all())
 
 
@@ -52,8 +65,9 @@ def get_vendor(db: Session, vendor_id: str) -> Vendor | None:
     return v
 
 
-def update_vendor(db: Session, v: Vendor, payload: VendorUpdate, company_id: str,
-                  actor_user_id: str | None) -> Vendor:
+def update_vendor(
+    db: Session, v: Vendor, payload: VendorUpdate, company_id: str, actor_user_id: str | None
+) -> Vendor:
     data = payload.model_dump(exclude_unset=True)
     new_parts = data.pop("part_ids", None)
     for k, val in data.items():

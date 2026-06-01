@@ -1,11 +1,19 @@
 from app.models.work_order_status import (
-    ALLOWED_TRANSITIONS, WorkOrderPriority, WorkOrderStatus, can_transition,
+    ALLOWED_TRANSITIONS,
+    WorkOrderPriority,
+    WorkOrderStatus,
+    can_transition,
 )
 
 
 def test_status_values():
     assert {s.value for s in WorkOrderStatus} == {
-        "OPEN", "IN_PROGRESS", "ON_HOLD", "COMPLETE", "CANCELED"}
+        "OPEN",
+        "IN_PROGRESS",
+        "ON_HOLD",
+        "COMPLETE",
+        "CANCELED",
+    }
 
 
 def test_priority_values():

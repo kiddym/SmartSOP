@@ -5,8 +5,12 @@ from app.models.notification import Notification, NotificationArm
 
 def test_notification_defaults(db: Session):
     n = Notification(
-        company_id="co-1", recipient_user_id="u-1", type="WO_ASSIGNED",
-        entity_type="work_order", entity_id="wo-1", params='{"custom_id": "WO1"}',
+        company_id="co-1",
+        recipient_user_id="u-1",
+        type="WO_ASSIGNED",
+        entity_type="work_order",
+        entity_id="wo-1",
+        params='{"custom_id": "WO1"}',
     )
     db.add(n)
     db.commit()

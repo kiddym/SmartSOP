@@ -1,4 +1,5 @@
 """投递 tick：pending→sent；失败累加 attempts；达上限→failed；跨租户。"""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -12,8 +13,15 @@ CO = "co-1"
 
 
 def _pending(db, cid=CO, email="a@x.com"):
-    o = EmailOutbox(company_id=cid, recipient_user_id="u-1", recipient_email=email,
-                    type="WO_ASSIGNED", subject="s", body="b", status="pending")
+    o = EmailOutbox(
+        company_id=cid,
+        recipient_user_id="u-1",
+        recipient_email=email,
+        type="WO_ASSIGNED",
+        subject="s",
+        body="b",
+        status="pending",
+    )
     db.add(o)
     db.commit()
     return o
@@ -34,7 +42,8 @@ def test_failure_increments_attempts(db: Session):
     _pending(db)
 
     class _Boom:
-        def send(self, *a, **k): raise RuntimeError("smtp down")
+        def send(self, *a, **k):
+            raise RuntimeError("smtp down")
 
     summary = email_dispatch.run(db, backend=_Boom(), max_attempts=5)
     assert summary["failed_attempt"] == 1
@@ -50,7 +59,8 @@ def test_reaches_max_attempts_marks_failed(db: Session):
     db.commit()
 
     class _Boom:
-        def send(self, *a, **k): raise RuntimeError("x")
+        def send(self, *a, **k):
+            raise RuntimeError("x")
 
     email_dispatch.run(db, backend=_Boom(), max_attempts=5)
     row = db.execute(select(EmailOutbox)).scalar_one()

@@ -1,4 +1,5 @@
 """attachment_service 物理 IO 经 StorageBackend（Phase 5B 收口）。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -17,7 +18,8 @@ def test_upload_then_download_via_backend(db: Session, factory: Factory, storage
     proc = factory.procedure(leaf.id)
     meta = RequestMeta(ip_address="1.1.1.1", user_agent="ua", request_id="r")
     att = attachment_service.upload(
-        db, proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta)
+        db, proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta
+    )
     assert get_storage_backend().read(att.storage_path) == b"hello"
-    data, mime, name = attachment_service.download(db, att.id)
+    data, _mime, _name = attachment_service.download(db, att.id)
     assert data == b"hello"

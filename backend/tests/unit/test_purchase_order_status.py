@@ -1,9 +1,9 @@
-from app.models.purchase_order_status import PurchaseOrderStatus as S, can_transition
+from app.models.purchase_order_status import PurchaseOrderStatus as S
+from app.models.purchase_order_status import can_transition
 
 
 def test_enum_values():
-    assert {s.value for s in S} == {
-        "DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELED"}
+    assert {s.value for s in S} == {"DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELED"}
 
 
 def test_draft_transitions():

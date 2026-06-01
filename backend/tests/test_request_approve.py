@@ -21,19 +21,40 @@ def _company(db, slug):
 
 def _published_procedure(db, company_id, *, status="PUBLISHED"):
     p = Procedure(
-        procedure_group_id="grp-1", folder_id="f1", code="SOP-A", name="SOP-A",
-        version=1, level_of_use="reference", status=status, company_id=company_id,
+        procedure_group_id="grp-1",
+        folder_id="f1",
+        code="SOP-A",
+        name="SOP-A",
+        version=1,
+        level_of_use="reference",
+        status=status,
+        company_id=company_id,
     )
     db.add(p)
     db.flush()
-    db.add(ProcedureNode(
-        procedure_id=p.id, sort_order=0, heading_level=1, kind="node",
-        body="章", code="C1", company_id=company_id,
-    ))
-    db.add(ProcedureNode(
-        procedure_id=p.id, sort_order=1, heading_level=None, kind="step",
-        body="步1", code="S1", input_schema={}, company_id=company_id,
-    ))
+    db.add(
+        ProcedureNode(
+            procedure_id=p.id,
+            sort_order=0,
+            heading_level=1,
+            kind="node",
+            body="章",
+            code="C1",
+            company_id=company_id,
+        )
+    )
+    db.add(
+        ProcedureNode(
+            procedure_id=p.id,
+            sort_order=1,
+            heading_level=None,
+            kind="step",
+            body="步1",
+            code="S1",
+            input_schema={},
+            company_id=company_id,
+        )
+    )
     db.commit()
     db.refresh(p)
     return p
@@ -43,8 +64,11 @@ def test_approve_copies_fields_and_links(db):
     c = _company(db, "acme")
     tenant.set_current_company_id(c.id)
     r = svc.create_request(
-        db, RequestCreate(title="漏水", description="厨房", priority=WorkOrderPriority.HIGH),
-        c.id, actor_user_id=None)
+        db,
+        RequestCreate(title="漏水", description="厨房", priority=WorkOrderPriority.HIGH),
+        c.id,
+        actor_user_id=None,
+    )
     wo = svc.approve_request(db, r, RequestApprove(note="受理"), c.id, actor_user_id="u9")
     assert r.status == RequestStatus.APPROVED
     assert r.work_order_id == wo.id
@@ -61,8 +85,12 @@ def test_approve_with_assignees_and_sop(db):
     p = _published_procedure(db, c.id)
     r = svc.create_request(db, RequestCreate(title="t"), c.id, actor_user_id=None)
     wo = svc.approve_request(
-        db, r, RequestApprove(assignee_ids=["u1", "u2"], procedure_id=p.id),
-        c.id, actor_user_id="u9")
+        db,
+        r,
+        RequestApprove(assignee_ids=["u1", "u2"], procedure_id=p.id),
+        c.id,
+        actor_user_id="u9",
+    )
     assert wo.procedure_id == p.id
     assert set(wos.assignee_ids(db, wo.id)) == {"u1", "u2"}
 

@@ -1,7 +1,8 @@
 """Role management schemas."""
+
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.permissions import ALL_PERMISSIONS
 
@@ -20,7 +21,8 @@ class RoleCreate(BaseModel):
 
     @field_validator("permissions")
     @classmethod
-    def _check(cls, v): return _validate(v)
+    def _check(cls, v):
+        return _validate(v)
 
 
 class RoleUpdate(BaseModel):
@@ -29,7 +31,8 @@ class RoleUpdate(BaseModel):
 
     @field_validator("permissions")
     @classmethod
-    def _check(cls, v): return None if v is None else _validate(v)
+    def _check(cls, v):
+        return None if v is None else _validate(v)
 
 
 class RoleRead(BaseModel):

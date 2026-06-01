@@ -1,15 +1,17 @@
 """Company: the tenant root. Not tenant-scoped — its id IS the tenant id."""
+
 from __future__ import annotations
 
 import enum
 
-from sqlalchemy import String, Boolean, Enum as SAEnum
+from sqlalchemy import Boolean, String
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin
+from app.models.base import Base, TimestampMixin, UUIDMixin
 
 
-class CompanyStatus(str, enum.Enum):
+class CompanyStatus(enum.StrEnum):
     active = "active"
     suspended = "suspended"
 

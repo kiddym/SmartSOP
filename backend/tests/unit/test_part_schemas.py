@@ -4,14 +4,14 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.part import (
-    PartCreate,
-    PartUpdate,
-    PartMini,
+    MultiPartCreate,
+    MultiPartUpdate,
     PartCategoryCreate,
     PartConsumptionCreate,
     PartConsumptionRead,
-    MultiPartCreate,
-    MultiPartUpdate,
+    PartCreate,
+    PartMini,
+    PartUpdate,
 )
 
 
@@ -50,9 +50,15 @@ def test_consumption_create_requires_fields():
 
 
 def test_consumption_read_total_cost():
-    r = PartConsumptionRead(id="c-1", part_id="p-1", work_order_id="wo-1",
-                            quantity=Decimal("3"), unit_cost=Decimal("9.99"),
-                            consumed_by_user_id=None, consumed_at="2026-06-01T00:00:00")
+    r = PartConsumptionRead(
+        id="c-1",
+        part_id="p-1",
+        work_order_id="wo-1",
+        quantity=Decimal("3"),
+        unit_cost=Decimal("9.99"),
+        consumed_by_user_id=None,
+        consumed_at="2026-06-01T00:00:00",
+    )
     assert r.total_cost == Decimal("29.97")
 
 

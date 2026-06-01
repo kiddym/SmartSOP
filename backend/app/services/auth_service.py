@@ -4,6 +4,7 @@ Pre-auth flows run with no tenant context, so cross-tenant lookups work.
 register() sets context to the new company before seeding roles/user so the
 isolation events stamp them correctly.
 """
+
 from __future__ import annotations
 
 import re
@@ -11,12 +12,12 @@ import re
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app import tenant, security
-from app.permissions import BUILTIN_ROLES
+from app import security, tenant
 from app.models.company import Company
 from app.models.role import Role
 from app.models.user import User, UserStatus
-from app.schemas.auth import RegisterRequest, LoginRequest
+from app.permissions import BUILTIN_ROLES
+from app.schemas.auth import LoginRequest, RegisterRequest
 
 
 class AuthError(Exception):
@@ -42,8 +43,12 @@ def register(db: Session, payload: RegisterRequest) -> User:
     try:
         roles_by_code: dict[str, Role] = {}
         for spec in BUILTIN_ROLES:
-            role = Role(code=spec["code"], name=spec["name"],
-                        is_builtin=True, permissions=list(spec["permissions"]))
+            role = Role(
+                code=spec["code"],
+                name=spec["name"],
+                is_builtin=True,
+                permissions=list(spec["permissions"]),
+            )
             db.add(role)
             roles_by_code[spec["code"]] = role
         db.flush()
@@ -64,9 +69,7 @@ def register(db: Session, payload: RegisterRequest) -> User:
 
 def authenticate(db: Session, payload: LoginRequest) -> User:
     with tenant.bypass_tenant_scope():
-        candidates = db.execute(
-            select(User).where(User.email == payload.email)
-        ).scalars().all()
+        candidates = db.execute(select(User).where(User.email == payload.email)).scalars().all()
         if payload.company_slug:
             company = db.execute(
                 select(Company).where(Company.slug == payload.company_slug)

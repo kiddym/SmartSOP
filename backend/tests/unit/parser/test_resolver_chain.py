@@ -1,4 +1,5 @@
 """ResolverChain 行为契约（P4）。"""
+
 from __future__ import annotations
 
 from app.parser.resolvers import ResolverChain

@@ -3,6 +3,7 @@
 cost/quantity/min_quantity 用 Numeric(18,4) 避免浮点漂移。is_low_stock 为计算
 属性（非列）：计库存且 quantity<min_quantity。non_stock 备件永不低库存。
 """
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -50,9 +51,7 @@ class Part(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
 class PartAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_part_assignee"
-    __table_args__ = (
-        UniqueConstraint("part_id", "user_id", name="uq_part_assignee"),
-    )
+    __table_args__ = (UniqueConstraint("part_id", "user_id", name="uq_part_assignee"),)
 
     part_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_part.id", ondelete="CASCADE"), index=True
@@ -64,9 +63,7 @@ class PartAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
 class PartTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_part_team"
-    __table_args__ = (
-        UniqueConstraint("part_id", "team_id", name="uq_part_team"),
-    )
+    __table_args__ = (UniqueConstraint("part_id", "team_id", name="uq_part_team"),)
 
     part_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_part.id", ondelete="CASCADE"), index=True
@@ -78,9 +75,7 @@ class PartTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
 class PartAsset(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_part_asset"
-    __table_args__ = (
-        UniqueConstraint("part_id", "asset_id", name="uq_part_asset"),
-    )
+    __table_args__ = (UniqueConstraint("part_id", "asset_id", name="uq_part_asset"),)
 
     part_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_part.id", ondelete="CASCADE"), index=True

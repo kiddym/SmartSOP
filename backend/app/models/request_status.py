@@ -1,10 +1,11 @@
 """请求状态机枚举 + 合法转移表（Phase 2A）。"""
+
 from __future__ import annotations
 
 import enum
 
 
-class RequestStatus(str, enum.Enum):
+class RequestStatus(enum.StrEnum):
     PENDING = "PENDING"
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"

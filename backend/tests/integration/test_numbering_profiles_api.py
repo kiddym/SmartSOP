@@ -1,4 +1,5 @@
 """numbering-profiles REST CRUD（P1d）。"""
+
 from __future__ import annotations
 
 from app.parser.heading_detector import classify_numbering
@@ -7,8 +8,9 @@ from app.services import numbering_profile_service
 
 
 def test_crud_flow(client) -> None:
-    r = client.post("/api/v1/numbering-profiles",
-                    json={"pattern_key": "第X条", "kind": "heading", "level": 3})
+    r = client.post(
+        "/api/v1/numbering-profiles", json={"pattern_key": "第X条", "kind": "heading", "level": 3}
+    )
     assert r.status_code == 201, r.text
     pid = r.json()["id"]
 
@@ -23,8 +25,9 @@ def test_crud_flow(client) -> None:
 
 
 def test_bad_kind_returns_409(client) -> None:
-    r = client.post("/api/v1/numbering-profiles",
-                    json={"pattern_key": "X", "kind": "bogus", "level": 1})
+    r = client.post(
+        "/api/v1/numbering-profiles", json={"pattern_key": "X", "kind": "bogus", "level": 1}
+    )
     assert r.status_code == 409, r.text
 
 

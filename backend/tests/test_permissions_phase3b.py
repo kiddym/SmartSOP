@@ -2,9 +2,18 @@ from app import permissions as perms
 
 
 def test_phase3b_codes_registered():
-    for code in ["vendor.view", "vendor.create", "vendor.edit", "vendor.delete",
-                 "customer.view", "customer.create", "customer.edit", "customer.delete",
-                 "cost_category.view", "cost_category.manage"]:
+    for code in [
+        "vendor.view",
+        "vendor.create",
+        "vendor.edit",
+        "vendor.delete",
+        "customer.view",
+        "customer.create",
+        "customer.edit",
+        "customer.delete",
+        "cost_category.view",
+        "cost_category.manage",
+    ]:
         assert code in perms.ALL_PERMISSIONS
 
 
@@ -14,9 +23,18 @@ def test_super_admin_wildcard_includes_partner():
 
 def test_admin_has_all_partner():
     admin = next(r for r in perms.BUILTIN_ROLES if r["code"] == "admin")
-    for code in ["vendor.view", "vendor.create", "vendor.edit", "vendor.delete",
-                 "customer.view", "customer.create", "customer.edit", "customer.delete",
-                 "cost_category.view", "cost_category.manage"]:
+    for code in [
+        "vendor.view",
+        "vendor.create",
+        "vendor.edit",
+        "vendor.delete",
+        "customer.view",
+        "customer.create",
+        "customer.edit",
+        "customer.delete",
+        "cost_category.view",
+        "cost_category.manage",
+    ]:
         assert code in admin["permissions"]
 
 
@@ -25,9 +43,15 @@ def test_technician_partner_view_only():
     assert "vendor.view" in tech["permissions"]
     assert "customer.view" in tech["permissions"]
     assert "cost_category.view" in tech["permissions"]
-    for denied in ("vendor.create", "vendor.edit", "vendor.delete",
-                   "customer.create", "customer.edit", "customer.delete",
-                   "cost_category.manage"):
+    for denied in (
+        "vendor.create",
+        "vendor.edit",
+        "vendor.delete",
+        "customer.create",
+        "customer.edit",
+        "customer.delete",
+        "cost_category.manage",
+    ):
         assert denied not in tech["permissions"]
 
 

@@ -1,4 +1,5 @@
 """工单 schema（Phase 1B）。"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

@@ -24,7 +24,8 @@ def test_scopes_are_independent(db):
 
 
 def test_tenants_are_independent(db):
-    c1 = _company(db, "acme"); c2 = _company(db, "globex")
+    c1 = _company(db, "acme")
+    c2 = _company(db, "globex")
     assert sequence_service.next_value(db, "asset", c1.id) == 1
     assert sequence_service.next_value(db, "asset", c1.id) == 2
     assert sequence_service.next_value(db, "asset", c2.id) == 1  # 独立计数

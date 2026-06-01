@@ -1,4 +1,5 @@
 """维修请求 API（/api/v1/requests，含审批转工单）。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -15,8 +16,8 @@ from app.schemas.request import (
     CommentCreate,
     RequestApprove,
     RequestCreate,
-    RequestReason,
     RequestRead,
+    RequestReason,
     RequestUpdate,
 )
 from app.services import request_service as svc
@@ -31,81 +32,124 @@ def _ensure(r: Request | None, company_id: str) -> Request:
 
 
 @router.get("", response_model=list[RequestRead])
-def list_requests(status: str | None = None, priority: str | None = None,
-                  asset_id: str | None = None, location_id: str | None = None,
-                  db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.REQUEST_VIEW))):
-    return svc.list_requests(db, status=status, priority=priority,
-                             asset_id=asset_id, location_id=location_id)
+def list_requests(
+    status: str | None = None,
+    priority: str | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
+):
+    return svc.list_requests(
+        db, status=status, priority=priority, asset_id=asset_id, location_id=location_id
+    )
 
 
 @router.get("/pending", response_model=list[RequestRead])
-def list_pending(db: Session = Depends(get_db),
-                 current_user: User = Depends(require_permission(permissions.REQUEST_VIEW))):
+def list_pending(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
+):
     return svc.list_requests(db, status=RequestStatus.PENDING.value)
 
 
 @router.post("", response_model=RequestRead, status_code=status.HTTP_201_CREATED)
-def create_request(payload: RequestCreate, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.REQUEST_CREATE))):
+def create_request(
+    payload: RequestCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_CREATE)),
+):
     return svc.create_request(db, payload, current_user.company_id, actor_user_id=current_user.id)
 
 
 @router.get("/{request_id}", response_model=RequestRead)
-def get_request(request_id: str, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.REQUEST_VIEW))):
+def get_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
+):
     return _ensure(svc.get_request(db, request_id), current_user.company_id)
 
 
 @router.patch("/{request_id}", response_model=RequestRead)
-def update_request(request_id: str, payload: RequestUpdate, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.REQUEST_CREATE))):
+def update_request(
+    request_id: str,
+    payload: RequestUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_CREATE)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.update_request(db, r, payload)
 
 
 @router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_request(request_id: str, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.REQUEST_DELETE))):
+def delete_request(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_DELETE)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     svc.delete_request(db, r)
 
 
 @router.post("/{request_id}/approve", response_model=RequestRead)
-def approve_request(request_id: str, payload: RequestApprove, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE))):
+def approve_request(
+    request_id: str,
+    payload: RequestApprove,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     svc.approve_request(db, r, payload, current_user.company_id, actor_user_id=current_user.id)
     return r
 
 
 @router.post("/{request_id}/reject", response_model=RequestRead)
-def reject_request(request_id: str, payload: RequestReason, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE))):
+def reject_request(
+    request_id: str,
+    payload: RequestReason,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
-    return svc.reject_request(db, r, payload.reason, current_user.company_id,
-                              actor_user_id=current_user.id)
+    return svc.reject_request(
+        db, r, payload.reason, current_user.company_id, actor_user_id=current_user.id
+    )
 
 
 @router.post("/{request_id}/cancel", response_model=RequestRead)
-def cancel_request(request_id: str, payload: RequestReason, db: Session = Depends(get_db),
-                   current_user: User = Depends(require_permission(permissions.REQUEST_CANCEL))):
+def cancel_request(
+    request_id: str,
+    payload: RequestReason,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_CANCEL)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
-    return svc.cancel_request(db, r, payload.reason, current_user.company_id,
-                              actor_user_id=current_user.id)
+    return svc.cancel_request(
+        db, r, payload.reason, current_user.company_id, actor_user_id=current_user.id
+    )
 
 
 @router.get("/{request_id}/activities", response_model=list[ActivityRead])
-def list_activities(request_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW))):
+def list_activities(
+    request_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
+):
     _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.list_activities(db, request_id)
 
 
-@router.post("/{request_id}/activities", response_model=ActivityRead,
-             status_code=status.HTTP_201_CREATED)
-def add_comment(request_id: str, payload: CommentCreate, db: Session = Depends(get_db),
-                current_user: User = Depends(require_permission(permissions.REQUEST_VIEW))):
+@router.post(
+    "/{request_id}/activities", response_model=ActivityRead, status_code=status.HTTP_201_CREATED
+)
+def add_comment(
+    request_id: str,
+    payload: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
+):
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
-    return svc.add_comment(db, r, payload.comment, current_user.company_id,
-                           actor_user_id=current_user.id)
+    return svc.add_comment(
+        db, r, payload.comment, current_user.company_id, actor_user_id=current_user.id
+    )

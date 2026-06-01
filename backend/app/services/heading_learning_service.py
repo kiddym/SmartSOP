@@ -92,9 +92,7 @@ def reaggregate(db: Session, style_name: str) -> HeadingStyleRule | None:
         ).all()
         if not levels:
             continue  # 该文档此样式节点已全删 → 不计票
-        doc_vote = Counter(
-            "content" if lv is None else lv for lv in levels
-        ).most_common(1)[0][0]
+        doc_vote = Counter("content" if lv is None else lv for lv in levels).most_common(1)[0][0]
         votes[doc_vote] += 1
     evidence = sum(votes.values())
     if evidence == 0:

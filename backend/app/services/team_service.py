@@ -1,4 +1,5 @@
 """团队服务（含成员设置）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import delete, select
@@ -17,7 +18,9 @@ def _member_ids(db: Session, team_id: str) -> list[str]:
 
 def to_read(db: Session, team: Team) -> dict:
     return {
-        "id": team.id, "name": team.name, "description": team.description,
+        "id": team.id,
+        "name": team.name,
+        "description": team.description,
         "member_ids": _member_ids(db, team.id),
     }
 

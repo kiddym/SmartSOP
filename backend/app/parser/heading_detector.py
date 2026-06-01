@@ -118,7 +118,9 @@ def _classify_numbering_base(text: str) -> NumberingMatch | None:
             # N+CJK 直连：depth>=2 (3.1质量部 / 4.1.1管理类) 是 unambiguous 融合式真子标题 → heading；
             # depth=1 (6相关文件) 仍歧义 → weak_heading 需 bold（Q217 + eval r3）
             if depth >= 2:
-                return NumberingMatch(kind="heading", level=level, pattern_key=f"N{'.N' * (depth - 1)}+中文")
+                return NumberingMatch(
+                    kind="heading", level=level, pattern_key=f"N{'.N' * (depth - 1)}+中文"
+                )
             return NumberingMatch(kind="weak_heading", level=level, pattern_key="N+中文")
     return None
 

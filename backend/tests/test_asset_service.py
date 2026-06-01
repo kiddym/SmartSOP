@@ -37,7 +37,8 @@ def test_barcode_unique_within_tenant(db):
 
 
 def test_same_barcode_across_tenants_ok(db):
-    c1 = _company(db, "acme"); c2 = _company(db, "globex")
+    c1 = _company(db, "acme")
+    c2 = _company(db, "globex")
     _ctx(db, c1.id)
     svc.create_asset(db, AssetCreate(name="泵", barcode="BC-1"), c1.id)
     _ctx(db, c2.id)
@@ -65,10 +66,12 @@ def test_cycle_guard(db):
 
 def test_relations_and_filters(db):
     from app.models.user import User
+
     c = _company(db, "acme")
     _ctx(db, c.id)
     u = User(company_id=c.id, email="w@a.com", password_hash="x", name="W")
-    db.add(u); db.commit()
+    db.add(u)
+    db.commit()
     a = svc.create_asset(db, AssetCreate(name="泵", assigned_user_ids=[u.id]), c.id)
     assert svc.assigned_user_ids(db, a.id) == [u.id]
     rows = svc.list_assets(db, status="OPERATIONAL")

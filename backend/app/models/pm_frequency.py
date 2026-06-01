@@ -1,10 +1,11 @@
 """PM 调度频率单位（Phase 2B）。"""
+
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 
 
-class PMFrequencyUnit(str, Enum):
+class PMFrequencyUnit(StrEnum):
     DAY = "DAY"
     WEEK = "WEEK"
     MONTH = "MONTH"

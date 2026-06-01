@@ -1,4 +1,5 @@
 """预防性维护 API（/api/v1/preventive-maintenances）。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -36,91 +37,115 @@ def _read(db: Session, pm: PreventiveMaintenance) -> PMRead:
 
 
 @router.get("", response_model=list[PMRead])
-def list_pms(is_enabled: bool | None = None, asset_id: str | None = None,
-             location_id: str | None = None, db: Session = Depends(get_db),
-             current_user: User = Depends(
-                 require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW))):
+def list_pms(
+    is_enabled: bool | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW)),
+):
     pms = svc.list_pms(db, is_enabled=is_enabled, asset_id=asset_id, location_id=location_id)
     return [_read(db, pm) for pm in pms]
 
 
 @router.post("", response_model=PMRead, status_code=status.HTTP_201_CREATED)
-def create_pm(payload: PMCreate, db: Session = Depends(get_db),
-              current_user: User = Depends(
-                  require_permission(permissions.PREVENTIVE_MAINTENANCE_CREATE))):
+def create_pm(
+    payload: PMCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_CREATE)),
+):
     pm = svc.create_pm(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, pm)
 
 
 @router.get("/{pm_id}", response_model=PMRead)
-def get_pm(pm_id: str, db: Session = Depends(get_db),
-           current_user: User = Depends(
-               require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW))):
+def get_pm(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     return _read(db, pm)
 
 
 @router.patch("/{pm_id}", response_model=PMRead)
-def update_pm(pm_id: str, payload: PMUpdate, db: Session = Depends(get_db),
-              current_user: User = Depends(
-                  require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT))):
+def update_pm(
+    pm_id: str,
+    payload: PMUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     svc.update_pm(db, pm, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, pm)
 
 
 @router.delete("/{pm_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_pm(pm_id: str, db: Session = Depends(get_db),
-              current_user: User = Depends(
-                  require_permission(permissions.PREVENTIVE_MAINTENANCE_DELETE))):
+def delete_pm(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_DELETE)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     svc.delete_pm(db, pm)
 
 
 @router.post("/{pm_id}/enable", response_model=PMRead)
-def enable_pm(pm_id: str, db: Session = Depends(get_db),
-              current_user: User = Depends(
-                  require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT))):
+def enable_pm(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     svc.enable_pm(db, pm, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, pm)
 
 
 @router.post("/{pm_id}/disable", response_model=PMRead)
-def disable_pm(pm_id: str, db: Session = Depends(get_db),
-               current_user: User = Depends(
-                   require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT))):
+def disable_pm(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_EDIT)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     svc.disable_pm(db, pm, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, pm)
 
 
-@router.post("/{pm_id}/generate", response_model=WorkOrderRead,
-             status_code=status.HTTP_201_CREATED)
-def generate_now(pm_id: str, db: Session = Depends(get_db),
-                 current_user: User = Depends(
-                     require_permission(permissions.PREVENTIVE_MAINTENANCE_CREATE))):
+@router.post("/{pm_id}/generate", response_model=WorkOrderRead, status_code=status.HTTP_201_CREATED)
+def generate_now(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_CREATE)),
+):
     from app.models.base import utcnow
     from app.services import work_order_service as wos
+
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
-    wo = svc.generate_once(db, pm, actor_user_id=current_user.id,
-                           now=utcnow(), enforce_due=False)
+    wo = svc.generate_once(db, pm, actor_user_id=current_user.id, now=utcnow(), enforce_due=False)
     return wos.to_read(db, wo)
 
 
 @router.get("/{pm_id}/activities", response_model=list[PMActivityRead])
-def list_activities(pm_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(
-                        require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW))):
+def list_activities(
+    pm_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW)),
+):
     _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     return svc.list_activities(db, pm_id)
 
 
-@router.post("/{pm_id}/comments", response_model=PMActivityRead,
-             status_code=status.HTTP_201_CREATED)
-def add_comment(pm_id: str, payload: CommentCreate, db: Session = Depends(get_db),
-                current_user: User = Depends(
-                    require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW))):
+@router.post(
+    "/{pm_id}/comments", response_model=PMActivityRead, status_code=status.HTTP_201_CREATED
+)
+def add_comment(
+    pm_id: str,
+    payload: CommentCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.PREVENTIVE_MAINTENANCE_VIEW)),
+):
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
-    return svc.add_comment(db, pm, payload.comment, current_user.company_id,
-                           actor_user_id=current_user.id)
+    return svc.add_comment(
+        db, pm, payload.comment, current_user.company_id, actor_user_id=current_user.id
+    )

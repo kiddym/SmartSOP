@@ -9,11 +9,20 @@ CO = "co-1"
 
 
 def test_create_customer_with_parts_and_currency(db: Session):
-    c = svc.create_customer(db, CustomerCreate(
-        name="客户A", customer_type="大客户", billing_currency="CNY",
-        rate=Decimal("0"), part_ids=["p-2", "p-1"]), CO, actor_user_id="a")
+    c = svc.create_customer(
+        db,
+        CustomerCreate(
+            name="客户A",
+            customer_type="大客户",
+            billing_currency="CNY",
+            rate=Decimal("0"),
+            part_ids=["p-2", "p-1"],
+        ),
+        CO,
+        actor_user_id="a",
+    )
     assert c.id and c.billing_currency == "CNY"
-    assert svc.part_ids(db, c.id) == ["p-1", "p-2"]          # 按 part_id 序
+    assert svc.part_ids(db, c.id) == ["p-1", "p-2"]  # 按 part_id 序
 
 
 def test_list_and_filter_by_part(db: Session):
@@ -26,8 +35,9 @@ def test_list_and_filter_by_part(db: Session):
 
 def test_update_replaces_parts(db: Session):
     c = svc.create_customer(db, CustomerCreate(name="A", part_ids=["p-1"]), CO, actor_user_id="a")
-    svc.update_customer(db, c, CustomerUpdate(billing_currency="USD", part_ids=["p-9"]),
-                        CO, actor_user_id="a")
+    svc.update_customer(
+        db, c, CustomerUpdate(billing_currency="USD", part_ids=["p-9"]), CO, actor_user_id="a"
+    )
     assert c.billing_currency == "USD"
     assert svc.part_ids(db, c.id) == ["p-9"]
 

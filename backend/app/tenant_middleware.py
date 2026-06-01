@@ -15,6 +15,7 @@ No valid access token (SOP endpoints, health checks, login/register) => no
 context is set => those paths behave exactly as before (unscoped), preserving
 Phase 0 SOP behavior.
 """
+
 from __future__ import annotations
 
 from app import security, tenant

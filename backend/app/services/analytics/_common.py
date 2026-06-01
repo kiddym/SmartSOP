@@ -2,6 +2,7 @@
 
 跨方言安全：所有时长用 Python timedelta 计算（不用 SQL 日期函数）。
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta

@@ -43,7 +43,7 @@ def test_skip_numbering_silences_subtree() -> None:
     rows = _rows([("a", 1, "node", True), ("b", 2), ("c", 1)])
     codes = compute_codes(rows)
     assert codes["a"] == ""
-    assert codes["b"] == ""   # 父 skip → 子静默
+    assert codes["b"] == ""  # 父 skip → 子静默
     assert codes["c"] == "1"  # skip 不占位,c 仍是 1
 
 

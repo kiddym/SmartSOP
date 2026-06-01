@@ -1,16 +1,21 @@
 """Auth API (/api/v1/auth)."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import security, tenant
-from app.deps import get_db, get_current_user, _user_permission_codes
+from app.deps import _user_permission_codes, get_current_user, get_db
 from app.errors import conflict, unauthorized
 from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
-    RegisterRequest, LoginRequest, RefreshRequest, TokenPair, CurrentUser,
+    CurrentUser,
+    LoginRequest,
+    RefreshRequest,
+    RegisterRequest,
+    TokenPair,
 )
 from app.services import auth_service
 
@@ -28,9 +33,11 @@ def _tokens(db: Session, user: User) -> TokenPair:
     rc = _role_code(db, user)
     return TokenPair(
         access_token=security.create_access_token(
-            user_id=user.id, company_id=user.company_id, role_code=rc),
+            user_id=user.id, company_id=user.company_id, role_code=rc
+        ),
         refresh_token=security.create_refresh_token(
-            user_id=user.id, company_id=user.company_id, role_code=rc),
+            user_id=user.id, company_id=user.company_id, role_code=rc
+        ),
     )
 
 
@@ -72,7 +79,10 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 @router.get("/me", response_model=CurrentUser)
 def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return CurrentUser(
-        id=current_user.id, email=current_user.email, name=current_user.name,
-        company_id=current_user.company_id, role_code=_role_code(db, current_user),
+        id=current_user.id,
+        email=current_user.email,
+        name=current_user.name,
+        company_id=current_user.company_id,
+        role_code=_role_code(db, current_user),
         permissions=sorted(_user_permission_codes(db, current_user)),
     )

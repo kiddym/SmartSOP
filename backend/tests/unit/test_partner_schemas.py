@@ -4,12 +4,12 @@ import pytest
 from pydantic import ValidationError
 
 from app.schemas.partner import (
-    VendorCreate,
-    VendorUpdate,
-    VendorMini,
+    CostCategoryCreate,
     CustomerCreate,
     CustomerUpdate,
-    CostCategoryCreate,
+    VendorCreate,
+    VendorMini,
+    VendorUpdate,
 )
 
 

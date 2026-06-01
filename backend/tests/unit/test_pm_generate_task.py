@@ -10,8 +10,12 @@ from app.tasks import pm_generate
 
 
 def _mk(db, company, **kw):
-    base = dict(title="月检", start_date=date(2026, 1, 1),
-                frequency_unit=PMFrequencyUnit.DAY, frequency_value=7)
+    base = dict(
+        title="月检",
+        start_date=date(2026, 1, 1),
+        frequency_unit=PMFrequencyUnit.DAY,
+        frequency_value=7,
+    )
     base.update(kw)
     return svc.create_pm(db, PMCreate(**base), company, actor_user_id=None)
 
@@ -26,7 +30,7 @@ def test_run_generates_for_due_and_advances(db: Session):
 
 
 def test_run_skips_future_and_disabled(db: Session):
-    _mk(db, "co-1", start_date=date(2026, 12, 1))           # 未来
+    _mk(db, "co-1", start_date=date(2026, 12, 1))  # 未来
     disabled = _mk(db, "co-1", start_date=date(2026, 1, 1))
     svc.disable_pm(db, disabled, "co-1", actor_user_id=None)
     summary = pm_generate.run(db, now=datetime(2026, 6, 1, 2, 0))

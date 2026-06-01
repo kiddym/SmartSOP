@@ -23,9 +23,9 @@ from sqlalchemy.orm import Session
 from app.deps import RequestMeta
 from app.errors import bad_request, not_found
 from app.models.base import new_uuid, utcnow
-from app.models.node import ProcedureNode
 from app.models.field import ProcedureField
 from app.models.folder import Folder
+from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
 from app.schemas.attachment import AttachmentOut
 from app.schemas.common import BatchDeleteFailure, BatchDeleteResult

@@ -1,4 +1,5 @@
 """S3Backend：用手写 fake boto3 client 验证 key 映射与语义，不连真 S3。"""
+
 from __future__ import annotations
 
 import pytest
@@ -31,8 +32,11 @@ class _FakeS3:
 
 
 class _Body:
-    def __init__(self, data): self._data = data
-    def read(self): return self._data
+    def __init__(self, data):
+        self._data = data
+
+    def read(self):
+        return self._data
 
 
 def _backend():

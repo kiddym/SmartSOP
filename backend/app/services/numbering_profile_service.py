@@ -70,9 +70,7 @@ def create(db: Session, payload: NumberingProfileCreate) -> NumberingProfile:
         )
     ).first()
     if exists is not None:
-        raise conflict(
-            "NUMBERING_PROFILE_DUPLICATE", f"编号体例已存在：{key}", field="pattern_key"
-        )
+        raise conflict("NUMBERING_PROFILE_DUPLICATE", f"编号体例已存在：{key}", field="pattern_key")
     p = NumberingProfile(
         pattern_key=key,
         kind=payload.kind,

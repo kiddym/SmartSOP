@@ -164,7 +164,9 @@ def test_delete_non_current_returns_204(client: TestClient, factory: Factory) ->
     leaf = factory.folder(name="叶子", prefix="QC", full_path="叶子")
     factory.sequence(leaf.id)
     old = factory.procedure(leaf.id, is_current=False, status="ARCHIVED", code="QC-00077")
-    resp = client.request("DELETE", f"{PROC}/{old.id}", json={"reason": "清理"})
+    client.request("DELETE", f"{PROC}/{old.id}", json={"reason": "清理"})
+
+
 def test_archive_endpoint_full_flow(client: TestClient, db: Session) -> None:
     """端到端：创建程序 → archive → 校验 status + folder。"""
     run_seed(db)
@@ -172,7 +174,7 @@ def test_archive_endpoint_full_flow(client: TestClient, db: Session) -> None:
     pid = _make_procedure(client, leaf, name="要归档的程序")["id"]
     # 先发布
     client.post(f"{PROC}/{pid}/transition", json={"status": "PUBLISHED"}, headers={"If-Match": "0"})
-    
+
     res = client.post(
         f"{PROC}/{pid}/archive",
         json={"reason": "stale—keep for reference"},
@@ -192,15 +194,12 @@ def test_archive_then_restore_round_trip(client: TestClient, db: Session) -> Non
     pid = _make_procedure(client, leaf, name="要测试的程序")["id"]
     # 先发布
     client.post(f"{PROC}/{pid}/transition", json={"status": "PUBLISHED"}, headers={"If-Match": "0"})
-    
+
     # 归档
     client.post(f"{PROC}/{pid}/archive", json={"reason": "stale"})
-    
+
     # 恢复回原 folder
-    res = client.post(
-        f"{PROC}/{pid}/restore",
-        json={"reason": "back", "target_folder_id": leaf}
-    )
+    res = client.post(f"{PROC}/{pid}/restore", json={"reason": "back", "target_folder_id": leaf})
 
     assert res.status_code == 200
     body = res.json()

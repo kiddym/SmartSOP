@@ -4,6 +4,7 @@
 锥摆推进 next_due_date。跨租户扫描用 bypass_tenant_scope；逐项提交隔离。
 CLI：python -m app.tasks.pm_generate --once
 """
+
 from __future__ import annotations
 
 import argparse
@@ -44,8 +45,7 @@ def run(db: Session, *, now: datetime | None = None, commit: bool = True) -> dic
                 continue
             token = set_current_company_id(pm.company_id)
             try:
-                pm_service.generate_once(db, pm, actor_user_id=None,
-                                         now=started, enforce_due=True)
+                pm_service.generate_once(db, pm, actor_user_id=None, now=started, enforce_due=True)
                 generated += 1
             finally:
                 reset_current_company_id(token)
@@ -56,9 +56,11 @@ def run(db: Session, *, now: datetime | None = None, commit: bool = True) -> dic
             logger.exception("pm_generate 失败 pm_id=%s", pm_id)
 
     summary = {"scanned": len(due_ids), "generated": generated, "errors": errors}
-    logger.info(json.dumps(
-        {"task": TASK_NAME, "started_at": started.isoformat(), **summary},
-        ensure_ascii=False))
+    logger.info(
+        json.dumps(
+            {"task": TASK_NAME, "started_at": started.isoformat(), **summary}, ensure_ascii=False
+        )
+    )
     return summary
 
 

@@ -1,4 +1,5 @@
 """asset_service 物理 IO 经 StorageBackend（Phase 5B 收口）。"""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,5 +19,5 @@ def test_find_or_create_writes_via_backend(db: Session, storage_tmp: Path):
 
 def test_get_asset_reads_via_backend(db: Session, storage_tmp: Path):
     asset = asset_service.find_or_create_asset(db, tiny_png(), ext=".png")
-    data, mime = asset_service.get_asset(db, asset.id)
+    data, _mime = asset_service.get_asset(db, asset.id)
     assert data == tiny_png()

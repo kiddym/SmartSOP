@@ -1,7 +1,13 @@
 def _admin(client):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": "Acme", "email": "admin@acme.com",
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={
+            "company_name": "Acme",
+            "email": "admin@acme.com",
+            "password": "secret123",
+            "name": "Admin",
+        },
+    ).json()["access_token"]
 
 
 def _h(t):

@@ -2,6 +2,7 @@
 
 value 用 Numeric(18,4) 避免浮点漂移影响阈值比较。reading_at 默认当前时刻。
 """
+
 from __future__ import annotations
 
 from datetime import datetime

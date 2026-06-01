@@ -1,4 +1,5 @@
 """供应商 API（/api/v1/vendors）。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, status
@@ -28,42 +29,60 @@ def _read(db: Session, v: Vendor) -> VendorRead:
 
 
 @router.get("", response_model=list[VendorRead])
-def list_vendors(part_id: str | None = None, db: Session = Depends(get_db),
-                 current_user: User = Depends(require_permission(permissions.VENDOR_VIEW))):
+def list_vendors(
+    part_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
+):
     return [_read(db, v) for v in svc.list_vendors(db, part_id=part_id)]
 
 
 @router.post("", response_model=VendorRead, status_code=status.HTTP_201_CREATED)
-def create_vendor(payload: VendorCreate, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.VENDOR_CREATE))):
+def create_vendor(
+    payload: VendorCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_CREATE)),
+):
     v = svc.create_vendor(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, v)
 
 
 # 注：/mini 必须注册在 /{vendor_id} 之前，否则会被路径参数吞掉
 @router.get("/mini", response_model=list[VendorMini])
-def list_vendors_mini(db: Session = Depends(get_db),
-                      current_user: User = Depends(require_permission(permissions.VENDOR_VIEW))):
+def list_vendors_mini(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
+):
     return svc.list_vendors(db)
 
 
 @router.get("/{vendor_id}", response_model=VendorRead)
-def get_vendor(vendor_id: str, db: Session = Depends(get_db),
-               current_user: User = Depends(require_permission(permissions.VENDOR_VIEW))):
+def get_vendor(
+    vendor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
+):
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     return _read(db, v)
 
 
 @router.patch("/{vendor_id}", response_model=VendorRead)
-def update_vendor(vendor_id: str, payload: VendorUpdate, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.VENDOR_EDIT))):
+def update_vendor(
+    vendor_id: str,
+    payload: VendorUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_EDIT)),
+):
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     svc.update_vendor(db, v, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, v)
 
 
 @router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_vendor(vendor_id: str, db: Session = Depends(get_db),
-                  current_user: User = Depends(require_permission(permissions.VENDOR_DELETE))):
+def delete_vendor(
+    vendor_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.VENDOR_DELETE)),
+):
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     svc.delete_vendor(db, v)

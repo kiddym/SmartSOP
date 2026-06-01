@@ -91,8 +91,11 @@ def _run_with_timeout(
     """线程执行器跑 CPU 密集解析；超时抛 FuturesTimeout（孤儿线程允许跑完，Q345）。"""
     executor = ThreadPoolExecutor(max_workers=1)
     future = executor.submit(
-        parse_docx, data, mode,
-        style_overrides=style_overrides, numbering_overrides=numbering_overrides,
+        parse_docx,
+        data,
+        mode,
+        style_overrides=style_overrides,
+        numbering_overrides=numbering_overrides,
     )
     try:
         return future.result(timeout=settings.parse_timeout_seconds)

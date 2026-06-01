@@ -1,16 +1,18 @@
 """User: tenant-scoped account. Email unique within a company."""
+
 from __future__ import annotations
 
 import enum
 from datetime import datetime
 
-from sqlalchemy import String, Boolean, ForeignKey, Enum as SAEnum, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, TenantMixin, DATETIME6
+from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class UserStatus(str, enum.Enum):
+class UserStatus(enum.StrEnum):
     active = "active"
     disabled = "disabled"
 

@@ -46,7 +46,7 @@ def test_dunhao_is_weak_heading() -> None:
 
 def test_dotted_dunhao_subsection_is_heading() -> None:
     # P0：depth≥2 的 N.N、/N.N.N、 点分前缀已表达层级，顿号在此非歧义 → heading
-    #（与 N.N 空格/点同等），修复中文 ISO 程序文件「5.1、顾客沟通」子节召回。
+    # （与 N.N 空格/点同等），修复中文 ISO 程序文件「5.1、顾客沟通」子节召回。
     m = hd.classify_numbering("5.1、顾客沟通")
     assert m is not None and m.kind == "heading" and m.level == 2
     m3 = hd.classify_numbering("5.3.3、合同评审方式")

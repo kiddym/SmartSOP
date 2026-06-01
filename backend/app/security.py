@@ -1,9 +1,10 @@
 """Security utilities: password hashing and JWT tokens."""
+
 from __future__ import annotations
 
 import base64
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
@@ -38,28 +39,42 @@ def verify_password(plain: str, hashed: str) -> bool:
     return _bcrypt.checkpw(_prehash(plain), hashed.encode("utf-8"))
 
 
-def _create_token(*, user_id: str, company_id: str, role_code: str | None,
-                  token_type: str, expires_delta: timedelta) -> str:
+def _create_token(
+    *,
+    user_id: str,
+    company_id: str,
+    role_code: str | None,
+    token_type: str,
+    expires_delta: timedelta,
+) -> str:
     payload = {
         "sub": user_id,
         "company_id": company_id,
         "role_code": role_code,
         "type": token_type,
-        "exp": datetime.now(timezone.utc) + expires_delta,
+        "exp": datetime.now(UTC) + expires_delta,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
 
 
 def create_access_token(*, user_id: str, company_id: str, role_code: str | None) -> str:
-    return _create_token(user_id=user_id, company_id=company_id, role_code=role_code,
-                         token_type="access",
-                         expires_delta=timedelta(minutes=settings.access_token_expire_minutes))
+    return _create_token(
+        user_id=user_id,
+        company_id=company_id,
+        role_code=role_code,
+        token_type="access",
+        expires_delta=timedelta(minutes=settings.access_token_expire_minutes),
+    )
 
 
 def create_refresh_token(*, user_id: str, company_id: str, role_code: str | None) -> str:
-    return _create_token(user_id=user_id, company_id=company_id, role_code=role_code,
-                         token_type="refresh",
-                         expires_delta=timedelta(days=settings.refresh_token_expire_days))
+    return _create_token(
+        user_id=user_id,
+        company_id=company_id,
+        role_code=role_code,
+        token_type="refresh",
+        expires_delta=timedelta(days=settings.refresh_token_expire_days),
+    )
 
 
 def decode_token(token: str) -> dict:

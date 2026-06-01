@@ -1,10 +1,11 @@
 """资产状态枚举 + UP/DOWN 归类（供 Phase 4 可用率复用）。"""
+
 from __future__ import annotations
 
 import enum
 
 
-class AssetStatus(str, enum.Enum):
+class AssetStatus(enum.StrEnum):
     OPERATIONAL = "OPERATIONAL"
     STANDBY = "STANDBY"
     MODERNIZATION = "MODERNIZATION"

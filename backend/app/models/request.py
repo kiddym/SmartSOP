@@ -3,11 +3,13 @@
 work_order_id 为弱引用（无 FK）：审批后生成的工单属另一聚合，生成后各自演进。
 priority 复用 WorkOrderPriority 枚举（DRY，同 NONE/LOW/MEDIUM/HIGH）。
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, Enum as SAEnum, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (

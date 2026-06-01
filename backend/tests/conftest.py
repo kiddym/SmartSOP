@@ -151,7 +151,7 @@ class Factory:
         skip_numbering: bool = False,
         input_schema: dict[str, object] | None = None,
         mark_status: str = "unmarked",
-    ) -> "ProcedureNode":
+    ) -> ProcedureNode:
         node = ProcedureNode(
             procedure_id=procedure_id,
             body=body,
@@ -190,6 +190,7 @@ def storage_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Pa
 def _clear_tenant_context():
     """Each test starts/ends with no tenant scope (prevents leakage)."""
     from app import tenant
+
     tenant.set_current_company_id(None)
     yield
     tenant.set_current_company_id(None)

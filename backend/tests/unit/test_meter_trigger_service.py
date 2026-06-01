@@ -19,16 +19,21 @@ def _meter(db):
 
 
 def _payload(**kw):
-    base = dict(name="高温", comparator=MeterComparator.MORE_THAN,
-                threshold=Decimal("100"), title="处理高温")
+    base = dict(
+        name="高温",
+        comparator=MeterComparator.MORE_THAN,
+        threshold=Decimal("100"),
+        title="处理高温",
+    )
     base.update(kw)
     return TriggerCreate(**base)
 
 
 def test_create_trigger_armed_and_relations(db: Session):
     m = _meter(db)
-    t = ts.create_trigger(db, m.id, _payload(assignee_ids=["u-1", "u-2"], team_ids=["t-1"]),
-                          CO, actor_user_id="a")
+    t = ts.create_trigger(
+        db, m.id, _payload(assignee_ids=["u-1", "u-2"], team_ids=["t-1"]), CO, actor_user_id="a"
+    )
     assert t.is_armed is True and t.is_enabled is True
     assert set(ts.assignee_ids(db, t.id)) == {"u-1", "u-2"}
     assert ts.team_ids(db, t.id) == ["t-1"]
@@ -55,8 +60,9 @@ def test_update_comparator_rearms(db: Session):
     t = ts.create_trigger(db, m.id, _payload(), CO, actor_user_id="a")
     t.is_armed = False
     db.commit()
-    ts.update_trigger(db, t, TriggerUpdate(comparator=MeterComparator.LESS_THAN),
-                      CO, actor_user_id="a")
+    ts.update_trigger(
+        db, t, TriggerUpdate(comparator=MeterComparator.LESS_THAN), CO, actor_user_id="a"
+    )
     assert t.is_armed is True
 
 
@@ -65,10 +71,11 @@ def test_update_presets_only_keeps_armed(db: Session):
     t = ts.create_trigger(db, m.id, _payload(), CO, actor_user_id="a")
     t.is_armed = False
     db.commit()
-    ts.update_trigger(db, t, TriggerUpdate(title="改标题", assignee_ids=["u-9"]),
-                      CO, actor_user_id="a")
-    assert t.is_armed is False                       # 仅改预设不动武装
-    assert ts.assignee_ids(db, t.id) == ["u-9"]      # 关联全量替换
+    ts.update_trigger(
+        db, t, TriggerUpdate(title="改标题", assignee_ids=["u-9"]), CO, actor_user_id="a"
+    )
+    assert t.is_armed is False  # 仅改预设不动武装
+    assert ts.assignee_ids(db, t.id) == ["u-9"]  # 关联全量替换
 
 
 def test_enable_disable(db: Session):

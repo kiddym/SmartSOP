@@ -115,5 +115,6 @@ def test_write_temp_media_vector_conversion_failure(
     assert assets == []
     assert mapping == {}
     from app import storage
+
     media_dir = storage.token_media_dir(res.upload_token)
     assert not any(p.suffix == ".emf" for p in media_dir.iterdir()) if media_dir.exists() else True

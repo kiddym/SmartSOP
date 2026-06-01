@@ -1,4 +1,5 @@
 """供应商/客户/成本分类 schema（Phase 3B）。关联 part_ids 由 router 填充。"""
+
 from __future__ import annotations
 
 from decimal import Decimal

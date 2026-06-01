@@ -10,8 +10,16 @@ CO = "co-1"
 
 
 def test_on_wo_auto_generated_notifies_primary(db: Session):
-    db.add(User(id="p1", email="p1@x.com", password_hash="x", name="p1",
-                status=UserStatus.active, company_id=CO))
+    db.add(
+        User(
+            id="p1",
+            email="p1@x.com",
+            password_hash="x",
+            name="p1",
+            status=UserStatus.active,
+            company_id=CO,
+        )
+    )
     db.commit()
     wo = WorkOrder(custom_id="WO9", title="自动单", primary_user_id="p1", company_id=CO)
     db.add(wo)

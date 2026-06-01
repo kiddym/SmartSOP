@@ -11,8 +11,12 @@ CO = "co-1"
 
 
 def _mk(db, **kw):
-    base = dict(title="月检", start_date=date(2026, 6, 1),
-                frequency_unit=PMFrequencyUnit.MONTH, frequency_value=1)
+    base = dict(
+        title="月检",
+        start_date=date(2026, 6, 1),
+        frequency_unit=PMFrequencyUnit.MONTH,
+        frequency_value=1,
+    )
     base.update(kw)
     return svc.create_pm(db, PMCreate(**base), CO, actor_user_id="a")
 
@@ -22,8 +26,8 @@ def test_generate_once_creates_wo_and_advances(db: Session):
     now = datetime(2026, 6, 1, 9, 0, 0)
     wo = svc.generate_once(db, pm, actor_user_id=None, now=now, enforce_due=True)
     assert isinstance(wo, WorkOrder)
-    assert wo.due_date == date(2026, 6, 1)            # WO due = 本期计划日
-    assert pm.next_due_date == date(2026, 6, 8)       # 锥摆推进一期
+    assert wo.due_date == date(2026, 6, 1)  # WO due = 本期计划日
+    assert pm.next_due_date == date(2026, 6, 8)  # 锥摆推进一期
     assert pm.last_work_order_id == wo.id
     assert pm.last_generated_at == now
     types = [a.activity_type for a in svc.list_activities(db, pm.id)]
@@ -32,9 +36,11 @@ def test_generate_once_creates_wo_and_advances(db: Session):
 
 def test_generate_once_copies_presets(db: Session):
     from app.models.work_order import WorkOrderAssignee, WorkOrderTeam
+
     pm = _mk(db, assignee_ids=["u-1"], team_ids=["t-1"], primary_user_id="pu")
-    wo = svc.generate_once(db, pm, actor_user_id=None,
-                           now=datetime(2026, 6, 1, 9, 0), enforce_due=True)
+    wo = svc.generate_once(
+        db, pm, actor_user_id=None, now=datetime(2026, 6, 1, 9, 0), enforce_due=True
+    )
     a = db.query(WorkOrderAssignee).filter_by(work_order_id=wo.id).all()
     t = db.query(WorkOrderTeam).filter_by(work_order_id=wo.id).all()
     assert {x.user_id for x in a} == {"u-1"}
@@ -43,26 +49,29 @@ def test_generate_once_copies_presets(db: Session):
 
 
 def test_generate_once_enforce_due_rejects_future(db: Session):
-    pm = _mk(db, start_date=date(2026, 12, 1))     # next_due 在未来
+    pm = _mk(db, start_date=date(2026, 12, 1))  # next_due 在未来
     import pytest
     from fastapi import HTTPException
+
     with pytest.raises(HTTPException):
-        svc.generate_once(db, pm, actor_user_id=None,
-                          now=datetime(2026, 6, 1, 9, 0), enforce_due=True)
+        svc.generate_once(
+            db, pm, actor_user_id=None, now=datetime(2026, 6, 1, 9, 0), enforce_due=True
+        )
 
 
 def test_generate_once_manual_allows_future_no_advance(db: Session):
     pm = _mk(db, start_date=date(2026, 12, 1))
     before = pm.next_due_date
-    wo = svc.generate_once(db, pm, actor_user_id="a",
-                           now=datetime(2026, 6, 1, 9, 0), enforce_due=False)
+    wo = svc.generate_once(
+        db, pm, actor_user_id="a", now=datetime(2026, 6, 1, 9, 0), enforce_due=False
+    )
     assert wo.due_date == date(2026, 12, 1)
-    assert pm.next_due_date == before               # 未到期手动生成不推进（§3.3 no-op）
+    assert pm.next_due_date == before  # 未到期手动生成不推进（§3.3 no-op）
 
 
 def test_due_candidates_filters(db: Session):
-    due = _mk(db, start_date=date(2026, 1, 1))                       # 过去 -> 到期
-    future = _mk(db, start_date=date(2026, 12, 1))                   # 未来
+    due = _mk(db, start_date=date(2026, 1, 1))  # 过去 -> 到期
+    future = _mk(db, start_date=date(2026, 12, 1))  # 未来
     disabled = _mk(db, start_date=date(2026, 1, 1))
     svc.disable_pm(db, disabled, CO, actor_user_id="a")
     ids = set(svc.due_candidates(db, today=date(2026, 6, 1)))

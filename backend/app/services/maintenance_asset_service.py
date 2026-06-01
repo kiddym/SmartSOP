@@ -1,4 +1,5 @@
 """CMMS 资产服务：CRUD、树（防环）、customId、barcode/nfc 唯一与查询、关联、停机。"""
+
 from __future__ import annotations
 
 from sqlalchemy import delete, select
@@ -8,32 +9,44 @@ from app.errors import bad_request, conflict
 from app.models.asset_downtime import AssetDowntime
 from app.models.base import utcnow
 from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
-from app.schemas.asset import AssetCreate, AssetUpdate, DowntimeCreate, DowntimeClose
+from app.schemas.asset import AssetCreate, AssetUpdate, DowntimeClose, DowntimeCreate
 from app.services import sequence_service
 
 
 def assigned_user_ids(db: Session, asset_id: str) -> list[str]:
-    return list(db.execute(
-        select(AssetUser.user_id).where(AssetUser.asset_id == asset_id)
-    ).scalars().all())
+    return list(
+        db.execute(select(AssetUser.user_id).where(AssetUser.asset_id == asset_id)).scalars().all()
+    )
 
 
 def team_ids(db: Session, asset_id: str) -> list[str]:
-    return list(db.execute(
-        select(AssetTeam.team_id).where(AssetTeam.asset_id == asset_id)
-    ).scalars().all())
+    return list(
+        db.execute(select(AssetTeam.team_id).where(AssetTeam.asset_id == asset_id)).scalars().all()
+    )
 
 
 def to_read(db: Session, a: Asset) -> dict:
     return {
-        "id": a.id, "custom_id": a.custom_id, "name": a.name, "description": a.description,
-        "parent_id": a.parent_id, "location_id": a.location_id, "category_id": a.category_id,
-        "status": a.status, "serial_number": a.serial_number, "model": a.model,
-        "manufacturer": a.manufacturer, "power": a.power,
+        "id": a.id,
+        "custom_id": a.custom_id,
+        "name": a.name,
+        "description": a.description,
+        "parent_id": a.parent_id,
+        "location_id": a.location_id,
+        "category_id": a.category_id,
+        "status": a.status,
+        "serial_number": a.serial_number,
+        "model": a.model,
+        "manufacturer": a.manufacturer,
+        "power": a.power,
         "warranty_expiration_date": a.warranty_expiration_date,
-        "in_service_date": a.in_service_date, "acquisition_cost": a.acquisition_cost,
-        "barcode": a.barcode, "nfc_id": a.nfc_id, "primary_user_id": a.primary_user_id,
-        "assigned_user_ids": assigned_user_ids(db, a.id), "team_ids": team_ids(db, a.id),
+        "in_service_date": a.in_service_date,
+        "acquisition_cost": a.acquisition_cost,
+        "barcode": a.barcode,
+        "nfc_id": a.nfc_id,
+        "primary_user_id": a.primary_user_id,
+        "assigned_user_ids": assigned_user_ids(db, a.id),
+        "team_ids": team_ids(db, a.id),
     }
 
 
@@ -53,9 +66,13 @@ def _descendant_ids(db: Session, asset_id: str) -> set[str]:
     out: set[str] = set()
     frontier = [asset_id]
     while frontier:
-        rows = db.execute(
-            select(Asset.id).where(Asset.parent_id.in_(frontier), Asset.is_active.is_(True))
-        ).scalars().all()
+        rows = (
+            db.execute(
+                select(Asset.id).where(Asset.parent_id.in_(frontier), Asset.is_active.is_(True))
+            )
+            .scalars()
+            .all()
+        )
         rows = [r for r in rows if r not in out]
         out.update(rows)
         frontier = rows
@@ -96,8 +113,14 @@ def create_asset(db: Session, payload: AssetCreate, company_id: str) -> Asset:
     return a
 
 
-def list_assets(db: Session, *, location_id: str | None = None, category_id: str | None = None,
-                status: str | None = None, parent_id: str | None = None) -> list[Asset]:
+def list_assets(
+    db: Session,
+    *,
+    location_id: str | None = None,
+    category_id: str | None = None,
+    status: str | None = None,
+    parent_id: str | None = None,
+) -> list[Asset]:
     stmt = select(Asset).where(Asset.is_active.is_(True))
     if location_id is not None:
         stmt = stmt.where(Asset.location_id == location_id)
@@ -111,9 +134,11 @@ def list_assets(db: Session, *, location_id: str | None = None, category_id: str
 
 
 def list_children(db: Session, asset_id: str) -> list[Asset]:
-    return list(db.execute(
-        select(Asset).where(Asset.parent_id == asset_id, Asset.is_active.is_(True))
-    ).scalars().all())
+    return list(
+        db.execute(select(Asset).where(Asset.parent_id == asset_id, Asset.is_active.is_(True)))
+        .scalars()
+        .all()
+    )
 
 
 def get_asset(db: Session, asset_id: str) -> Asset | None:
@@ -163,10 +188,17 @@ def delete_asset(db: Session, a: Asset) -> None:
 
 # --- 停机 ---
 
-def add_downtime(db: Session, asset_id: str, payload: DowntimeCreate, company_id: str) -> AssetDowntime:
+
+def add_downtime(
+    db: Session, asset_id: str, payload: DowntimeCreate, company_id: str
+) -> AssetDowntime:
     dt = AssetDowntime(
-        asset_id=asset_id, started_at=payload.started_at, ended_at=payload.ended_at,
-        reason=payload.reason, downtime_type=payload.downtime_type, company_id=company_id,
+        asset_id=asset_id,
+        started_at=payload.started_at,
+        ended_at=payload.ended_at,
+        reason=payload.reason,
+        downtime_type=payload.downtime_type,
+        company_id=company_id,
     )
     db.add(dt)
     db.commit()
@@ -175,10 +207,15 @@ def add_downtime(db: Session, asset_id: str, payload: DowntimeCreate, company_id
 
 
 def list_downtimes(db: Session, asset_id: str) -> list[AssetDowntime]:
-    return list(db.execute(
-        select(AssetDowntime).where(AssetDowntime.asset_id == asset_id)
-        .order_by(AssetDowntime.started_at)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(AssetDowntime)
+            .where(AssetDowntime.asset_id == asset_id)
+            .order_by(AssetDowntime.started_at)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def get_downtime(db: Session, downtime_id: str) -> AssetDowntime | None:

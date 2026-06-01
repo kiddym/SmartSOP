@@ -3,12 +3,14 @@
 头引用 Vendor（必填），行引用 Part（采购数量 + 单价快照）。
 审批=整单入库回写 Part.quantity（见 purchase_order_service.approve）。
 """
+
 from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import Enum as SAEnum, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Enum as SAEnum
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -27,8 +29,10 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
 
     custom_id: Mapped[str] = mapped_column(String(20), nullable=False)
     vendor_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("tb_vendor.id", ondelete="RESTRICT"),
-        nullable=False, index=True,
+        String(36),
+        ForeignKey("tb_vendor.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
     )
     status: Mapped[PurchaseOrderStatus] = mapped_column(
         SAEnum(PurchaseOrderStatus), nullable=False, default=PurchaseOrderStatus.DRAFT

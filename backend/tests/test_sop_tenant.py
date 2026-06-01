@@ -12,16 +12,20 @@ def test_sop_models_tenant_scoped():
 
 def test_folder_auto_stamped_and_scoped(db):
     from sqlalchemy import select
+
     from app import tenant
     from app.models.company import Company
 
-    c1 = Company(name="c1", slug="c1"); c2 = Company(name="c2", slug="c2")
-    db.add_all([c1, c2]); db.commit()
+    c1 = Company(name="c1", slug="c1")
+    c2 = Company(name="c2", slug="c2")
+    db.add_all([c1, c2])
+    db.commit()
 
     t = tenant.set_current_company_id(c1.id)
     try:
         f = Folder(name="只属于c1", full_path="只属于c1")
-        db.add(f); db.commit()
+        db.add(f)
+        db.commit()
         assert f.company_id == c1.id
     finally:
         tenant.reset_current_company_id(t)

@@ -1,4 +1,5 @@
 """资产分类 API（/api/v1/asset-categories）。"""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
@@ -10,7 +11,9 @@ from app.errors import not_found
 from app.models.asset_category import AssetCategory
 from app.models.user import User
 from app.schemas.asset_category import (
-    AssetCategoryCreate, AssetCategoryRead, AssetCategoryUpdate,
+    AssetCategoryCreate,
+    AssetCategoryRead,
+    AssetCategoryUpdate,
 )
 from app.services import asset_category_service
 
@@ -24,26 +27,38 @@ def _ensure(cat: AssetCategory | None, company_id: str) -> AssetCategory:
 
 
 @router.get("", response_model=list[AssetCategoryRead])
-def list_categories(db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_VIEW))):
+def list_categories(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_VIEW)),
+):
     return asset_category_service.list_categories(db)
 
 
 @router.post("", response_model=AssetCategoryRead, status_code=201)
-def create_category(payload: AssetCategoryCreate, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE))):
+def create_category(
+    payload: AssetCategoryCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
+):
     return asset_category_service.create_category(db, payload, current_user.company_id)
 
 
 @router.patch("/{category_id}", response_model=AssetCategoryRead)
-def update_category(category_id: str, payload: AssetCategoryUpdate, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE))):
+def update_category(
+    category_id: str,
+    payload: AssetCategoryUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
+):
     cat = _ensure(asset_category_service.get_category(db, category_id), current_user.company_id)
     return asset_category_service.update_category(db, cat, payload)
 
 
 @router.delete("/{category_id}", status_code=204)
-def delete_category(category_id: str, db: Session = Depends(get_db),
-                    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE))):
+def delete_category(
+    category_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
+):
     cat = _ensure(asset_category_service.get_category(db, category_id), current_user.company_id)
     asset_category_service.delete_category(db, cat)

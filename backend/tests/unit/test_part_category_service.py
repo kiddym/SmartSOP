@@ -19,8 +19,9 @@ def test_list_categories(db: Session):
 
 def test_update_category(db: Session):
     c = svc.create_category(db, PartCategoryCreate(name="旧"), CO, actor_user_id="a")
-    svc.update_category(db, c, PartCategoryUpdate(name="新", description="d"),
-                        CO, actor_user_id="a")
+    svc.update_category(
+        db, c, PartCategoryUpdate(name="新", description="d"), CO, actor_user_id="a"
+    )
     assert c.name == "新" and c.description == "d"
 
 

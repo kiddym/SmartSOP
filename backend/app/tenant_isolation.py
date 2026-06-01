@@ -3,6 +3,7 @@
 Registered on the global Session class so every session (app + tests) is
 covered. Skipped when no tenant context is set (pre-auth flows) or bypassed.
 """
+
 from __future__ import annotations
 
 from sqlalchemy import event

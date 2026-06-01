@@ -123,7 +123,9 @@ def structure(
         )
         if head is not None:
             raw_level, conf, tier, mark, source = head
-            if block.style_level is not None:  # 样式标题：用预计算层级（段落级 outlineLvl/ilvl 细化）
+            if (
+                block.style_level is not None
+            ):  # 样式标题：用预计算层级（段落级 outlineLvl/ilvl 细化）
                 raw_level = styled_depths.get(block.source_index, raw_level)
                 # 样式标题（默认免确认）若像整句正文 → 改 review，提请复核（不改 tier/source）
                 if mark == "unmarked" and _looks_like_prose(block.text.strip()):
@@ -363,7 +365,7 @@ def _append_discarded_warning(pkg: DocxPackage, warnings: list[ParseWarning]) ->
     if not parts:
         return
     # 友好缩写：只列文件名的 tail 部分，逗号连接
-    tails = [p[len("word/"):] for p in parts]
+    tails = [p[len("word/") :] for p in parts]
     warnings.append(
         ParseWarning(
             stage="discarded_by_design",
@@ -381,7 +383,8 @@ def _append_completeness_warnings(
     if not img_ok:
         warnings.append(
             ParseWarning(
-                stage="completeness", message=f"图片可能遗漏：原始 {raw} / 解析 {ext}",
+                stage="completeness",
+                message=f"图片可能遗漏：原始 {raw} / 解析 {ext}",
                 severity="blocking",
             )
         )
@@ -389,7 +392,8 @@ def _append_completeness_warnings(
     if not tbl_ok:
         warnings.append(
             ParseWarning(
-                stage="completeness", message=f"表格可能遗漏：原始 {traw} / 解析 {tser}",
+                stage="completeness",
+                message=f"表格可能遗漏：原始 {traw} / 解析 {tser}",
                 severity="blocking",
             )
         )
@@ -398,7 +402,7 @@ def _append_completeness_warnings(
         warnings.append(
             ParseWarning(
                 stage="completeness",
-                message=f"段落可能遗漏：原始 {p_raw} / 解析 {p_kept}（保留 {p_kept/p_raw:.1%}）",
+                message=f"段落可能遗漏：原始 {p_raw} / 解析 {p_kept}（保留 {p_kept / p_raw:.1%}）",
                 severity="blocking",
             )
         )

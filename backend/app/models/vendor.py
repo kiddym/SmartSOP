@@ -1,4 +1,5 @@
 """供应商（Vendor，每租户）+ M:N 关联备件。纯主数据，无编号、无库存行为。"""
+
 from __future__ import annotations
 
 from decimal import Decimal
@@ -32,9 +33,7 @@ class Vendor(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
 class VendorPart(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_vendor_part"
-    __table_args__ = (
-        UniqueConstraint("vendor_id", "part_id", name="uq_vendor_part"),
-    )
+    __table_args__ = (UniqueConstraint("vendor_id", "part_id", name="uq_vendor_part"),)
 
     vendor_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_vendor.id", ondelete="CASCADE"), index=True

@@ -1,4 +1,5 @@
 """备件 schema（Phase 3A）。is_low_stock 计算字段只读；关联 ids 由 router 填充。"""
+
 from __future__ import annotations
 
 from datetime import datetime

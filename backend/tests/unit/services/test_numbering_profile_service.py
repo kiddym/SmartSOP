@@ -1,4 +1,5 @@
 """numbering_profile_service 单测（P1d）。"""
+
 from __future__ import annotations
 
 import pytest
@@ -35,4 +36,6 @@ def test_update_pins_manual_and_bumps_revision(db) -> None:
     db.flush()
     before = p.revision
     svc.update(db, p, NumberingProfileUpdate(kind="heading", level=2))
-    assert p.kind == "heading" and p.level == 2 and p.source == "manual" and p.revision == before + 1
+    assert (
+        p.kind == "heading" and p.level == 2 and p.source == "manual" and p.revision == before + 1
+    )

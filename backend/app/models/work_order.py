@@ -3,16 +3,24 @@
 procedure_id/procedure_group_id 为弱引用（无 FK）：钉定的 Procedure 版本
 不可变且属 SOP 聚合，故不设外键约束（见 spec §3.1/§3.3）。
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
 
 from sqlalchemy import (
-    Date, Enum as SAEnum, ForeignKey, String, Text, UniqueConstraint,
+    Date,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import DATETIME6, Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 from app.models.work_order_status import WorkOrderPriority, WorkOrderStatus
 
 
@@ -49,9 +57,7 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
 class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_work_order_assignee"
-    __table_args__ = (
-        UniqueConstraint("work_order_id", "user_id", name="uq_work_order_assignee"),
-    )
+    __table_args__ = (UniqueConstraint("work_order_id", "user_id", name="uq_work_order_assignee"),)
 
     work_order_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_work_order.id", ondelete="CASCADE"), index=True
@@ -63,9 +69,7 @@ class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
 class WorkOrderTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_work_order_team"
-    __table_args__ = (
-        UniqueConstraint("work_order_id", "team_id", name="uq_work_order_team"),
-    )
+    __table_args__ = (UniqueConstraint("work_order_id", "team_id", name="uq_work_order_team"),)
 
     work_order_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_work_order.id", ondelete="CASCADE"), index=True

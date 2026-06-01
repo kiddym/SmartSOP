@@ -4,6 +4,7 @@
 接收人解析复用 permissions.effective_codes；边沿原语 arm/disarm 仿 meter is_armed。
 所有查询显式按 company_id 过滤（不依赖租户事件），以便调度 tick 下也正确。
 """
+
 from __future__ import annotations
 
 import json
@@ -23,37 +24,55 @@ from app.permissions import effective_codes
 # 落行
 # --------------------------------------------------------------------------- #
 def notify(
-    db: Session, *, company_id: str, recipient_ids: set[str], type: str,
-    entity_type: str | None, entity_id: str | None, params: dict,
-    actor_user_id: str | None = None, dedup_key: str | None = None,
+    db: Session,
+    *,
+    company_id: str,
+    recipient_ids: set[str],
+    type: str,
+    entity_type: str | None,
+    entity_id: str | None,
+    params: dict,
+    actor_user_id: str | None = None,
+    dedup_key: str | None = None,
 ) -> int:
     """每个收件人 add 一行 Notification（不 commit）。返回新增行数。"""
     payload = json.dumps(params, ensure_ascii=False, default=str)
     count = 0
     for uid in recipient_ids:
-        db.add(Notification(
-            company_id=company_id, recipient_user_id=uid, type=type,
-            entity_type=entity_type, entity_id=entity_id, params=payload,
-            actor_user_id=actor_user_id, dedup_key=dedup_key,
-        ))
+        db.add(
+            Notification(
+                company_id=company_id,
+                recipient_user_id=uid,
+                type=type,
+                entity_type=entity_type,
+                entity_id=entity_id,
+                params=payload,
+                actor_user_id=actor_user_id,
+                dedup_key=dedup_key,
+            )
+        )
         count += 1
     # Phase 5B：同事务内按偏好为有邮箱的活跃收件人入队邮件（附加式，不 commit）。
     from app.services import email_outbox_service
-    email_outbox_service.enqueue(db, company_id=company_id, recipient_ids=set(recipient_ids),
-                                 type=type, params=params)
+
+    email_outbox_service.enqueue(
+        db, company_id=company_id, recipient_ids=set(recipient_ids), type=type, params=params
+    )
     return count
 
 
 # --------------------------------------------------------------------------- #
 # 接收人解析
 # --------------------------------------------------------------------------- #
-def _active_subset(db: Session, company_id: str, ids: set[str],
-                   exclude_actor_id: str | None) -> set[str]:
+def _active_subset(
+    db: Session, company_id: str, ids: set[str], exclude_actor_id: str | None
+) -> set[str]:
     if not ids:
         return set()
     rows = db.execute(
         select(User.id).where(
-            User.company_id == company_id, User.id.in_(ids),
+            User.company_id == company_id,
+            User.id.in_(ids),
             User.status == UserStatus.active,
         )
     ).all()
@@ -74,8 +93,7 @@ def resolve_team_members(db: Session, company_id: str, team_ids: set[str]) -> se
     return {r for (r,) in rows}
 
 
-def resolve_wo_recipients(db: Session, wo: WorkOrder, *,
-                          exclude_actor_id: str | None) -> set[str]:
+def resolve_wo_recipients(db: Session, wo: WorkOrder, *, exclude_actor_id: str | None) -> set[str]:
     ids: set[str] = set()
     if wo.primary_user_id:
         ids.add(wo.primary_user_id)
@@ -90,8 +108,9 @@ def resolve_wo_recipients(db: Session, wo: WorkOrder, *,
     return _active_subset(db, wo.company_id, ids, exclude_actor_id)
 
 
-def resolve_permission_holders(db: Session, company_id: str, code: str, *,
-                               exclude_actor_id: str | None) -> set[str]:
+def resolve_permission_holders(
+    db: Session, company_id: str, code: str, *, exclude_actor_id: str | None
+) -> set[str]:
     rows = db.execute(
         select(User.id, Role.code, Role.permissions)
         .join(Role, User.role_id == Role.id, isouter=True)
@@ -110,8 +129,11 @@ def active_admins(db: Session, company_id: str) -> set[str]:
     rows = db.execute(
         select(User.id)
         .join(Role, User.role_id == Role.id)
-        .where(User.company_id == company_id, User.status == UserStatus.active,
-               Role.code.in_(["admin", "super_admin"]))
+        .where(
+            User.company_id == company_id,
+            User.status == UserStatus.active,
+            Role.code.in_(["admin", "super_admin"]),
+        )
     ).all()
     return {r for (r,) in rows}
 
@@ -143,45 +165,70 @@ def disarm(db: Session, company_id: str, key: str) -> None:
 # --------------------------------------------------------------------------- #
 # 事件组合（内联调用；均不 commit，由调用方事务提交）
 # --------------------------------------------------------------------------- #
-def on_wo_assigned(db: Session, wo: WorkOrder, *, recipient_ids: set[str],
-                   actor_user_id: str | None) -> None:
+def on_wo_assigned(
+    db: Session, wo: WorkOrder, *, recipient_ids: set[str], actor_user_id: str | None
+) -> None:
     recips = _active_subset(db, wo.company_id, set(recipient_ids), actor_user_id)
-    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_ASSIGNED",
-           entity_type="work_order", entity_id=wo.id,
-           params={"custom_id": wo.custom_id, "title": wo.title},
-           actor_user_id=actor_user_id)
+    notify(
+        db,
+        company_id=wo.company_id,
+        recipient_ids=recips,
+        type="WO_ASSIGNED",
+        entity_type="work_order",
+        entity_id=wo.id,
+        params={"custom_id": wo.custom_id, "title": wo.title},
+        actor_user_id=actor_user_id,
+    )
 
 
-def on_wo_status_changed(db: Session, wo: WorkOrder, *, from_status: str,
-                         to_status: str, actor_user_id: str | None) -> None:
+def on_wo_status_changed(
+    db: Session, wo: WorkOrder, *, from_status: str, to_status: str, actor_user_id: str | None
+) -> None:
     recips = resolve_wo_recipients(db, wo, exclude_actor_id=actor_user_id)
-    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_STATUS_CHANGED",
-           entity_type="work_order", entity_id=wo.id,
-           params={"custom_id": wo.custom_id, "from_status": from_status,
-                   "to_status": to_status},
-           actor_user_id=actor_user_id)
+    notify(
+        db,
+        company_id=wo.company_id,
+        recipient_ids=recips,
+        type="WO_STATUS_CHANGED",
+        entity_type="work_order",
+        entity_id=wo.id,
+        params={"custom_id": wo.custom_id, "from_status": from_status, "to_status": to_status},
+        actor_user_id=actor_user_id,
+    )
 
 
-def on_wo_auto_generated(db: Session, wo: WorkOrder, *,
-                         actor_user_id: str | None) -> None:
+def on_wo_auto_generated(db: Session, wo: WorkOrder, *, actor_user_id: str | None) -> None:
     recips = resolve_wo_recipients(db, wo, exclude_actor_id=actor_user_id)
     if not recips:
         recips = active_admins(db, wo.company_id)
         if actor_user_id is not None:
             recips.discard(actor_user_id)
-    notify(db, company_id=wo.company_id, recipient_ids=recips, type="WO_AUTO_GENERATED",
-           entity_type="work_order", entity_id=wo.id,
-           params={"custom_id": wo.custom_id, "title": wo.title},
-           actor_user_id=actor_user_id)
+    notify(
+        db,
+        company_id=wo.company_id,
+        recipient_ids=recips,
+        type="WO_AUTO_GENERATED",
+        entity_type="work_order",
+        entity_id=wo.id,
+        params={"custom_id": wo.custom_id, "title": wo.title},
+        actor_user_id=actor_user_id,
+    )
 
 
 def on_request_submitted(db: Session, request, *, actor_user_id: str | None) -> None:
-    recips = resolve_permission_holders(db, request.company_id, "request.approve",
-                                        exclude_actor_id=actor_user_id)
-    notify(db, company_id=request.company_id, recipient_ids=recips,
-           type="REQUEST_SUBMITTED", entity_type="request", entity_id=request.id,
-           params={"custom_id": request.custom_id, "title": request.title},
-           actor_user_id=actor_user_id)
+    recips = resolve_permission_holders(
+        db, request.company_id, "request.approve", exclude_actor_id=actor_user_id
+    )
+    notify(
+        db,
+        company_id=request.company_id,
+        recipient_ids=recips,
+        type="REQUEST_SUBMITTED",
+        entity_type="request",
+        entity_id=request.id,
+        params={"custom_id": request.custom_id, "title": request.title},
+        actor_user_id=actor_user_id,
+    )
 
 
 def on_po_submitted(db: Session, po, *, actor_user_id: str | None) -> None:
@@ -193,8 +240,16 @@ def on_po_approved(db: Session, po, *, actor_user_id: str | None) -> None:
 
 
 def _notify_po(db: Session, po, type_: str, actor_user_id: str | None) -> None:
-    recips = resolve_permission_holders(db, po.company_id, "purchase_order.approve",
-                                        exclude_actor_id=actor_user_id)
-    notify(db, company_id=po.company_id, recipient_ids=recips, type=type_,
-           entity_type="purchase_order", entity_id=po.id,
-           params={"custom_id": po.custom_id}, actor_user_id=actor_user_id)
+    recips = resolve_permission_holders(
+        db, po.company_id, "purchase_order.approve", exclude_actor_id=actor_user_id
+    )
+    notify(
+        db,
+        company_id=po.company_id,
+        recipient_ids=recips,
+        type=type_,
+        entity_type="purchase_order",
+        entity_id=po.id,
+        params={"custom_id": po.custom_id},
+        actor_user_id=actor_user_id,
+    )

@@ -4,6 +4,7 @@
 复制预设生成工单 → 锥摆推进 next_due_date。priority 复用 WorkOrderPriority。
 asset/location FK RESTRICT 弱关联；primary_user FK SET NULL；procedure_id 无 FK 弱引用。
 """
+
 from __future__ import annotations
 
 from datetime import date, datetime
@@ -11,12 +12,14 @@ from datetime import date, datetime
 from sqlalchemy import (
     Boolean,
     Date,
-    Enum as SAEnum,
     ForeignKey,
     Integer,
     String,
     Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -52,9 +55,7 @@ class PreventiveMaintenance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, Te
     )
     procedure_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
     start_date: Mapped[date] = mapped_column(Date, nullable=False)
-    frequency_unit: Mapped[PMFrequencyUnit] = mapped_column(
-        SAEnum(PMFrequencyUnit), nullable=False
-    )
+    frequency_unit: Mapped[PMFrequencyUnit] = mapped_column(SAEnum(PMFrequencyUnit), nullable=False)
     frequency_value: Mapped[int] = mapped_column(Integer, nullable=False)
     next_due_date: Mapped[date] = mapped_column(Date, nullable=False)
     is_enabled: Mapped[bool] = mapped_column(
@@ -66,9 +67,7 @@ class PreventiveMaintenance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, Te
 
 class PMAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_pm_assignee"
-    __table_args__ = (
-        UniqueConstraint("pm_id", "user_id", name="uq_pm_assignee"),
-    )
+    __table_args__ = (UniqueConstraint("pm_id", "user_id", name="uq_pm_assignee"),)
 
     pm_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_preventive_maintenance.id", ondelete="CASCADE"), index=True
@@ -80,9 +79,7 @@ class PMAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
 class PMTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_pm_team"
-    __table_args__ = (
-        UniqueConstraint("pm_id", "team_id", name="uq_pm_team"),
-    )
+    __table_args__ = (UniqueConstraint("pm_id", "team_id", name="uq_pm_team"),)
 
     pm_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_preventive_maintenance.id", ondelete="CASCADE"), index=True

@@ -1,4 +1,5 @@
 """Minimal i18n: locale resolution + message catalog (Phase 0 ships zh-CN)."""
+
 from __future__ import annotations
 
 from app.config import settings

@@ -5,6 +5,7 @@
 不动其余环节。本模块只提供链容器；具体 resolver 由 styles.classify_with_source 内联
 组装（捕获样式上下文的闭包），保持与原逻辑逐字节等价。
 """
+
 from __future__ import annotations
 
 from collections.abc import Callable

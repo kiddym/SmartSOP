@@ -4,6 +4,7 @@
 do_orm_execute 自动给 SELECT 加 company_id 过滤。本测试证明隔离真生效。
 conftest 默认清空租户上下文，测试内须显式 tenant.set_current_company_id(...)。
 """
+
 from __future__ import annotations
 
 import pytest
@@ -112,7 +113,10 @@ def test_api_list_isolated_per_tenant(client) -> None:
     )
     assert r.status_code == 201, r.text
     # A 自己能看到
-    assert any(x["style_name"] == "A样式" for x in client.get("/api/v1/heading-rules", headers=_h(ta)).json())
+    assert any(
+        x["style_name"] == "A样式"
+        for x in client.get("/api/v1/heading-rules", headers=_h(ta)).json()
+    )
     # B 公司 GET 列表看不到 A 的规则（ORM 事件按 token 的 company_id 自动分区）
     tb = _register(client, company="BetaDict", email="admin@betadict.com")
     b_list = client.get("/api/v1/heading-rules", headers=_h(tb)).json()

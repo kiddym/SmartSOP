@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from app.parser.ir import Block, ImageRef, NormalizedDoc
-from app.parser.result import ParseResult, ParseMetadata, ParseWarning
+from app.parser.result import ParseMetadata, ParseResult, ParseWarning
 from app.parser.structurer import _append_completeness_warnings
 from app.schemas.parse import build_parse_response
 
@@ -35,8 +35,11 @@ def test_build_parse_response_transports_severity() -> None:
     """build_parse_response 把 severity 透传到 ParseWarningOut。"""
     result = ParseResult(
         metadata=ParseMetadata(
-            total_chapters=1, image_count=0, table_count=0,
-            body_start_index=0, body_start_detected_by="x",
+            total_chapters=1,
+            image_count=0,
+            table_count=0,
+            body_start_index=0,
+            body_start_detected_by="x",
         ),
         chapters=[],
         parse_method="smart",

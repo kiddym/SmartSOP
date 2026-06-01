@@ -12,10 +12,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import bad_request, not_found, payload_too_large
-from app.services import heading_learning_service, optimistic_lock
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
-from app.services import node_numbering
+from app.services import heading_learning_service, node_numbering, optimistic_lock
 from app.services._invariants import enforce_node_invariants
 from app.services.node_tree import TreeNode, build_tree
 
@@ -55,9 +54,7 @@ def _active_nodes(db: Session, procedure_id: str) -> list[ProcedureNode]:
 
 def _get_node(db: Session, node_id: str) -> ProcedureNode:
     node = db.execute(
-        select(ProcedureNode).where(
-            ProcedureNode.id == node_id, ProcedureNode.is_active.is_(True)
-        )
+        select(ProcedureNode).where(ProcedureNode.id == node_id, ProcedureNode.is_active.is_(True))
     ).scalar_one_or_none()
     if node is None:
         raise not_found("NOT_FOUND", "节点不存在")
@@ -127,7 +124,7 @@ def patch_node(
         _body_size_guard(changes["body"])
 
     new_kind = changes.get("kind", node.kind)
-    new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
+    new_level = changes.get("heading_level", node.heading_level)
     new_schema = changes.get("input_schema", node.input_schema)
     new_marks = changes.get("attachment_marks", node.attachment_marks)
     enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
@@ -202,7 +199,7 @@ def batch_update(
         if "body" in changes:
             _body_size_guard(changes["body"])
         new_kind = changes.get("kind", node.kind)
-        new_level = changes["heading_level"] if "heading_level" in changes else node.heading_level
+        new_level = changes.get("heading_level", node.heading_level)
         new_schema = changes.get("input_schema", node.input_schema)
         new_marks = changes.get("attachment_marks", node.attachment_marks)
         enforce_node_invariants(new_kind, new_level, new_schema, new_marks)
@@ -226,9 +223,7 @@ def reorder(db: Session, procedure_id: str, ordered_ids: list[str]) -> None:
     rows = _active_nodes(db, procedure_id)
     existing = {r.id for r in rows}
     if set(ordered_ids) != existing or len(ordered_ids) != len(existing):
-        raise bad_request(
-            "BAD_REORDER", "reorder 的 id 列表必须恰好是本程序全部 active 节点的排列"
-        )
+        raise bad_request("BAD_REORDER", "reorder 的 id 列表必须恰好是本程序全部 active 节点的排列")
     by_id = {r.id: r for r in rows}
     for i, nid in enumerate(ordered_ids):
         by_id[nid].sort_order = (i + 1) * _SORT_GAP

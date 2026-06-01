@@ -1,4 +1,5 @@
 """heading-rules REST CRUD（P1b）。"""
+
 from __future__ import annotations
 
 from app.models.node import ProcedureNode

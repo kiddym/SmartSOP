@@ -4,6 +4,7 @@ Phase 0 declares platform-layer codes; Phase 1A adds maintenance base-domain
 codes (location/asset/asset_category/team). Later phases append more here and
 extend the built-in role default sets accordingly.
 """
+
 from __future__ import annotations
 
 # --- 平台层（Phase 0）---
@@ -89,26 +90,47 @@ PURCHASE_ORDER_APPROVE = "purchase_order.approve"
 ANALYTICS_VIEW = "analytics.view"
 
 _PLATFORM = [
-    USER_CREATE, USER_VIEW, USER_EDIT, USER_DELETE,
-    ROLE_VIEW, ROLE_MANAGE, COMPANY_SETTINGS,
+    USER_CREATE,
+    USER_VIEW,
+    USER_EDIT,
+    USER_DELETE,
+    ROLE_VIEW,
+    ROLE_MANAGE,
+    COMPANY_SETTINGS,
 ]
 _BASE_DOMAIN = [
-    LOCATION_VIEW, LOCATION_CREATE, LOCATION_EDIT, LOCATION_DELETE,
-    ASSET_VIEW, ASSET_CREATE, ASSET_EDIT, ASSET_DELETE,
-    ASSET_CATEGORY_VIEW, ASSET_CATEGORY_MANAGE,
-    TEAM_VIEW, TEAM_MANAGE,
+    LOCATION_VIEW,
+    LOCATION_CREATE,
+    LOCATION_EDIT,
+    LOCATION_DELETE,
+    ASSET_VIEW,
+    ASSET_CREATE,
+    ASSET_EDIT,
+    ASSET_DELETE,
+    ASSET_CATEGORY_VIEW,
+    ASSET_CATEGORY_MANAGE,
+    TEAM_VIEW,
+    TEAM_MANAGE,
 ]
 _WORKORDER = [
-    WORK_ORDER_VIEW, WORK_ORDER_CREATE, WORK_ORDER_EDIT,
-    WORK_ORDER_DELETE, WORK_ORDER_EXECUTE,
+    WORK_ORDER_VIEW,
+    WORK_ORDER_CREATE,
+    WORK_ORDER_EDIT,
+    WORK_ORDER_DELETE,
+    WORK_ORDER_EXECUTE,
 ]
 _REQUEST = [
-    REQUEST_VIEW, REQUEST_CREATE, REQUEST_CANCEL,
-    REQUEST_DELETE, REQUEST_APPROVE,
+    REQUEST_VIEW,
+    REQUEST_CREATE,
+    REQUEST_CANCEL,
+    REQUEST_DELETE,
+    REQUEST_APPROVE,
 ]
 _PREVENTIVE_MAINTENANCE = [
-    PREVENTIVE_MAINTENANCE_VIEW, PREVENTIVE_MAINTENANCE_CREATE,
-    PREVENTIVE_MAINTENANCE_EDIT, PREVENTIVE_MAINTENANCE_DELETE,
+    PREVENTIVE_MAINTENANCE_VIEW,
+    PREVENTIVE_MAINTENANCE_CREATE,
+    PREVENTIVE_MAINTENANCE_EDIT,
+    PREVENTIVE_MAINTENANCE_DELETE,
 ]
 _METER = [METER_VIEW, METER_CREATE, METER_EDIT, METER_DELETE]
 _READING = [READING_VIEW, READING_CREATE]
@@ -118,15 +140,27 @@ _VENDOR = [VENDOR_VIEW, VENDOR_CREATE, VENDOR_EDIT, VENDOR_DELETE]
 _CUSTOMER = [CUSTOMER_VIEW, CUSTOMER_CREATE, CUSTOMER_EDIT, CUSTOMER_DELETE]
 _COST_CATEGORY = [COST_CATEGORY_VIEW, COST_CATEGORY_MANAGE]
 _PURCHASE_ORDER = [
-    PURCHASE_ORDER_VIEW, PURCHASE_ORDER_CREATE, PURCHASE_ORDER_EDIT,
-    PURCHASE_ORDER_DELETE, PURCHASE_ORDER_APPROVE,
+    PURCHASE_ORDER_VIEW,
+    PURCHASE_ORDER_CREATE,
+    PURCHASE_ORDER_EDIT,
+    PURCHASE_ORDER_DELETE,
+    PURCHASE_ORDER_APPROVE,
 ]
 _ANALYTICS = [ANALYTICS_VIEW]
 
 ALL_PERMISSIONS: list[str] = (
-    _PLATFORM + _BASE_DOMAIN + _WORKORDER + _REQUEST + _PREVENTIVE_MAINTENANCE
-    + _METER + _READING + _PART + _PART_CATEGORY
-    + _VENDOR + _CUSTOMER + _COST_CATEGORY
+    _PLATFORM
+    + _BASE_DOMAIN
+    + _WORKORDER
+    + _REQUEST
+    + _PREVENTIVE_MAINTENANCE
+    + _METER
+    + _READING
+    + _PART
+    + _PART_CATEGORY
+    + _VENDOR
+    + _CUSTOMER
+    + _COST_CATEGORY
     + _PURCHASE_ORDER
     + _ANALYTICS
 )
@@ -134,22 +168,48 @@ ALL_PERMISSIONS: list[str] = (
 BUILTIN_ROLES: list[dict] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
     {"code": "admin", "name": "管理员", "permissions": list(ALL_PERMISSIONS)},
-    {"code": "technician", "name": "技术员", "permissions": [
-        USER_VIEW, ROLE_VIEW,
-        LOCATION_VIEW, ASSET_VIEW, ASSET_EDIT, ASSET_CATEGORY_VIEW, TEAM_VIEW,
-        WORK_ORDER_VIEW, WORK_ORDER_EXECUTE, WORK_ORDER_EDIT,
-        REQUEST_VIEW, REQUEST_CREATE,
-        PREVENTIVE_MAINTENANCE_VIEW,
-        METER_VIEW, READING_VIEW, READING_CREATE,
-        PART_VIEW, PART_CONSUME, PART_CATEGORY_VIEW,
-        VENDOR_VIEW, CUSTOMER_VIEW, COST_CATEGORY_VIEW,
-        PURCHASE_ORDER_VIEW,
-    ]},
-    {"code": "viewer", "name": "只读", "permissions": [
-        c for c in ALL_PERMISSIONS if c.endswith(".view")]},
-    {"code": "requester", "name": "报修人", "permissions": [
-        REQUEST_VIEW, REQUEST_CREATE,
-    ]},
+    {
+        "code": "technician",
+        "name": "技术员",
+        "permissions": [
+            USER_VIEW,
+            ROLE_VIEW,
+            LOCATION_VIEW,
+            ASSET_VIEW,
+            ASSET_EDIT,
+            ASSET_CATEGORY_VIEW,
+            TEAM_VIEW,
+            WORK_ORDER_VIEW,
+            WORK_ORDER_EXECUTE,
+            WORK_ORDER_EDIT,
+            REQUEST_VIEW,
+            REQUEST_CREATE,
+            PREVENTIVE_MAINTENANCE_VIEW,
+            METER_VIEW,
+            READING_VIEW,
+            READING_CREATE,
+            PART_VIEW,
+            PART_CONSUME,
+            PART_CATEGORY_VIEW,
+            VENDOR_VIEW,
+            CUSTOMER_VIEW,
+            COST_CATEGORY_VIEW,
+            PURCHASE_ORDER_VIEW,
+        ],
+    },
+    {
+        "code": "viewer",
+        "name": "只读",
+        "permissions": [c for c in ALL_PERMISSIONS if c.endswith(".view")],
+    },
+    {
+        "code": "requester",
+        "name": "报修人",
+        "permissions": [
+            REQUEST_VIEW,
+            REQUEST_CREATE,
+        ],
+    },
 ]
 
 

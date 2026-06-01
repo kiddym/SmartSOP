@@ -1,7 +1,8 @@
 def _admin(client, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _h(t):
@@ -19,15 +20,21 @@ def test_create_assigns_custom_id(client):
 def test_tree_children_and_cycle_guard(client):
     t = _admin(client)
     root = client.post("/api/v1/locations", headers=_h(t), json={"name": "厂区"}).json()
-    child = client.post("/api/v1/locations", headers=_h(t),
-                        json={"name": "车间", "parent_id": root["id"]}).json()
+    child = client.post(
+        "/api/v1/locations", headers=_h(t), json={"name": "车间", "parent_id": root["id"]}
+    ).json()
     kids = client.get(f"/api/v1/locations/{root['id']}/children", headers=_h(t)).json()
     assert {k["id"] for k in kids} == {child["id"]}
-    r = client.patch(f"/api/v1/locations/{root['id']}", headers=_h(t),
-                     json={"parent_id": child["id"]})
+    r = client.patch(
+        f"/api/v1/locations/{root['id']}", headers=_h(t), json={"parent_id": child["id"]}
+    )
     assert r.status_code == 400, r.text
-    assert client.patch(f"/api/v1/locations/{root['id']}", headers=_h(t),
-                        json={"parent_id": root["id"]}).status_code == 400
+    assert (
+        client.patch(
+            f"/api/v1/locations/{root['id']}", headers=_h(t), json={"parent_id": root["id"]}
+        ).status_code
+        == 400
+    )
 
 
 def test_delete_with_children_rejected(client):
@@ -39,11 +46,17 @@ def test_delete_with_children_rejected(client):
 
 def test_mini_and_relations(client):
     t = _admin(client)
-    u = client.post("/api/v1/users", headers=_h(t),
-                    json={"email": "w@acme.com", "password": "secret123", "name": "W"}).json()["id"]
+    u = client.post(
+        "/api/v1/users",
+        headers=_h(t),
+        json={"email": "w@acme.com", "password": "secret123", "name": "W"},
+    ).json()["id"]
     tid = client.post("/api/v1/teams", headers=_h(t), json={"name": "班组"}).json()["id"]
-    loc = client.post("/api/v1/locations", headers=_h(t), json={
-        "name": "厂区", "assigned_user_ids": [u], "team_ids": [tid]}).json()
+    loc = client.post(
+        "/api/v1/locations",
+        headers=_h(t),
+        json={"name": "厂区", "assigned_user_ids": [u], "team_ids": [tid]},
+    ).json()
     assert set(loc["assigned_user_ids"]) == {u}
     assert set(loc["team_ids"]) == {tid}
     mini = client.get("/api/v1/locations/mini", headers=_h(t)).json()

@@ -208,7 +208,12 @@ def test_import_stores_and_serves_source_docx(client: TestClient, storage_tmp: P
     body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
     imported = client.post(
         IMPORT,
-        json={"name": "带源文件", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]},
+        json={
+            "name": "带源文件",
+            "folder_id": leaf,
+            "upload_token": token,
+            "chapters": body["chapters"],
+        },
     )
     assert imported.status_code == 201, imported.text
     pid = imported.json()["id"]
@@ -244,7 +249,13 @@ def test_delete_pure_draft_removes_source_docx(client: TestClient, storage_tmp: 
     token = _upload(client, styled_sop())
     body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
     pid = client.post(
-        IMPORT, json={"name": "可删草稿", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]}
+        IMPORT,
+        json={
+            "name": "可删草稿",
+            "folder_id": leaf,
+            "upload_token": token,
+            "chapters": body["chapters"],
+        },
     ).json()["id"]
     assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 200
 
@@ -262,13 +273,20 @@ def test_delete_group_removes_source_docx(client: TestClient, storage_tmp: Path)
     body = client.post(PARSE, json={"upload_token": token, "parse_mode": "standard"}).json()
     imported = client.post(
         IMPORT,
-        json={"name": "整组删草稿", "folder_id": leaf, "upload_token": token, "chapters": body["chapters"]},
+        json={
+            "name": "整组删草稿",
+            "folder_id": leaf,
+            "upload_token": token,
+            "chapters": body["chapters"],
+        },
     ).json()
     pid, gid = imported["id"], imported["procedure_group_id"]
     assert storage.source_docx_path(gid).exists()
     assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 200
 
-    deleted = client.request("DELETE", f"/api/v1/procedure-groups/{gid}", json={"reason": "完全删除"})
+    deleted = client.request(
+        "DELETE", f"/api/v1/procedure-groups/{gid}", json={"reason": "完全删除"}
+    )
     assert deleted.status_code == 204, deleted.text
     assert not storage.source_docx_path(gid).exists()  # 落盘文件已清，无孤儿
     assert client.get(f"/api/v1/procedures/{pid}/source-docx").status_code == 404
@@ -277,7 +295,8 @@ def test_delete_group_removes_source_docx(client: TestClient, storage_tmp: Path)
 def test_delete_published_current_still_rejected(client: TestClient, storage_tmp: Path) -> None:
     leaf = _leaf(client)
     pid = client.post(
-        "/api/v1/procedures", json={"folder_id": leaf, "name": "已发布", "level_of_use": "continuous"}
+        "/api/v1/procedures",
+        json={"folder_id": leaf, "name": "已发布", "level_of_use": "continuous"},
     ).json()["id"]
     rev = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["revision"]
     pub = client.post(

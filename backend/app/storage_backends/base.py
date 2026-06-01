@@ -1,4 +1,5 @@
 """存储后端协议（Phase 5B）。key 为相对路径字符串（= DB 里存的相对 storage_path）。"""
+
 from __future__ import annotations
 
 from typing import Protocol

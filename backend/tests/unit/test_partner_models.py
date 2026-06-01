@@ -2,14 +2,19 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from app.models.vendor import Vendor, VendorPart
-from app.models.customer import Customer, CustomerPart
 from app.models.cost_category import CostCategory
+from app.models.customer import Customer, CustomerPart
+from app.models.vendor import Vendor, VendorPart
 
 
 def test_vendor_row_and_parts(db: Session):
-    v = Vendor(name="泉州轴承厂", vendor_type="轴承", rate=Decimal("8.5000"),
-               email="a@b.com", company_id="co-1")
+    v = Vendor(
+        name="泉州轴承厂",
+        vendor_type="轴承",
+        rate=Decimal("8.5000"),
+        email="a@b.com",
+        company_id="co-1",
+    )
     db.add(v)
     db.commit()
     db.refresh(v)
@@ -22,8 +27,13 @@ def test_vendor_row_and_parts(db: Session):
 
 
 def test_customer_row_and_parts(db: Session):
-    c = Customer(name="某矿业", customer_type="大客户", rate=Decimal("0"),
-                 billing_currency="CNY", company_id="co-1")
+    c = Customer(
+        name="某矿业",
+        customer_type="大客户",
+        rate=Decimal("0"),
+        billing_currency="CNY",
+        company_id="co-1",
+    )
     db.add(c)
     db.commit()
     db.refresh(c)
@@ -45,5 +55,6 @@ def test_cost_category_row(db: Session):
 
 def test_partner_exports_registered():
     import app.models as mod
+
     for name in ("Vendor", "VendorPart", "Customer", "CustomerPart", "CostCategory"):
         assert name in mod.__all__ and hasattr(mod, name)

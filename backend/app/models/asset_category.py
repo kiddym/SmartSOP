@@ -1,10 +1,11 @@
 """资产分类（每租户）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class AssetCategory(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):

@@ -15,13 +15,13 @@ def test_resolve_window_explicit_inclusive_end():
 
 
 def test_resolve_window_defaults_last_90_days():
-    start, end_excl, df, dt = resolve_window(None, None)
+    _start, end_excl, df, dt = resolve_window(None, None)
     assert (dt - df) == timedelta(days=90)
     assert end_excl == datetime(dt.year, dt.month, dt.day) + timedelta(days=1)
 
 
 def test_resolve_window_only_from():
-    start, end_excl, df, dt = resolve_window(date(2026, 3, 1), None)
+    _start, _end_excl, df, dt = resolve_window(date(2026, 3, 1), None)
     assert df == date(2026, 3, 1)
     assert dt >= df
 
@@ -34,19 +34,25 @@ def test_hours_between():
 def test_clip_interval_fully_inside():
     win_s, win_e = datetime(2026, 1, 1), datetime(2026, 2, 1)
     assert clip_interval(datetime(2026, 1, 10), datetime(2026, 1, 12), win_s, win_e) == (
-        datetime(2026, 1, 10), datetime(2026, 1, 12))
+        datetime(2026, 1, 10),
+        datetime(2026, 1, 12),
+    )
 
 
 def test_clip_interval_ongoing_uses_window_end():
     win_s, win_e = datetime(2026, 1, 1), datetime(2026, 2, 1)
     assert clip_interval(datetime(2026, 1, 20), None, win_s, win_e) == (
-        datetime(2026, 1, 20), datetime(2026, 2, 1))
+        datetime(2026, 1, 20),
+        datetime(2026, 2, 1),
+    )
 
 
 def test_clip_interval_clamped_to_window():
     win_s, win_e = datetime(2026, 1, 10), datetime(2026, 1, 20)
     assert clip_interval(datetime(2026, 1, 5), datetime(2026, 1, 25), win_s, win_e) == (
-        datetime(2026, 1, 10), datetime(2026, 1, 20))
+        datetime(2026, 1, 10),
+        datetime(2026, 1, 20),
+    )
 
 
 def test_clip_interval_no_overlap_returns_none():

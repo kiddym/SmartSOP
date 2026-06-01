@@ -2,22 +2,26 @@ from datetime import date
 
 from sqlalchemy.orm import Session
 
+from app.models.pm_activity import PMActivity
 from app.models.pm_frequency import PMFrequencyUnit
 from app.models.preventive_maintenance import (
     PMAssignee,
     PMTeam,
     PreventiveMaintenance,
 )
-from app.models.pm_activity import PMActivity
 from app.models.work_order_status import WorkOrderPriority
 
 
 def test_pm_row_roundtrip(db: Session):
     pm = PreventiveMaintenance(
-        custom_id="PM000001", title="月检", company_id="co-1",
+        custom_id="PM000001",
+        title="月检",
+        company_id="co-1",
         priority=WorkOrderPriority.MEDIUM,
-        start_date=date(2026, 6, 1), frequency_unit=PMFrequencyUnit.MONTH,
-        frequency_value=1, next_due_date=date(2026, 6, 1),
+        start_date=date(2026, 6, 1),
+        frequency_unit=PMFrequencyUnit.MONTH,
+        frequency_value=1,
+        next_due_date=date(2026, 6, 1),
     )
     db.add(pm)
     db.commit()
@@ -32,5 +36,6 @@ def test_pm_row_roundtrip(db: Session):
 
 def test_pm_exports_registered():
     import app.models as m
+
     for name in ("PreventiveMaintenance", "PMAssignee", "PMTeam", "PMActivity"):
         assert name in m.__all__ and hasattr(m, name)

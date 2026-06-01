@@ -11,8 +11,8 @@ from collections.abc import Generator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.config import settings
 import app.tenant_isolation  # noqa: F401  registers tenant events
+from app.config import settings
 
 engine = create_engine(
     settings.database_url,

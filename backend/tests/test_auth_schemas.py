@@ -1,12 +1,11 @@
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.auth import RegisterRequest, LoginRequest, TokenPair
+from app.schemas.auth import LoginRequest, RegisterRequest, TokenPair
 
 
 def test_register_valid():
-    r = RegisterRequest(company_name="Acme", email="a@acme.com",
-                        password="secret123", name="Alice")
+    r = RegisterRequest(company_name="Acme", email="a@acme.com", password="secret123", name="Alice")
     assert r.email == "a@acme.com"
 
 

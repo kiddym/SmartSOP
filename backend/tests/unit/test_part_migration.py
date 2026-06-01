@@ -31,9 +31,14 @@ def test_upgrade_then_downgrade_sqlite():
             _mod().upgrade()
             tables = set(inspect(conn).get_table_names())
             assert {
-                "tb_part", "tb_part_category", "tb_part_consumption",
-                "tb_multi_part", "tb_multi_part_item",
-                "tb_part_assignee", "tb_part_team", "tb_part_asset",
+                "tb_part",
+                "tb_part_category",
+                "tb_part_consumption",
+                "tb_multi_part",
+                "tb_multi_part_item",
+                "tb_part_assignee",
+                "tb_part_team",
+                "tb_part_asset",
             } <= tables
             _mod().downgrade()
             assert "tb_part" not in inspect(conn).get_table_names()

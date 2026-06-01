@@ -1,4 +1,5 @@
 """Meter schema（Phase 2C）。is_armed/last_* 不可写（由 service 维护）。"""
+
 from __future__ import annotations
 
 from datetime import datetime

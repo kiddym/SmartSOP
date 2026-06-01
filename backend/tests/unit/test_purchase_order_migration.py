@@ -6,8 +6,7 @@ from sqlalchemy import create_engine, inspect
 
 
 def _mod():
-    return importlib.import_module(
-        "alembic.versions.20260531_0009_phase3c_purchase_order")
+    return importlib.import_module("alembic.versions.20260531_0009_phase3c_purchase_order")
 
 
 def test_migration_revision_chain():

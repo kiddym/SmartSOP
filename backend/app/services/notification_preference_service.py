@@ -2,6 +2,7 @@
 
 所有查询显式按 company_id 过滤（不依赖租户事件），以便调度上下文下亦正确。
 """
+
 from __future__ import annotations
 
 import json
@@ -28,19 +29,25 @@ def get(db: Session, company_id: str, user_id: str) -> dict:
     row = _row(db, company_id, user_id)
     if row is None:
         return dict(_DEFAULT)
-    return {"email_enabled": row.email_enabled,
-            "disabled_types": json.loads(row.disabled_types or "[]")}
+    return {
+        "email_enabled": row.email_enabled,
+        "disabled_types": json.loads(row.disabled_types or "[]"),
+    }
 
 
-def upsert(db: Session, company_id: str, user_id: str, *,
-           email_enabled: bool, disabled_types: list[str]) -> NotificationPreference:
+def upsert(
+    db: Session, company_id: str, user_id: str, *, email_enabled: bool, disabled_types: list[str]
+) -> NotificationPreference:
     """全量替换偏好（不 commit，由调用方提交）。"""
     row = _row(db, company_id, user_id)
     payload = json.dumps(list(dict.fromkeys(disabled_types)), ensure_ascii=False)
     if row is None:
         row = NotificationPreference(
-            company_id=company_id, user_id=user_id,
-            email_enabled=email_enabled, disabled_types=payload)
+            company_id=company_id,
+            user_id=user_id,
+            email_enabled=email_enabled,
+            disabled_types=payload,
+        )
         db.add(row)
     else:
         row.email_enabled = email_enabled

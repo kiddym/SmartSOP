@@ -1,4 +1,5 @@
 """偏好读写 schema（Phase 5B）。"""
+
 from __future__ import annotations
 
 from pydantic import BaseModel

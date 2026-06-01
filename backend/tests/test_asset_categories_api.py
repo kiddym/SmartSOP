@@ -1,7 +1,8 @@
 def _admin(client, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _h(t):
@@ -36,5 +37,9 @@ def test_cross_tenant_category_isolated(client):
     tb = _admin(client, "Globex", "b@globex.com")
     cid = client.post("/api/v1/asset-categories", headers=_h(tb), json={"name": "B类"}).json()["id"]
     assert client.get("/api/v1/asset-categories", headers=_h(ta)).json() == []
-    assert client.patch(f"/api/v1/asset-categories/{cid}", headers=_h(ta),
-                        json={"name": "x"}).status_code == 404
+    assert (
+        client.patch(
+            f"/api/v1/asset-categories/{cid}", headers=_h(ta), json={"name": "x"}
+        ).status_code
+        == 404
+    )

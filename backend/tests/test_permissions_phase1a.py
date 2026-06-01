@@ -3,10 +3,18 @@ from app import permissions as perms
 
 def test_phase1a_codes_registered():
     for code in [
-        "location.view", "location.create", "location.edit", "location.delete",
-        "asset.view", "asset.create", "asset.edit", "asset.delete",
-        "asset_category.view", "asset_category.manage",
-        "team.view", "team.manage",
+        "location.view",
+        "location.create",
+        "location.edit",
+        "location.delete",
+        "asset.view",
+        "asset.create",
+        "asset.edit",
+        "asset.delete",
+        "asset_category.view",
+        "asset_category.manage",
+        "team.view",
+        "team.manage",
     ]:
         assert code in perms.ALL_PERMISSIONS
 

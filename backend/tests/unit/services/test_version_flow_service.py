@@ -54,9 +54,7 @@ def test_upgrade_forks_new_draft(db: Session, factory: Factory) -> None:
     from app.models.node import ProcedureNode
 
     cloned = list(
-        db.execute(
-            ProcedureNode.__table__.select().where(ProcedureNode.procedure_id == new.id)
-        )
+        db.execute(ProcedureNode.__table__.select().where(ProcedureNode.procedure_id == new.id))
     )
     assert len(cloned) == 1
 
@@ -342,8 +340,11 @@ def test_clone_tree_copies_nodes(db: Session, factory: Factory) -> None:
     folder = _leaf(factory)
     src = factory.procedure(folder.id, code="QC-1")
     dst = factory.procedure(
-        folder.id, code="QC-1", procedure_group_id=src.procedure_group_id,
-        version=2, is_current=False,
+        folder.id,
+        code="QC-1",
+        procedure_group_id=src.procedure_group_id,
+        version=2,
+        is_current=False,
     )
     factory.node(src.id, body="<p>章</p>", heading_level=1, sort_order=1000)
     factory.node(src.id, body="<p>正文</p>", heading_level=None, kind="node", sort_order=2000)

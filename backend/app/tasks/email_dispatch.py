@@ -3,6 +3,7 @@
 bypass_tenant_scope 扫所有租户 pending outbox，逐租户 set_current_company_id 后投递。
 sent/failed 不再被扫，天然幂等。CLI：python -m app.tasks.email_dispatch
 """
+
 from __future__ import annotations
 
 import json
@@ -33,7 +34,8 @@ def run(db: Session, *, backend=None, max_attempts: int | None = None) -> dict[s
 
     with bypass_tenant_scope():
         company_ids = {
-            cid for (cid,) in db.execute(
+            cid
+            for (cid,) in db.execute(
                 select(EmailOutbox.company_id).where(EmailOutbox.status == "pending").distinct()
             ).all()
         }
@@ -43,7 +45,8 @@ def run(db: Session, *, backend=None, max_attempts: int | None = None) -> dict[s
         token = set_current_company_id(cid)
         try:
             res = email_outbox_service.deliver_pending(
-                db, backend=backend, max_attempts=max_attempts, company_id=cid)
+                db, backend=backend, max_attempts=max_attempts, company_id=cid
+            )
             total["sent"] += res["sent"]
             total["failed_attempt"] += res["failed_attempt"]
         finally:

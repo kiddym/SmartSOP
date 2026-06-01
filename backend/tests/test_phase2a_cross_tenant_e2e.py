@@ -2,6 +2,7 @@
 
 全程经 API（register）建立两个租户的认证主体，使用 conftest 的 `client` fixture。
 """
+
 from __future__ import annotations
 
 
@@ -10,9 +11,10 @@ def _h(token):
 
 
 def _admin(client, *, company, email):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def test_requests_isolated_across_tenants(client):
@@ -22,15 +24,26 @@ def test_requests_isolated_across_tenants(client):
 
     # A 读/改/删/审批/拒绝/取消 B 的请求 → 404
     assert client.get(f"/api/v1/requests/{rid_b}", headers=_h(ta)).status_code == 404
-    assert client.patch(f"/api/v1/requests/{rid_b}", json={"title": "x"},
-                        headers=_h(ta)).status_code == 404
+    assert (
+        client.patch(f"/api/v1/requests/{rid_b}", json={"title": "x"}, headers=_h(ta)).status_code
+        == 404
+    )
     assert client.delete(f"/api/v1/requests/{rid_b}", headers=_h(ta)).status_code == 404
-    assert client.post(f"/api/v1/requests/{rid_b}/approve", json={},
-                       headers=_h(ta)).status_code == 404
-    assert client.post(f"/api/v1/requests/{rid_b}/reject", json={"reason": "x"},
-                       headers=_h(ta)).status_code == 404
-    assert client.post(f"/api/v1/requests/{rid_b}/cancel", json={"reason": "x"},
-                       headers=_h(ta)).status_code == 404
+    assert (
+        client.post(f"/api/v1/requests/{rid_b}/approve", json={}, headers=_h(ta)).status_code == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/requests/{rid_b}/reject", json={"reason": "x"}, headers=_h(ta)
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            f"/api/v1/requests/{rid_b}/cancel", json={"reason": "x"}, headers=_h(ta)
+        ).status_code
+        == 404
+    )
 
     # A 的列表不含 B
     client.post("/api/v1/requests", json={"title": "A单"}, headers=_h(ta))

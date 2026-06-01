@@ -22,6 +22,7 @@ def test_request_defaults(db):
 
 def test_request_activity_importable(db):
     from app.models.request_activity import RequestActivity
+
     c = Company(name="Acme", slug="acme")
     db.add(c)
     db.commit()
@@ -36,6 +37,7 @@ def test_request_activity_importable(db):
 
 def test_work_order_has_request_id(db):
     from app.models.work_order import WorkOrder
+
     c = Company(name="Acme", slug="acme")
     db.add(c)
     db.commit()

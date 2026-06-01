@@ -1,4 +1,5 @@
 """heading_rule_service 单测（P1b）。"""
+
 from __future__ import annotations
 
 import pytest

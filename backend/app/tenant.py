@@ -3,6 +3,7 @@
 Company ids are UUID strings (see UUIDMixin). None means "no tenant scope"
 (pre-auth flows like login/register).
 """
+
 from __future__ import annotations
 
 import contextlib

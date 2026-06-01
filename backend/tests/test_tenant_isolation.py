@@ -26,7 +26,8 @@ def test_auto_stamp_on_insert(db):
 
 
 def test_read_scoped(db):
-    c1 = _mk(db, "acme"); c2 = _mk(db, "globex")
+    c1 = _mk(db, "acme")
+    c2 = _mk(db, "globex")
     db.add(Role(company_id=c1.id, code="r1", name="R1", permissions=[]))
     db.add(Role(company_id=c2.id, code="r2", name="R2", permissions=[]))
     db.commit()
@@ -39,7 +40,8 @@ def test_read_scoped(db):
 
 
 def test_no_context_no_scope(db):
-    c1 = _mk(db, "acme"); c2 = _mk(db, "globex")
+    c1 = _mk(db, "acme")
+    c2 = _mk(db, "globex")
     db.add(Role(company_id=c1.id, code="r1", name="R1", permissions=[]))
     db.add(Role(company_id=c2.id, code="r2", name="R2", permissions=[]))
     db.commit()

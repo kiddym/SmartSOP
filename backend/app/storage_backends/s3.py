@@ -3,6 +3,7 @@
 
 key 即 bucket 内 object key（= DB 相对 storage_path）。client 可注入以便测试。
 """
+
 from __future__ import annotations
 
 from typing import Any

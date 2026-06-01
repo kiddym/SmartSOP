@@ -31,9 +31,7 @@ def test_readyz_503_when_db_down(client, monkeypatch: pytest.MonkeyPatch) -> Non
     assert resp.json()["db"] == "down"
 
 
-def test_readyz_reports_soffice_up(
-    client, engine: Engine, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_readyz_reports_soffice_up(client, engine: Engine, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.main.engine", engine)
     monkeypatch.setattr("app.main.images.soffice_available", lambda: True)
     resp = client.get("/readyz")
@@ -51,9 +49,7 @@ def test_readyz_reports_soffice_down_but_still_200(
     assert resp.json()["soffice"] == "down"
 
 
-def test_probe_soffice_warns_when_missing(
-    monkeypatch: pytest.MonkeyPatch, caplog
-) -> None:
+def test_probe_soffice_warns_when_missing(monkeypatch: pytest.MonkeyPatch, caplog) -> None:
     import logging
 
     from app import main as main_mod
@@ -62,8 +58,7 @@ def test_probe_soffice_warns_when_missing(
     with caplog.at_level(logging.WARNING):
         main_mod._probe_soffice()
     assert any(
-        ("soffice" in r.message.lower()) or ("LibreOffice" in r.message)
-        for r in caplog.records
+        ("soffice" in r.message.lower()) or ("LibreOffice" in r.message) for r in caplog.records
     )
 
 

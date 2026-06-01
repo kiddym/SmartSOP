@@ -18,9 +18,8 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Pt
-from PIL import Image
-
 from lxml import etree as _et
+from PIL import Image
 
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _V_NS = "urn:schemas-microsoft-com:vml"
@@ -37,17 +36,16 @@ def inject_header_part(docx_bytes: bytes, *, header_text: str = "页眉文字") 
     header_xml = (
         b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
         b'<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">\n'
-        b"    <w:p><w:r><w:t>"
-        + header_text.encode("utf-8")
-        + b"</w:t></w:r></w:p>\n"
+        b"    <w:p><w:r><w:t>" + header_text.encode("utf-8") + b"</w:t></w:r></w:p>\n"
         b"</w:hdr>"
     )
 
     in_buf = io.BytesIO(docx_bytes)
     out_buf = io.BytesIO()
-    with zipfile.ZipFile(in_buf, "r") as zin, zipfile.ZipFile(
-        out_buf, "w", zipfile.ZIP_DEFLATED
-    ) as zout:
+    with (
+        zipfile.ZipFile(in_buf, "r") as zin,
+        zipfile.ZipFile(out_buf, "w", zipfile.ZIP_DEFLATED) as zout,
+    ):
         for item in zin.namelist():
             zout.writestr(item, zin.read(item))
         zout.writestr("word/header1.xml", header_xml)
@@ -111,10 +109,10 @@ class DocxBuilder:
         p = self.doc.add_paragraph()
         if before:
             p.add_run(before)
-        omathpara = _et.SubElement(p._p, "{%s}oMathPara" % _M_NS)
-        omath = _et.SubElement(omathpara, "{%s}oMath" % _M_NS)
-        mr = _et.SubElement(omath, "{%s}r" % _M_NS)
-        mt = _et.SubElement(mr, "{%s}t" % _M_NS)
+        omathpara = _et.SubElement(p._p, f"{{{_M_NS}}}oMathPara")
+        omath = _et.SubElement(omathpara, f"{{{_M_NS}}}oMath")
+        mr = _et.SubElement(omath, f"{{{_M_NS}}}r")
+        mt = _et.SubElement(mr, f"{{{_M_NS}}}t")
         mt.text = "x^2"
         if after:
             p.add_run(after)
@@ -126,27 +124,25 @@ class DocxBuilder:
         _A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
         p = self.doc.add_paragraph()
         run = p.add_run()
-        drawing = _et.SubElement(run._r, "{%s}drawing" % _W_NS)
-        graphic = _et.SubElement(drawing, "{%s}graphic" % _A_NS)
-        _et.SubElement(graphic, "{%s}graphicData" % _A_NS, attrib={"uri": uri})
+        drawing = _et.SubElement(run._r, f"{{{_W_NS}}}drawing")
+        graphic = _et.SubElement(drawing, f"{{{_A_NS}}}graphic")
+        _et.SubElement(graphic, f"{{{_A_NS}}}graphicData", attrib={"uri": uri})
         if with_image:
             png = png or tiny_png()
             tmp_p = self.doc.add_paragraph()
             tmp_run = tmp_p.add_run()
             tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
-            blip = tmp_run._r.find(".//{%s}blip" % _A_NS)
-            rid = blip.get("{%s}embed" % _R_NS)
+            blip = tmp_run._r.find(f".//{{{_A_NS}}}blip")
+            rid = blip.get(f"{{{_R_NS}}}embed")
             tmp_p._p.getparent().remove(tmp_p._p)
-            pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+            pict = _et.SubElement(run._r, f"{{{_W_NS}}}pict")
             shape = _et.SubElement(
-                pict, "{%s}shape" % _V_NS, attrib={"style": "width:20pt;height:20pt"}
+                pict, f"{{{_V_NS}}}shape", attrib={"style": "width:20pt;height:20pt"}
             )
-            _et.SubElement(shape, "{%s}imagedata" % _V_NS, attrib={"{%s}id" % _R_NS: rid})
+            _et.SubElement(shape, f"{{{_V_NS}}}imagedata", attrib={f"{{{_R_NS}}}id": rid})
 
     def smartart_para(self, with_fallback: bool = False) -> DocxBuilder:
-        self._graphic_run(
-            "http://schemas.openxmlformats.org/drawingml/2006/diagram", with_fallback
-        )
+        self._graphic_run("http://schemas.openxmlformats.org/drawingml/2006/diagram", with_fallback)
         return self
 
     def chart_para(self) -> DocxBuilder:
@@ -160,9 +156,9 @@ class DocxBuilder:
         p = self.doc.add_paragraph()
         run = p.add_run()
         for _ in range(2):
-            drawing = _et.SubElement(run._r, "{%s}drawing" % _W_NS)
-            graphic = _et.SubElement(drawing, "{%s}graphic" % _A_NS)
-            _et.SubElement(graphic, "{%s}graphicData" % _A_NS, attrib={"uri": uri})
+            drawing = _et.SubElement(run._r, f"{{{_W_NS}}}drawing")
+            graphic = _et.SubElement(drawing, f"{{{_A_NS}}}graphic")
+            _et.SubElement(graphic, f"{{{_A_NS}}}graphicData", attrib={"uri": uri})
         return self
 
     def image_para(self, png: bytes | None = None, *, width_pt: float = 60) -> DocxBuilder:
@@ -182,32 +178,32 @@ class DocxBuilder:
         tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
         blip = tmp_run._r.find(".//{http://schemas.openxmlformats.org/drawingml/2006/main}blip")
         assert blip is not None
-        rid = blip.get("{%s}embed" % _R_NS)
+        rid = blip.get(f"{{{_R_NS}}}embed")
         # 删除临时段落（关系/媒体已保留）
         tmp_p._p.getparent().remove(tmp_p._p)
         # 构造真正的 VML 段落
         target_p = self.doc.add_paragraph()
         run = target_p.add_run()
-        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        pict = _et.SubElement(run._r, f"{{{_W_NS}}}pict")
         shape = _et.SubElement(
-            pict, "{%s}shape" % _V_NS, attrib={"style": "width:20pt;height:20pt"}
+            pict, f"{{{_V_NS}}}shape", attrib={"style": "width:20pt;height:20pt"}
         )
-        _et.SubElement(shape, "{%s}imagedata" % _V_NS, attrib={"{%s}id" % _R_NS: rid})
+        _et.SubElement(shape, f"{{{_V_NS}}}imagedata", attrib={f"{{{_R_NS}}}id": rid})
         return self
 
     def textbox_para(self, inner_text: str) -> DocxBuilder:
         """段落 run 内嵌一个 VML 文本框，含一段子段落文字。"""
         p = self.doc.add_paragraph()
         run = p.add_run()
-        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        pict = _et.SubElement(run._r, f"{{{_W_NS}}}pict")
         shape = _et.SubElement(
-            pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"}
+            pict, f"{{{_V_NS}}}shape", attrib={"style": "width:120pt;height:30pt"}
         )
-        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
-        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
-        inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
-        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
-        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        tbx = _et.SubElement(shape, f"{{{_V_NS}}}textbox")
+        tcontent = _et.SubElement(tbx, f"{{{_W_NS}}}txbxContent")
+        inner_p = _et.SubElement(tcontent, f"{{{_W_NS}}}p")
+        inner_r = _et.SubElement(inner_p, f"{{{_W_NS}}}r")
+        inner_t = _et.SubElement(inner_r, f"{{{_W_NS}}}t")
         inner_t.text = inner_text
         return self
 
@@ -219,21 +215,21 @@ class DocxBuilder:
         tmp_run = tmp_p.add_run()
         tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
         # 取出 drawing 子树备用（rid 已在 drawing 内的 r:embed 中保留），再删 tmp 段落
-        drawing = tmp_run._r.find("{%s}drawing" % _W_NS)
+        drawing = tmp_run._r.find(f"{{{_W_NS}}}drawing")
         drawing_copy = _et.fromstring(_et.tostring(drawing))
         tmp_p._p.getparent().remove(tmp_p._p)
         # 构造外层段落 → pict → shape → textbox → txbxContent → p(text + drawing)
         outer = self.doc.add_paragraph()
         run = outer.add_run()
-        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        pict = _et.SubElement(run._r, f"{{{_W_NS}}}pict")
         shape = _et.SubElement(
-            pict, "{%s}shape" % _V_NS, attrib={"style": "width:140pt;height:60pt"}
+            pict, f"{{{_V_NS}}}shape", attrib={"style": "width:140pt;height:60pt"}
         )
-        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
-        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
-        inner_p = _et.SubElement(tcontent, "{%s}p" % _W_NS)
-        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
-        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        tbx = _et.SubElement(shape, f"{{{_V_NS}}}textbox")
+        tcontent = _et.SubElement(tbx, f"{{{_W_NS}}}txbxContent")
+        inner_p = _et.SubElement(tcontent, f"{{{_W_NS}}}p")
+        inner_r = _et.SubElement(inner_p, f"{{{_W_NS}}}r")
+        inner_t = _et.SubElement(inner_r, f"{{{_W_NS}}}t")
         inner_t.text = inner_text
         inner_r.append(drawing_copy)
         return self
@@ -242,17 +238,17 @@ class DocxBuilder:
         """文本框 txbxContent 内含一个 <w:sdt> 包裹的段落 —— 验证 SDT 在 txbx 内也被展开。"""
         p = self.doc.add_paragraph()
         run = p.add_run()
-        pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+        pict = _et.SubElement(run._r, f"{{{_W_NS}}}pict")
         shape = _et.SubElement(
-            pict, "{%s}shape" % _V_NS, attrib={"style": "width:120pt;height:30pt"}
+            pict, f"{{{_V_NS}}}shape", attrib={"style": "width:120pt;height:30pt"}
         )
-        tbx = _et.SubElement(shape, "{%s}textbox" % _V_NS)
-        tcontent = _et.SubElement(tbx, "{%s}txbxContent" % _W_NS)
-        sdt = _et.SubElement(tcontent, "{%s}sdt" % _W_NS)
-        sdt_content = _et.SubElement(sdt, "{%s}sdtContent" % _W_NS)
-        inner_p = _et.SubElement(sdt_content, "{%s}p" % _W_NS)
-        inner_r = _et.SubElement(inner_p, "{%s}r" % _W_NS)
-        inner_t = _et.SubElement(inner_r, "{%s}t" % _W_NS)
+        tbx = _et.SubElement(shape, f"{{{_V_NS}}}textbox")
+        tcontent = _et.SubElement(tbx, f"{{{_W_NS}}}txbxContent")
+        sdt = _et.SubElement(tcontent, f"{{{_W_NS}}}sdt")
+        sdt_content = _et.SubElement(sdt, f"{{{_W_NS}}}sdtContent")
+        inner_p = _et.SubElement(sdt_content, f"{{{_W_NS}}}p")
+        inner_r = _et.SubElement(inner_p, f"{{{_W_NS}}}r")
+        inner_t = _et.SubElement(inner_r, f"{{{_W_NS}}}t")
         inner_t.text = inner_text
         return self
 
@@ -268,7 +264,7 @@ class DocxBuilder:
         tmp_p = self.doc.add_paragraph()
         tmp_run = tmp_p.add_run()
         tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
-        drawing = tmp_run._r.find("{%s}drawing" % _W_NS)
+        drawing = tmp_run._r.find(f"{{{_W_NS}}}drawing")
         drawing_copy = _et.fromstring(_et.tostring(drawing))
         tmp_p._p.getparent().remove(tmp_p._p)
         # 构造：outer_p → pict → shape → textbox → txbxContent_A
@@ -277,30 +273,30 @@ class DocxBuilder:
         #                                                                       → p(inner_text + drawing_copy)]
         outer_p = self.doc.add_paragraph()
         outer_run = outer_p.add_run()
-        pict_a = _et.SubElement(outer_run._r, "{%s}pict" % _W_NS)
+        pict_a = _et.SubElement(outer_run._r, f"{{{_W_NS}}}pict")
         shape_a = _et.SubElement(
-            pict_a, "{%s}shape" % _V_NS, attrib={"style": "width:200pt;height:80pt"}
+            pict_a, f"{{{_V_NS}}}shape", attrib={"style": "width:200pt;height:80pt"}
         )
-        tbx_a = _et.SubElement(shape_a, "{%s}textbox" % _V_NS)
-        tcontent_a = _et.SubElement(tbx_a, "{%s}txbxContent" % _W_NS)
+        tbx_a = _et.SubElement(shape_a, f"{{{_V_NS}}}textbox")
+        tcontent_a = _et.SubElement(tbx_a, f"{{{_W_NS}}}txbxContent")
         # outer 段（in txbx_A）
-        a_p = _et.SubElement(tcontent_a, "{%s}p" % _W_NS)
-        a_r = _et.SubElement(a_p, "{%s}r" % _W_NS)
-        a_t = _et.SubElement(a_r, "{%s}t" % _W_NS)
+        a_p = _et.SubElement(tcontent_a, f"{{{_W_NS}}}p")
+        a_r = _et.SubElement(a_p, f"{{{_W_NS}}}r")
+        a_t = _et.SubElement(a_r, f"{{{_W_NS}}}t")
         a_t.text = outer_text
         # 包含 inner txbx 的段（仍在 txbx_A 内）
-        wrap_p = _et.SubElement(tcontent_a, "{%s}p" % _W_NS)
-        wrap_r = _et.SubElement(wrap_p, "{%s}r" % _W_NS)
-        pict_b = _et.SubElement(wrap_r, "{%s}pict" % _W_NS)
+        wrap_p = _et.SubElement(tcontent_a, f"{{{_W_NS}}}p")
+        wrap_r = _et.SubElement(wrap_p, f"{{{_W_NS}}}r")
+        pict_b = _et.SubElement(wrap_r, f"{{{_W_NS}}}pict")
         shape_b = _et.SubElement(
-            pict_b, "{%s}shape" % _V_NS, attrib={"style": "width:160pt;height:60pt"}
+            pict_b, f"{{{_V_NS}}}shape", attrib={"style": "width:160pt;height:60pt"}
         )
-        tbx_b = _et.SubElement(shape_b, "{%s}textbox" % _V_NS)
-        tcontent_b = _et.SubElement(tbx_b, "{%s}txbxContent" % _W_NS)
+        tbx_b = _et.SubElement(shape_b, f"{{{_V_NS}}}textbox")
+        tcontent_b = _et.SubElement(tbx_b, f"{{{_W_NS}}}txbxContent")
         # 内层段（in txbx_B），含图
-        b_p = _et.SubElement(tcontent_b, "{%s}p" % _W_NS)
-        b_r = _et.SubElement(b_p, "{%s}r" % _W_NS)
-        b_t = _et.SubElement(b_r, "{%s}t" % _W_NS)
+        b_p = _et.SubElement(tcontent_b, f"{{{_W_NS}}}p")
+        b_r = _et.SubElement(b_p, f"{{{_W_NS}}}r")
+        b_t = _et.SubElement(b_r, f"{{{_W_NS}}}t")
         b_t.text = inner_text
         b_r.append(drawing_copy)
         return self

@@ -1,4 +1,5 @@
 """分析 API（Phase 4）：鉴权/RBAC/形状/跨租户。"""
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -14,19 +15,24 @@ def _h(token):
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _technician_token(client, admin_token):
     roles = client.get("/api/v1/roles", headers=_h(admin_token)).json()
     rid = next(r["id"] for r in roles if r["code"] == "technician")
-    client.post("/api/v1/users", headers=_h(admin_token), json={
-        "email": "tech@acme.com", "password": "secret123", "name": "T", "role_id": rid})
-    return client.post("/api/v1/auth/login", json={
-        "company_slug": "acme", "email": "tech@acme.com",
-        "password": "secret123"}).json()["access_token"]
+    client.post(
+        "/api/v1/users",
+        headers=_h(admin_token),
+        json={"email": "tech@acme.com", "password": "secret123", "name": "T", "role_id": rid},
+    )
+    return client.post(
+        "/api/v1/auth/login",
+        json={"company_slug": "acme", "email": "tech@acme.com", "password": "secret123"},
+    ).json()["access_token"]
 
 
 def _company_id(db, slug):

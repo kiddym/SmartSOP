@@ -1,10 +1,11 @@
 """位置（自引用树）及其负责人/团队关联（每租户）。"""
+
 from __future__ import annotations
 
 from sqlalchemy import Float, ForeignKey, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
+from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
 class Location(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):

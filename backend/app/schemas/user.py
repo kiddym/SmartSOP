@@ -1,9 +1,10 @@
 """User management schemas."""
+
 from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.models.user import UserStatus
 

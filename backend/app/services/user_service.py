@@ -1,4 +1,5 @@
 """User management service (tenant-scoped via ORM events)."""
+
 from __future__ import annotations
 
 from sqlalchemy import select
@@ -15,10 +16,13 @@ def create_user(db: Session, payload: UserCreate, company_id: str | None = None)
     # context, but a sync FastAPI dependency's contextvar mutation does not
     # propagate into the sync endpoint's separate threadpool task, so we pass it
     # through to guarantee the NOT-NULL tb_user.company_id is set.
-    user = User(email=payload.email,
-                password_hash=security.hash_password(payload.password),
-                name=payload.name, role_id=payload.role_id,
-                company_id=company_id)
+    user = User(
+        email=payload.email,
+        password_hash=security.hash_password(payload.password),
+        name=payload.name,
+        role_id=payload.role_id,
+        company_id=company_id,
+    )
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -1,4 +1,5 @@
 """库存聚合（只读）：库存价值（当前快照）+ 低库存 + 窗内 top 消耗。金额 Python Decimal。"""
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -15,7 +16,10 @@ from app.services.analytics._common import resolve_window
 
 
 def inventory_dashboard(
-    db: Session, *, date_from: date | None = None, date_to: date | None = None,
+    db: Session,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
     category_id: str | None = None,
 ) -> dict:
     p_stmt = select(Part).where(Part.is_active.is_(True), Part.non_stock.is_(False))
@@ -34,16 +38,22 @@ def inventory_dashboard(
         total_value += value
         by_cat_value[p.category_id] += value
         if p.quantity < p.min_quantity:
-            low_items.append({
-                "part_id": p.id, "custom_id": p.custom_id, "name": p.name,
-                "quantity": p.quantity, "min_quantity": p.min_quantity,
-                "shortfall": p.min_quantity - p.quantity,
-            })
+            low_items.append(
+                {
+                    "part_id": p.id,
+                    "custom_id": p.custom_id,
+                    "name": p.name,
+                    "quantity": p.quantity,
+                    "min_quantity": p.min_quantity,
+                    "shortfall": p.min_quantity - p.quantity,
+                }
+            )
 
     inventory_value_by_category = sorted(
-        ({"category_id": k, "name": cat_names.get(k), "value": v}
-         for k, v in by_cat_value.items()),
-        key=lambda r: r["value"], reverse=True)
+        ({"category_id": k, "name": cat_names.get(k), "value": v} for k, v in by_cat_value.items()),
+        key=lambda r: r["value"],
+        reverse=True,
+    )
 
     # 窗内 top 消耗（按量降序）
     start, end_excl, _df, _dt = resolve_window(date_from, date_to)
@@ -57,8 +67,8 @@ def inventory_dashboard(
     consumed: dict[str, dict] = {}
     for part_id, custom_id, name, qty in db.execute(c_stmt).all():
         slot = consumed.setdefault(
-            part_id, {"part_id": part_id, "custom_id": custom_id, "name": name,
-                      "qty": Decimal("0")})
+            part_id, {"part_id": part_id, "custom_id": custom_id, "name": name, "qty": Decimal("0")}
+        )
         slot["qty"] += qty
     top_consumed = sorted(consumed.values(), key=lambda r: r["qty"], reverse=True)
 

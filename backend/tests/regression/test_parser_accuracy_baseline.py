@@ -3,6 +3,7 @@
 live 运行 vs 提交的 golden 快照；任何漂移即 fail。
 **故意改动解析输出的 plan 必须显式重生成 golden（见 P0 Task4 命令）并在该 commit 解释原因。**
 """
+
 from __future__ import annotations
 
 import json

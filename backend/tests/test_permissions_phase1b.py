@@ -3,8 +3,11 @@ from app import permissions as perms
 
 def test_phase1b_codes_registered():
     for code in [
-        "work_order.view", "work_order.create", "work_order.edit",
-        "work_order.delete", "work_order.execute",
+        "work_order.view",
+        "work_order.create",
+        "work_order.edit",
+        "work_order.delete",
+        "work_order.execute",
     ]:
         assert code in perms.ALL_PERMISSIONS
 

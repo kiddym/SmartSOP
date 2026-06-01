@@ -1,4 +1,5 @@
 """PM schema（Phase 2B）。next_due_date 不可写（由 service 维护）。"""
+
 from __future__ import annotations
 
 from datetime import date, datetime

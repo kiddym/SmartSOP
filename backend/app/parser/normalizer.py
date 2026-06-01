@@ -163,7 +163,10 @@ def _ancestor_run(el: etree._Element) -> etree._Element | None:
 
 
 def _run_has_image(run: etree._Element) -> bool:
-    return run.find(".//" + qn("a:blip")) is not None or run.find(".//" + qn("v:imagedata")) is not None
+    return (
+        run.find(".//" + qn("a:blip")) is not None
+        or run.find(".//" + qn("v:imagedata")) is not None
+    )
 
 
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
@@ -598,9 +601,7 @@ def normalize(
             _append(block)
             _emit_txbx_descendants(el, i)
 
-    raw_paragraph_count = sum(
-        1 for p in body.iter(qn("w:p")) if _counts_as_block_paragraph(p)
-    )
+    raw_paragraph_count = sum(1 for p in body.iter(qn("w:p")) if _counts_as_block_paragraph(p))
     return NormalizedDoc(
         blocks=blocks,
         total_image_count=image_count,

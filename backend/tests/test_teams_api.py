@@ -1,7 +1,8 @@
 def _admin(client, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _h(t):
@@ -9,13 +10,18 @@ def _h(t):
 
 
 def _new_user(client, t, email):
-    return client.post("/api/v1/users", headers=_h(t), json={
-        "email": email, "password": "secret123", "name": email}).json()["id"]
+    return client.post(
+        "/api/v1/users",
+        headers=_h(t),
+        json={"email": email, "password": "secret123", "name": email},
+    ).json()["id"]
 
 
 def test_create_and_list_team(client):
     t = _admin(client)
-    r = client.post("/api/v1/teams", headers=_h(t), json={"name": "电气班", "description": "电工组"})
+    r = client.post(
+        "/api/v1/teams", headers=_h(t), json={"name": "电气班", "description": "电工组"}
+    )
     assert r.status_code == 201, r.text
     assert r.json()["name"] == "电气班"
     assert r.json()["member_ids"] == []
@@ -38,8 +44,12 @@ def test_set_members(client):
 def test_update_and_delete_team(client):
     t = _admin(client)
     tid = client.post("/api/v1/teams", headers=_h(t), json={"name": "电气班"}).json()["id"]
-    assert client.patch(f"/api/v1/teams/{tid}", headers=_h(t),
-                        json={"name": "电气一班"}).json()["name"] == "电气一班"
+    assert (
+        client.patch(f"/api/v1/teams/{tid}", headers=_h(t), json={"name": "电气一班"}).json()[
+            "name"
+        ]
+        == "电气一班"
+    )
     assert client.delete(f"/api/v1/teams/{tid}", headers=_h(t)).status_code == 204
     assert client.get("/api/v1/teams", headers=_h(t)).json() == []
 
@@ -53,4 +63,6 @@ def test_cross_tenant_team_isolated(client):
     tb = _admin(client, "Globex", "b@globex.com")
     tid = client.post("/api/v1/teams", headers=_h(tb), json={"name": "B班"}).json()["id"]
     assert client.get("/api/v1/teams", headers=_h(ta)).json() == []
-    assert client.patch(f"/api/v1/teams/{tid}", headers=_h(ta), json={"name": "x"}).status_code == 404
+    assert (
+        client.patch(f"/api/v1/teams/{tid}", headers=_h(ta), json={"name": "x"}).status_code == 404
+    )

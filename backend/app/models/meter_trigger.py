@@ -3,6 +3,7 @@
 comparator+threshold 定义阈值；is_armed 为边沿去重武装态；其余字段为生单预设
 （复用 WorkOrderPriority）。priority/primary_user 弱关联，procedure_id 无 FK 弱引用。
 """
+
 from __future__ import annotations
 
 from datetime import datetime
@@ -10,12 +11,14 @@ from decimal import Decimal
 
 from sqlalchemy import (
     Boolean,
-    Enum as SAEnum,
     ForeignKey,
     Numeric,
     String,
     Text,
     UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -38,9 +41,7 @@ class MeterTrigger(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
         String(36), ForeignKey("tb_meter.id", ondelete="CASCADE"), index=True
     )
     name: Mapped[str] = mapped_column(String(300), nullable=False)
-    comparator: Mapped[MeterComparator] = mapped_column(
-        SAEnum(MeterComparator), nullable=False
-    )
+    comparator: Mapped[MeterComparator] = mapped_column(SAEnum(MeterComparator), nullable=False)
     threshold: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     is_armed: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
@@ -63,9 +64,7 @@ class MeterTrigger(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
 
 class MeterTriggerAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_meter_trigger_assignee"
-    __table_args__ = (
-        UniqueConstraint("trigger_id", "user_id", name="uq_meter_trigger_assignee"),
-    )
+    __table_args__ = (UniqueConstraint("trigger_id", "user_id", name="uq_meter_trigger_assignee"),)
 
     trigger_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_meter_trigger.id", ondelete="CASCADE"), index=True
@@ -77,9 +76,7 @@ class MeterTriggerAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
 
 class MeterTriggerTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_meter_trigger_team"
-    __table_args__ = (
-        UniqueConstraint("trigger_id", "team_id", name="uq_meter_trigger_team"),
-    )
+    __table_args__ = (UniqueConstraint("trigger_id", "team_id", name="uq_meter_trigger_team"),)
 
     trigger_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_meter_trigger.id", ondelete="CASCADE"), index=True

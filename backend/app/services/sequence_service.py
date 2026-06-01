@@ -4,6 +4,7 @@ next_value 在事务内对 (company_id, scope) 行加锁后原子自增（MySQL 
 SELECT ... FOR UPDATE；SQLite 串行化连接天然原子）。调用方在同一事务内
 取号 + 写业务行 + 提交。
 """
+
 from __future__ import annotations
 
 from sqlalchemy import select

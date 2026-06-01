@@ -2,8 +2,15 @@ from app import permissions as perms
 
 
 def test_phase3a_codes_registered():
-    for code in ["part.view", "part.create", "part.edit", "part.delete",
-                 "part.consume", "part_category.view", "part_category.manage"]:
+    for code in [
+        "part.view",
+        "part.create",
+        "part.edit",
+        "part.delete",
+        "part.consume",
+        "part_category.view",
+        "part_category.manage",
+    ]:
         assert code in perms.ALL_PERMISSIONS
 
 
@@ -13,8 +20,15 @@ def test_super_admin_wildcard_includes_part():
 
 def test_admin_has_all_part():
     admin = next(r for r in perms.BUILTIN_ROLES if r["code"] == "admin")
-    for code in ["part.view", "part.create", "part.edit", "part.delete",
-                 "part.consume", "part_category.view", "part_category.manage"]:
+    for code in [
+        "part.view",
+        "part.create",
+        "part.edit",
+        "part.delete",
+        "part.consume",
+        "part_category.view",
+        "part_category.manage",
+    ]:
         assert code in admin["permissions"]
 
 

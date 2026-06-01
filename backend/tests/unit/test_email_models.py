@@ -1,4 +1,5 @@
 """Phase 5B 邮件模型：偏好 + 投递 outbox。"""
+
 from __future__ import annotations
 
 from sqlalchemy import select

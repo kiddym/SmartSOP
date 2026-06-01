@@ -4,6 +4,7 @@
 `client` fixture（get_db 已覆盖到与 `db` 同一测试引擎）。不要手工 db.add(User)，
 否则租户上下文与盖章时机会导致鉴权读不到用户。
 """
+
 from __future__ import annotations
 
 
@@ -12,9 +13,10 @@ def _h(token):
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
-    return client.post("/api/v1/auth/register", json={
-        "company_name": company, "email": email,
-        "password": "secret123", "name": "Admin"}).json()["access_token"]
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
+    ).json()["access_token"]
 
 
 def _requester_token(client, admin_token):
@@ -22,12 +24,15 @@ def _requester_token(client, admin_token):
     建用户并登录取其 token。"""
     roles = client.get("/api/v1/roles", headers=_h(admin_token)).json()
     rid = next(r["id"] for r in roles if r["code"] == "requester")
-    client.post("/api/v1/users", headers=_h(admin_token), json={
-        "email": "req@acme.com", "password": "secret123",
-        "name": "Req", "role_id": rid})
-    return client.post("/api/v1/auth/login", json={
-        "company_slug": "acme", "email": "req@acme.com",
-        "password": "secret123"}).json()["access_token"]
+    client.post(
+        "/api/v1/users",
+        headers=_h(admin_token),
+        json={"email": "req@acme.com", "password": "secret123", "name": "Req", "role_id": rid},
+    )
+    return client.post(
+        "/api/v1/auth/login",
+        json={"company_slug": "acme", "email": "req@acme.com", "password": "secret123"},
+    ).json()["access_token"]
 
 
 def test_create_and_get_request(client):

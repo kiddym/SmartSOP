@@ -12,13 +12,20 @@ CO = "co-1"
 
 
 def _po_with_line(db):
-    return svc.create_purchase_order(db, PurchaseOrderCreate(vendor_id="v-1", lines=[
-        POLineCreate(part_id="p-1", quantity=Decimal("1"))]), CO, actor_user_id="a")
+    return svc.create_purchase_order(
+        db,
+        PurchaseOrderCreate(
+            vendor_id="v-1", lines=[POLineCreate(part_id="p-1", quantity=Decimal("1"))]
+        ),
+        CO,
+        actor_user_id="a",
+    )
 
 
 def test_submit_requires_lines(db: Session):
-    empty = svc.create_purchase_order(db, PurchaseOrderCreate(vendor_id="v-1"),
-                                      CO, actor_user_id="a")
+    empty = svc.create_purchase_order(
+        db, PurchaseOrderCreate(vendor_id="v-1"), CO, actor_user_id="a"
+    )
     with pytest.raises(HTTPException):
         svc.submit_purchase_order(db, empty, CO, actor_user_id="a")
 
@@ -36,8 +43,7 @@ def test_update_blocked_after_submit(db: Session):
     po = _po_with_line(db)
     svc.submit_purchase_order(db, po, CO, actor_user_id="a")
     with pytest.raises(HTTPException):
-        svc.update_purchase_order(db, po, PurchaseOrderUpdate(notes="x"),
-                                  CO, actor_user_id="a")
+        svc.update_purchase_order(db, po, PurchaseOrderUpdate(notes="x"), CO, actor_user_id="a")
 
 
 def test_reject_from_submitted(db: Session):

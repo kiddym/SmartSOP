@@ -300,7 +300,9 @@ def delete_orphan_path(
     """
     if _active_ref_count(db, storage_path) > 0:
         return 0
-    get_storage_backend().delete(storage_path)  # 缺失幂等；其他 OSError 抛出由 task 记录并保留行下轮重试（§53.2）
+    get_storage_backend().delete(
+        storage_path
+    )  # 缺失幂等；其他 OSError 抛出由 task 记录并保留行下轮重试（§53.2）
     threshold = now - timedelta(days=retention_days)
     rows = db.execute(
         select(ProcedureAttachment).where(

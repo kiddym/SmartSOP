@@ -308,6 +308,7 @@ def deprecate(
     db.commit()
     return procedure_service.to_meta(db, proc)
 
+
 @router.post("/{procedure_id}/archive", response_model=ProcedureMeta)
 def archive(
     procedure_id: str,

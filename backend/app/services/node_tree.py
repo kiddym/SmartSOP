@@ -23,7 +23,7 @@ class TreeNode:
     heading_level: int | None
     parent_id: str | None
     depth: int
-    children: list["TreeNode"] = field(default_factory=list)
+    children: list[TreeNode] = field(default_factory=list)
 
 
 def build_tree(rows: list[NodeLike]) -> list[TreeNode]:

@@ -1,10 +1,11 @@
 """工单状态机与优先级枚举 + 合法转移表（Phase 1B）。"""
+
 from __future__ import annotations
 
 import enum
 
 
-class WorkOrderStatus(str, enum.Enum):
+class WorkOrderStatus(enum.StrEnum):
     OPEN = "OPEN"
     IN_PROGRESS = "IN_PROGRESS"
     ON_HOLD = "ON_HOLD"
@@ -12,7 +13,7 @@ class WorkOrderStatus(str, enum.Enum):
     CANCELED = "CANCELED"
 
 
-class WorkOrderPriority(str, enum.Enum):
+class WorkOrderPriority(enum.StrEnum):
     NONE = "NONE"
     LOW = "LOW"
     MEDIUM = "MEDIUM"

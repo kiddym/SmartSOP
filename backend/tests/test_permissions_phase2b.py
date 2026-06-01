@@ -3,8 +3,10 @@ from app import permissions as perms
 
 def test_phase2b_codes_registered():
     for code in [
-        "preventive_maintenance.view", "preventive_maintenance.create",
-        "preventive_maintenance.edit", "preventive_maintenance.delete",
+        "preventive_maintenance.view",
+        "preventive_maintenance.create",
+        "preventive_maintenance.edit",
+        "preventive_maintenance.delete",
     ]:
         assert code in perms.ALL_PERMISSIONS
 
@@ -16,8 +18,10 @@ def test_super_admin_wildcard_includes_preventive_maintenance():
 def test_admin_has_all_preventive_maintenance():
     admin = next(r for r in perms.BUILTIN_ROLES if r["code"] == "admin")
     for code in [
-        "preventive_maintenance.view", "preventive_maintenance.create",
-        "preventive_maintenance.edit", "preventive_maintenance.delete",
+        "preventive_maintenance.view",
+        "preventive_maintenance.create",
+        "preventive_maintenance.edit",
+        "preventive_maintenance.delete",
     ]:
         assert code in admin["permissions"]
 

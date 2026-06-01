@@ -36,17 +36,28 @@ def _rich_proc(db: Session, factory: Factory):
     # 文档序建 node：L1「目的」+ 内容块；L1「操作」+ 两个 step（透传 input_schema）
     factory.node(proc.id, body="<p>目的</p>", heading_level=1, kind="node", sort_order=1000)
     factory.node(
-        proc.id, body="<p>本程序用于规范启动流程。</p>", heading_level=None, kind="node",
+        proc.id,
+        body="<p>本程序用于规范启动流程。</p>",
+        heading_level=None,
+        kind="node",
         sort_order=2000,
     )
     factory.node(proc.id, body="<p>操作</p>", heading_level=1, kind="node", sort_order=3000)
     factory.node(
-        proc.id, body="<p>启动电源</p>", heading_level=None, kind="step",
-        input_schema={"type": "CHECK"}, sort_order=4000,
+        proc.id,
+        body="<p>启动电源</p>",
+        heading_level=None,
+        kind="step",
+        input_schema={"type": "CHECK"},
+        sort_order=4000,
     )
     factory.node(
-        proc.id, body="<p>检查阀门</p>", heading_level=None, kind="step",
-        input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10}, sort_order=5000,
+        proc.id,
+        body="<p>检查阀门</p>",
+        heading_level=None,
+        kind="step",
+        input_schema={"type": "NUMBER", "unit": "MPa", "min": 0, "max": 10},
+        sort_order=5000,
     )
     db.add(
         ProcedureAttachment(

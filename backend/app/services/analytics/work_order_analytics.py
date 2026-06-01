@@ -1,4 +1,5 @@
 """工单合规吞吐聚合（只读）。时长在 Python 计算以跨方言安全。"""
+
 from __future__ import annotations
 
 from datetime import date
@@ -13,8 +14,12 @@ from app.services.analytics._common import hours_between, resolve_window
 
 
 def work_order_dashboard(
-    db: Session, *, date_from: date | None = None, date_to: date | None = None,
-    asset_id: str | None = None, location_id: str | None = None,
+    db: Session,
+    *,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
 ) -> dict:
     start, end_excl, df, dt = resolve_window(date_from, date_to)
     stmt = select(WorkOrder).where(
@@ -45,8 +50,10 @@ def work_order_dashboard(
     avg_cycle = round(sum(cycles) / len(cycles), 2) if cycles else None
 
     overdue = sum(
-        1 for wo in wos
-        if wo.due_date is not None and wo.due_date < dt
+        1
+        for wo in wos
+        if wo.due_date is not None
+        and wo.due_date < dt
         and wo.status not in (WorkOrderStatus.COMPLETE, WorkOrderStatus.CANCELED)
     )
 
@@ -67,9 +74,14 @@ def work_order_dashboard(
     avg_response = round(sum(resp) / len(resp), 2) if resp else None
 
     return {
-        "date_from": df, "date_to": dt, "total": total,
-        "by_status": by_status, "by_priority": by_priority,
-        "completed": completed, "completion_rate": completion_rate,
-        "overdue": overdue, "avg_cycle_time_hours": avg_cycle,
+        "date_from": df,
+        "date_to": dt,
+        "total": total,
+        "by_status": by_status,
+        "by_priority": by_priority,
+        "completed": completed,
+        "completion_rate": completion_rate,
+        "overdue": overdue,
+        "avg_cycle_time_hours": avg_cycle,
         "avg_response_time_hours": avg_response,
     }

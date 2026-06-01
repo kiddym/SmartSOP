@@ -1,4 +1,5 @@
 """Phase 5B 配置项默认值（开箱即用、测试零网络）。"""
+
 from __future__ import annotations
 
 from app.config import settings

@@ -3,6 +3,7 @@
 钉定即不可变：执行行用弱引用 node_id + 冗余 code/sort_order；input_schema 在
 执行视图按需从钉定版本节点读取（版本不可变，安全）。
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,18 +16,22 @@ from app.models.base import utcnow
 from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
 from app.models.work_order import WorkOrder
-from app.models.work_order_step_result import WorkOrderStepResult
 from app.models.work_order_status import WorkOrderStatus
+from app.models.work_order_step_result import WorkOrderStepResult
 from app.schemas.work_order import StepResultUpdate
 from app.services import work_order_service as wos
 
 
 def list_step_results(db: Session, work_order_id: str) -> list[WorkOrderStepResult]:
-    return list(db.execute(
-        select(WorkOrderStepResult)
-        .where(WorkOrderStepResult.work_order_id == work_order_id)
-        .order_by(WorkOrderStepResult.node_sort_order, WorkOrderStepResult.id)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(WorkOrderStepResult)
+            .where(WorkOrderStepResult.work_order_id == work_order_id)
+            .order_by(WorkOrderStepResult.node_sort_order, WorkOrderStepResult.id)
+        )
+        .scalars()
+        .all()
+    )
 
 
 def get_step_result(db: Session, result_id: str) -> WorkOrderStepResult | None:
@@ -34,15 +39,20 @@ def get_step_result(db: Session, result_id: str) -> WorkOrderStepResult | None:
 
 
 def _pinned_nodes(db: Session, procedure_id: str) -> list[ProcedureNode]:
-    return list(db.execute(
-        select(ProcedureNode)
-        .where(ProcedureNode.procedure_id == procedure_id, ProcedureNode.is_active.is_(True))
-        .order_by(ProcedureNode.sort_order, ProcedureNode.id)
-    ).scalars().all())
+    return list(
+        db.execute(
+            select(ProcedureNode)
+            .where(ProcedureNode.procedure_id == procedure_id, ProcedureNode.is_active.is_(True))
+            .order_by(ProcedureNode.sort_order, ProcedureNode.id)
+        )
+        .scalars()
+        .all()
+    )
 
 
-def attach_procedure(db: Session, wo: WorkOrder, procedure_id: str, company_id: str,
-                     actor_user_id: str | None) -> WorkOrder:
+def attach_procedure(
+    db: Session, wo: WorkOrder, procedure_id: str, company_id: str, actor_user_id: str | None
+) -> WorkOrder:
     if wo.procedure_id is not None:
         raise conflict("WORKORDER_PROCEDURE_ATTACHED", "工单已挂接 SOP，请先解绑")
     proc = db.get(Procedure, procedure_id)
@@ -56,10 +66,16 @@ def attach_procedure(db: Session, wo: WorkOrder, procedure_id: str, company_id: 
     for node in _pinned_nodes(db, proc.id):
         if node.kind != "step":
             continue
-        db.add(WorkOrderStepResult(
-            work_order_id=wo.id, node_id=node.id, node_code=node.code,
-            node_sort_order=node.sort_order, response={}, company_id=company_id,
-        ))
+        db.add(
+            WorkOrderStepResult(
+                work_order_id=wo.id,
+                node_id=node.id,
+                node_code=node.code,
+                node_sort_order=node.sort_order,
+                response={},
+                company_id=company_id,
+            )
+        )
     wos._log(db, wo.id, company_id, "SOP_ATTACH", actor_user_id=actor_user_id)
     db.commit()
     db.refresh(wo)
@@ -85,23 +101,41 @@ def execution_view(db: Session, wo: WorkOrder) -> dict[str, Any]:
     nodes = _pinned_nodes(db, wo.procedure_id)
     schema_by_id = {n.id: (n.input_schema or {}) for n in nodes}
     outline = [
-        {"node_id": n.id, "heading_level": n.heading_level, "kind": n.kind,
-         "body": n.body, "code": n.code, "sort_order": n.sort_order}
+        {
+            "node_id": n.id,
+            "heading_level": n.heading_level,
+            "kind": n.kind,
+            "body": n.body,
+            "code": n.code,
+            "sort_order": n.sort_order,
+        }
         for n in nodes
     ]
     steps = []
     for sr in list_step_results(db, wo.id):
-        steps.append({
-            "id": sr.id, "node_id": sr.node_id, "node_code": sr.node_code,
-            "node_sort_order": sr.node_sort_order,
-            "input_schema": schema_by_id.get(sr.node_id, {}),
-            "response": sr.response or {}, "is_done": sr.is_done,
-            "done_by_user_id": sr.done_by_user_id, "done_at": sr.done_at, "notes": sr.notes,
-        })
+        steps.append(
+            {
+                "id": sr.id,
+                "node_id": sr.node_id,
+                "node_code": sr.node_code,
+                "node_sort_order": sr.node_sort_order,
+                "input_schema": schema_by_id.get(sr.node_id, {}),
+                "response": sr.response or {},
+                "is_done": sr.is_done,
+                "done_by_user_id": sr.done_by_user_id,
+                "done_at": sr.done_at,
+                "notes": sr.notes,
+            }
+        )
     procedure = None
     if proc is not None:
-        procedure = {"id": proc.id, "group_id": proc.procedure_group_id,
-                     "code": proc.code, "name": proc.name, "version": proc.version}
+        procedure = {
+            "id": proc.id,
+            "group_id": proc.procedure_group_id,
+            "code": proc.code,
+            "name": proc.name,
+            "version": proc.version,
+        }
     return {"procedure": procedure, "outline": outline, "steps": steps}
 
 
@@ -114,8 +148,14 @@ def _required_fields(db: Session, node_id: str) -> list[str]:
     return list(req) if isinstance(req, list) else []
 
 
-def update_step(db: Session, wo: WorkOrder, sr: WorkOrderStepResult, payload: StepResultUpdate,
-                company_id: str, actor_user_id: str | None) -> WorkOrderStepResult:
+def update_step(
+    db: Session,
+    wo: WorkOrder,
+    sr: WorkOrderStepResult,
+    payload: StepResultUpdate,
+    company_id: str,
+    actor_user_id: str | None,
+) -> WorkOrderStepResult:
     if wo.status != WorkOrderStatus.IN_PROGRESS:
         raise bad_request("WORKORDER_NOT_IN_PROGRESS", "工单需处于执行中才能填写步骤")
     data = payload.model_dump(exclude_unset=True)
@@ -126,15 +166,24 @@ def update_step(db: Session, wo: WorkOrder, sr: WorkOrderStepResult, payload: St
     if "is_done" in data and data["is_done"] is not None:
         if data["is_done"]:
             response = sr.response or {}
-            missing = [f for f in _required_fields(db, sr.node_id)
-                       if f not in response or response[f] in (None, "")]
+            missing = [
+                f
+                for f in _required_fields(db, sr.node_id)
+                if f not in response or response[f] in (None, "")
+            ]
             if missing:
                 raise bad_request("STEP_REQUIRED_MISSING", "必填字段缺失", field=",".join(missing))
             sr.is_done = True
             sr.done_by_user_id = actor_user_id
             sr.done_at = utcnow()
-            wos._log(db, wo.id, company_id, "STEP_DONE", actor_user_id=actor_user_id,
-                     comment=sr.node_code)
+            wos._log(
+                db,
+                wo.id,
+                company_id,
+                "STEP_DONE",
+                actor_user_id=actor_user_id,
+                comment=sr.node_code,
+            )
         else:
             sr.is_done = False
             sr.done_by_user_id = None

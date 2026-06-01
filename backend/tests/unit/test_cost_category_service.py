@@ -19,8 +19,9 @@ def test_list(db: Session):
 
 def test_update(db: Session):
     c = svc.create_cost_category(db, CostCategoryCreate(name="旧"), CO, actor_user_id="a")
-    svc.update_cost_category(db, c, CostCategoryUpdate(name="新", description="d"),
-                             CO, actor_user_id="a")
+    svc.update_cost_category(
+        db, c, CostCategoryUpdate(name="新", description="d"), CO, actor_user_id="a"
+    )
     assert c.name == "新" and c.description == "d"
 
 
