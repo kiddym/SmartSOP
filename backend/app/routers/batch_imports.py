@@ -135,6 +135,42 @@ def patch_review(
     return result
 
 
+@router.post("/{job_id}/items/{item_id}/retry", status_code=status.HTTP_204_NO_CONTENT)
+def retry_item(
+    job_id: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    batch_review_service.retry_item(db, job_id, item_id)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{job_id}/items/{item_id}/skip", status_code=status.HTTP_204_NO_CONTENT)
+def skip_item(
+    job_id: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    batch_review_service.skip_item(db, job_id, item_id)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{job_id}/items/{item_id}/undo", status_code=status.HTTP_204_NO_CONTENT)
+def undo_item(
+    job_id: str,
+    item_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> Response:
+    batch_review_service.undo_item(db, job_id, item_id)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 @router.get("/{job_id}/items/{item_id}/media/{filename}")
 def serve_media(
     job_id: str,

@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 
 from app import storage
 from app.errors import bad_request, conflict, not_found
+from app.models.base import utcnow
 from app.models.batch import BatchImportItem
+from app.models.procedure import Procedure
 from app.schemas.batch import ApplyPreviewOut, ReviewPatchRequest, ReviewPatchResult
-from app.services import batch_import_service
+from app.services import batch_import_service, batch_parse_service
 
 
 def enqueue_apply(
@@ -117,3 +119,42 @@ def _index_nodes(chapters: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
     walk(chapters)
     return out
+
+
+def retry_item(db: Session, job_id: str, item_id: str) -> None:
+    """失败项重排队（重新被 parse worker 领取）。"""
+    item = batch_import_service.get_item(db, job_id, item_id)
+    if item.status != "failed":
+        raise bad_request("BATCH_ITEM_NOT_FAILED", "仅失败条目可重试")
+    item.status = "queued"
+    item.error = None
+    item.leased_until = None
+    db.flush()
+
+
+def skip_item(db: Session, job_id: str, item_id: str) -> None:
+    """跳过该条目（不落库）。"""
+    item = batch_import_service.get_item(db, job_id, item_id)
+    if item.status not in ("review", "failed"):
+        raise bad_request("BATCH_ITEM_NOT_SKIPPABLE", "仅待审阅/失败条目可跳过")
+    item.status = "skipped"
+    batch_parse_service.recompute_counts(db, item.job_id)
+    db.flush()
+
+
+def undo_item(db: Session, job_id: str, item_id: str) -> None:
+    """撤销已落库（软删刚建程序，条目回 review）。
+
+    MVP 直接软删 Procedure；接审计/版本流的完整废止留作演进。
+    """
+    item = batch_import_service.get_item(db, job_id, item_id)
+    if item.status != "applied" or item.created_procedure_id is None:
+        raise bad_request("BATCH_ITEM_NOT_APPLIED", "仅已应用条目可撤销")
+    proc = db.get(Procedure, item.created_procedure_id)
+    if proc is not None:
+        proc.is_active = False
+        proc.deleted_at = utcnow()
+    item.created_procedure_id = None
+    item.status = "review"
+    batch_parse_service.recompute_counts(db, item.job_id)
+    db.flush()

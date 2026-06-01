@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app import storage, tenant
 from app.models.batch import BatchImportItem, BatchImportJob
+from app.models.procedure import Procedure
 from app.schemas.batch import ReviewOp, ReviewPatchRequest
 from app.services import batch_import_service, batch_review_service
 
@@ -259,3 +260,75 @@ def test_apply_review_ops_unknown_node_raises_404(db: Session, storage_tmp: Any)
             ),
         )
     assert ei.value.status_code == 404
+
+
+def test_retry_failed_back_to_queued(db: Session) -> None:
+    from datetime import timedelta
+
+    from app.models.base import utcnow
+
+    job = _job(db)
+    item = _item(db, job, status="failed")
+    item.error = "boom"
+    item.leased_until = utcnow() - timedelta(seconds=10)
+    db.commit()
+    batch_review_service.retry_item(db, job.id, item.id)
+    db.commit()
+    fresh = db.get(BatchImportItem, item.id)
+    assert fresh.status == "queued"
+    assert fresh.error is None
+    assert fresh.leased_until is None
+
+
+def test_skip_marks_skipped(db: Session) -> None:
+    job = _job(db)
+    item = _item(db, job, status="review")
+    db.commit()
+    batch_review_service.skip_item(db, job.id, item.id)
+    db.commit()
+    assert db.get(BatchImportItem, item.id).status == "skipped"
+
+
+def test_undo_soft_deletes_procedure_and_reverts(db: Session, factory) -> None:
+    job = _job(db)
+    proc = factory.procedure(folder_id="f1", code="QC-00001")
+    item = _item(db, job, status="applied", procedure_id=proc.id)
+    db.commit()
+    batch_review_service.undo_item(db, job.id, item.id)
+    db.commit()
+    fresh = db.get(BatchImportItem, item.id)
+    assert fresh.status == "review"
+    assert fresh.created_procedure_id is None
+    gone = db.get(Procedure, proc.id)
+    assert gone.is_active is False
+    assert gone.deleted_at is not None
+
+
+def test_retry_non_failed_raises(db: Session) -> None:
+    job = _job(db)
+    item = _item(db, job, status="review")
+    db.commit()
+    with pytest.raises(HTTPException) as ei:
+        batch_review_service.retry_item(db, job.id, item.id)
+    assert ei.value.status_code == 400
+    assert "BATCH_ITEM_NOT_FAILED" in str(ei.value.detail)
+
+
+def test_skip_non_skippable_raises(db: Session) -> None:
+    job = _job(db)
+    item = _item(db, job, status="applied", procedure_id="p-x")
+    db.commit()
+    with pytest.raises(HTTPException) as ei:
+        batch_review_service.skip_item(db, job.id, item.id)
+    assert ei.value.status_code == 400
+    assert "BATCH_ITEM_NOT_SKIPPABLE" in str(ei.value.detail)
+
+
+def test_undo_non_applied_raises(db: Session) -> None:
+    job = _job(db)
+    item = _item(db, job, status="review")
+    db.commit()
+    with pytest.raises(HTTPException) as ei:
+        batch_review_service.undo_item(db, job.id, item.id)
+    assert ei.value.status_code == 400
+    assert "BATCH_ITEM_NOT_APPLIED" in str(ei.value.detail)
