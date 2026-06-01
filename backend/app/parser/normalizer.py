@@ -118,6 +118,54 @@ def _count_raw_images(el: etree._Element) -> int:
     return n
 
 
+def _has_math_ancestor(el: etree._Element, stop: etree._Element) -> bool:
+    cur = el.getparent()
+    while cur is not None and cur is not stop:
+        if local(cur.tag) in ("oMath", "oMathPara"):
+            return True
+        cur = cur.getparent()
+    return False
+
+
+def _count_raw_placeholders(el: etree._Element) -> int:
+    """独立统计 el 内应占位的源元素数（供 C007，与插入路径独立）。
+
+    = 最外层 math 容器数（oMathPara + 父非 oMathPara 的 oMath）
+      + 无可用位图的 diagram/chart graphic 数（其所属 <w:r> 内无 a:blip/v:imagedata）。
+    """
+    n = 0
+    for _m in el.iter(qn("m:oMathPara")):
+        n += 1
+    for m in el.iter(qn("m:oMath")):
+        if not _has_math_ancestor(m, el):
+            n += 1
+    for gd in el.iter(qn("a:graphicData")):
+        uri = gd.get("uri") or ""
+        if not _is_diagram_or_chart(uri):
+            continue
+        run = _ancestor_run(gd)
+        if run is not None and not _run_has_image(run):
+            n += 1
+    return n
+
+
+def _is_diagram_or_chart(uri: str) -> bool:
+    return "/diagram" in uri or "/chart" in uri
+
+
+def _ancestor_run(el: etree._Element) -> etree._Element | None:
+    cur = el.getparent()
+    while cur is not None:
+        if local(cur.tag) == "r":
+            return cur
+        cur = cur.getparent()
+    return None
+
+
+def _run_has_image(run: etree._Element) -> bool:
+    return run.find(".//" + qn("a:blip")) is not None or run.find(".//" + qn("v:imagedata")) is not None
+
+
 def _emit_images(run: etree._Element, ctx: _Ctx) -> list[ImageRef]:
     """收集一个 run 内全部图片（a:blip inline/anchor + v:imagedata VML），按 XML 顺序。
 
@@ -183,6 +231,7 @@ class _RunOut:
     bold_chars: int
     total_chars: int
     max_font: float | None
+    placeholder_count: int
 
 
 def _serialize_runs(container: etree._Element, ctx: _Ctx) -> _RunOut:
@@ -193,9 +242,14 @@ def _serialize_runs(container: etree._Element, ctx: _Ctx) -> _RunOut:
     bold_chars = 0
     total_chars = 0
     max_font: float | None = None
+    placeholder_count = 0
 
     for child in container:
         tag = local(child.tag)
+        if tag in ("oMathPara", "oMath"):
+            parts.append('<span class="sop-ph" data-ph="formula">[公式]</span>')
+            placeholder_count += 1
+            continue
         if tag in ("hyperlink", "ins", "smartTag"):  # 递归内部 runs（修订 ins 视为正文）
             sub = _serialize_runs(child, ctx)
             inner = sub.html
@@ -206,6 +260,7 @@ def _serialize_runs(container: etree._Element, ctx: _Ctx) -> _RunOut:
                 parts.append(inner)
             text_parts.append(sub.text)
             images.extend(sub.images)
+            placeholder_count += sub.placeholder_count
             bold_chars += sub.bold_chars
             total_chars += sub.total_chars
             if sub.max_font is not None:
@@ -235,6 +290,18 @@ def _serialize_runs(container: etree._Element, ctx: _Ctx) -> _RunOut:
             images.append(ref)
             parts.append(f'<img src="{ref.placeholder}"/>')
 
+        # SmartArt/chart：本 run 无位图时，遍历 run 内每个 diagram/chart graphicData
+        # 各插一个块状占位（与 _count_raw_placeholders 同基数）。
+        if not _run_has_image(child):
+            for g in child.iter(qn("a:graphicData")):
+                uri = g.get("uri") or ""
+                if not _is_diagram_or_chart(uri):
+                    continue
+                kind = "chart" if "/chart" in uri else "smartart"
+                label = "[图表]" if kind == "chart" else "[SmartArt 图示]"
+                parts.append(f'<div class="sop-ph" data-ph="{kind}">{label}</div>')
+                placeholder_count += 1
+
     return _RunOut(
         html="".join(parts),
         text="".join(text_parts),
@@ -242,6 +309,7 @@ def _serialize_runs(container: etree._Element, ctx: _Ctx) -> _RunOut:
         bold_chars=bold_chars,
         total_chars=total_chars,
         max_font=max_font,
+        placeholder_count=placeholder_count,
     )
 
 
@@ -285,6 +353,7 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
 
     out = _serialize_runs(para, ctx)
     raw_blips = _count_raw_images(para)
+    raw_placeholders = _count_raw_placeholders(para)
     alignment = _read_alignment(ppr)
     style_level = styles_mod.classify_heading_style(
         style_id, ctx.style_index, synonyms=ctx.synonyms, style_overrides=ctx.style_overrides
@@ -319,6 +388,8 @@ def emit_paragraph(para: etree._Element, ctx: _Ctx, index: int) -> Block:
         num_ilvl=num_ilvl,
         images=out.images,
         raw_image_count=raw_blips,
+        raw_placeholder_count=raw_placeholders,
+        placeholder_count=out.placeholder_count,
     )
 
 

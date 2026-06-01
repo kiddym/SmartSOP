@@ -289,3 +289,93 @@ def test_discarded_parts_ignores_empty_header_stub() -> None:
         zout.writestr("word/header1.xml", empty_header)
     pkg = DocxPackage(out_buf.getvalue())
     assert pkg.discarded_parts() == [], "empty header should not trigger discard warning"
+
+
+def test_formula_inserts_inline_placeholder() -> None:
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().formula_para(before="见公式", after="所示").build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    para = next(b for b in nd.blocks if b.kind == "paragraph" and "见公式" in b.text)
+    assert '<span class="sop-ph" data-ph="formula">[公式]</span>' in para.html
+    assert para.html.index("见公式") < para.html.index("data-ph=\"formula\"") < para.html.index("所示")
+    assert para.placeholder_count == 1
+    assert para.raw_placeholder_count == 1
+
+
+def test_formula_independent_raw_count() -> None:
+    """独立扫描计数：oMathPara 直接子 + 裸 oMath 各算一处，无双计。"""
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().formula_para().formula_para().build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    total_raw = sum(b.raw_placeholder_count for b in nd.blocks)
+    total_inserted = sum(b.placeholder_count for b in nd.blocks)
+    assert total_raw == 2 and total_inserted == 2
+
+
+def test_count_raw_placeholders_nested_omath_counts_outermost_only() -> None:
+    from lxml import etree
+    from app.parser.normalizer import _count_raw_placeholders
+    from app.parser.utils.opc import qn
+    # <w:p><m:oMathPara><m:oMath><m:oMath/></m:oMath></m:oMathPara></w:p>
+    p = etree.Element(qn("w:p"))
+    omathpara = etree.SubElement(p, qn("m:oMathPara"))
+    omath = etree.SubElement(omathpara, qn("m:oMath"))
+    etree.SubElement(omath, qn("m:oMath"))  # 嵌套子公式
+    assert _count_raw_placeholders(p) == 1
+
+    # 裸嵌套：<w:p><m:oMath><m:oMath/></m:oMath></w:p>
+    p2 = etree.Element(qn("w:p"))
+    o_outer = etree.SubElement(p2, qn("m:oMath"))
+    etree.SubElement(o_outer, qn("m:oMath"))
+    assert _count_raw_placeholders(p2) == 1
+
+
+def test_chart_inserts_block_placeholder() -> None:
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().chart_para().build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
+    assert 'data-ph="chart"' in para.html
+    assert "[图表]" in para.html
+    assert para.placeholder_count == 1 and para.raw_placeholder_count == 1
+
+
+def test_multiple_graphics_one_run_insert_per_graphic() -> None:
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().two_charts_one_run().build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
+    assert para.html.count('data-ph="chart"') == 2
+    assert para.placeholder_count == 2
+    assert para.raw_placeholder_count == 2
+
+
+def test_smartart_without_fallback_inserts_placeholder() -> None:
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().smartart_para(with_fallback=False).build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    para = next(b for b in nd.blocks if b.kind == "paragraph" and "sop-ph" in b.html)
+    assert 'data-ph="smartart"' in para.html
+    assert para.placeholder_count == 1 and para.raw_placeholder_count == 1
+
+
+def test_smartart_with_fallback_uses_image_not_placeholder() -> None:
+    from tests.unit.parser._docx_builder import DocxBuilder
+    from app.parser.normalizer import normalize
+    from app.parser.utils.opc import DocxPackage
+    data = DocxBuilder().smartart_para(with_fallback=True).build()
+    nd = normalize(DocxPackage(data), synonyms={}, style_overrides={})
+    para = next(b for b in nd.blocks if b.kind == "paragraph" and (b.images or "sop-ph" in b.html))
+    assert para.images, "应抽到 fallback 图"
+    assert "sop-ph" not in para.html
+    assert para.placeholder_count == 0 and para.raw_placeholder_count == 0

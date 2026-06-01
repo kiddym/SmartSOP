@@ -89,6 +89,7 @@ class ValidationReportOut(BaseModel):
 class ParseWarningOut(BaseModel):
     stage: str
     message: str
+    severity: str = "info"
 
 
 class ParseMetadataOut(BaseModel):
@@ -136,6 +137,7 @@ class ImportRequest(BaseModel):
     level_of_use: LevelOfUse = "reference"
     upload_token: str | None = None
     chapters: list[ImportNodeIn] = Field(default_factory=list)
+    import_notes: list[ParseWarningOut] = Field(default_factory=list)
 
 
 # --------------------------------------------------------------------------- #
@@ -209,7 +211,10 @@ def build_parse_response(
             for p in result.detected_patterns
         ],
         validation=validation,
-        warnings=[ParseWarningOut(stage=w.stage, message=w.message) for w in result.warnings],
+        warnings=[
+            ParseWarningOut(stage=w.stage, message=w.message, severity=w.severity)
+            for w in result.warnings
+        ],
         review_required=result.review_required,
         parse_method=result.parse_method,
     )

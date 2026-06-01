@@ -23,6 +23,8 @@ NS: Final[dict[str, str]] = {
     "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
     "v": "urn:schemas-microsoft-com:vml",
     "o": "urn:schemas-microsoft-com:office:office",
+    "m": "http://schemas.openxmlformats.org/officeDocument/2006/math",
+    "mc": "http://schemas.openxmlformats.org/markup-compatibility/2006",
 }
 
 _DOCUMENT_PART: Final = "word/document.xml"

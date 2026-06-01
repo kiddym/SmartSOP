@@ -205,3 +205,40 @@ def test_assign_styled_depths_no_op_when_styles_encode_levels() -> None:
     num_floor = {"1": 1, "11": 0}
     depths = structurer._assign_styled_depths(blocks, num_floor)
     assert depths[2] == 1  # 非扁平 → 不嵌套，忠实样式层级
+
+
+def test_content_block_with_placeholder_marked_review() -> None:
+    from app.parser.normalizer import normalize
+    from app.parser.structurer import structure
+    from app.parser.utils.opc import DocxPackage
+
+    data = (
+        DocxBuilder()
+        .heading("目的", level=1)
+        .formula_para(before="计算式")
+        .para("普通正文无占位")
+        .build()
+    )
+    pkg = DocxPackage(data)
+    nd = normalize(pkg, synonyms={}, style_overrides={})
+    result = structure(nd, pkg=pkg, mode="smart", synonyms={}, style_overrides={})
+    chapter = result.chapters[0]
+    contents = [c for c in chapter.children if c.content_type == "content"]
+    ph_node = next(c for c in contents if "sop-ph" in c.rich_content)
+    plain_node = next(c for c in contents if "普通正文" in c.rich_content)
+    assert ph_node.mark_status == "review"
+    assert plain_node.mark_status == "unmarked"
+    assert result.review_required >= 1
+
+
+def test_no_c007_warning_when_placeholders_balanced() -> None:
+    from app.parser.normalizer import normalize
+    from app.parser.structurer import structure
+    from app.parser.utils.opc import DocxPackage
+
+    data = DocxBuilder().heading("目的", level=1).formula_para(before="式").chart_para().build()
+    pkg = DocxPackage(data)
+    nd = normalize(pkg, synonyms={}, style_overrides={})
+    result = structure(nd, pkg=pkg, mode="smart", synonyms={}, style_overrides={})
+    ph_warnings = [w for w in result.warnings if "公式/图示" in w.message]
+    assert ph_warnings == []  # raw==inserted，不应误报

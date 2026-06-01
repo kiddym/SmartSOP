@@ -163,14 +163,18 @@ def structure(
             )
             continue
         current = stack[-1][1]
+        content_mark = "review" if block.placeholder_count > 0 else "unmarked"
         content_node = ParsedNode(
             id=_new_id(),
             title="",
             level=current.level + 1,
             content_type="content",
             rich_content=block.html,
+            mark_status=content_mark,
         )
         current.children.append(content_node)
+        if content_mark == "review":
+            review_required += 1
         image_refs.extend(block.images)
         image_count += len(block.images)
         if block.kind == "table":
@@ -376,12 +380,18 @@ def _append_completeness_warnings(
     img_ok, raw, ext = completeness.image_count_match(body_blocks)
     if not img_ok:
         warnings.append(
-            ParseWarning(stage="completeness", message=f"图片可能遗漏：原始 {raw} / 解析 {ext}")
+            ParseWarning(
+                stage="completeness", message=f"图片可能遗漏：原始 {raw} / 解析 {ext}",
+                severity="blocking",
+            )
         )
     tbl_ok, traw, tser = completeness.table_count_match(body_blocks)
     if not tbl_ok:
         warnings.append(
-            ParseWarning(stage="completeness", message=f"表格可能遗漏：原始 {traw} / 解析 {tser}")
+            ParseWarning(
+                stage="completeness", message=f"表格可能遗漏：原始 {traw} / 解析 {tser}",
+                severity="blocking",
+            )
         )
     p_ok, p_raw, p_kept = completeness.paragraph_count_match(nd)
     if not p_ok:
@@ -389,5 +399,15 @@ def _append_completeness_warnings(
             ParseWarning(
                 stage="completeness",
                 message=f"段落可能遗漏：原始 {p_raw} / 解析 {p_kept}（保留 {p_kept/p_raw:.1%}）",
+                severity="blocking",
+            )
+        )
+    ph_ok, ph_raw, ph_ins = completeness.placeholder_count_match(body_blocks)
+    if not ph_ok:
+        warnings.append(
+            ParseWarning(
+                stage="completeness",
+                message=f"公式/图示可能遗漏：原始 {ph_raw} / 占位 {ph_ins}",
+                severity="blocking",
             )
         )

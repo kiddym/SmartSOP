@@ -25,6 +25,7 @@ from lxml import etree as _et
 _W_NS = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 _V_NS = "urn:schemas-microsoft-com:vml"
 _R_NS = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_M_NS = "http://schemas.openxmlformats.org/officeDocument/2006/math"
 
 
 def inject_header_part(docx_bytes: bytes, *, header_text: str = "页眉文字") -> bytes:
@@ -103,6 +104,65 @@ class DocxBuilder:
         run.bold = bold
         if size_pt is not None:
             run.font.size = Pt(size_pt)
+        return self
+
+    def formula_para(self, before: str = "", after: str = "") -> DocxBuilder:
+        """段落含一个 OMML 公式（<m:oMathPara><m:oMath>...），可选前后文字。"""
+        p = self.doc.add_paragraph()
+        if before:
+            p.add_run(before)
+        omathpara = _et.SubElement(p._p, "{%s}oMathPara" % _M_NS)
+        omath = _et.SubElement(omathpara, "{%s}oMath" % _M_NS)
+        mr = _et.SubElement(omath, "{%s}r" % _M_NS)
+        mt = _et.SubElement(mr, "{%s}t" % _M_NS)
+        mt.text = "x^2"
+        if after:
+            p.add_run(after)
+        return self
+
+    def _graphic_run(self, uri: str, with_image: bool, png: bytes | None = None) -> None:
+        """新段落 run 内放 <w:drawing><a:graphic><a:graphicData uri=...>；
+        with_image=True 时同 run 再放一张 v:imagedata（模拟 fallback 缓存图）。"""
+        _A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+        p = self.doc.add_paragraph()
+        run = p.add_run()
+        drawing = _et.SubElement(run._r, "{%s}drawing" % _W_NS)
+        graphic = _et.SubElement(drawing, "{%s}graphic" % _A_NS)
+        _et.SubElement(graphic, "{%s}graphicData" % _A_NS, attrib={"uri": uri})
+        if with_image:
+            png = png or tiny_png()
+            tmp_p = self.doc.add_paragraph()
+            tmp_run = tmp_p.add_run()
+            tmp_run.add_picture(io.BytesIO(png), width=Pt(20))
+            blip = tmp_run._r.find(".//{%s}blip" % _A_NS)
+            rid = blip.get("{%s}embed" % _R_NS)
+            tmp_p._p.getparent().remove(tmp_p._p)
+            pict = _et.SubElement(run._r, "{%s}pict" % _W_NS)
+            shape = _et.SubElement(
+                pict, "{%s}shape" % _V_NS, attrib={"style": "width:20pt;height:20pt"}
+            )
+            _et.SubElement(shape, "{%s}imagedata" % _V_NS, attrib={"{%s}id" % _R_NS: rid})
+
+    def smartart_para(self, with_fallback: bool = False) -> DocxBuilder:
+        self._graphic_run(
+            "http://schemas.openxmlformats.org/drawingml/2006/diagram", with_fallback
+        )
+        return self
+
+    def chart_para(self) -> DocxBuilder:
+        self._graphic_run("http://schemas.openxmlformats.org/drawingml/2006/chart", False)
+        return self
+
+    def two_charts_one_run(self) -> DocxBuilder:
+        """同一 run 内放两个 chart graphicData（均无位图）——验证多图形/run 占位数=2。"""
+        _A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+        uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
+        p = self.doc.add_paragraph()
+        run = p.add_run()
+        for _ in range(2):
+            drawing = _et.SubElement(run._r, "{%s}drawing" % _W_NS)
+            graphic = _et.SubElement(drawing, "{%s}graphic" % _A_NS)
+            _et.SubElement(graphic, "{%s}graphicData" % _A_NS, attrib={"uri": uri})
         return self
 
     def image_para(self, png: bytes | None = None, *, width_pt: float = 60) -> DocxBuilder:

@@ -62,6 +62,7 @@ class ValidationReport:
 class ParseWarning:
     stage: str  # boundary | completeness | image | structure | discarded_by_design
     message: str
+    severity: str = "info"  # "blocking"（内容可能静默丢失，需强确认）| "info"（有意裁剪/已知丢弃）
 
 
 @dataclass
