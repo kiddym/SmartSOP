@@ -25,6 +25,8 @@ from app.schemas.batch import (
     BatchImportCreate,
     BatchImportItemOut,
     BatchImportJobOut,
+    ReviewPatchRequest,
+    ReviewPatchResult,
 )
 from app.services import batch_import_service, batch_review_service
 
@@ -118,6 +120,19 @@ def apply_preview(
     user: User = Depends(get_current_user),
 ) -> ApplyPreviewOut:
     return batch_review_service.preview_apply(db, job_id, item_ids=payload.item_ids)
+
+
+@router.patch("/{job_id}/items/{item_id}/review", response_model=ReviewPatchResult)
+def patch_review(
+    job_id: str,
+    item_id: str,
+    payload: ReviewPatchRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ReviewPatchResult:
+    result = batch_review_service.apply_review_ops(db, job_id, item_id, payload=payload)
+    db.commit()
+    return result
 
 
 @router.get("/{job_id}/items/{item_id}/media/{filename}")

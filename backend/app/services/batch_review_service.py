@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request
+from app import storage
+from app.errors import bad_request, conflict, not_found
 from app.models.batch import BatchImportItem
-from app.schemas.batch import ApplyPreviewOut
+from app.schemas.batch import ApplyPreviewOut, ReviewPatchRequest, ReviewPatchResult
 from app.services import batch_import_service
 
 
@@ -66,3 +70,50 @@ def preview_apply(db: Session, job_id: str, *, item_ids: list[str] | None) -> Ap
         duplicate_skip=duplicate,
         target_folder_id=job.folder_id,
     )
+
+
+def apply_review_ops(
+    db: Session, job_id: str, item_id: str, *, payload: ReviewPatchRequest
+) -> ReviewPatchResult:
+    """读-改-写暂存 blob 的节点判定，review_revision 乐观锁（冲突 409）。"""
+    item = batch_import_service.get_item(db, job_id, item_id)
+    if item.review_revision != payload.review_revision:
+        raise conflict("VERSION_CONFLICT", "该条目已被修改，请刷新后重试")
+    if not item.parse_blob_ref:
+        raise not_found("BATCH_BLOB_NOT_READY", "该条目尚未解析完成")
+
+    path = storage.batch_blob_path(job_id, item_id)
+    blob = json.loads(path.read_text(encoding="utf-8"))
+    index = _index_nodes(blob.get("chapters", []))
+
+    for op in payload.ops:
+        node = index.get(op.node_id)
+        if node is None:
+            raise not_found("BATCH_NODE_NOT_FOUND", f"节点不存在：{op.node_id}")
+        if op.action == "to_content":
+            node["content_type"] = "content"
+        elif op.action == "to_chapter":
+            node["content_type"] = "chapter"
+        elif op.action == "set_level":
+            if op.level is None:
+                raise bad_request("VALIDATION_FAILED", "set_level 需指定 level", field="level")
+            node["level"] = op.level
+        elif op.action == "accept":
+            node["mark_status"] = "unmarked"
+
+    path.write_text(json.dumps(blob, ensure_ascii=False), encoding="utf-8")
+    item.review_revision += 1
+    db.flush()
+    return ReviewPatchResult(review_revision=item.review_revision)
+
+
+def _index_nodes(chapters: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+
+    def walk(nodes: list[dict[str, Any]]) -> None:
+        for n in nodes:
+            out[n["id"]] = n
+            walk(n.get("children", []))
+
+    walk(chapters)
+    return out
