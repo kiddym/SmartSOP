@@ -18,8 +18,14 @@ from app.errors import not_found
 from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.user import User
 from app.parser.utils import images
-from app.schemas.batch import BatchImportCreate, BatchImportItemOut, BatchImportJobOut
-from app.services import batch_import_service
+from app.schemas.batch import (
+    BatchApplyRequest,
+    BatchApplyResult,
+    BatchImportCreate,
+    BatchImportItemOut,
+    BatchImportJobOut,
+)
+from app.services import batch_import_service, batch_review_service
 
 router = APIRouter(prefix="/api/v1/batch-imports", tags=["batch-imports"])
 
@@ -87,6 +93,20 @@ def get_parse_result(
     user: User = Depends(get_current_user),
 ) -> dict[str, Any]:
     return batch_import_service.load_blob(db, job_id, item_id)
+
+
+@router.post("/{job_id}/apply", response_model=BatchApplyResult)
+def apply_batch(
+    job_id: str,
+    payload: BatchApplyRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> BatchApplyResult:
+    n = batch_review_service.enqueue_apply(
+        db, job_id, item_ids=payload.item_ids, high_confidence_only=payload.high_confidence_only
+    )
+    db.commit()
+    return BatchApplyResult(enqueued=n)
 
 
 @router.get("/{job_id}/items/{item_id}/media/{filename}")

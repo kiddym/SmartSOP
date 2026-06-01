@@ -36,3 +36,12 @@ class BatchImportItemOut(BaseModel):
     content_hash: str
     summary: dict[str, Any]
     error: str | None
+
+
+class BatchApplyRequest(BaseModel):
+    item_ids: list[str] | None = None  # None = 该批次全部 review 项
+    high_confidence_only: bool = False
+
+
+class BatchApplyResult(BaseModel):
+    enqueued: int

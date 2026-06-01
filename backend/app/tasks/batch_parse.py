@@ -37,6 +37,16 @@ def run_reaper() -> int:
         db.close()
 
 
+def run_apply(max_items: int = 4) -> dict[str, int]:
+    from app.services import batch_apply_service
+
+    db = SessionLocal()
+    try:
+        return batch_apply_service.run_apply_once(db, max_items=max_items)
+    finally:
+        db.close()
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="批量解析（一次性）")
     parser.add_argument("--once", action="store_true", help="执行一次解析 tick 后退出")

@@ -149,4 +149,5 @@ def test_scheduler_has_expected_jobs() -> None:
         "email_dispatch",
         "batch_parse",
         "batch_reaper",
+        "batch_apply",
     }
