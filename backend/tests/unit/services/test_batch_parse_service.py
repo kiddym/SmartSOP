@@ -121,7 +121,7 @@ def test_recompute_counts_terminal_with_some_success_marks_completed(db: Session
     db.add_all([ok, bad])
     db.commit()
 
-    batch_parse_service._recompute_counts(db, job.id)
+    batch_parse_service.recompute_counts(db, job.id)
     db.commit()
     tenant.set_current_company_id(None)
 

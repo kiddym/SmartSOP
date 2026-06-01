@@ -86,7 +86,7 @@ def parse_item(db: Session, item: BatchImportItem) -> None:
         item.status = "review"
         item.leased_until = None
         item.error = None
-        _recompute_counts(db, item.job_id)
+        recompute_counts(db, item.job_id)
     finally:
         tenant.reset_current_company_id(token)
 
@@ -120,12 +120,12 @@ def mark_failed(db: Session, item: BatchImportItem, message: str) -> None:
         item.status = "failed"
         item.error = message[:2000]
         item.leased_until = None
-        _recompute_counts(db, item.job_id)
+        recompute_counts(db, item.job_id)
     finally:
         tenant.reset_current_company_id(token)
 
 
-def _recompute_counts(db: Session, job_id: str) -> None:
+def recompute_counts(db: Session, job_id: str) -> None:
     """按当前 items 状态重算 job.counts 与 job.status（须在 job 的租户上下文内）。"""
     items = list(
         db.execute(

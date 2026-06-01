@@ -65,6 +65,37 @@ def store_from_token(
     return row
 
 
+def store_from_bytes(
+    db: Session, *, procedure_group_id: str, data: bytes, filename: str
+) -> ProcedureSourceDocx | None:
+    """从已有字节流永久落库（批量落库 worker 用：源 docx 已在批次区，无 upload token）。
+
+    与 store_from_token 共用边界校验与“先 flush 行、后经 storage backend 落盘”的次序，
+    使任何写盘失败最多残留“有行无文件”（可优雅降级 / 清理），而非静默磁盘泄漏。
+    超限 / 非 docx → None（降级，不阻断落库）。
+    """
+    if len(data) > settings.upload_max_size_mb * 1024 * 1024 or not is_docx_bytes(data):
+        return None
+    filename = filename[:_FILENAME_MAX]
+    path = storage.source_docx_path(procedure_group_id)
+    row = ProcedureSourceDocx(
+        procedure_group_id=procedure_group_id,
+        filename=filename,
+        storage_path=str(path.relative_to(storage.storage_root())),
+        sha256=hashlib.sha256(data).hexdigest(),
+        size_bytes=len(data),
+    )
+    db.add(row)
+    db.flush()
+    backend = get_storage_backend()
+    try:
+        backend.write(row.storage_path, data)
+    except Exception:
+        backend.delete(row.storage_path)  # 清半截文件；行随事务回滚消失
+        raise
+    return row
+
+
 def get_for_procedure(db: Session, procedure_id: str) -> tuple[Path, str, str]:
     """按 procedure_id → group → 返回 (落盘路径, mime, 原始文件名)，供流式下载。无 → 404。"""
     proc = db.execute(
