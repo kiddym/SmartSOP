@@ -53,6 +53,24 @@ class Settings(BaseSettings):
     asset_gc_grace_hours: int = 24  # asset ref_count=0 宽限（Q333）
     attachment_retention_days: int = 30  # 软删附件物理清理宽限（Q115/Q371）
 
+    # 邮件通知（Phase 5B）
+    email_backend: str = "console"  # console | smtp | memory(测试)
+    email_from: str = "no-reply@smart-cmms.local"
+    email_max_attempts: int = 5  # outbox 投递重试上限
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_use_tls: bool = True
+
+    # 文件存储后端（Phase 5B）
+    storage_backend: str = "local"  # local | s3
+    s3_bucket: str = ""
+    s3_endpoint_url: str = ""  # 空=AWS 默认 endpoint；填写以兼容 MinIO 等
+    s3_region: str = ""
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+
     # PDF 字体目录
     pdf_font_dir: str = "app/assets/fonts"
 
