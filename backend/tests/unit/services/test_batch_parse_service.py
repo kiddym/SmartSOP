@@ -129,3 +129,16 @@ def test_recompute_counts_terminal_with_some_success_marks_completed(db: Session
     assert fresh is not None
     assert fresh.status == "completed"
     assert fresh.counts == {"total": 2, "parsed": 1, "review": 0, "applied": 1, "failed": 1}
+
+
+def test_scheduler_registers_batch_jobs() -> None:
+    from apscheduler.schedulers.base import STATE_STOPPED
+
+    from app.tasks.scheduler import build_scheduler
+
+    sched = build_scheduler()
+    ids = {j.id for j in sched.get_jobs()}
+    assert "batch_parse" in ids
+    assert "batch_reaper" in ids
+    # scheduler was only built, not started — skip shutdown to avoid SchedulerNotRunningError
+    assert sched.state == STATE_STOPPED
