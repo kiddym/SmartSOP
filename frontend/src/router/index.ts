@@ -27,6 +27,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '查看程序' },
   },
   {
+    path: '/procedures/batch-review/:jobId',
+    name: 'batch-review',
+    component: () => import('@/views/procedures/BatchReviewView.vue'),
+    meta: { title: '批量审阅台' },
+  },
+  {
     path: '/procedures/:id',
     name: 'procedure-detail',
     component: () => import('@/views/procedures/ProcedureDetailView.vue'),
