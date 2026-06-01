@@ -10,7 +10,6 @@
 
 from __future__ import annotations
 
-import contextlib
 import mimetypes
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -27,6 +26,7 @@ from app.models.attachment import ProcedureAttachment
 from app.models.base import new_uuid, utcnow
 from app.models.procedure import Procedure
 from app.services import audit_service
+from app.storage_backends import get_storage_backend
 
 MAX_FILE_BYTES = 50 * 1024 * 1024  # 单文件 ≤50MB（Q120）
 MAX_COUNT = 30  # 单 procedure 单版本 ≤30 个（Q120）
@@ -80,11 +80,11 @@ def _active_rows(db: Session, procedure_id: str) -> list[ProcedureAttachment]:
     )
 
 
-def _file_or_404(att: ProcedureAttachment) -> Path:
-    path = storage.storage_root() / att.storage_path
-    if not path.exists():
-        raise not_found("NOT_FOUND", "附件文件已丢失")
-    return path
+def _bytes_or_404(att: ProcedureAttachment) -> bytes:
+    try:
+        return get_storage_backend().read(att.storage_path)
+    except FileNotFoundError:
+        raise not_found("NOT_FOUND", "附件文件已丢失") from None
 
 
 # --------------------------------------------------------------------------- #
@@ -115,7 +115,7 @@ def get_or_404(db: Session, attachment_id: str) -> ProcedureAttachment:
 def download(db: Session, attachment_id: str) -> tuple[bytes, str, str]:
     """下载（不受 deprecated 限制，Q118）。返回 (字节, mime, 原文件名)。"""
     att = get_or_404(db, attachment_id)
-    return _file_or_404(att).read_bytes(), att.mime_type, att.file_name
+    return _bytes_or_404(att), att.mime_type, att.file_name
 
 
 def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
@@ -127,7 +127,7 @@ def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
             "ATTACHMENT_NOT_PREVIEWABLE",
             "该类型不支持在线预览",
         )
-    return _file_or_404(att).read_bytes(), att.mime_type
+    return _bytes_or_404(att), att.mime_type
 
 
 # --------------------------------------------------------------------------- #
@@ -159,9 +159,8 @@ def upload(
     name = file_name.strip() or "未命名"
     uid = new_uuid()
     path = storage.attachment_path(uid, Path(name).suffix)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
     rel = path.relative_to(storage.storage_root()).as_posix()
+    get_storage_backend().write(rel, data)
 
     att = ProcedureAttachment(
         procedure_id=procedure_id,
@@ -301,9 +300,7 @@ def delete_orphan_path(
     """
     if _active_ref_count(db, storage_path) > 0:
         return 0
-    abs_path = storage.storage_root() / storage_path
-    with contextlib.suppress(FileNotFoundError):  # 文件已不存在视为成功（§53.2）
-        abs_path.unlink()  # 其他 OSError 抛出，由 task 记录并保留行下轮重试
+    get_storage_backend().delete(storage_path)  # 缺失幂等；其他 OSError 抛出由 task 记录并保留行下轮重试（§53.2）
     threshold = now - timedelta(days=retention_days)
     rows = db.execute(
         select(ProcedureAttachment).where(
