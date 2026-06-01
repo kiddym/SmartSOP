@@ -20,9 +20,10 @@ from app import storage
 from app.errors import bad_request, not_found, payload_too_large
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.base import new_uuid, utcnow
-from app.models.procedure import Procedure
 from app.models.node import ProcedureNode
+from app.models.procedure import Procedure
 from app.parser.utils import images
+from app.storage_backends import get_storage_backend
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB（Q207/Q215）
 
@@ -81,9 +82,10 @@ def find_or_create_asset(
     norm_ext = ext.lower() if ext.startswith(".") else f".{ext.lower()}"
     width, height = images.dimensions(data)
     path = storage.asset_path(sha, norm_ext)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(data)
     rel = path.relative_to(storage.storage_root()).as_posix()
+    backend = get_storage_backend()
+    if not backend.exists(rel):
+        backend.write(rel, data)
 
     asset = ProcedureAsset(
         sha256=sha,
@@ -214,10 +216,11 @@ def get_asset(db: Session, asset_id: str) -> tuple[bytes, str]:
     ).scalar_one_or_none()
     if asset is None:
         raise not_found("NOT_FOUND", "图片资源不存在")
-    path = storage.storage_root() / asset.storage_path
-    if not path.exists():
-        raise not_found("NOT_FOUND", "图片文件已丢失")
-    return path.read_bytes(), asset.mime_type
+    try:
+        data = get_storage_backend().read(asset.storage_path)
+    except FileNotFoundError:
+        raise not_found("NOT_FOUND", "图片文件已丢失") from None
+    return data, asset.mime_type
 
 
 # --------------------------------------------------------------------------- #
@@ -248,11 +251,8 @@ def delete_asset_locked(db: Session, asset_id: str, *, grace_hours: int, now: da
         return False
     if asset.updated_at > now - timedelta(hours=grace_hours):
         return False
-    path = storage.storage_root() / asset.storage_path
     try:
-        path.unlink()
-    except FileNotFoundError:
-        pass  # 文件已不存在视为成功
+        get_storage_backend().delete(asset.storage_path)
     except OSError:
         return False  # 保留行，下轮重试自愈
     db.delete(asset)
