@@ -101,6 +101,7 @@ _META_FIELDS = (
     "deprecated_at",
     "archived_at",
     "version_change_log",
+    "import_notes",
     "created_at",
     "updated_at",
 )

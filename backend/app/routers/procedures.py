@@ -131,6 +131,7 @@ def import_procedure(
         description=payload.description,
         chapters=payload.chapters,
         upload_token=payload.upload_token,
+        import_notes=payload.import_notes,
         meta=meta,
     )
     db.commit()

@@ -45,6 +45,9 @@ class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenant
     is_read: Mapped[bool] = mapped_column(default=False, server_default="0")
     read_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     custom_values: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    # 导入时刻的解析 warnings 快照（A 项）：[{stage, message, severity}]。
+    # blocking=已放行的潜在丢失；info=有意裁剪/已知丢弃。编辑器常驻提示区据此渲染。
+    import_notes: Mapped[list[dict[str, Any]]] = mapped_column(JSON, default=list)
     risk_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     quality_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     # 用途级别（Q182）：reference / continuous / information，无默认，创建必选

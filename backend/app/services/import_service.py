@@ -17,7 +17,7 @@ from app.deps import RequestMeta
 from app.errors import unprocessable
 from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
-from app.schemas.parse import ImportNodeIn
+from app.schemas.parse import ImportNodeIn, ParseWarningOut
 from app.schemas.procedure import LevelOfUse, ProcedureCreate
 from app.services import asset_service, node_numbering, procedure_service, source_docx_service
 
@@ -39,6 +39,7 @@ def import_procedure(
     description: str,
     chapters: list[ImportNodeIn],
     upload_token: str | None = None,
+    import_notes: list[ParseWarningOut] | None = None,
     meta: RequestMeta,
 ) -> Procedure:
     name = name.strip()
@@ -55,6 +56,9 @@ def import_procedure(
         ),
         meta,
     )
+
+    if import_notes:
+        proc.import_notes = [n.model_dump() for n in import_notes]
 
     seq = 0
 
@@ -74,7 +78,7 @@ def import_procedure(
                         kind="node",
                         body=_promote_temp_urls(db, proc.id, n.rich_content),
                         skip_numbering=n.skip_numbering,
-                        mark_status="unmarked",
+                        mark_status="review" if n.mark_status == "review" else "unmarked",
                     )
                 )
             else:  # chapter（标题容器）

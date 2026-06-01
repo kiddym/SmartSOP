@@ -17,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.errors import app_error, bad_request
 from app.parser import VALID_MODES, parse_docx
-from app.parser.result import ParsedNode, ParseResult, ValidationReport
+from app.parser.result import ParsedNode, ParseResult, ParseWarning, ValidationReport
 from app.schemas.parse import ParseMethodOut, ParseResponse, build_parse_response
 from app.services import heading_rule_service, numbering_profile_service, upload_service
 
@@ -67,8 +67,17 @@ def parse(token: str, mode: str, *, db: Session | None = None) -> ParseResponse:
     if result.metadata.total_chapters == 0:
         raise bad_request("PARSE_NO_HEADINGS", "未识别到任何标题，无法生成章节树")
 
-    mapping, assets = upload_service.write_temp_media(token, result.image_refs)
+    mapping, assets, failed_vectors = upload_service.write_temp_media(token, result.image_refs)
     _rewrite_placeholders(result, mapping)
+    n_failed = _swap_failed_vectors(result, failed_vectors)
+    if n_failed:
+        result.warnings.append(
+            ParseWarning(
+                stage="image",
+                message=f"本环境无法转换 {n_failed} 张矢量图（EMF/WMF），将以占位符导入",
+                severity="blocking",
+            )
+        )
     parse_time_ms = int((time.monotonic() - start) * 1000)
     return build_parse_response(result, assets, parse_time_ms)
 
@@ -106,6 +115,33 @@ def _rewrite_placeholders(result: ParseResult, mapping: dict[str, str]) -> None:
             walk(node.children)
 
     walk(result.chapters)
+
+
+_VECTOR_PLACEHOLDER = '<div class="sop-ph" data-ph="vector">[矢量图无法转换]</div>'
+
+
+def _swap_failed_vectors(result: ParseResult, failed_vectors: set[str]) -> int:
+    """把失败矢量图的 <img src="media:rid"/> 换成可见占位，含占位的节点标 review。
+    返回实际被替换的不同矢量图张数（去重，供告警文案）。"""
+    if not failed_vectors:
+        return 0
+    swapped: set[str] = set()
+
+    def walk(nodes: list[ParsedNode]) -> None:
+        for node in nodes:
+            node_swapped = False
+            for placeholder in failed_vectors:
+                target = f'<img src="{placeholder}"/>'
+                if target in node.rich_content:
+                    node.rich_content = node.rich_content.replace(target, _VECTOR_PLACEHOLDER)
+                    swapped.add(placeholder)
+                    node_swapped = True
+            if node_swapped:
+                node.mark_status = "review"
+            walk(node.children)
+
+    walk(result.chapters)
+    return len(swapped)
 
 
 def _template_invalid(report: ValidationReport) -> HTTPException:

@@ -173,6 +173,30 @@ def test_import_content_with_children_dropped(client: TestClient, storage_tmp: P
     assert contents[0]["body"] == "<p>x</p>"
 
 
+def test_import_notes_exposed_in_detail(client: TestClient, storage_tmp: Path) -> None:
+    """import 落库的解析提示快照随 GET /procedures/{id}.procedure.import_notes 暴露给前端。"""
+    leaf = _leaf(client)
+    resp = client.post(
+        IMPORT,
+        json={
+            "name": "带解析提示",
+            "folder_id": leaf,
+            "chapters": [{"title": "引言", "content_type": "chapter"}],
+            "import_notes": [
+                {"stage": "completeness", "message": "缺图 1/0", "severity": "blocking"},
+                {"stage": "discarded_by_design", "message": "忽略页眉", "severity": "info"},
+            ],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    pid = resp.json()["id"]
+
+    notes = client.get(f"/api/v1/procedures/{pid}").json()["procedure"]["import_notes"]
+    assert notes, "详情应携带 import_notes 快照"
+    assert notes[0]["severity"] == "blocking"
+    assert notes[0]["message"] == "缺图 1/0"
+
+
 def test_temp_media_404_for_unknown_token(client: TestClient, storage_tmp: Path) -> None:
     resp = client.get("/api/v1/uploads/ghost/media/x.png")
     assert resp.status_code == 404

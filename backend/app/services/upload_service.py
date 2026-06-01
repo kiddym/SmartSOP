@@ -88,12 +88,14 @@ def try_read_source(token: str) -> tuple[bytes, str] | None:
 # --------------------------------------------------------------------------- #
 def write_temp_media(
     token: str, image_refs: list[ImageRef]
-) -> tuple[dict[str, str], list[ParsedAssetOut]]:
-    """把解析抽出的图写入临时 media 目录，返回 placeholder→临时 URL 映射 + asset 描述。"""
+) -> tuple[dict[str, str], list[ParsedAssetOut], set[str]]:
+    """把解析抽出的图写入临时 media 目录，返回 placeholder→临时 URL 映射 + asset 描述
+    + 转换失败的矢量图 placeholder 集合（failed_vectors，供 parse_service 换占位）。"""
     media = storage.token_media_dir(token)
     media.mkdir(parents=True, exist_ok=True)
     mapping: dict[str, str] = {}
     assets: list[ParsedAssetOut] = []
+    failed_vectors: set[str] = set()
     seen: set[str] = set()
 
     for ref in image_refs:
@@ -103,8 +105,10 @@ def write_temp_media(
         data, ext = ref.data, ref.ext.lower()
         if ext in images.VECTOR_EXTS:  # emf/wmf → png 以便浏览器预览（Q216）
             png = images.convert_to_png(data, ext)
-            if png is not None:
-                data, ext = png, ".png"
+            if png is None:
+                failed_vectors.add(ref.placeholder)
+                continue
+            data, ext = png, ".png"
         filename = f"{_safe_name(ref.rid)}{ext}"
         (media / filename).write_bytes(data)
         url = asset_service.temp_url(token, filename)
@@ -121,7 +125,7 @@ def write_temp_media(
                 height=height,
             )
         )
-    return mapping, assets
+    return mapping, assets, failed_vectors
 
 
 def serve_media(token: str, filename: str) -> tuple[bytes, str]:

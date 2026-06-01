@@ -18,6 +18,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.db import SessionLocal, engine
 from app.logging_config import configure_logging
+from app.parser.utils import images
 from app.seed import run_seed
 from app.middleware import RequestIdMiddleware
 from app.tenant_middleware import TenantContextMiddleware
@@ -60,6 +61,14 @@ from app.routers import users
 logger = logging.getLogger(__name__)
 
 
+def _probe_soffice() -> None:
+    """启动探测 LibreOffice 软依赖；缺失记 warning（EMF/WMF 将无法转换）。"""
+    if not images.soffice_available():
+        logger.warning(
+            "LibreOffice (soffice) 不可用：EMF/WMF 矢量图将无法转换，导入时以占位符代替"
+        )
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
@@ -68,6 +77,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     # seed.run_seed 自身幂等，重复运行不会重复插入。
     with SessionLocal() as db:
         run_seed(db)
+    _probe_soffice()
     yield
     logger.info("Smart CMMS API shutting down")
 
@@ -166,4 +176,10 @@ def readyz() -> JSONResponse:
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             content={"status": "unavailable", "db": "down"},
         )
-    return JSONResponse(content={"status": "ok", "db": "up"})
+    return JSONResponse(
+        content={
+            "status": "ok",
+            "db": "up",
+            "soffice": "up" if images.soffice_available() else "down",
+        }
+    )

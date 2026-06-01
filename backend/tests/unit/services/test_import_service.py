@@ -53,3 +53,41 @@ def test_import_carries_review_mark_on_heading(db: Session, factory: Factory, st
     assert n.mark_status == "review"
     assert n.heading_level == 1
     assert n.body == "<p>待审</p>"
+
+
+def test_import_notes_defaults_to_empty_list(db: Session, factory: Factory, storage_tmp) -> None:
+    proc = import_service.import_procedure(
+        db, name="P", folder_id=_leaf(factory), description="",
+        chapters=[ImportNodeIn(title="引言", content_type="chapter")],
+        meta=META,
+    )
+    assert proc.import_notes == []
+
+
+def test_import_persists_import_notes(db: Session, factory: Factory, storage_tmp) -> None:
+    from app.schemas.parse import ParseWarningOut
+    proc = import_service.import_procedure(
+        db, name="P", folder_id=_leaf(factory), description="",
+        chapters=[ImportNodeIn(title="引言", content_type="chapter")],
+        import_notes=[
+            ParseWarningOut(stage="completeness", message="缺图 1/0", severity="blocking"),
+            ParseWarningOut(stage="discarded_by_design", message="忽略页眉", severity="info"),
+        ],
+        meta=META,
+    )
+    assert [n["severity"] for n in proc.import_notes] == ["blocking", "info"]
+    assert proc.import_notes[0]["message"] == "缺图 1/0"
+
+
+def test_content_node_review_persisted(db: Session, factory: Factory, storage_tmp) -> None:
+    proc = import_service.import_procedure(
+        db, name="P", folder_id=_leaf(factory), description="",
+        chapters=[ImportNodeIn(title="目的", content_type="chapter", children=[
+            ImportNodeIn(content_type="content", rich_content='<p><span class="sop-ph">[公式]</span></p>',
+                         mark_status="review"),
+        ])],
+        meta=META,
+    )
+    nodes = db.query(ProcedureNode).filter_by(procedure_id=proc.id, is_active=True).all()
+    content = next(n for n in nodes if n.heading_level is None)
+    assert content.mark_status == "review"

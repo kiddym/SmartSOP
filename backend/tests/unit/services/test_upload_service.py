@@ -82,13 +82,38 @@ def test_write_temp_media_and_serve(storage_tmp: Path) -> None:
             placeholder="media:rId7",
         )
     ]
-    mapping, assets = upload_service.write_temp_media(res.upload_token, refs)
+    mapping, assets, failed = upload_service.write_temp_media(res.upload_token, refs)
     assert "media:rId7" in mapping
     assert len(assets) == 1
     assert assets[0].width == 12
+    assert failed == set()
 
     # serve 回读
     filename = mapping["media:rId7"].rsplit("/", 1)[1]
     data, mime = upload_service.serve_media(res.upload_token, filename)
     assert data == png
     assert mime == "image/png"
+
+
+def test_write_temp_media_vector_conversion_failure(
+    storage_tmp: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """无 soffice / 转换失败：EMF 矢量图进 failed_vectors、不入 assets、不写盘。"""
+    monkeypatch.setattr(upload_service.images, "convert_to_png", lambda *_a, **_k: None)
+    res = upload_service.save_upload(styled_sop(), "a.docx")
+    refs = [
+        ImageRef(
+            rid="rId9",
+            part_name="word/media/image1.emf",
+            data=b"\x01\x00\x00\x00emf-bytes",
+            ext=".emf",
+            placeholder="media:rId9",
+        )
+    ]
+    mapping, assets, failed = upload_service.write_temp_media(res.upload_token, refs)
+    assert "media:rId9" in failed
+    assert assets == []
+    assert mapping == {}
+    from app import storage
+    media_dir = storage.token_media_dir(res.upload_token)
+    assert not any(p.suffix == ".emf" for p in media_dir.iterdir()) if media_dir.exists() else True

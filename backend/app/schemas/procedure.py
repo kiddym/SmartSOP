@@ -198,6 +198,7 @@ class ProcedureMeta(BaseModel):
     deprecated_at: datetime | None
     archived_at: datetime | None
     version_change_log: list[dict[str, Any]]
+    import_notes: list[dict[str, Any]] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
