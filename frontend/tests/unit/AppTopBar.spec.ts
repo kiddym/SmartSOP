@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AppTopBar from '@/components/AppTopBar.vue'
 import i18n from '@/i18n'
@@ -27,6 +28,9 @@ function mountTopBar(props: Record<string, unknown> = {}) {
 }
 
 describe('AppTopBar', () => {
+  // 内嵌的 UserMenu 调用 useAuthStore()，需要活跃的 pinia。
+  beforeEach(() => setActivePinia(createPinia()))
+
   it('渲染品牌文字（i18n app.name）', () => {
     const w = mountTopBar()
     expect(w.text()).toContain('Smart CMMS')

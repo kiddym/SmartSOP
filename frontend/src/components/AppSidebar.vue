@@ -1,21 +1,74 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElIcon, ElMenu, ElMenuItem } from 'element-plus'
-import { Document, EditPen } from '@element-plus/icons-vue'
+import { ElMenu, ElMenuItem } from 'element-plus'
 
-defineProps<{
-  collapsed: boolean
-}>()
-
+defineProps<{ collapsed: boolean }>()
 const route = useRoute()
 
-// /procedures/:id, /procedures/:id/edit, /procedures/:id/view 都归"程序库"
-// /procedures/drafts 独立
-// ⚙ 下的页面（/settings, /settings/fields, /audit-logs, /folders）侧栏不高亮
+interface NavItem {
+  label: string
+  path?: string
+  soon?: boolean
+}
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const groups: NavGroup[] = [
+  {
+    label: 'SOP',
+    items: [
+      { label: '程序库', path: '/procedures/library' },
+      { label: '草稿箱', path: '/procedures/drafts' },
+      { label: '文件夹', path: '/folders' },
+      { label: '审计日志', path: '/audit-logs' },
+    ],
+  },
+  {
+    label: '维护',
+    items: [
+      { label: '工单', soon: true },
+      { label: '资产', soon: true },
+      { label: '位置', soon: true },
+      { label: '请求', soon: true },
+      { label: '预防性维护', soon: true },
+      { label: '计量', soon: true },
+    ],
+  },
+  {
+    label: '供应',
+    items: [
+      { label: '备件库存', soon: true },
+      { label: '采购单', soon: true },
+      { label: '供应商', soon: true },
+      { label: '客户', soon: true },
+    ],
+  },
+  {
+    label: '洞察',
+    items: [
+      { label: '分析仪表盘', soon: true },
+      { label: '通知中心', soon: true },
+    ],
+  },
+  {
+    label: '平台',
+    items: [
+      { label: '用户', soon: true },
+      { label: '角色', soon: true },
+      { label: '团队', soon: true },
+      { label: '公司设置', soon: true },
+    ],
+  },
+]
+
 const activeMenu = computed<string>(() => {
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   if (route.path.startsWith('/procedures')) return '/procedures/library'
+  if (route.path.startsWith('/folders')) return '/folders'
+  if (route.path.startsWith('/audit-logs')) return '/audit-logs'
   return ''
 })
 
@@ -33,15 +86,19 @@ defineExpose({ activeMenu })
       background-color="transparent"
       :style="{ '--el-menu-active-color': 'var(--accent)' }"
     >
-      <div v-if="!collapsed" class="menu-group-label">内容</div>
-      <el-menu-item index="/procedures/library">
-        <el-icon><Document /></el-icon>
-        <template #title>程序库</template>
-      </el-menu-item>
-      <el-menu-item index="/procedures/drafts">
-        <el-icon><EditPen /></el-icon>
-        <template #title>草稿箱</template>
-      </el-menu-item>
+      <template v-for="g in groups" :key="g.label">
+        <div v-if="!collapsed" class="menu-group-label">{{ g.label }}</div>
+        <el-menu-item
+          v-for="it in g.items"
+          :key="it.label"
+          :index="it.path ?? `soon:${it.label}`"
+          :disabled="it.soon"
+        >
+          <template #title>
+            {{ it.label }}<span v-if="it.soon" class="soon-tag">即将上线</span>
+          </template>
+        </el-menu-item>
+      </template>
     </el-menu>
   </aside>
 </template>
@@ -70,5 +127,10 @@ defineExpose({ activeMenu })
   color: #9a8e80;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+.soon-tag {
+  margin-left: 6px;
+  font-size: 10px;
+  color: #bbb;
 }
 </style>

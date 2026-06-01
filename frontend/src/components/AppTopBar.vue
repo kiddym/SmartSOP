@@ -8,6 +8,7 @@ import {
   ElIcon,
 } from 'element-plus'
 import { Expand, Fold, Setting } from '@element-plus/icons-vue'
+import UserMenu from '@/components/UserMenu.vue'
 
 defineProps<{
   collapsed: boolean
@@ -94,6 +95,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
         </el-dropdown-menu>
       </template>
     </el-dropdown>
+    <UserMenu />
   </header>
 </template>
 
