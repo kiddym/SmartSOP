@@ -37,6 +37,10 @@ def notify(
             actor_user_id=actor_user_id, dedup_key=dedup_key,
         ))
         count += 1
+    # Phase 5B：同事务内按偏好为有邮箱的活跃收件人入队邮件（附加式，不 commit）。
+    from app.services import email_outbox_service
+    email_outbox_service.enqueue(db, company_id=company_id, recipient_ids=set(recipient_ids),
+                                 type=type, params=params)
     return count
 
 
