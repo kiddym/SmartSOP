@@ -57,3 +57,27 @@ def source_docx_root() -> Path:
 def source_docx_path(procedure_group_id: str) -> Path:
     """原始源 docx 物理路径：按 procedure_group 一份。"""
     return source_docx_root() / procedure_group_id / "source.docx"
+
+
+def batch_root() -> Path:
+    return storage_root() / "batch"
+
+
+def batch_job_dir(job_id: str) -> Path:
+    return batch_root() / job_id
+
+
+def batch_item_dir(job_id: str, item_id: str) -> Path:
+    return batch_job_dir(job_id) / item_id
+
+
+def batch_docx_path(job_id: str, item_id: str) -> Path:
+    return batch_item_dir(job_id, item_id) / "source.docx"
+
+
+def batch_blob_path(job_id: str, item_id: str) -> Path:
+    return batch_item_dir(job_id, item_id) / "parse.json"
+
+
+def batch_media_dir(job_id: str, item_id: str) -> Path:
+    return batch_item_dir(job_id, item_id) / "media"

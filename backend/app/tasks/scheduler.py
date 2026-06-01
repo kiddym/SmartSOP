@@ -18,6 +18,7 @@ from app.db import SessionLocal
 from app.logging_config import configure_logging
 from app.tasks import (
     asset_gc,
+    batch_parse,
     cleanup_attachments,
     cleanup_uploads,
     due_reminder,
@@ -72,6 +73,18 @@ def _run_email_dispatch() -> None:
         db.close()
 
 
+def _run_batch_parse() -> None:
+    batch_parse.run_parse()
+
+
+def _run_batch_reaper() -> None:
+    batch_parse.run_reaper()
+
+
+def _run_batch_apply() -> None:
+    batch_parse.run_apply()
+
+
 def build_scheduler() -> BlockingScheduler:
     """装配 scheduler（不启动），便于测试。"""
     sched = BlockingScheduler(timezone=None)
@@ -109,6 +122,24 @@ def build_scheduler() -> BlockingScheduler:
         _run_email_dispatch,
         IntervalTrigger(minutes=5),
         id="email_dispatch",
+        replace_existing=True,
+    )
+    sched.add_job(
+        _run_batch_parse,
+        IntervalTrigger(seconds=5),
+        id="batch_parse",
+        replace_existing=True,
+    )
+    sched.add_job(
+        _run_batch_reaper,
+        IntervalTrigger(seconds=60),
+        id="batch_reaper",
+        replace_existing=True,
+    )
+    sched.add_job(
+        _run_batch_apply,
+        IntervalTrigger(seconds=5),
+        id="batch_apply",
         replace_existing=True,
     )
     return sched

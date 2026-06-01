@@ -11,6 +11,7 @@ from app.models.asset_downtime import AssetDowntime
 from app.models.attachment import ProcedureAttachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
+from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.company import Company
 from app.models.cost_category import CostCategory
 from app.models.customer import Customer, CustomerPart
@@ -60,6 +61,8 @@ __all__ = [
     "AssetTeam",
     "AssetUser",
     "Base",
+    "BatchImportItem",
+    "BatchImportJob",
     "Company",
     "CostCategory",
     "Customer",

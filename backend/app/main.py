@@ -27,6 +27,7 @@ from app.routers import (
     attachments,
     audit_logs,
     auth,
+    batch_imports,
     company,
     cost_categories,
     customers,
@@ -146,6 +147,7 @@ app.include_router(audit_logs.router)
 app.include_router(procedures.router)
 app.include_router(procedure_groups.router)
 app.include_router(parse.router)
+app.include_router(batch_imports.router)
 app.include_router(heading_rules.router)
 app.include_router(attachments.router)
 app.include_router(fields.router)

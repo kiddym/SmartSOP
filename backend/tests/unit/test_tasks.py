@@ -137,7 +137,7 @@ def test_sweep_source_docx_cli(storage_tmp: Path) -> None:
     assert sweep_source_docx.main([]) == 0
 
 
-def test_scheduler_has_six_jobs() -> None:
+def test_scheduler_has_expected_jobs() -> None:
     sched = scheduler.build_scheduler()
     job_ids = {j.id for j in sched.get_jobs()}
     assert job_ids == {
@@ -147,4 +147,7 @@ def test_scheduler_has_six_jobs() -> None:
         "pm_generate",
         "due_reminder",
         "email_dispatch",
+        "batch_parse",
+        "batch_reaper",
+        "batch_apply",
     }
