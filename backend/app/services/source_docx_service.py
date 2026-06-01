@@ -21,6 +21,7 @@ from app.models.procedure import Procedure
 from app.models.source_docx import ProcedureSourceDocx
 from app.parser.utils.opc import is_docx_bytes
 from app.services import upload_service
+from app.storage_backends import get_storage_backend
 
 _FILENAME_MAX = 255  # 与 ProcedureSourceDocx.filename String(255) 对齐
 
@@ -55,11 +56,11 @@ def store_from_token(
     )
     db.add(row)
     db.flush()
-    path.parent.mkdir(parents=True, exist_ok=True)
+    backend = get_storage_backend()
     try:
-        path.write_bytes(data)
-    except OSError:
-        path.unlink(missing_ok=True)  # 清半截文件；行随事务回滚消失
+        backend.write(row.storage_path, data)
+    except Exception:
+        backend.delete(row.storage_path)  # 清半截文件；行随事务回滚消失
         raise
     return row
 
@@ -78,6 +79,8 @@ def get_for_procedure(db: Session, procedure_id: str) -> tuple[Path, str, str]:
     ).scalar_one_or_none()
     if row is None:
         raise not_found("SOURCE_DOCX_NOT_FOUND", "该程序无原始 Word 源文件")
+    # 读路径维持本地 FS：调用方（routers/procedures.serve_source_docx）以 FileResponse
+    # 流式下载，强依赖真实磁盘路径。S3 后端下源 docx 下载需先 download 到临时文件，属未来 ops 工作。
     path = storage.storage_root() / row.storage_path
     if not path.exists():
         raise not_found("SOURCE_DOCX_NOT_FOUND", "原始 Word 源文件已丢失")
@@ -110,7 +113,7 @@ def delete_for_group(db: Session, procedure_group_id: str) -> None:
     ).scalar_one_or_none()
     if row is None:
         return
-    (storage.storage_root() / row.storage_path).unlink(missing_ok=True)
+    get_storage_backend().delete(row.storage_path)
     db.delete(row)
     db.flush()
 
@@ -126,6 +129,7 @@ def orphan_group_ids(db: Session) -> list[str]:
 
 def delete_group_dir(procedure_group_id: str) -> bool:
     """物理删除某 group 的落盘目录（孤儿清理用，不碰 DB）。返回是否实际删除。"""
+    # 目录枚举型孤儿清理仅本地后端有效：S3 无目录概念，源 docx 孤儿清理在 S3 下属未来 ops 工具。
     d = storage.source_docx_root() / procedure_group_id
     if not d.exists():
         return False
