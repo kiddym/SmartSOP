@@ -1,5 +1,6 @@
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosInstance, type InternalAxiosRequestConfig } from 'axios'
 import { ElMessage } from 'element-plus'
+import * as authStorage from '@/utils/authStorage'
 
 declare module 'axios' {
   // 按请求关闭统一错误 toast（用于"预期内"的失败，如可选资源 404）。
@@ -22,10 +23,67 @@ export const http: AxiosInstance = axios.create({
   },
 })
 
-// 统一错误提示：解析后端 {detail:{code,message}} 信封并 toast；仍向调用方 reject。
+// —— 请求拦截：注入 access token —— //
+function onRequest(config: InternalAxiosRequestConfig): InternalAxiosRequestConfig {
+  const token = authStorage.getAccessToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+}
+http.interceptors.request.use(onRequest)
+
+// —— 401 单飞续期 —— //
+let refreshing: Promise<string> | null = null
+
+// 用 doRefresh 注入便于测试；生产调用 performRefresh。
+async function refreshOn401(doRefresh: () => Promise<string>): Promise<string> {
+  if (!refreshing) {
+    refreshing = doRefresh().finally(() => { refreshing = null })
+  }
+  return refreshing
+}
+
+async function performRefresh(): Promise<string> {
+  const rt = authStorage.getRefreshToken()
+  if (!rt) throw new Error('no refresh token')
+  // 直发，不经 api/auth（避免循环依赖）
+  const { data } = await http.post<{ access_token: string; refresh_token: string }>(
+    '/auth/refresh', { refresh_token: rt }, { skipErrorToast: true },
+  )
+  authStorage.setAccessToken(data.access_token)
+  authStorage.setRefreshToken(data.refresh_token)
+  return data.access_token
+}
+
+function redirectToLogin(): void {
+  authStorage.clearTokens()
+  const redirect = encodeURIComponent(window.location.pathname + window.location.search)
+  window.location.assign(`/login?redirect=${redirect}`)
+}
+
+// 测试钩子
+export const __test_onRequest = onRequest
+export const __test_refreshOn401 = refreshOn401
+
+// 统一错误提示 + 401 续期：解析后端 {detail:{code,message}} 信封并 toast；仍向调用方 reject。
 http.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const status = error?.response?.status
+    const original = error?.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined
+    const isRefreshCall = original?.url?.includes('/auth/refresh')
+
+    if (status === 401 && original && !original._retried && !isRefreshCall) {
+      original._retried = true
+      try {
+        const newAccess = await refreshOn401(performRefresh)
+        original.headers.set('Authorization', `Bearer ${newAccess}`)
+        return http(original)
+      } catch {
+        redirectToLogin()
+        return Promise.reject(error)
+      }
+    }
+
     if (!error?.config?.skipErrorToast) {
       const detail = error?.response?.data?.detail as ApiErrorDetail | undefined
       ElMessage.error(detail?.message ?? '请求失败，请稍后重试')

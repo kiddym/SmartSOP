@@ -11,6 +11,8 @@ function makeRouter(initialPath: string): Router {
       { path: '/procedures/drafts', component: { template: '<div/>' } },
       { path: '/procedures/:id', component: { template: '<div/>' } },
       { path: '/procedures/:id/edit', component: { template: '<div/>' } },
+      { path: '/folders', component: { template: '<div/>' } },
+      { path: '/audit-logs', component: { template: '<div/>' } },
       { path: '/settings', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
@@ -28,20 +30,24 @@ async function mountSidebar(initialPath: string, collapsed = false) {
 }
 
 describe('AppSidebar', () => {
-  it('collapsed=false：1 个 group-label「内容」+ 2 个 menu-item', async () => {
+  it('collapsed=false：5 个 group-label（SOP/维护/供应/洞察/平台）+ SOP 项目可见', async () => {
     const w = await mountSidebar('/procedures/library')
-    expect(w.findAll('.menu-group-label').length).toBe(1)
-    expect(w.find('.menu-group-label').text()).toBe('内容')
-    expect(w.findAll('.el-menu-item').length).toBe(2)
+    const labels = w.findAll('.menu-group-label')
+    expect(labels.length).toBe(5)
+    const labelText = labels.map((l) => l.text())
+    expect(labelText).toEqual(['SOP', '维护', '供应', '洞察', '平台'])
+    // SOP 域可用项
     expect(w.text()).toContain('程序库')
     expect(w.text()).toContain('草稿箱')
+    expect(w.text()).toContain('文件夹')
+    expect(w.text()).toContain('审计日志')
+    // 占位模块标记
+    expect(w.text()).toContain('即将上线')
   })
 
   it('collapsed=true：group-label 不渲染', async () => {
     const w = await mountSidebar('/procedures/library', true)
     expect(w.findAll('.menu-group-label').length).toBe(0)
-    // menu-item 仍存在（图标轨）
-    expect(w.findAll('.el-menu-item').length).toBe(2)
   })
 
   it('在 /procedures/drafts 时 activeMenu 为 /procedures/drafts', async () => {
@@ -52,6 +58,16 @@ describe('AppSidebar', () => {
   it('在 /procedures/:id/edit 时 activeMenu 归到 /procedures/library', async () => {
     const w = await mountSidebar('/procedures/abc123/edit')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/procedures/library')
+  })
+
+  it('在 /folders 时 activeMenu 为 /folders', async () => {
+    const w = await mountSidebar('/folders')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/folders')
+  })
+
+  it('在 /audit-logs 时 activeMenu 为 /audit-logs', async () => {
+    const w = await mountSidebar('/audit-logs')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/audit-logs')
   })
 
   it('在 /settings 时 activeMenu 为空字符串（⚙ 页面不在侧栏高亮）', async () => {
