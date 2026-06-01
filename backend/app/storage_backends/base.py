@@ -1,0 +1,13 @@
+"""存储后端协议（Phase 5B）。key 为相对路径字符串（= DB 里存的相对 storage_path）。"""
+from __future__ import annotations
+
+from typing import Protocol
+
+
+class StorageBackend(Protocol):
+    """最小持久对象存储接口。read 不存在抛 FileNotFoundError；delete 幂等。"""
+
+    def write(self, key: str, data: bytes) -> None: ...
+    def read(self, key: str) -> bytes: ...
+    def delete(self, key: str) -> None: ...
+    def exists(self, key: str) -> bool: ...
