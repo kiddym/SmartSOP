@@ -55,3 +55,36 @@ def enqueue(
         )
         count += 1
     return count
+
+
+def deliver_pending(db: Session, *, backend, max_attempts: int,
+                    company_id: str) -> dict[str, int]:
+    """投递某租户 pending 行（不 commit；由 tick 统一 commit）。"""
+    from app.models.base import utcnow
+    rows = db.execute(
+        select(EmailOutbox).where(
+            EmailOutbox.company_id == company_id,
+            EmailOutbox.status == "pending",
+            EmailOutbox.attempts < max_attempts,
+        )
+    ).scalars().all()
+    sent = failed = 0
+    for row in rows:
+        try:
+            backend.send(row.recipient_email, row.subject, row.body,
+                         from_addr=_from_addr())
+            row.status = "sent"
+            row.sent_at = utcnow()
+            sent += 1
+        except Exception as e:
+            row.attempts += 1
+            row.last_error = str(e)
+            if row.attempts >= max_attempts:
+                row.status = "failed"
+            failed += 1
+    return {"sent": sent, "failed_attempt": failed}
+
+
+def _from_addr() -> str:
+    from app.config import settings
+    return settings.email_from
