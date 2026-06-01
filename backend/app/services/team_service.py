@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
@@ -16,7 +18,7 @@ def _member_ids(db: Session, team_id: str) -> list[str]:
     )
 
 
-def to_read(db: Session, team: Team) -> dict:
+def to_read(db: Session, team: Team) -> dict[str, Any]:
     return {
         "id": team.id,
         "name": team.name,

@@ -6,13 +6,14 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.notification_preference import NotificationPreference
 
-_DEFAULT = {"email_enabled": True, "disabled_types": []}
+_DEFAULT: dict[str, Any] = {"email_enabled": True, "disabled_types": []}
 
 
 def _row(db: Session, company_id: str, user_id: str) -> NotificationPreference | None:
@@ -24,7 +25,7 @@ def _row(db: Session, company_id: str, user_id: str) -> NotificationPreference |
     ).scalar_one_or_none()
 
 
-def get(db: Session, company_id: str, user_id: str) -> dict:
+def get(db: Session, company_id: str, user_id: str) -> dict[str, Any]:
     """返回偏好 dict；无记录返回默认（全开）。"""
     row = _row(db, company_id, user_id)
     if row is None:

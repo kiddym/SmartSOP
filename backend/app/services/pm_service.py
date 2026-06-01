@@ -6,9 +6,13 @@
 from __future__ import annotations
 
 import calendar
-from datetime import date
+from datetime import date, datetime
+from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+if TYPE_CHECKING:
+    from app.models.work_order import WorkOrder
+
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.errors import bad_request
@@ -170,11 +174,11 @@ def update_pm(
     if pm.frequency_value < 1:
         raise bad_request("PM_INVALID_FREQUENCY", "频率间隔需≥1")
     if new_assignees is not None:
-        db.execute(PMAssignee.__table__.delete().where(PMAssignee.pm_id == pm.id))
+        db.execute(delete(PMAssignee).where(PMAssignee.pm_id == pm.id))
         for uid in dict.fromkeys(new_assignees):
             db.add(PMAssignee(pm_id=pm.id, user_id=uid, company_id=company_id))
     if new_teams is not None:
-        db.execute(PMTeam.__table__.delete().where(PMTeam.pm_id == pm.id))
+        db.execute(delete(PMTeam).where(PMTeam.pm_id == pm.id))
         for tid in dict.fromkeys(new_teams):
             db.add(PMTeam(pm_id=pm.id, team_id=tid, company_id=company_id))
     _log(db, pm.id, company_id, "UPDATED", actor_user_id=actor_user_id)
@@ -252,8 +256,13 @@ def due_candidates(db: Session, *, today: date) -> list[str]:
 
 
 def generate_once(
-    db: Session, pm: PreventiveMaintenance, *, actor_user_id: str | None, now, enforce_due: bool
-):
+    db: Session,
+    pm: PreventiveMaintenance,
+    *,
+    actor_user_id: str | None,
+    now: datetime,
+    enforce_due: bool,
+) -> WorkOrder:
     """生成一张工单（复制预设）并锥摆推进 next_due_date。返回 WorkOrder。
 
     调度任务 enforce_due=True（校验到期）；手动端点 enforce_due=False（允许提前）。

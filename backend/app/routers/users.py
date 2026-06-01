@@ -29,7 +29,7 @@ def create_user(
     payload: UserCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.USER_CREATE)),
-):
+) -> User:
     return user_service.create_user(db, payload, current_user.company_id)
 
 
@@ -37,7 +37,7 @@ def create_user(
 def list_users(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.USER_VIEW)),
-):
+) -> list[User]:
     return user_service.list_users(db)
 
 
@@ -46,7 +46,7 @@ def get_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.USER_VIEW)),
-):
+) -> User:
     return _ensure_same_tenant(user_service.get_user(db, user_id), current_user.company_id)
 
 
@@ -56,16 +56,16 @@ def update_user(
     payload: UserUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.USER_EDIT)),
-):
+) -> User | None:
     _ensure_same_tenant(user_service.get_user(db, user_id), current_user.company_id)
     return user_service.update_user(db, user_id, payload)
 
 
-@router.delete("/{user_id}", status_code=204)
+@router.delete("/{user_id}", status_code=204, response_model=None)
 def delete_user(
     user_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.USER_DELETE)),
-):
+) -> None:
     _ensure_same_tenant(user_service.get_user(db, user_id), current_user.company_id)
     user_service.delete_user(db, user_id)

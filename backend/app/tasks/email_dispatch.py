@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,7 +29,7 @@ logger = logging.getLogger(__name__)
 TASK_NAME = "email_dispatch"
 
 
-def run(db: Session, *, backend=None, max_attempts: int | None = None) -> dict[str, int]:
+def run(db: Session, *, backend: Any = None, max_attempts: int | None = None) -> dict[str, int]:
     backend = backend if backend is not None else get_email_backend()
     max_attempts = max_attempts if max_attempts is not None else settings.email_max_attempts
 

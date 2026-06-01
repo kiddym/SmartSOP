@@ -7,6 +7,8 @@ enqueue：在 notify() 内部按偏好为每个有邮箱的活跃收件人写一
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,7 +24,7 @@ def enqueue(
     company_id: str,
     recipient_ids: set[str],
     type: str,
-    params: dict,
+    params: dict[str, Any],
     notification_id: str | None = None,
 ) -> int:
     """为应收邮件的收件人写 pending outbox 行。返回入队数。不 commit。"""
@@ -58,7 +60,9 @@ def enqueue(
     return count
 
 
-def deliver_pending(db: Session, *, backend, max_attempts: int, company_id: str) -> dict[str, int]:
+def deliver_pending(
+    db: Session, *, backend: Any, max_attempts: int, company_id: str
+) -> dict[str, int]:
     """投递某租户 pending 行（不 commit；由 tick 统一 commit）。"""
     from app.models.base import utcnow
 

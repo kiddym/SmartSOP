@@ -42,7 +42,7 @@ def _tokens(db: Session, user: User) -> TokenPair:
 
 
 @router.post("/register", response_model=TokenPair, status_code=201)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)):
+def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenPair:
     try:
         user = auth_service.register(db, payload)
     except auth_service.AuthError as exc:
@@ -51,7 +51,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, db: Session = Depends(get_db)):
+def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
     try:
         user = auth_service.authenticate(db, payload)
     except auth_service.AuthError as exc:
@@ -60,7 +60,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
+def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair:
     try:
         claims = security.decode_token(payload.refresh_token)
     except security.TokenError:
@@ -77,7 +77,9 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=CurrentUser)
-def me(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def me(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> CurrentUser:
     return CurrentUser(
         id=current_user.id,
         email=current_user.email,

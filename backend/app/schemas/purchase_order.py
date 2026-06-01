@@ -23,7 +23,7 @@ class POLineRead(BaseModel):
     quantity: Decimal
     unit_cost: Decimal
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]  # pydantic computed_field
     @property
     def line_total(self) -> Decimal:
         # 量化到 4 位（与 Numeric(18,4) 一致；避免 scale-8 乘积噪声）

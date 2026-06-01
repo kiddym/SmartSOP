@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -26,7 +28,7 @@ def _ensure(team: Team | None, company_id: str) -> Team:
 def list_teams(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.TEAM_VIEW)),
-):
+) -> list[dict[str, Any]]:
     return [team_service.to_read(db, t) for t in team_service.list_teams(db)]
 
 
@@ -35,7 +37,7 @@ def create_team(
     payload: TeamCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.TEAM_MANAGE)),
-):
+) -> dict[str, Any]:
     team = team_service.create_team(db, payload, current_user.company_id)
     return team_service.to_read(db, team)
 
@@ -46,7 +48,7 @@ def update_team(
     payload: TeamUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.TEAM_MANAGE)),
-):
+) -> dict[str, Any]:
     team = _ensure(team_service.get_team(db, team_id), current_user.company_id)
     team = team_service.update_team(db, team, payload)
     return team_service.to_read(db, team)
@@ -58,17 +60,17 @@ def set_members(
     payload: TeamMembersSet,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.TEAM_MANAGE)),
-):
+) -> dict[str, Any]:
     team = _ensure(team_service.get_team(db, team_id), current_user.company_id)
     team = team_service.set_members(db, team, payload.user_ids, current_user.company_id)
     return team_service.to_read(db, team)
 
 
-@router.delete("/{team_id}", status_code=204)
+@router.delete("/{team_id}", status_code=204, response_model=None)
 def delete_team(
     team_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.TEAM_MANAGE)),
-):
+) -> None:
     team = _ensure(team_service.get_team(db, team_id), current_user.company_id)
     team_service.delete_team(db, team)

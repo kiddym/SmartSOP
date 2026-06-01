@@ -30,7 +30,7 @@ def _ensure(cat: AssetCategory | None, company_id: str) -> AssetCategory:
 def list_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_VIEW)),
-):
+) -> list[AssetCategory]:
     return asset_category_service.list_categories(db)
 
 
@@ -39,7 +39,7 @@ def create_category(
     payload: AssetCategoryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
-):
+) -> AssetCategory:
     return asset_category_service.create_category(db, payload, current_user.company_id)
 
 
@@ -49,16 +49,16 @@ def update_category(
     payload: AssetCategoryUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
-):
+) -> AssetCategory:
     cat = _ensure(asset_category_service.get_category(db, category_id), current_user.company_id)
     return asset_category_service.update_category(db, cat, payload)
 
 
-@router.delete("/{category_id}", status_code=204)
+@router.delete("/{category_id}", status_code=204, response_model=None)
 def delete_category(
     category_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_CATEGORY_MANAGE)),
-):
+) -> None:
     cat = _ensure(asset_category_service.get_category(db, category_id), current_user.company_id)
     asset_category_service.delete_category(db, cat)

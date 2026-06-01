@@ -42,7 +42,7 @@ def team_ids(db: Session, work_order_id: str) -> list[str]:
     )
 
 
-def to_read(db: Session, wo: WorkOrder) -> dict:
+def to_read(db: Session, wo: WorkOrder) -> dict[str, object]:
     return {
         "id": wo.id,
         "custom_id": wo.custom_id,

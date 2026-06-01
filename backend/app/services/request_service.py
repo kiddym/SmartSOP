@@ -13,6 +13,7 @@ from app.models.base import utcnow
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
 from app.models.request_status import RequestStatus, can_transition
+from app.models.work_order import WorkOrder
 from app.schemas.request import RequestApprove, RequestCreate, RequestUpdate
 from app.schemas.work_order import WorkOrderCreate
 from app.services import sequence_service
@@ -183,7 +184,7 @@ def list_activities(db: Session, request_id: str) -> list[RequestActivity]:
 
 def approve_request(
     db: Session, r: Request, payload: RequestApprove, company_id: str, actor_user_id: str | None
-):
+) -> WorkOrder:
     """审批通过：复制请求字段生成工单（可附加指派/SOP），双向弱关联。返回生成的 WorkOrder。
 
     工单服务在函数内部 import 以避免模块级循环依赖。

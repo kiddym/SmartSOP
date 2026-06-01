@@ -35,7 +35,7 @@ def _ensure_same_tenant(role: Role | None, company_id: str) -> Role:
 def list_roles(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ROLE_VIEW)),
-):
+) -> list[Role]:
     return role_service.list_roles(db)
 
 
@@ -44,7 +44,7 @@ def create_role(
     payload: RoleCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ROLE_MANAGE)),
-):
+) -> Role:
     if payload.code in _RESERVED_CODES:
         raise bad_request("ROLE_CODE_RESERVED", "该角色标识为内置保留，不能创建")
     return role_service.create_role(db, payload, current_user.company_id)
@@ -56,17 +56,17 @@ def update_role(
     payload: RoleUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ROLE_MANAGE)),
-):
+) -> Role | None:
     _ensure_same_tenant(role_service.get_role(db, role_id), current_user.company_id)
     return role_service.update_role(db, role_id, payload)
 
 
-@router.delete("/{role_id}", status_code=204)
+@router.delete("/{role_id}", status_code=204, response_model=None)
 def delete_role(
     role_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ROLE_MANAGE)),
-):
+) -> None:
     role = _ensure_same_tenant(role_service.get_role(db, role_id), current_user.company_id)
     if role.is_builtin:
         raise bad_request("ROLE_BUILTIN", "内置角色不可删除")

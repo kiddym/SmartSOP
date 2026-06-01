@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Any, Literal
 
 LayerRole = Literal["chapter_1", "chapter_2", "chapter_3", "content", "keep"]
 RowKind = Literal["chapter", "step", "content"]
@@ -43,14 +43,16 @@ def _role_level(role: LayerRole) -> int:
     return 3 if role == "chapter_3" else 2 if role == "chapter_2" else 1
 
 
-def compute_layer_updates(rows: list[LayerRow], role_map: dict[str, LayerRole]) -> dict[str, dict]:
+def compute_layer_updates(
+    rows: list[LayerRow], role_map: dict[str, LayerRole]
+) -> dict[str, dict[str, Any]]:
     """对应 frontend computeLayerUpdates。返回 dict[id, LayerUpdate],其中 LayerUpdate 为:
       {"kind": "reorder",       "parent_id": str|None, "sort_order": int, "level": int}
     | {"kind": "to-content",    "parent_id": str|None, "sort_order": int}
     | {"kind": "to-chapter",    "parent_id": str|None, "sort_order": int, "level": int}
     | {"kind": "leaf-reparent", "parent_id": str|None, "sort_order": int}
     """
-    out: dict[str, dict] = {}
+    out: dict[str, dict[str, Any]] = {}
     l1: str | None = None
     l2: str | None = None
     l3: str | None = None

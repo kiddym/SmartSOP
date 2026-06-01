@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -12,7 +13,7 @@ class NotificationRead(BaseModel):
     type: str
     entity_type: str | None
     entity_id: str | None
-    params: dict
+    params: dict[str, Any]
     actor_user_id: str | None
     is_read: bool
     read_at: datetime | None

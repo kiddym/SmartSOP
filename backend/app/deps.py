@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from fastapi import Depends, Request
@@ -75,7 +76,7 @@ def _user_permission_codes(db: Session, user: User) -> set[str]:
     return effective_codes(role_code, stored)
 
 
-def require_permission(code: str):
+def require_permission(code: str) -> Callable[[User, Session], User]:
     """Return a dependency enforcing the given permission code."""
 
     def checker(

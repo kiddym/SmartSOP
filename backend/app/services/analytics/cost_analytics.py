@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -24,7 +25,7 @@ def cost_dashboard(
     date_to: date | None = None,
     asset_id: str | None = None,
     location_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     start, end_excl, df, dt = resolve_window(date_from, date_to)
 
     # 备件消耗：join WorkOrder 取 asset_id、join Part 取 custom_id/name
@@ -48,7 +49,7 @@ def cost_dashboard(
     rows = db.execute(c_stmt).all()
 
     total_consumption = Decimal("0")
-    by_part: dict[str, dict] = {}
+    by_part: dict[str, dict[str, Any]] = {}
     by_asset: dict[str | None, Decimal] = defaultdict(lambda: Decimal("0"))
     for part_id, custom_id, name, qty, unit_cost, a_id in rows:
         line_cost = qty * unit_cost
@@ -67,10 +68,12 @@ def cost_dashboard(
         slot["cost"] += line_cost
         by_asset[a_id] += line_cost
 
-    consumption_by_part = sorted(by_part.values(), key=lambda r: r["cost"], reverse=True)
+    consumption_by_part = sorted(
+        by_part.values(), key=lambda r: cast(Decimal, r["cost"]), reverse=True
+    )
     consumption_by_asset = sorted(
         ({"asset_id": k, "cost": v} for k, v in by_asset.items()),
-        key=lambda r: r["cost"],
+        key=lambda r: cast(Decimal, r["cost"]),
         reverse=True,
     )
 
@@ -93,7 +96,7 @@ def cost_dashboard(
         by_vendor[vendor_id] += line
     po_spend_by_vendor = sorted(
         ({"vendor_id": k, "spend": v} for k, v in by_vendor.items()),
-        key=lambda r: r["spend"],
+        key=lambda r: cast(Decimal, r["spend"]),
         reverse=True,
     )
 

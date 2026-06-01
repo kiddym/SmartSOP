@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from typing import Any, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -21,14 +22,16 @@ def inventory_dashboard(
     date_from: date | None = None,
     date_to: date | None = None,
     category_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     p_stmt = select(Part).where(Part.is_active.is_(True), Part.non_stock.is_(False))
     if category_id is not None:
         p_stmt = p_stmt.where(Part.category_id == category_id)
     parts = list(db.execute(p_stmt.order_by(Part.custom_id)).scalars().all())
 
     # 分类名映射
-    cat_names = dict(db.execute(select(PartCategory.id, PartCategory.name)).all())
+    cat_names: dict[str, str] = {
+        row[0]: row[1] for row in db.execute(select(PartCategory.id, PartCategory.name)).all()
+    }
 
     total_value = Decimal("0")
     by_cat_value: dict[str | None, Decimal] = defaultdict(lambda: Decimal("0"))
@@ -50,8 +53,11 @@ def inventory_dashboard(
             )
 
     inventory_value_by_category = sorted(
-        ({"category_id": k, "name": cat_names.get(k), "value": v} for k, v in by_cat_value.items()),
-        key=lambda r: r["value"],
+        (
+            {"category_id": k, "name": cat_names.get(k) if k is not None else None, "value": v}
+            for k, v in by_cat_value.items()
+        ),
+        key=lambda r: cast(Decimal, r["value"]),
         reverse=True,
     )
 
@@ -64,13 +70,13 @@ def inventory_dashboard(
     )
     if category_id is not None:
         c_stmt = c_stmt.where(Part.category_id == category_id)
-    consumed: dict[str, dict] = {}
+    consumed: dict[str, dict[str, Any]] = {}
     for part_id, custom_id, name, qty in db.execute(c_stmt).all():
         slot = consumed.setdefault(
             part_id, {"part_id": part_id, "custom_id": custom_id, "name": name, "qty": Decimal("0")}
         )
         slot["qty"] += qty
-    top_consumed = sorted(consumed.values(), key=lambda r: r["qty"], reverse=True)
+    top_consumed = sorted(consumed.values(), key=lambda r: cast(Decimal, r["qty"]), reverse=True)
 
     return {
         "total_inventory_value": total_value,

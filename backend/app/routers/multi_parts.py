@@ -32,7 +32,7 @@ def _read(db: Session, mp: MultiPart) -> MultiPartRead:
 def list_multi_parts(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> list[MultiPartRead]:
     return [_read(db, mp) for mp in svc.list_multi_parts(db)]
 
 
@@ -41,7 +41,7 @@ def create_multi_part(
     payload: MultiPartCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_CREATE)),
-):
+) -> MultiPartRead:
     mp = svc.create_multi_part(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, mp)
 
@@ -51,7 +51,7 @@ def get_multi_part(
     multi_part_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> MultiPartRead:
     mp = _ensure(svc.get_multi_part(db, multi_part_id), current_user.company_id)
     return _read(db, mp)
 
@@ -62,17 +62,17 @@ def update_multi_part(
     payload: MultiPartUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_EDIT)),
-):
+) -> MultiPartRead:
     mp = _ensure(svc.get_multi_part(db, multi_part_id), current_user.company_id)
     svc.update_multi_part(db, mp, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, mp)
 
 
-@router.delete("/{multi_part_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{multi_part_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_multi_part(
     multi_part_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_DELETE)),
-):
+) -> None:
     mp = _ensure(svc.get_multi_part(db, multi_part_id), current_user.company_id)
     svc.delete_multi_part(db, mp)

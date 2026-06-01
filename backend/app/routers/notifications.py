@@ -45,7 +45,7 @@ def list_notifications(
     page_size: int = Query(default=20, ge=1, le=200),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> Page[NotificationRead]:
     conds = [Notification.recipient_user_id == current_user.id]
     if is_read is not None:
         conds.append(Notification.is_read.is_(is_read))
@@ -84,7 +84,7 @@ def list_notifications(
 def unread_count(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> UnreadCount:
     n = db.execute(
         select(func.count())
         .select_from(Notification)
@@ -101,7 +101,7 @@ def mark_read(
     notification_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationRead:
     n = db.get(Notification, notification_id)
     if n is None or n.recipient_user_id != current_user.id:
         raise not_found("NOTIFICATION_NOT_FOUND", "通知不存在")
@@ -117,7 +117,7 @@ def mark_read(
 def mark_all_read(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> ReadAllResult:
     rows = (
         db.execute(
             select(Notification).where(

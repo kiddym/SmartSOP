@@ -7,6 +7,8 @@ extend the built-in role default sets accordingly.
 
 from __future__ import annotations
 
+from typing import Any
+
 # --- 平台层（Phase 0）---
 USER_CREATE = "user.create"
 USER_VIEW = "user.view"
@@ -165,7 +167,7 @@ ALL_PERMISSIONS: list[str] = (
     + _ANALYTICS
 )
 
-BUILTIN_ROLES: list[dict] = [
+BUILTIN_ROLES: list[dict[str, Any]] = [
     {"code": "super_admin", "name": "超级管理员", "permissions": list(ALL_PERMISSIONS)},
     {"code": "admin", "name": "管理员", "permissions": list(ALL_PERMISSIONS)},
     {

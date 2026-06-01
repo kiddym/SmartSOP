@@ -37,7 +37,7 @@ def list_parts(
     low_stock: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> list[PartRead]:
     return [
         _read_part(db, p)
         for p in svc.list_parts(db, category_id=category_id, asset_id=asset_id, low_stock=low_stock)
@@ -49,7 +49,7 @@ def create_part(
     payload: PartCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_CREATE)),
-):
+) -> PartRead:
     p = svc.create_part(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read_part(db, p)
 
@@ -59,7 +59,7 @@ def create_part(
 def list_parts_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> list[Part]:
     return svc.list_parts(db)
 
 
@@ -68,7 +68,7 @@ def get_part(
     part_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> PartRead:
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     return _read_part(db, p)
 
@@ -79,17 +79,17 @@ def update_part(
     payload: PartUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_EDIT)),
-):
+) -> PartRead:
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     svc.update_part(db, p, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read_part(db, p)
 
 
-@router.delete("/{part_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{part_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_part(
     part_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_DELETE)),
-):
+) -> None:
     p = _ensure_part(svc.get_part(db, part_id), current_user.company_id)
     svc.delete_part(db, p)

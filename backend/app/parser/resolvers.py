@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
@@ -18,7 +19,7 @@ class ResolverChain:
 
     resolvers: list[Callable[..., tuple[int, str] | None]]
 
-    def resolve(self, *args, **kwargs) -> tuple[int | None, str | None]:
+    def resolve(self, *args: Any, **kwargs: Any) -> tuple[int | None, str | None]:
         for r in self.resolvers:
             hit = r(*args, **kwargs)
             if hit is not None:

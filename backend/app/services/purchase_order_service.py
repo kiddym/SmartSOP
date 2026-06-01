@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.errors import bad_request
@@ -128,9 +128,7 @@ def update_purchase_order(
     for k, v in data.items():
         setattr(po, k, v)
     if payload.lines is not None:
-        db.execute(
-            PurchaseOrderLine.__table__.delete().where(PurchaseOrderLine.purchase_order_id == po.id)
-        )
+        db.execute(delete(PurchaseOrderLine).where(PurchaseOrderLine.purchase_order_id == po.id))
         _set_lines(db, po.id, company_id, payload.lines)
     db.commit()
     db.refresh(po)

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
@@ -74,7 +74,7 @@ def update_customer(
     for k, val in data.items():
         setattr(c, k, val)
     if new_parts is not None:
-        db.execute(CustomerPart.__table__.delete().where(CustomerPart.customer_id == c.id))
+        db.execute(delete(CustomerPart).where(CustomerPart.customer_id == c.id))
         _set_parts(db, c.id, company_id, new_parts)
     db.commit()
     db.refresh(c)

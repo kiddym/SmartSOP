@@ -33,7 +33,7 @@ def list_customers(
     part_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_VIEW)),
-):
+) -> list[CustomerRead]:
     return [_read(db, c) for c in svc.list_customers(db, part_id=part_id)]
 
 
@@ -42,7 +42,7 @@ def create_customer(
     payload: CustomerCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_CREATE)),
-):
+) -> CustomerRead:
     c = svc.create_customer(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, c)
 
@@ -52,7 +52,7 @@ def create_customer(
 def list_customers_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_VIEW)),
-):
+) -> list[Customer]:
     return svc.list_customers(db)
 
 
@@ -61,7 +61,7 @@ def get_customer(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_VIEW)),
-):
+) -> CustomerRead:
     c = _ensure(svc.get_customer(db, customer_id), current_user.company_id)
     return _read(db, c)
 
@@ -72,17 +72,17 @@ def update_customer(
     payload: CustomerUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_EDIT)),
-):
+) -> CustomerRead:
     c = _ensure(svc.get_customer(db, customer_id), current_user.company_id)
     svc.update_customer(db, c, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, c)
 
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_customer(
     customer_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.CUSTOMER_DELETE)),
-):
+) -> None:
     c = _ensure(svc.get_customer(db, customer_id), current_user.company_id)
     svc.delete_customer(db, c)

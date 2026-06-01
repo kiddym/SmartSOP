@@ -20,7 +20,7 @@ router = APIRouter(prefix="/api/v1/notification-preferences", tags=["notificatio
 def get_preference(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationPreferenceRead:
     pref = svc.get(db, current_user.company_id, current_user.id)
     return NotificationPreferenceRead(**pref)
 
@@ -30,7 +30,7 @@ def put_preference(
     payload: NotificationPreferenceUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
-):
+) -> NotificationPreferenceRead:
     svc.upsert(
         db,
         current_user.company_id,

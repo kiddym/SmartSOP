@@ -21,7 +21,7 @@ class RoleCreate(BaseModel):
 
     @field_validator("permissions")
     @classmethod
-    def _check(cls, v):
+    def _check(cls, v: list[str]) -> list[str]:
         return _validate(v)
 
 
@@ -31,7 +31,7 @@ class RoleUpdate(BaseModel):
 
     @field_validator("permissions")
     @classmethod
-    def _check(cls, v):
+    def _check(cls, v: list[str] | None) -> list[str] | None:
         return None if v is None else _validate(v)
 
 

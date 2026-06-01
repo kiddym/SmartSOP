@@ -10,6 +10,7 @@ from app.deps import get_db, require_permission
 from app.errors import not_found
 from app.models.user import User
 from app.models.work_order import WorkOrder
+from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_step_result import WorkOrderStepResult
 from app.schemas.work_order import (
     ActivityRead,
@@ -54,7 +55,7 @@ def list_work_orders(
     procedure_attached: bool | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
-):
+) -> list[dict[str, object]]:
     rows = svc.list_work_orders(
         db,
         status=status,
@@ -72,7 +73,7 @@ def create_work_order(
     payload: WorkOrderCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_CREATE)),
-):
+) -> dict[str, object]:
     wo = svc.create_work_order(db, payload, current_user.company_id, actor_user_id=current_user.id)
     if payload.procedure_id is not None:
         exe.attach_procedure(
@@ -86,7 +87,7 @@ def get_work_order(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     return svc.to_read(db, wo)
 
@@ -97,18 +98,18 @@ def update_work_order(
     payload: WorkOrderUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = svc.update_work_order(db, wo, payload)
     return svc.to_read(db, wo)
 
 
-@router.delete("/{work_order_id}", status_code=204)
+@router.delete("/{work_order_id}", status_code=204, response_model=None)
 def delete_work_order(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_DELETE)),
-):
+) -> None:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     svc.delete_work_order(db, wo)
 
@@ -119,7 +120,7 @@ def set_assignees(
     payload: AssigneesSet,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = svc.set_assignees(
         db, wo, payload.user_ids, current_user.company_id, actor_user_id=current_user.id
@@ -133,7 +134,7 @@ def set_teams(
     payload: TeamsSet,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = svc.set_teams(
         db, wo, payload.team_ids, current_user.company_id, actor_user_id=current_user.id
@@ -147,7 +148,7 @@ def transition(
     payload: WorkOrderTransition,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = svc.transition(db, wo, payload, current_user.company_id, actor_user_id=current_user.id)
     return svc.to_read(db, wo)
@@ -159,7 +160,7 @@ def attach_procedure(
     payload: AttachProcedure,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = exe.attach_procedure(
         db, wo, payload.procedure_id, current_user.company_id, actor_user_id=current_user.id
@@ -172,7 +173,7 @@ def detach_procedure(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = exe.detach_procedure(db, wo, current_user.company_id)
     return svc.to_read(db, wo)
@@ -183,7 +184,7 @@ def execution_view(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     return exe.execution_view(db, wo)
 
@@ -195,7 +196,7 @@ def update_step(
     payload: StepResultUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EXECUTE)),
-):
+) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     sr = _ensure_step(exe.get_step_result(db, result_id), work_order_id, current_user.company_id)
     exe.update_step(db, wo, sr, payload, current_user.company_id, actor_user_id=current_user.id)
@@ -207,7 +208,7 @@ def list_activities(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
-):
+) -> list[WorkOrderActivity]:
     _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     return svc.list_activities(db, work_order_id)
 
@@ -218,7 +219,7 @@ def add_comment(
     payload: CommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
-):
+) -> WorkOrderActivity:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     return svc.add_comment(
         db, wo, payload.comment, current_user.company_id, actor_user_id=current_user.id

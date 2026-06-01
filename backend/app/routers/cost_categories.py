@@ -30,7 +30,7 @@ def _ensure(c: CostCategory | None, company_id: str) -> CostCategory:
 def list_cost_categories(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.COST_CATEGORY_VIEW)),
-):
+) -> list[CostCategory]:
     return svc.list_cost_categories(db)
 
 
@@ -39,7 +39,7 @@ def create_cost_category(
     payload: CostCategoryCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.COST_CATEGORY_MANAGE)),
-):
+) -> CostCategory:
     return svc.create_cost_category(
         db, payload, current_user.company_id, actor_user_id=current_user.id
     )
@@ -50,7 +50,7 @@ def get_cost_category(
     category_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.COST_CATEGORY_VIEW)),
-):
+) -> CostCategory:
     return _ensure(svc.get_cost_category(db, category_id), current_user.company_id)
 
 
@@ -60,18 +60,18 @@ def update_cost_category(
     payload: CostCategoryUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.COST_CATEGORY_MANAGE)),
-):
+) -> CostCategory:
     c = _ensure(svc.get_cost_category(db, category_id), current_user.company_id)
     return svc.update_cost_category(
         db, c, payload, current_user.company_id, actor_user_id=current_user.id
     )
 
 
-@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_cost_category(
     category_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.COST_CATEGORY_MANAGE)),
-):
+) -> None:
     c = _ensure(svc.get_cost_category(db, category_id), current_user.company_id)
     svc.delete_cost_category(db, c)

@@ -33,7 +33,7 @@ def list_vendors(
     part_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
-):
+) -> list[VendorRead]:
     return [_read(db, v) for v in svc.list_vendors(db, part_id=part_id)]
 
 
@@ -42,7 +42,7 @@ def create_vendor(
     payload: VendorCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_CREATE)),
-):
+) -> VendorRead:
     v = svc.create_vendor(db, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, v)
 
@@ -52,7 +52,7 @@ def create_vendor(
 def list_vendors_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
-):
+) -> list[Vendor]:
     return svc.list_vendors(db)
 
 
@@ -61,7 +61,7 @@ def get_vendor(
     vendor_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_VIEW)),
-):
+) -> VendorRead:
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     return _read(db, v)
 
@@ -72,17 +72,17 @@ def update_vendor(
     payload: VendorUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_EDIT)),
-):
+) -> VendorRead:
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     svc.update_vendor(db, v, payload, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, v)
 
 
-@router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{vendor_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_vendor(
     vendor_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.VENDOR_DELETE)),
-):
+) -> None:
     v = _ensure(svc.get_vendor(db, vendor_id), current_user.company_id)
     svc.delete_vendor(db, v)

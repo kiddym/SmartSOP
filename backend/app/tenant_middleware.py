@@ -18,14 +18,16 @@ Phase 0 SOP behavior.
 
 from __future__ import annotations
 
+from starlette.types import ASGIApp, Receive, Scope, Send
+
 from app import security, tenant
 
 
 class TenantContextMiddleware:
-    def __init__(self, app) -> None:
+    def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
-    async def __call__(self, scope, receive, send) -> None:
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -38,7 +40,7 @@ class TenantContextMiddleware:
             tenant.reset_current_company_id(token)
 
     @staticmethod
-    def _company_from_headers(headers) -> str | None:
+    def _company_from_headers(headers: list[tuple[bytes, bytes]]) -> str | None:
         for key, value in headers:
             if key == b"authorization":
                 parts = value.decode("latin-1").split()

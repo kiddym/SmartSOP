@@ -8,9 +8,14 @@ FIRE/REARM/NOOP；FIRE 走 generate_from_trigger 复用工单服务。
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+
+if TYPE_CHECKING:
+    from app.models.meter_reading import MeterReading
+    from app.models.work_order import WorkOrder
 
 from app.models.base import utcnow
 from app.models.meter_comparator import MeterComparator
@@ -131,17 +136,11 @@ def update_trigger(
     if "threshold" in data or "comparator" in data:  # 改阈值/比较符 -> 重新武装
         trig.is_armed = True
     if new_assignees is not None:
-        db.execute(
-            MeterTriggerAssignee.__table__.delete().where(
-                MeterTriggerAssignee.trigger_id == trig.id
-            )
-        )
+        db.execute(delete(MeterTriggerAssignee).where(MeterTriggerAssignee.trigger_id == trig.id))
         for uid in dict.fromkeys(new_assignees):
             db.add(MeterTriggerAssignee(trigger_id=trig.id, user_id=uid, company_id=company_id))
     if new_teams is not None:
-        db.execute(
-            MeterTriggerTeam.__table__.delete().where(MeterTriggerTeam.trigger_id == trig.id)
-        )
+        db.execute(delete(MeterTriggerTeam).where(MeterTriggerTeam.trigger_id == trig.id))
         for tid in dict.fromkeys(new_teams):
             db.add(MeterTriggerTeam(trigger_id=trig.id, team_id=tid, company_id=company_id))
     db.commit()
@@ -173,7 +172,13 @@ def disable_trigger(
     return trig
 
 
-def generate_from_trigger(db: Session, trig: MeterTrigger, *, reading, actor_user_id: str | None):
+def generate_from_trigger(
+    db: Session,
+    trig: MeterTrigger,
+    *,
+    reading: MeterReading,
+    actor_user_id: str | None,
+) -> WorkOrder:
     """复制 trigger 预设生成工单，置 last_* 并解除武装。返回 WorkOrder。
 
     工单服务在函数内 import 避免模块级循环依赖。due_date 留空（反应式工单）。

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import io
 from datetime import date
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
@@ -42,7 +43,7 @@ def work_order_dashboard(
     location_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
-):
+) -> dict[str, Any]:
     return work_order_analytics.work_order_dashboard(
         db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id
     )
@@ -56,7 +57,7 @@ def cost_dashboard(
     location_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
-):
+) -> dict[str, Any]:
     return cost_analytics.cost_dashboard(
         db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id
     )
@@ -71,7 +72,7 @@ def asset_reliability_dashboard(
     category_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
-):
+) -> dict[str, Any]:
     return asset_reliability_analytics.asset_reliability_dashboard(
         db,
         date_from=date_from,
@@ -89,14 +90,14 @@ def inventory_dashboard(
     category_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
-):
+) -> dict[str, Any]:
     return inventory_analytics.inventory_dashboard(
         db, date_from=date_from, date_to=date_to, category_id=category_id
     )
 
 
-def _stream_csv(header: list[str], rows: list[list]) -> StreamingResponse:
-    def gen():
+def _stream_csv(header: list[str], rows: list[list[Any]]) -> StreamingResponse:
+    def gen() -> Any:
         buf = io.StringIO()
         writer = csv.writer(buf)
         writer.writerow(header)
@@ -116,24 +117,24 @@ def _stream_csv(header: list[str], rows: list[list]) -> StreamingResponse:
     )
 
 
-def _work_orders_csv(data: dict) -> tuple[list[str], list[list]]:
+def _work_orders_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
     total = data["total"]
-    rows = [
+    rows: list[list[Any]] = [
         [status_name, count, round(count / total, 4) if total else 0.0]
         for status_name, count in data["by_status"].items()
     ]
     return ["status", "count", "pct"], rows
 
 
-def _costs_csv(data: dict) -> tuple[list[str], list[list]]:
-    rows = [
+def _costs_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    rows: list[list[Any]] = [
         [r["part_id"], r["custom_id"], r["name"], r["qty"], r["cost"]]
         for r in data["consumption_by_part"]
     ]
     return ["part_id", "custom_id", "name", "qty", "cost"], rows
 
 
-def _asset_reliability_csv(data: dict) -> tuple[list[str], list[list]]:
+def _asset_reliability_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
     rows = [
         [
             r["asset_id"],
@@ -162,8 +163,10 @@ def _asset_reliability_csv(data: dict) -> tuple[list[str], list[list]]:
     )
 
 
-def _inventory_csv(db: Session, data: dict) -> tuple[list[str], list[list]]:
-    cat_names = dict(db.execute(select(PartCategory.id, PartCategory.name)).all())
+def _inventory_csv(db: Session, data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    cat_names: dict[str, str] = {
+        row[0]: row[1] for row in db.execute(select(PartCategory.id, PartCategory.name)).all()
+    }
     low_ids = {r["part_id"] for r in data["low_stock_items"]}
     parts = list(
         db.execute(
@@ -174,11 +177,11 @@ def _inventory_csv(db: Session, data: dict) -> tuple[list[str], list[list]]:
         .scalars()
         .all()
     )
-    rows = [
+    rows: list[list[Any]] = [
         [
             p.custom_id,
             p.name,
-            cat_names.get(p.category_id),
+            cat_names.get(p.category_id) if p.category_id is not None else None,
             p.quantity,
             p.min_quantity,
             p.cost,
@@ -212,7 +215,7 @@ def export_dashboard_csv(
     category_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
-):
+) -> StreamingResponse:
     if dashboard == "work-orders":
         data = work_order_analytics.work_order_dashboard(
             db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id

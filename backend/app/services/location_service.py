@@ -28,7 +28,7 @@ def _team_ids(db: Session, location_id: str) -> list[str]:
     )
 
 
-def to_read(db: Session, loc: Location) -> dict:
+def to_read(db: Session, loc: Location) -> dict[str, object]:
     return {
         "id": loc.id,
         "custom_id": loc.custom_id,
@@ -72,7 +72,13 @@ def _validate_parent(db: Session, loc_id: str, parent_id: str | None) -> None:
         raise bad_request("LOCATION_CYCLE", "父位置不能是自身的后代")
 
 
-def _sync_relations(db: Session, loc: Location, user_ids, team_ids, company_id: str) -> None:
+def _sync_relations(
+    db: Session,
+    loc: Location,
+    user_ids: list[str] | None,
+    team_ids: list[str] | None,
+    company_id: str,
+) -> None:
     if user_ids is not None:
         db.execute(delete(LocationUser).where(LocationUser.location_id == loc.id))
         for uid in dict.fromkeys(user_ids):

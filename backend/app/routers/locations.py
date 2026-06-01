@@ -27,7 +27,7 @@ def list_locations(
     parent_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_VIEW)),
-):
+) -> list[dict[str, object]]:
     return [location_service.to_read(db, x) for x in location_service.list_locations(db, parent_id)]
 
 
@@ -35,7 +35,7 @@ def list_locations(
 def list_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_VIEW)),
-):
+) -> list[Location]:
     return location_service.list_locations(db)
 
 
@@ -44,7 +44,7 @@ def create_location(
     payload: LocationCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_CREATE)),
-):
+) -> dict[str, object]:
     loc = location_service.create_location(db, payload, current_user.company_id)
     return location_service.to_read(db, loc)
 
@@ -54,7 +54,7 @@ def get_location(
     location_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_VIEW)),
-):
+) -> dict[str, object]:
     loc = _ensure(location_service.get_location(db, location_id), current_user.company_id)
     return location_service.to_read(db, loc)
 
@@ -64,7 +64,7 @@ def list_children(
     location_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_VIEW)),
-):
+) -> list[dict[str, object]]:
     _ensure(location_service.get_location(db, location_id), current_user.company_id)
     return [
         location_service.to_read(db, x) for x in location_service.list_children(db, location_id)
@@ -77,17 +77,17 @@ def update_location(
     payload: LocationUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_EDIT)),
-):
+) -> dict[str, object]:
     loc = _ensure(location_service.get_location(db, location_id), current_user.company_id)
     loc = location_service.update_location(db, loc, payload, current_user.company_id)
     return location_service.to_read(db, loc)
 
 
-@router.delete("/{location_id}", status_code=204)
+@router.delete("/{location_id}", status_code=204, response_model=None)
 def delete_location(
     location_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.LOCATION_DELETE)),
-):
+) -> None:
     loc = _ensure(location_service.get_location(db, location_id), current_user.company_id)
     location_service.delete_location(db, loc)

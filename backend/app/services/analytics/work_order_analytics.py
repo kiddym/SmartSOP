@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -20,7 +21,7 @@ def work_order_dashboard(
     date_to: date | None = None,
     asset_id: str | None = None,
     location_id: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     start, end_excl, df, dt = resolve_window(date_from, date_to)
     stmt = select(WorkOrder).where(
         WorkOrder.is_active.is_(True),
@@ -58,7 +59,7 @@ def work_order_dashboard(
     )
 
     # 首条 ->IN_PROGRESS 活动时间（取列入 Python 求 min，避免 SQLite func.min 丢类型）
-    first_ip: dict[str, object] = {}
+    first_ip: dict[str, datetime] = {}
     wo_ids = [wo.id for wo in wos]
     if wo_ids:
         act_rows = db.execute(

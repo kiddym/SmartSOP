@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app import permissions
 from app.deps import get_db, require_permission
 from app.errors import not_found
+from app.models.part_consumption import PartConsumption
 from app.models.user import User
 from app.models.work_order import WorkOrder
 from app.schemas.part import PartConsumptionCreate, PartConsumptionRead
@@ -32,7 +33,7 @@ def list_consumptions(
     work_order_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_VIEW)),
-):
+) -> list[PartConsumption]:
     _ensure_wo(db, work_order_id, current_user.company_id)
     return svc.list_consumptions(db, work_order_id)
 
@@ -43,7 +44,7 @@ def consume(
     payload: PartConsumptionCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PART_CONSUME)),
-):
+) -> PartConsumption:
     wo = _ensure_wo(db, work_order_id, current_user.company_id)
     part = ps.get_part(db, payload.part_id)
     if part is None or part.company_id != current_user.company_id:

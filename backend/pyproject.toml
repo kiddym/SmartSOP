@@ -32,7 +32,17 @@ strict = true
 exclude = ["alembic/versions", "tests"]
 
 [[tool.mypy.overrides]]
-module = ["docx.*", "reportlab.*", "lxml.*", "yaml", "apscheduler.*", "PIL.*"]
+module = [
+  "docx.*",
+  "reportlab.*",
+  "lxml.*",
+  "yaml",
+  "apscheduler.*",
+  "PIL.*",
+  "jose.*",
+  "boto3.*",
+  "botocore.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

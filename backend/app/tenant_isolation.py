@@ -6,6 +6,8 @@ covered. Skipped when no tenant context is set (pre-auth flows) or bypassed.
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import event
 from sqlalchemy.orm import Session, with_loader_criteria
 
@@ -13,7 +15,7 @@ from app import tenant
 from app.models.base import Base, TenantScoped
 
 
-def _before_flush(session, flush_context, instances) -> None:
+def _before_flush(session: Any, flush_context: Any, instances: Any) -> None:
     """Auto-stamp company_id on new tenant-scoped rows that lack one."""
     if tenant.is_bypassed():
         return
@@ -21,16 +23,19 @@ def _before_flush(session, flush_context, instances) -> None:
     if company_id is None:
         return
     for obj in session.new:
+        # TenantScoped 覆盖 TenantMixin（NOT NULL）+ NullableTenantMixin（SOP/字典表）；
+        # 两者都定义 company_id 列，故对整个 TenantScoped 家族自动补值。setattr 规避
+        # mypy 在 marker 基类（无 company_id 列）上的 attr-defined。
         if isinstance(obj, TenantScoped) and getattr(obj, "company_id", None) is None:
-            obj.company_id = company_id
+            obj.company_id = company_id  # type: ignore[attr-defined]  # 子类均有 company_id 列
 
 
-def _tenant_scoped_mappers() -> list[type]:
+def _tenant_scoped_mappers() -> list[Any]:
     """All mapped classes that participate in tenant scoping (TenantScoped subclasses)."""
     return [m.class_ for m in Base.registry.mappers if issubclass(m.class_, TenantScoped)]
 
 
-def _do_orm_execute(execute_state) -> None:
+def _do_orm_execute(execute_state: Any) -> None:
     """Auto-scope SELECTs to the current tenant via per-entity loader criteria."""
     if not execute_state.is_select:
         return

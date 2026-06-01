@@ -7,6 +7,7 @@ Company ids are UUID strings (see UUIDMixin). None means "no tenant scope"
 from __future__ import annotations
 
 import contextlib
+from collections.abc import Generator
 from contextvars import ContextVar, Token
 
 _company_id: ContextVar[str | None] = ContextVar("company_id", default=None)
@@ -17,11 +18,11 @@ def get_current_company_id() -> str | None:
     return _company_id.get()
 
 
-def set_current_company_id(company_id: str | None) -> Token:
+def set_current_company_id(company_id: str | None) -> Token[str | None]:
     return _company_id.set(company_id)
 
 
-def reset_current_company_id(token: Token) -> None:
+def reset_current_company_id(token: Token[str | None]) -> None:
     _company_id.reset(token)
 
 
@@ -30,7 +31,7 @@ def is_bypassed() -> bool:
 
 
 @contextlib.contextmanager
-def bypass_tenant_scope():
+def bypass_tenant_scope() -> Generator[None, None, None]:
     """Temporarily disable tenant scoping (platform-admin / pre-auth lookups)."""
     token = _bypass.set(True)
     try:

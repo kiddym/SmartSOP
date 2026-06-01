@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import hashlib
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
 import bcrypt as _bcrypt
 from jose import JWTError, jwt
@@ -54,7 +55,7 @@ def _create_token(
         "type": token_type,
         "exp": datetime.now(UTC) + expires_delta,
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm)
+    return cast(str, jwt.encode(payload, settings.secret_key, algorithm=settings.algorithm))
 
 
 def create_access_token(*, user_id: str, company_id: str, role_code: str | None) -> str:
@@ -77,8 +78,11 @@ def create_refresh_token(*, user_id: str, company_id: str, role_code: str | None
     )
 
 
-def decode_token(token: str) -> dict:
+def decode_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        return cast(
+            dict[str, Any],
+            jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm]),
+        )
     except JWTError as exc:
         raise TokenError(str(exc)) from exc

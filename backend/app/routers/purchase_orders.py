@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app import permissions
 from app.deps import get_db, require_permission
 from app.errors import not_found
-from app.models.purchase_order import PurchaseOrder
+from app.models.purchase_order import PurchaseOrder, PurchaseOrderActivity
 from app.models.user import User
 from app.schemas.purchase_order import (
     POActivityRead,
@@ -46,7 +46,7 @@ def list_purchase_orders(
     vendor_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_VIEW)),
-):
+) -> list[PurchaseOrderRead]:
     return [
         _read(db, po) for po in svc.list_purchase_orders(db, status=status, vendor_id=vendor_id)
     ]
@@ -57,7 +57,7 @@ def create_purchase_order(
     payload: PurchaseOrderCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CREATE)),
-):
+) -> PurchaseOrderRead:
     po = svc.create_purchase_order(
         db, payload, current_user.company_id, actor_user_id=current_user.id
     )
@@ -69,7 +69,7 @@ def create_purchase_order(
 def list_purchase_orders_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_VIEW)),
-):
+) -> list[PurchaseOrder]:
     return svc.list_purchase_orders(db)
 
 
@@ -78,7 +78,7 @@ def get_purchase_order(
     po_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_VIEW)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     return _read(db, po)
 
@@ -89,7 +89,7 @@ def update_purchase_order(
     payload: PurchaseOrderUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_EDIT)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.update_purchase_order(
         db, po, payload, current_user.company_id, actor_user_id=current_user.id
@@ -97,12 +97,12 @@ def update_purchase_order(
     return _read(db, po)
 
 
-@router.delete("/{po_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{po_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_purchase_order(
     po_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_DELETE)),
-):
+) -> None:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.delete_purchase_order(db, po)
 
@@ -112,7 +112,7 @@ def submit_purchase_order(
     po_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_EDIT)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.submit_purchase_order(db, po, current_user.company_id, actor_user_id=current_user.id)
     return _read(db, po)
@@ -124,7 +124,7 @@ def approve_purchase_order(
     payload: POResolve,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_APPROVE)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.approve_purchase_order(
         db, po, payload.note, current_user.company_id, actor_user_id=current_user.id
@@ -138,7 +138,7 @@ def reject_purchase_order(
     payload: POResolve,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_APPROVE)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.reject_purchase_order(
         db, po, payload.note, current_user.company_id, actor_user_id=current_user.id
@@ -152,7 +152,7 @@ def cancel_purchase_order(
     payload: POResolve,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_EDIT)),
-):
+) -> PurchaseOrderRead:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     svc.cancel_purchase_order(
         db, po, payload.note, current_user.company_id, actor_user_id=current_user.id
@@ -165,6 +165,6 @@ def list_purchase_order_activities(
     po_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_VIEW)),
-):
+) -> list[PurchaseOrderActivity]:
     po = _ensure(svc.get_purchase_order(db, po_id), current_user.company_id)
     return svc.list_activities(db, po.id)

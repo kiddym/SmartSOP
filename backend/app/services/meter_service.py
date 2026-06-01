@@ -13,6 +13,7 @@ from app.models.base import utcnow
 from app.models.meter import Meter
 from app.models.meter_reading import MeterReading
 from app.models.meter_trigger import MeterTrigger
+from app.models.work_order import WorkOrder
 from app.schemas.meter import MeterCreate, MeterReadingCreate, MeterUpdate
 from app.services import meter_trigger_service as ts
 from app.services import sequence_service
@@ -85,7 +86,7 @@ def list_readings(db: Session, meter_id: str) -> list[MeterReading]:
 
 def submit_reading(
     db: Session, m: Meter, payload: MeterReadingCreate, company_id: str, actor_user_id: str | None
-):
+) -> tuple[MeterReading, list[WorkOrder]]:
     """插入读数并同步评估该 meter 全部启用 trigger（边沿决策）。
 
     返回 (reading, generated_work_orders)。FIRE 复用 generate_from_trigger 生单

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
@@ -71,7 +71,7 @@ def update_multi_part(
     for k, v in data.items():
         setattr(mp, k, v)
     if new_parts is not None:
-        db.execute(MultiPartItem.__table__.delete().where(MultiPartItem.multi_part_id == mp.id))
+        db.execute(delete(MultiPartItem).where(MultiPartItem.multi_part_id == mp.id))
         _set_items(db, mp.id, company_id, new_parts)
     db.commit()
     db.refresh(mp)

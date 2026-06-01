@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -31,7 +32,7 @@ def notify(
     type: str,
     entity_type: str | None,
     entity_id: str | None,
-    params: dict,
+    params: dict[str, Any],
     actor_user_id: str | None = None,
     dedup_key: str | None = None,
 ) -> int:
@@ -215,7 +216,7 @@ def on_wo_auto_generated(db: Session, wo: WorkOrder, *, actor_user_id: str | Non
     )
 
 
-def on_request_submitted(db: Session, request, *, actor_user_id: str | None) -> None:
+def on_request_submitted(db: Session, request: Any, *, actor_user_id: str | None) -> None:
     recips = resolve_permission_holders(
         db, request.company_id, "request.approve", exclude_actor_id=actor_user_id
     )
@@ -231,15 +232,15 @@ def on_request_submitted(db: Session, request, *, actor_user_id: str | None) -> 
     )
 
 
-def on_po_submitted(db: Session, po, *, actor_user_id: str | None) -> None:
+def on_po_submitted(db: Session, po: Any, *, actor_user_id: str | None) -> None:
     _notify_po(db, po, "PO_SUBMITTED", actor_user_id)
 
 
-def on_po_approved(db: Session, po, *, actor_user_id: str | None) -> None:
+def on_po_approved(db: Session, po: Any, *, actor_user_id: str | None) -> None:
     _notify_po(db, po, "PO_APPROVED", actor_user_id)
 
 
-def _notify_po(db: Session, po, type_: str, actor_user_id: str | None) -> None:
+def _notify_po(db: Session, po: Any, type_: str, actor_user_id: str | None) -> None:
     recips = resolve_permission_holders(
         db, po.company_id, "purchase_order.approve", exclude_actor_id=actor_user_id
     )

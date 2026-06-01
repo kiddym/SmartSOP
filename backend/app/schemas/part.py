@@ -96,7 +96,7 @@ class PartConsumptionRead(BaseModel):
     consumed_by_user_id: str | None = None
     consumed_at: datetime
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]  # pydantic computed_field
     @property
     def total_cost(self) -> Decimal:
         return self.quantity * self.unit_cost

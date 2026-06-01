@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
@@ -73,7 +73,7 @@ def update_vendor(
     for k, val in data.items():
         setattr(v, k, val)
     if new_parts is not None:
-        db.execute(VendorPart.__table__.delete().where(VendorPart.vendor_id == v.id))
+        db.execute(delete(VendorPart).where(VendorPart.vendor_id == v.id))
         _set_parts(db, v.id, company_id, new_parts)
     db.commit()
     db.refresh(v)

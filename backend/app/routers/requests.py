@@ -9,6 +9,7 @@ from app import permissions
 from app.deps import get_db, require_permission
 from app.errors import not_found
 from app.models.request import Request
+from app.models.request_activity import RequestActivity
 from app.models.request_status import RequestStatus
 from app.models.user import User
 from app.schemas.request import (
@@ -39,7 +40,7 @@ def list_requests(
     location_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
-):
+) -> list[Request]:
     return svc.list_requests(
         db, status=status, priority=priority, asset_id=asset_id, location_id=location_id
     )
@@ -49,7 +50,7 @@ def list_requests(
 def list_pending(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
-):
+) -> list[Request]:
     return svc.list_requests(db, status=RequestStatus.PENDING.value)
 
 
@@ -58,7 +59,7 @@ def create_request(
     payload: RequestCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_CREATE)),
-):
+) -> Request:
     return svc.create_request(db, payload, current_user.company_id, actor_user_id=current_user.id)
 
 
@@ -67,7 +68,7 @@ def get_request(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
-):
+) -> Request:
     return _ensure(svc.get_request(db, request_id), current_user.company_id)
 
 
@@ -77,17 +78,17 @@ def update_request(
     payload: RequestUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_CREATE)),
-):
+) -> Request:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.update_request(db, r, payload)
 
 
-@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{request_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_request(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_DELETE)),
-):
+) -> None:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     svc.delete_request(db, r)
 
@@ -98,7 +99,7 @@ def approve_request(
     payload: RequestApprove,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE)),
-):
+) -> Request:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     svc.approve_request(db, r, payload, current_user.company_id, actor_user_id=current_user.id)
     return r
@@ -110,7 +111,7 @@ def reject_request(
     payload: RequestReason,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_APPROVE)),
-):
+) -> Request:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.reject_request(
         db, r, payload.reason, current_user.company_id, actor_user_id=current_user.id
@@ -123,7 +124,7 @@ def cancel_request(
     payload: RequestReason,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_CANCEL)),
-):
+) -> Request:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.cancel_request(
         db, r, payload.reason, current_user.company_id, actor_user_id=current_user.id
@@ -135,7 +136,7 @@ def list_activities(
     request_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
-):
+) -> list[RequestActivity]:
     _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.list_activities(db, request_id)
 
@@ -148,7 +149,7 @@ def add_comment(
     payload: CommentCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.REQUEST_VIEW)),
-):
+) -> RequestActivity:
     r = _ensure(svc.get_request(db, request_id), current_user.company_id)
     return svc.add_comment(
         db, r, payload.comment, current_user.company_id, actor_user_id=current_user.id

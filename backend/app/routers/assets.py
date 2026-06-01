@@ -45,7 +45,7 @@ def list_assets(
     parent_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> list[dict[str, object]]:
     rows = svc.list_assets(
         db, location_id=location_id, category_id=category_id, status=status, parent_id=parent_id
     )
@@ -56,7 +56,7 @@ def list_assets(
 def list_mini(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> list[Asset]:
     return svc.list_assets(db)
 
 
@@ -65,7 +65,7 @@ def get_by_barcode(
     code: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> dict[str, object]:
     a = svc.get_by_barcode(db, code)
     if a is None:
         raise not_found("ASSET_NOT_FOUND", "资产不存在")
@@ -77,7 +77,7 @@ def get_by_nfc(
     nfc: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> dict[str, object]:
     a = svc.get_by_nfc(db, nfc)
     if a is None:
         raise not_found("ASSET_NOT_FOUND", "资产不存在")
@@ -89,7 +89,7 @@ def create_asset(
     payload: AssetCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_CREATE)),
-):
+) -> dict[str, object]:
     a = svc.create_asset(db, payload, current_user.company_id)
     return svc.to_read(db, a)
 
@@ -99,7 +99,7 @@ def get_asset(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> dict[str, object]:
     a = _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     return svc.to_read(db, a)
 
@@ -109,7 +109,7 @@ def list_children(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> list[dict[str, object]]:
     _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     return [svc.to_read(db, a) for a in svc.list_children(db, asset_id)]
 
@@ -120,18 +120,18 @@ def update_asset(
     payload: AssetUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_EDIT)),
-):
+) -> dict[str, object]:
     a = _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     a = svc.update_asset(db, a, payload, current_user.company_id)
     return svc.to_read(db, a)
 
 
-@router.delete("/{asset_id}", status_code=204)
+@router.delete("/{asset_id}", status_code=204, response_model=None)
 def delete_asset(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_DELETE)),
-):
+) -> None:
     a = _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     svc.delete_asset(db, a)
 
@@ -142,7 +142,7 @@ def add_downtime(
     payload: DowntimeCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_EDIT)),
-):
+) -> AssetDowntime:
     _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     return svc.add_downtime(db, asset_id, payload, current_user.company_id)
 
@@ -152,7 +152,7 @@ def list_downtimes(
     asset_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_VIEW)),
-):
+) -> list[AssetDowntime]:
     _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     return svc.list_downtimes(db, asset_id)
 
@@ -164,7 +164,7 @@ def close_downtime(
     payload: DowntimeClose,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.ASSET_EDIT)),
-):
+) -> AssetDowntime:
     _ensure(svc.get_asset(db, asset_id), current_user.company_id)
     dt = _ensure_dt(svc.get_downtime(db, downtime_id), asset_id, current_user.company_id)
     return svc.close_downtime(db, dt, payload)

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -35,9 +36,11 @@ TASK_NAME = "due_reminder"
 _TERMINAL = (WorkOrderStatus.COMPLETE, WorkOrderStatus.CANCELED)
 
 
-def _compute_should(db: Session, today, soon_cutoff) -> dict[tuple[str, str], dict]:
+def _compute_should(
+    db: Session, today: date, soon_cutoff: date
+) -> dict[tuple[str, str], dict[str, Any]]:
     """跨租户计算应武装条件集：{(company_id, key): info}。"""
-    should: dict[tuple[str, str], dict] = {}
+    should: dict[tuple[str, str], dict[str, Any]] = {}
     wo_rows = db.execute(
         select(
             WorkOrder.id,
@@ -94,7 +97,7 @@ def _compute_should(db: Session, today, soon_cutoff) -> dict[tuple[str, str], di
     return should
 
 
-def _fire(db: Session, info: dict) -> None:
+def _fire(db: Session, info: dict[str, Any]) -> None:
     cid = info["company_id"]
     kind = info["kind"]
     if kind in ("WO_DUE_SOON", "WO_OVERDUE"):

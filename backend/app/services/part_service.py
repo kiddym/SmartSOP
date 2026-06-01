@@ -5,7 +5,7 @@ quantity 可经 update 直接改（入库/校正）；WO 消耗走 part_consumpt
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
@@ -125,15 +125,15 @@ def update_part(
     for k, v in data.items():
         setattr(p, k, v)
     if new_assignees is not None:
-        db.execute(PartAssignee.__table__.delete().where(PartAssignee.part_id == p.id))
+        db.execute(delete(PartAssignee).where(PartAssignee.part_id == p.id))
         for uid in dict.fromkeys(new_assignees):
             db.add(PartAssignee(part_id=p.id, user_id=uid, company_id=company_id))
     if new_teams is not None:
-        db.execute(PartTeam.__table__.delete().where(PartTeam.part_id == p.id))
+        db.execute(delete(PartTeam).where(PartTeam.part_id == p.id))
         for tid in dict.fromkeys(new_teams):
             db.add(PartTeam(part_id=p.id, team_id=tid, company_id=company_id))
     if new_assets is not None:
-        db.execute(PartAsset.__table__.delete().where(PartAsset.part_id == p.id))
+        db.execute(delete(PartAsset).where(PartAsset.part_id == p.id))
         for aid in dict.fromkeys(new_assets):
             db.add(PartAsset(part_id=p.id, asset_id=aid, company_id=company_id))
     db.commit()

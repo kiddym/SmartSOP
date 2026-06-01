@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.errors import bad_request, conflict
 from app.models.asset_downtime import AssetDowntime
@@ -25,7 +26,7 @@ def team_ids(db: Session, asset_id: str) -> list[str]:
     )
 
 
-def to_read(db: Session, a: Asset) -> dict:
+def to_read(db: Session, a: Asset) -> dict[str, object]:
     return {
         "id": a.id,
         "custom_id": a.custom_id,
@@ -50,7 +51,12 @@ def to_read(db: Session, a: Asset) -> dict:
     }
 
 
-def _check_code_unique(db: Session, field, value: str | None, exclude_id: str | None) -> None:
+def _check_code_unique(
+    db: Session,
+    field: InstrumentedAttribute[str | None],
+    value: str | None,
+    exclude_id: str | None,
+) -> None:
     """barcode / nfc_id 在当前租户内（read-scope 已限定）唯一。value 为空跳过。"""
     if not value:
         return
@@ -88,7 +94,9 @@ def _validate_parent(db: Session, asset_id: str, parent_id: str | None) -> None:
         raise bad_request("ASSET_CYCLE", "父资产不能是自身的后代")
 
 
-def _sync_relations(db: Session, a: Asset, user_ids, team_ids_, company_id: str) -> None:
+def _sync_relations(
+    db: Session, a: Asset, user_ids: list[str] | None, team_ids_: list[str] | None, company_id: str
+) -> None:
     if user_ids is not None:
         db.execute(delete(AssetUser).where(AssetUser.asset_id == a.id))
         for uid in dict.fromkeys(user_ids):

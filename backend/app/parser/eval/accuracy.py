@@ -9,6 +9,7 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
 from app.parser import parse_docx
 from app.parser.result import ParsedNode
@@ -32,7 +33,7 @@ def level_distribution(chapters: Iterable[ParsedNode]) -> dict[int, int]:
     return dict(sorted(counter.items()))
 
 
-def evaluate_sample(data: bytes, *, mode: str = "smart") -> dict:
+def evaluate_sample(data: bytes, *, mode: str = "smart") -> dict[str, Any]:
     """解析单份 docx 字节流，返回可对账的指标字典。
 
     - distribution: {level: count}（层级分布，str 化在序列化层处理）
@@ -51,13 +52,13 @@ def evaluate_sample(data: bytes, *, mode: str = "smart") -> dict:
     }
 
 
-def evaluate_corpus(*, mode: str = "smart", root: Path | None = None) -> dict[str, dict]:
+def evaluate_corpus(*, mode: str = "smart", root: Path | None = None) -> dict[str, dict[str, Any]]:
     """遍历样本根下全部 .docx，返回 {相对posix路径: 指标}。
 
     单文档解析异常不应中断整体评估：记为 {"error": "<repr>"}。
     """
     base = root or SAMPLE_ROOT
-    out: dict[str, dict] = {}
+    out: dict[str, dict[str, Any]] = {}
     for path in sorted(base.rglob("*.docx")):
         rel = path.relative_to(base).as_posix()
         try:
