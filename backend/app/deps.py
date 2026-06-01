@@ -52,7 +52,7 @@ def get_current_user(
     try:
         claims = security.decode_token(token)
     except security.TokenError:
-        raise unauthorized("INVALID_TOKEN", "无效的令牌")
+        raise unauthorized("INVALID_TOKEN", "无效的令牌") from None
     if claims.get("type") != "access":
         raise unauthorized("INVALID_TOKEN", "令牌类型错误")
     company_id = claims.get("company_id")

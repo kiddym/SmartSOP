@@ -16,9 +16,15 @@ select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
 ignore = ["E501", "RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*" = ["S101"]
+# S101 assert；N803 测试桩仿 boto3 大写 kwargs（Bucket/Key/Body）；N806 测试内
+# XML 命名空间常量（_A_NS/_W_NS/_V_NS）—— 均为测试惯例，非真实 bug。
+"tests/**/*" = ["S101", "N803", "N806"]
+# conftest 须先装 alembic.versions shim 再 import app.*，导入无法置顶（E402）。
+"tests/conftest.py" = ["S101", "N803", "N806", "E402"]
 # B008：FastAPI 依赖注入惯例就是在参数默认值里调用 Depends() / Query()，非真实 bug。
 "app/routers/**/*" = ["B008"]
+# deps.py 是依赖提供者，同样在默认值里用 Depends()（与 routers 一致惯例）。
+"app/deps.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.11"

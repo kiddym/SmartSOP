@@ -46,7 +46,7 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)):
     try:
         user = auth_service.register(db, payload)
     except auth_service.AuthError as exc:
-        raise conflict("COMPANY_EXISTS", str(exc))
+        raise conflict("COMPANY_EXISTS", str(exc)) from exc
     return _tokens(db, user)
 
 
@@ -55,7 +55,7 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
     try:
         user = auth_service.authenticate(db, payload)
     except auth_service.AuthError as exc:
-        raise unauthorized("LOGIN_FAILED", str(exc))
+        raise unauthorized("LOGIN_FAILED", str(exc)) from exc
     return _tokens(db, user)
 
 
@@ -64,7 +64,7 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)):
     try:
         claims = security.decode_token(payload.refresh_token)
     except security.TokenError:
-        raise unauthorized("INVALID_TOKEN", "无效的令牌")
+        raise unauthorized("INVALID_TOKEN", "无效的令牌") from None
     if claims.get("type") != "refresh":
         raise unauthorized("INVALID_TOKEN", "令牌类型错误")
     tenant.set_current_company_id(claims.get("company_id"))

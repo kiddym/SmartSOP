@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy.orm import Session
 
+from app.services import node_numbering, node_service
 from app.services._invariants import enforce_node_invariants
+from tests.conftest import Factory
 
 
 def test_node_kind_with_input_schema_rejected() -> None:
@@ -39,9 +42,6 @@ def test_valid_step_ok() -> None:
     enforce_node_invariants(
         kind="step", heading_level=None, input_schema={"type": "COMMON"}, attachment_marks=[]
     )
-
-
-from app.services import node_numbering, node_service
 
 
 def _proc(factory):
@@ -160,11 +160,6 @@ def test_reorder_rejects_unknown_node(factory, db) -> None:
     a = factory.node(proc.id, body="<p>a</p>", sort_order=10, heading_level=1)
     with pytest.raises(HTTPException):
         node_service.reorder(db, proc.id, [a.id, "ghost-id"])
-
-
-from sqlalchemy.orm import Session
-
-from tests.conftest import Factory
 
 
 def test_create_node_rejects_oversize_body(db: Session, factory: Factory) -> None:
