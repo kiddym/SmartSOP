@@ -51,11 +51,14 @@ from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
 from app.models.team import Team, TeamUser
+from app.models.time_category import TimeCategory
 from app.models.user import User
 from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorPart
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
+from app.models.work_order_additional_cost import WorkOrderAdditionalCost
+from app.models.work_order_labor import WorkOrderLabor
 from app.models.work_order_step_result import WorkOrderStepResult
 
 __all__ = [
@@ -122,13 +125,16 @@ __all__ = [
     "Sequence",
     "Team",
     "TeamUser",
+    "TimeCategory",
     "User",
     "UserInvitation",
     "Vendor",
     "VendorPart",
     "WorkOrder",
     "WorkOrderActivity",
+    "WorkOrderAdditionalCost",
     "WorkOrderAssignee",
+    "WorkOrderLabor",
     "WorkOrderStepResult",
     "WorkOrderTeam",
 ]
