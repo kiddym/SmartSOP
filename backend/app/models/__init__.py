@@ -50,6 +50,7 @@ from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
 from app.models.team import Team, TeamUser
 from app.models.user import User
+from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorPart
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
@@ -118,6 +119,7 @@ __all__ = [
     "Team",
     "TeamUser",
     "User",
+    "UserInvitation",
     "Vendor",
     "VendorPart",
     "WorkOrder",

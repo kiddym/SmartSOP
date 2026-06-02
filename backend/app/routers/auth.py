@@ -20,7 +20,8 @@ from app.schemas.auth import (
     ResetPasswordRequest,
     TokenPair,
 )
-from app.services import auth_service, password_reset_service
+from app.schemas.platform import AcceptInviteRequest
+from app.services import auth_service, invitation_service, password_reset_service
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -102,6 +103,15 @@ def change_password(
     auth_service.change_password(db, current_user, payload.old_password, payload.new_password)
     db.commit()
     return {"status": "ok"}
+
+
+@router.post("/accept-invite", response_model=TokenPair)
+def accept_invite(payload: AcceptInviteRequest, db: Session = Depends(get_db)) -> TokenPair:
+    user = invitation_service.accept(
+        db, token=payload.token, name=payload.name, password=payload.password
+    )
+    db.commit()
+    return _tokens(db, user)
 
 
 @router.get("/me", response_model=CurrentUser)
