@@ -33,6 +33,7 @@ from app.models.numbering_profile import NumberingProfile
 from app.models.part import Part, PartAsset, PartAssignee, PartTeam
 from app.models.part_category import PartCategory
 from app.models.part_consumption import PartConsumption
+from app.models.password_reset_token import PasswordResetToken
 from app.models.pm_activity import PMActivity
 from app.models.preventive_maintenance import PMAssignee, PMTeam, PreventiveMaintenance
 from app.models.procedure import Procedure
@@ -96,6 +97,7 @@ __all__ = [
     "PartCategory",
     "PartConsumption",
     "PartTeam",
+    "PasswordResetToken",
     "PreventiveMaintenance",
     "Procedure",
     "ProcedureAsset",

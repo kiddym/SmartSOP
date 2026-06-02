@@ -36,3 +36,13 @@ class CurrentUser(BaseModel):
     company_id: str
     role_code: str | None = None
     permissions: list[str] = []
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    company_slug: str | None = None
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str = Field(min_length=8, max_length=128)
