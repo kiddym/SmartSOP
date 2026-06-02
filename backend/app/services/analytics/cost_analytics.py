@@ -123,8 +123,8 @@ def cost_dashboard(
             }
             for a_id, v in attrib.items()
         ),
-        key=lambda r: cast(Decimal, r["total"]),
-        reverse=True,
+        # total 降序；并列时按 asset_id 升序兜底（None 视作空串），保证输出确定。
+        key=lambda r: (-cast(Decimal, r["total"]), str(r["asset_id"] or "")),
     )
     labor_q, additional_q, parts_q = (
         _q(labor_total),

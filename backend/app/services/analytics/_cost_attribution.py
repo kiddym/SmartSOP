@@ -31,6 +31,8 @@ def cost_by_asset(
     """返回 {asset_id|None: {"parts","labor","additional"}}（未量化原值）。
 
     asset_id/location_id 过滤经 WorkOrder 关联生效。
+    口径：账本（消耗/工时/附加成本）按实际发生额归属，不因宿主工单后续软删而剔除——
+    与既有 /costs 口径一致；实体计数类面板才按宿主 is_active 过滤。
     """
     out: dict[str | None, dict[str, Decimal]] = defaultdict(
         lambda: {"parts": Decimal("0"), "labor": Decimal("0"), "additional": Decimal("0")}
