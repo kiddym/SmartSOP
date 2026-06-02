@@ -14,6 +14,7 @@ from app.models.base import Base
 from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.company import Company
 from app.models.cost_category import CostCategory
+from app.models.currency import Currency
 from app.models.customer import Customer, CustomerPart
 from app.models.email_outbox import EmailOutbox
 from app.models.field import ProcedureField
@@ -67,6 +68,7 @@ __all__ = [
     "BatchImportJob",
     "Company",
     "CostCategory",
+    "Currency",
     "Customer",
     "CustomerPart",
     "EmailOutbox",

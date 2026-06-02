@@ -30,6 +30,7 @@ from app.routers import (
     batch_imports,
     company,
     cost_categories,
+    currencies,
     customers,
     fields,
     folders,
@@ -156,6 +157,7 @@ app.include_router(nodes.router)
 app.include_router(company.router)
 app.include_router(roles.router)
 app.include_router(users.router)
+app.include_router(currencies.router)
 
 
 @app.get("/healthz", tags=["health"])
