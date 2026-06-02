@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
@@ -22,12 +24,14 @@ from app.schemas.work_order_cost import (
     AdditionalCostCreate,
     AdditionalCostRead,
     AdditionalCostUpdate,
+    CostSummaryRead,
     LaborCreate,
     LaborRead,
     LaborTimerStart,
     LaborUpdate,
 )
 from app.services import work_order_additional_cost_service as addcost
+from app.services import work_order_cost_service as costsvc
 from app.services import work_order_labor_service as labor
 from app.services import work_order_service as wos
 
@@ -203,3 +207,18 @@ def delete_additional_cost(
     _ensure_wo(db, work_order_id, current_user.company_id)
     row = _ensure_cost(db, cost_id, work_order_id, current_user.company_id)
     addcost.delete_additional_cost(db, row)
+
+
+# ---------------------------------------------------------------------------
+# 总成本汇总（CostSummary）
+# ---------------------------------------------------------------------------
+
+
+@router.get("/cost-summary", response_model=CostSummaryRead)
+def cost_summary(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> dict[str, Decimal]:
+    _ensure_wo(db, work_order_id, current_user.company_id)
+    return costsvc.cost_summary(db, work_order_id)

@@ -122,3 +122,15 @@ class AdditionalCostRead(BaseModel):
     amount: Decimal
     description: str
     created_by_user_id: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# CostSummary（工单总成本汇总）
+# ---------------------------------------------------------------------------
+
+
+class CostSummaryRead(BaseModel):
+    labor_total: Decimal
+    additional_total: Decimal
+    parts_total: Decimal
+    total: Decimal
