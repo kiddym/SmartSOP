@@ -24,6 +24,6 @@ def create_currency(db: Session, data: CurrencyCreate) -> Currency:
 def delete_currency(db: Session, currency_id: str) -> None:
     cur = db.get(Currency, currency_id)
     if cur is None:
-        raise not_found("NOT_FOUND", "币种不存在")
+        raise not_found("CURRENCY_NOT_FOUND", "币种不存在")
     db.delete(cur)
     db.flush()
