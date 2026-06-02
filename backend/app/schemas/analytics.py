@@ -80,6 +80,9 @@ class AssetReliabilityRow(BaseModel):
     total_downtime_hours: float
     mttr_hours: float | None
     mtbf_hours: float | None
+    total_maintenance_cost: Decimal
+    acquisition_cost: Decimal | None
+    cost_to_value_ratio: float | None
 
 
 class AssetReliabilityAnalytics(BaseModel):
@@ -91,6 +94,7 @@ class AssetReliabilityAnalytics(BaseModel):
     fleet_total_downtime_hours: float
     fleet_mttr_hours: float | None
     fleet_mtbf_hours: float | None
+    fleet_total_maintenance_cost: Decimal
 
 
 class CategoryValueRow(BaseModel):
