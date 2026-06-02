@@ -39,6 +39,14 @@ class VendorSpendRow(BaseModel):
     spend: Decimal
 
 
+class MaintenanceCostByAssetRow(BaseModel):
+    asset_id: str | None
+    parts_cost: Decimal
+    labor_cost: Decimal
+    additional_cost: Decimal
+    total: Decimal
+
+
 class CostAnalytics(BaseModel):
     date_from: date
     date_to: date
@@ -47,6 +55,10 @@ class CostAnalytics(BaseModel):
     consumption_by_asset: list[AssetCostRow]
     po_spend_approved: Decimal
     po_spend_by_vendor: list[VendorSpendRow]
+    labor_cost: Decimal
+    additional_cost: Decimal
+    total_maintenance_cost: Decimal
+    maintenance_cost_by_asset: list[MaintenanceCostByAssetRow]
 
 
 class AssetReliabilityRow(BaseModel):

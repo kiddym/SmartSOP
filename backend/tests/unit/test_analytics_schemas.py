@@ -42,8 +42,21 @@ def test_cost_analytics_decimal():
         consumption_by_asset=[{"asset_id": None, "cost": Decimal("6")}],
         po_spend_approved=Decimal("0"),
         po_spend_by_vendor=[],
+        labor_cost=Decimal("0.00"),
+        additional_cost=Decimal("0.00"),
+        total_maintenance_cost=Decimal("6.00"),
+        maintenance_cost_by_asset=[
+            {
+                "asset_id": None,
+                "parts_cost": Decimal("6.00"),
+                "labor_cost": Decimal("0.00"),
+                "additional_cost": Decimal("0.00"),
+                "total": Decimal("6.00"),
+            }
+        ],
     )
     assert m.consumption_by_part[0].cost == Decimal("6")
+    assert m.maintenance_cost_by_asset[0].total == Decimal("6.00")
 
 
 def test_asset_reliability_nullable_mtbf():
