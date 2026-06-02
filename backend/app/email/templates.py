@@ -76,6 +76,23 @@ def _part_low_stock(p: dict[str, Any]) -> tuple[str, str]:
     )
 
 
+def _password_reset(p: dict[str, Any]) -> tuple[str, str]:
+    return (
+        "[账户] 密码重置",
+        f"您请求了密码重置。请在 {_g(p, 'deadline', '1 小时')}内点击以下链接完成重置：\n"
+        f"{_g(p, 'reset_url')}\n\n若非本人操作，请忽略本邮件。",
+    )
+
+
+def _invite_user(p: dict[str, Any]) -> tuple[str, str]:
+    company = _g(p, "company_name")
+    return (
+        f"[邀请] 加入 {company}",
+        f"您被邀请加入 {company}。请点击以下链接设置密码并完成加入：\n"
+        f"{_g(p, 'invite_url')}\n\n邀请有效期至 {_g(p, 'deadline', '7 天后')}。",
+    )
+
+
 def _fallback(p: dict[str, Any]) -> tuple[str, str]:
     return ("[通知] 你有一条新通知", f"详情：{p}")
 
@@ -90,4 +107,6 @@ _TEMPLATES = {
     "PO_SUBMITTED": _po_submitted,
     "PO_APPROVED": _po_approved,
     "PART_LOW_STOCK": _part_low_stock,
+    "PASSWORD_RESET": _password_reset,
+    "INVITE_USER": _invite_user,
 }

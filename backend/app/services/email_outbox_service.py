@@ -60,6 +60,31 @@ def enqueue(
     return count
 
 
+def enqueue_transactional(
+    db: Session,
+    *,
+    company_id: str,
+    recipient_email: str,
+    type: str,
+    params: dict[str, Any],
+    recipient_user_id: str | None = None,
+) -> EmailOutbox:
+    """事务邮件直发入队（密码重置/邀请）：不过通知偏好、recipient_user_id 可空。不 commit。"""
+    subject, body = render(type, params)
+    row = EmailOutbox(
+        company_id=company_id,
+        recipient_user_id=recipient_user_id,
+        recipient_email=recipient_email,
+        type=type,
+        subject=subject,
+        body=body,
+        status="pending",
+    )
+    db.add(row)
+    db.flush()
+    return row
+
+
 def deliver_pending(
     db: Session, *, backend: Any, max_attempts: int, company_id: str
 ) -> dict[str, int]:
