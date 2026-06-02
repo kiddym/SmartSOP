@@ -67,7 +67,7 @@ def get_current_user(
     return user
 
 
-def _user_permission_codes(db: Session, user: User) -> set[str]:
+def user_permission_codes(db: Session, user: User) -> set[str]:
     role_code, stored = "", []
     if user.role_id is not None:
         role = db.get(Role, user.role_id)
@@ -83,7 +83,7 @@ def require_permission(code: str) -> Callable[[User, Session], User]:
         current_user: User = Depends(get_current_user),
         db: Session = Depends(get_db),
     ) -> User:
-        if code not in _user_permission_codes(db, current_user):
+        if code not in user_permission_codes(db, current_user):
             raise forbidden("FORBIDDEN", "权限不足")
         return current_user
 
@@ -97,4 +97,5 @@ __all__ = [
     "get_request_meta",
     "oauth2_scheme",
     "require_permission",
+    "user_permission_codes",
 ]

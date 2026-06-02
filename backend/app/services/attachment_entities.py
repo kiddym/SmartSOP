@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import permissions, tenant
-from app.deps import _user_permission_codes
+from app.deps import user_permission_codes
 from app.errors import bad_request, forbidden, not_found
 from app.models.location import Location
 from app.models.maintenance_asset import Asset
@@ -48,7 +48,8 @@ ENTITY_REGISTRY: dict[str, EntitySpec] = {
         Part, permissions.PART_VIEW, permissions.PART_EDIT, scoped=True
     ),
     "request": EntitySpec(
-        # request 无 .edit 权限码，附件写沿用 request.create（既定决策）
+        # request 无专属 .edit 权码（permissions.py 的 request 仅 view/create/cancel/delete/approve）；
+        # 附件写权限沿用 REQUEST_CREATE 系既定决策，勿误改为不存在的 REQUEST_EDIT。
         Request, permissions.REQUEST_VIEW, permissions.REQUEST_CREATE, scoped=True
     ),
 }
@@ -77,12 +78,14 @@ def _lookup_host(db: Session, spec: EntitySpec, entity_id: str) -> Any:
 
 
 def resolve_and_authorize(
-    db: Session, user: User | None, entity_type: str, entity_id: str, action: str
+    db: Session, user: User | None, entity_type: str, entity_id: str, action: Literal["read", "write"]
 ) -> Any:
-    """校验 entity_type（未知→400）→查宿主（不存在/跨租户→404）→授权（不足→403）。返回宿主。"""
+    """校验 entity_type（未知→400）→查宿主（不存在/跨租户→404）→授权（不足→403）→write_guard（write 时自动校验）。返回宿主。"""
     spec = get_spec(entity_type)
     host = _lookup_host(db, spec, entity_id)
     perm = spec.view_perm if action == "read" else spec.edit_perm
-    if perm is not None and (user is None or perm not in _user_permission_codes(db, user)):
+    if perm is not None and (user is None or perm not in user_permission_codes(db, user)):
         raise forbidden("FORBIDDEN", "权限不足")
+    if action != "read" and spec.write_guard is not None:
+        spec.write_guard(host)
     return host

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import security, tenant
-from app.deps import _user_permission_codes, get_current_user, get_db
+from app.deps import get_current_user, get_db, user_permission_codes
 from app.errors import conflict, unauthorized
 from app.models.role import Role
 from app.models.user import User, UserStatus
@@ -124,5 +124,5 @@ def me(
         name=current_user.name,
         company_id=current_user.company_id,
         role_code=_role_code(db, current_user),
-        permissions=sorted(_user_permission_codes(db, current_user)),
+        permissions=sorted(user_permission_codes(db, current_user)),
     )

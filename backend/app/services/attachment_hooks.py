@@ -14,7 +14,8 @@ from app.services import audit_service
 
 def procedure_write_guard(host: Any) -> None:
     """仅当前草稿可写附件：废止→PROCEDURE_DEPRECATED；非当前草稿→PROCEDURE_READONLY。"""
-    proc: Procedure = host
+    assert isinstance(host, Procedure)
+    proc = host
     if proc.deprecated_at is not None:
         raise bad_request("PROCEDURE_DEPRECATED", "程序已被废止，请先恢复后再操作")
     if not (proc.is_current and proc.status == "DRAFT"):
