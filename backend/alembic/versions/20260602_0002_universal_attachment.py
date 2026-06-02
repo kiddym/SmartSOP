@@ -18,6 +18,10 @@ Downgrade rebuilds the legacy table (procedure_id NOT NULL + RESTRICT FK to
 tb_procedure + the original five indexes) and back-fills only the
 ``entity_type = 'procedure'`` rows; rows belonging to other entity types are
 discarded (rolling back to a world without universal attachments).
+
+注：MySQL 全链 alembic 重放受既有 initial_schema 的 TEXT server_default 问题阻塞
+（与本迁移无关）；本迁移 DDL+INSERT 已在 MySQL 9.x 上以最小 fixture 双向验证，
+生产 MySQL 全链重放待按实际版本手验。
 """
 
 from __future__ import annotations
@@ -94,7 +98,7 @@ def upgrade() -> None:
 
     # --- drop the legacy procedure-only table ---------------------------------
     op.drop_index(
-        op.f("ix_tb_procedure_attachment_company_id"),
+        "ix_tb_procedure_attachment_company_id",
         table_name="tb_procedure_attachment",
     )
     op.drop_index(
@@ -142,7 +146,7 @@ def downgrade() -> None:
         sa.PrimaryKeyConstraint("id", name=op.f("pk_tb_procedure_attachment")),
     )
     op.create_index(
-        op.f("ix_tb_procedure_attachment_company_id"),
+        "ix_tb_procedure_attachment_company_id",
         "tb_procedure_attachment",
         ["company_id"],
         unique=False,
@@ -171,6 +175,21 @@ def downgrade() -> None:
         ["storage_path"],
         unique=False,
     )
+
+    # --- restore the company_id FK that phase0_platform added (MySQL only) -----
+    # phase0 added company_id via add_column with an inline sa.ForeignKey on
+    # non-SQLite dialects only (see phase0_platform lines 118-133). We mirror
+    # that here so MySQL up→down leaves tb_procedure_attachment in the same FK
+    # state as before the upgrade. SQLite never had this FK, so we skip it.
+    if op.get_bind().dialect.name != "sqlite":
+        op.create_foreign_key(
+            op.f("fk_tb_procedure_attachment_company_id"),
+            "tb_procedure_attachment",
+            "tb_company",
+            ["company_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
 
     # --- back-fill only the 'procedure' rows; other entity types are dropped --
     op.execute(
