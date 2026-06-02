@@ -14,7 +14,7 @@ def _mod():
 def test_migration_revision_chain():
     m = _mod()
     assert m.revision == "asset_downtime_propagation"
-    assert m.down_revision == "workorder_labor_cost"
+    assert m.down_revision == "analytics_backfill"  # rebased at merge for linear chain
 
 
 def test_upgrade_then_downgrade_sqlite():

@@ -1,7 +1,7 @@
 """asset downtime propagation: tb_asset_downtime + source_asset_id + prior_status
 
 Revision ID: asset_downtime_propagation
-Revises: workorder_labor_cost
+Revises: analytics_backfill (rebased at merge; was workorder_labor_cost)
 Create Date: 2026-06-02
 
 Hand-authored (MySQL prod + SQLite dev/test)。给 tb_asset_downtime 加级联溯源两列。
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "asset_downtime_propagation"
-down_revision: str | Sequence[str] | None = "workorder_labor_cost"
+down_revision: str | Sequence[str] | None = "analytics_backfill"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
