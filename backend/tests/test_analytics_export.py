@@ -45,6 +45,14 @@ def test_export_all_dashboards_csv(client):
         assert r.text.splitlines()[0] == header
 
 
+def test_export_new_dashboards(client):
+    t = _admin(client)
+    for path in ("requests", "personnel", "trends"):
+        r = client.get(f"/api/v1/analytics/{path}/export", headers=_h(t))
+        assert r.status_code == 200, (path, r.text)
+        assert r.headers["content-type"].startswith("text/csv")
+
+
 def test_export_invalid_dashboard_404(client):
     t = _admin(client)
     assert client.get("/api/v1/analytics/nope/export", headers=_h(t)).status_code == 404

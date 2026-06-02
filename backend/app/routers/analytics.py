@@ -248,6 +248,47 @@ def _inventory_csv(db: Session, data: dict[str, Any]) -> tuple[list[str], list[l
     )
 
 
+def _requests_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    rows: list[list[Any]] = [[k, v] for k, v in data["by_status"].items()]
+    return ["status", "count"], rows
+
+
+def _personnel_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    rows: list[list[Any]] = [
+        [
+            r["user_id"],
+            r["name"],
+            r["created_count"],
+            r["completed_count"],
+            r["assigned_count"],
+            r["labor_hours"],
+            r["labor_cost"],
+        ]
+        for r in data["users"]
+    ]
+    return (
+        ["user_id", "name", "created", "completed", "assigned", "labor_hours", "labor_cost"],
+        rows,
+    )
+
+
+def _trends_csv(data: dict[str, Any]) -> tuple[list[str], list[list[Any]]]:
+    rows: list[list[Any]] = [
+        [
+            b["bucket_start"],
+            b["work_orders_created"],
+            b["work_orders_completed"],
+            b["requests_received"],
+            b["requests_resolved"],
+        ]
+        for b in data["buckets"]
+    ]
+    return (
+        ["bucket_start", "wo_created", "wo_completed", "req_received", "req_resolved"],
+        rows,
+    )
+
+
 @router.get("/{dashboard}/export")
 def export_dashboard_csv(
     dashboard: str,
@@ -256,6 +297,7 @@ def export_dashboard_csv(
     asset_id: str | None = None,
     location_id: str | None = None,
     category_id: str | None = None,
+    granularity: str = "day",
     db: Session = Depends(get_db),
     current_user: User = _VIEW,
 ) -> StreamingResponse:
@@ -284,6 +326,19 @@ def export_dashboard_csv(
             db, date_from=date_from, date_to=date_to, category_id=category_id
         )
         header, rows = _inventory_csv(db, data)
+    elif dashboard == "requests":
+        data = request_analytics.request_dashboard(
+            db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id
+        )
+        header, rows = _requests_csv(data)
+    elif dashboard == "personnel":
+        data = personnel_analytics.personnel_dashboard(db, date_from=date_from, date_to=date_to)
+        header, rows = _personnel_csv(data)
+    elif dashboard == "trends":
+        data = trend_analytics.trend_dashboard(
+            db, date_from=date_from, date_to=date_to, granularity=granularity
+        )
+        header, rows = _trends_csv(data)
     else:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
