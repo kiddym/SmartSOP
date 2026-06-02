@@ -22,3 +22,10 @@ class AssetDowntime(Base, UUIDMixin, TimestampMixin, TenantMixin):
     downtime_type: Mapped[str] = mapped_column(
         String(20), default="manual", server_default="manual"
     )
+    source_asset_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("tb_asset.id", ondelete="SET NULL"),
+        default=None,
+        index=True,
+    )
+    prior_status: Mapped[str | None] = mapped_column(String(20), default=None)
