@@ -17,9 +17,9 @@ def test_upload_then_download_via_backend(db: Session, factory: Factory, storage
     factory.sequence(leaf.id)
     proc = factory.procedure(leaf.id)
     meta = RequestMeta(ip_address="1.1.1.1", user_agent="ua", request_id="r")
-    att = attachment_service.upload(
-        db, proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta
+    att = attachment_service.upload_for(
+        db, None, "procedure", proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta
     )
     assert get_storage_backend().read(att.storage_path) == b"hello"
-    data, _mime, _name = attachment_service.download(db, att.id)
+    data, _mime, _name = attachment_service.download_for(db, None, att.id)
     assert data == b"hello"

@@ -85,7 +85,7 @@ def test_upgrade_copies_attachment_metadata(db: Session, factory: Factory) -> No
 
     new = version_flow_service.upgrade_version(db, proc.id, META)
     db.commit()
-    rows = attachment_service.list_attachments(db, new.id)
+    rows = attachment_service.list_for(db, None, "procedure", new.id)
     assert len(rows) == 1
     assert rows[0].storage_path == "attachment/ab/orig.pdf"  # 复用 storage_path
 
@@ -116,7 +116,7 @@ def test_rollback_inherits_target_attachments(db: Session, factory: Factory) -> 
 
     new = version_flow_service.rollback(db, v2.id, 1, "回退原因", META)
     db.commit()
-    rows = attachment_service.list_attachments(db, new.id)
+    rows = attachment_service.list_for(db, None, "procedure", new.id)
     # 继承 target(v1) 的附件，而非 current(v2) 的（Q117）
     assert [r.storage_path for r in rows] == ["attachment/v1/file.pdf"]
 

@@ -26,16 +26,15 @@ def _proc(factory: Factory, **kw: object) -> object:
 
 
 def _upload(db: Session, proc_id: str, data: bytes = b"hello", name: str = "a.txt") -> object:
-    return attachment_service.upload(
-        db, proc_id, data, name, content_type=None, description="说明", meta=META
+    return attachment_service.upload_for(
+        db, None, "procedure", proc_id, data, name, content_type=None, description="说明", meta=META
     )
 
 
 def test_upload_success(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
-    att = attachment_service.upload(
-        db,
-        proc.id,
+    att = attachment_service.upload_for(
+        db, None, "procedure", proc.id,
         b"hello",
         "报告.pdf",
         content_type="application/pdf",
@@ -108,7 +107,7 @@ def test_list_returns_active_ordered(db: Session, factory: Factory, storage_tmp:
     a1 = _upload(db, proc.id, name="1.txt")
     a2 = _upload(db, proc.id, name="2.txt")
     db.commit()
-    rows = attachment_service.list_attachments(db, proc.id)
+    rows = attachment_service.list_for(db, None, "procedure", proc.id)
     assert [r.id for r in rows] == [a1.id, a2.id]
 
 
@@ -117,22 +116,22 @@ def test_download_works_on_published(db: Session, factory: Factory, storage_tmp:
     att = _upload(db, proc.id, data=b"PDFDATA")
     proc.status = "PUBLISHED"  # 下载不受只读/废止限制（Q118）
     db.commit()
-    data, _mime, name = attachment_service.download(db, att.id)
+    data, _mime, name = attachment_service.download_for(db, None, att.id)
     assert data == b"PDFDATA"
     assert name == "a.txt"
 
 
 def test_preview_whitelist_and_415(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
-    img = attachment_service.upload(
-        db, proc.id, b"x", "p.png", content_type="image/png", description="", meta=META
+    img = attachment_service.upload_for(
+        db, None, "procedure", proc.id, b"x", "p.png", content_type="image/png", description="", meta=META
     )
-    _data, mime = attachment_service.preview(db, img.id)
+    _data, mime = attachment_service.preview_for(db, None, img.id)
     assert mime == "image/png"
 
     txt = _upload(db, proc.id, name="x.txt")
     with pytest.raises(HTTPException) as exc:
-        attachment_service.preview(db, txt.id)
+        attachment_service.preview_for(db, None, txt.id)
     assert exc.value.status_code == 415
     assert exc.value.detail["code"] == "ATTACHMENT_NOT_PREVIEWABLE"  # type: ignore[index]
 
@@ -140,7 +139,7 @@ def test_preview_whitelist_and_415(db: Session, factory: Factory, storage_tmp: P
 def test_update_metadata(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
     att = _upload(db, proc.id)
-    updated = attachment_service.update(db, att.id, description="新说明", sort_order=5, meta=META)
+    updated = attachment_service.update_for(db, None, att.id, description="新说明", sort_order=5, meta=META)
     assert updated.description == "新说明"
     assert updated.sort_order == 5
 
@@ -151,7 +150,7 @@ def test_update_readonly_when_not_draft(db: Session, factory: Factory, storage_t
     proc.status = "PUBLISHED"
     db.commit()
     with pytest.raises(HTTPException) as exc:
-        attachment_service.update(db, att.id, description="x", sort_order=None, meta=META)
+        attachment_service.update_for(db, None, att.id, description="x", sort_order=None, meta=META)
     assert exc.value.detail["code"] == "PROCEDURE_READONLY"  # type: ignore[index]
 
 
@@ -159,10 +158,10 @@ def test_delete_soft_deletes_keeps_file(db: Session, factory: Factory, storage_t
     proc = _proc(factory)
     att = _upload(db, proc.id)
     path = storage_tmp / att.storage_path
-    attachment_service.delete(db, att.id, META)
+    attachment_service.delete_for(db, None, att.id, meta=META)
     db.commit()
     assert path.exists()  # 文件保留供其他版本引用（Q114）
-    assert attachment_service.list_attachments(db, proc.id) == []
+    assert attachment_service.list_for(db, None, "procedure", proc.id) == []
 
 
 def test_copy_for_version_reuses_storage_path(
@@ -175,7 +174,7 @@ def test_copy_for_version_reuses_storage_path(
     )
     attachment_service.copy_for_version(db, proc1.id, proc2.id)
     db.commit()
-    rows = attachment_service.list_attachments(db, proc2.id)
+    rows = attachment_service.list_for(db, None, "procedure", proc2.id)
     assert len(rows) == 1
     assert rows[0].id != att.id
     assert rows[0].storage_path == att.storage_path  # 复用，物理文件不复制
@@ -187,7 +186,7 @@ def test_orphan_cleanup_deletes_after_retention(
     proc = _proc(factory)
     att = _upload(db, proc.id)
     path = storage_tmp / att.storage_path
-    attachment_service.delete(db, att.id, META)
+    attachment_service.delete_for(db, None, att.id, meta=META)
     att.deleted_at = utcnow() - timedelta(days=31)
     db.commit()
 
@@ -215,7 +214,7 @@ def test_orphan_cleanup_keeps_referenced_path(
         proc1.folder_id, code="QC-00002", procedure_group_id=proc1.procedure_group_id, version=2
     )
     attachment_service.copy_for_version(db, proc1.id, proc2.id)  # proc2 仍 active 引用同 path
-    attachment_service.delete(db, att.id, META)
+    attachment_service.delete_for(db, None, att.id, meta=META)
     att.deleted_at = utcnow() - timedelta(days=31)
     db.commit()
 
@@ -231,6 +230,6 @@ def test_orphan_cleanup_skips_recent_softdelete(
 ) -> None:
     proc = _proc(factory)
     att = _upload(db, proc.id)
-    attachment_service.delete(db, att.id, META)  # deleted_at=now（<30 天）
+    attachment_service.delete_for(db, None, att.id, meta=META)  # deleted_at=now（<30 天）
     db.commit()
     assert attachment_service.orphan_storage_paths(db, retention_days=30, now=utcnow()) == []

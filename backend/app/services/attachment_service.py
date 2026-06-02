@@ -19,7 +19,7 @@ from fastapi import status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import storage
+from app import storage, tenant
 from app.deps import RequestMeta
 from app.errors import app_error, bad_request, not_found
 from app.models.attachment import Attachment
@@ -77,11 +77,12 @@ def _bytes_or_404(att: Attachment) -> bytes:
 # 读取（泛型）
 # --------------------------------------------------------------------------- #
 def get_or_404(db: Session, attachment_id: str) -> Attachment:
-    att = db.execute(
-        select(Attachment).where(
-            Attachment.id == attachment_id, Attachment.is_active.is_(True)
-        )
-    ).scalar_one_or_none()
+    with tenant.bypass_tenant_scope():
+        att = db.execute(
+            select(Attachment).where(
+                Attachment.id == attachment_id, Attachment.is_active.is_(True)
+            )
+        ).scalar_one_or_none()
     if att is None:
         raise not_found("NOT_FOUND", "附件不存在")
     return att
@@ -206,60 +207,11 @@ def delete_for(
 
 
 # --------------------------------------------------------------------------- #
-# procedure 专属薄包装（保持 router 与既有调用零破坏，Task 4 后可逐步清理）
+# procedure_service 内嵌查询（get_detail 用）
 # --------------------------------------------------------------------------- #
 def rows_for(db: Session, procedure_id: str) -> list[Attachment]:
     """get_detail 内嵌用：直接查 active 附件行（proc 已由调用方保证存在）。"""
     return _active_rows(db, "procedure", procedure_id)
-
-
-def list_attachments(db: Session, procedure_id: str) -> list[Attachment]:
-    """列出某版本的 active 附件（任意状态可读）。程序不存在 → 404。"""
-    return list_for(db, None, "procedure", procedure_id)
-
-
-def download(db: Session, attachment_id: str) -> tuple[bytes, str, str]:
-    """下载（不受 deprecated 限制，Q118）。返回 (字节, mime, 原文件名)。"""
-    return download_for(db, None, attachment_id)
-
-
-def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
-    """在线预览（仅白名单类型，Q229）；非白名单 → 415。"""
-    return preview_for(db, None, attachment_id)
-
-
-def upload(
-    db: Session,
-    procedure_id: str,
-    data: bytes,
-    file_name: str,
-    *,
-    content_type: str | None,
-    description: str,
-    meta: RequestMeta,
-) -> Attachment:
-    """上传附件薄包装（procedure 专属，router 用）。"""
-    return upload_for(
-        db, None, "procedure", procedure_id, data, file_name,
-        content_type=content_type, description=description, meta=meta,
-    )
-
-
-def update(
-    db: Session,
-    attachment_id: str,
-    *,
-    description: str | None,
-    sort_order: int | None,
-    meta: RequestMeta,
-) -> Attachment:
-    """改元数据薄包装（procedure 专属，router 用）。"""
-    return update_for(db, None, attachment_id, description=description, sort_order=sort_order, meta=meta)
-
-
-def delete(db: Session, attachment_id: str, meta: RequestMeta) -> None:
-    """软删薄包装（procedure 专属，router 用）。"""
-    return delete_for(db, None, attachment_id, meta=meta)
 
 
 # --------------------------------------------------------------------------- #

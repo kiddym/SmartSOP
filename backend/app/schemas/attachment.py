@@ -25,9 +25,9 @@ class AttachmentOut(BaseModel):
 
     @computed_field  # type: ignore[prop-decorator]
     @property
-    def procedure_id(self) -> str:
-        """兼容别名：前端 SOP 仍读 procedure_id（= entity_id）。"""
-        return self.entity_id
+    def procedure_id(self) -> str | None:
+        """兼容别名：procedure 附件返回 entity_id（前端 SOP 仍读 procedure_id）；其余实体为 None，避免误导。"""
+        return self.entity_id if self.entity_type == "procedure" else None
 
 
 class AttachmentUpdate(BaseModel):
