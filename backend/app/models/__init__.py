@@ -51,6 +51,7 @@ from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
 from app.models.team import Team, TeamUser
+from app.models.time_category import TimeCategory
 from app.models.user import User
 from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorPart
@@ -122,6 +123,7 @@ __all__ = [
     "Sequence",
     "Team",
     "TeamUser",
+    "TimeCategory",
     "User",
     "UserInvitation",
     "Vendor",

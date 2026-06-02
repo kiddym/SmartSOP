@@ -53,6 +53,7 @@ from app.routers import (
     requests,
     roles,
     teams,
+    time_categories,
     users,
     vendors,
     work_orders,
@@ -137,6 +138,7 @@ app.include_router(parts.router)
 app.include_router(multi_parts.router)
 app.include_router(part_consumptions.router)
 app.include_router(cost_categories.router)
+app.include_router(time_categories.router)
 app.include_router(vendors.router)
 app.include_router(customers.router)
 app.include_router(purchase_orders.router)
