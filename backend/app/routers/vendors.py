@@ -25,6 +25,8 @@ def _ensure(v: Vendor | None, company_id: str) -> Vendor:
 def _read(db: Session, v: Vendor) -> VendorRead:
     data = VendorRead.model_validate(v)
     data.part_ids = svc.part_ids(db, v.id)
+    data.asset_ids = svc.asset_ids(db, v.id)
+    data.location_ids = svc.location_ids(db, v.id)
     return data
 
 

@@ -54,7 +54,7 @@ from app.models.team import Team, TeamUser
 from app.models.time_category import TimeCategory
 from app.models.user import User
 from app.models.user_invitation import UserInvitation
-from app.models.vendor import Vendor, VendorPart
+from app.models.vendor import Vendor, VendorAsset, VendorLocation, VendorPart
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_additional_cost import WorkOrderAdditionalCost
@@ -131,6 +131,8 @@ __all__ = [
     "User",
     "UserInvitation",
     "Vendor",
+    "VendorAsset",
+    "VendorLocation",
     "VendorPart",
     "WorkOrder",
     "WorkOrderActivity",

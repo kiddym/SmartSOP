@@ -1,4 +1,4 @@
-"""供应商（Vendor，每租户）+ M:N 关联备件。纯主数据，无编号、无库存行为。"""
+"""供应商（Vendor，每租户）+ M:N 关联备件/资产/位置。纯主数据，无编号、无库存行为。"""
 
 from __future__ import annotations
 
@@ -40,4 +40,28 @@ class VendorPart(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     part_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_part.id", ondelete="CASCADE"), index=True
+    )
+
+
+class VendorAsset(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    __tablename__ = "tb_vendor_asset"
+    __table_args__ = (UniqueConstraint("vendor_id", "asset_id", name="uq_vendor_asset"),)
+
+    vendor_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_vendor.id", ondelete="CASCADE"), index=True
+    )
+    asset_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_asset.id", ondelete="CASCADE"), index=True
+    )
+
+
+class VendorLocation(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    __tablename__ = "tb_vendor_location"
+    __table_args__ = (UniqueConstraint("vendor_id", "location_id", name="uq_vendor_location"),)
+
+    vendor_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_vendor.id", ondelete="CASCADE"), index=True
+    )
+    location_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_location.id", ondelete="CASCADE"), index=True
     )
