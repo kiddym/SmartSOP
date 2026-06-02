@@ -21,6 +21,7 @@ from app.schemas.analytics import (
     AssetReliabilityAnalytics,
     CostAnalytics,
     InventoryAnalytics,
+    PersonnelAnalytics,
     RequestAnalytics,
     WorkOrderAnalytics,
 )
@@ -28,6 +29,7 @@ from app.services.analytics import (
     asset_reliability_analytics,
     cost_analytics,
     inventory_analytics,
+    personnel_analytics,
     request_analytics,
     work_order_analytics,
 )
@@ -110,6 +112,16 @@ def request_dashboard(
     return request_analytics.request_dashboard(
         db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id
     )
+
+
+@router.get("/personnel", response_model=PersonnelAnalytics)
+def personnel_dashboard(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = _VIEW,
+) -> dict[str, Any]:
+    return personnel_analytics.personnel_dashboard(db, date_from=date_from, date_to=date_to)
 
 
 def _stream_csv(header: list[str], rows: list[list[Any]]) -> StreamingResponse:

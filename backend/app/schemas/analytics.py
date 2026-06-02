@@ -140,6 +140,22 @@ class ABCRow(BaseModel):
     abc_class: str
 
 
+class PersonnelRow(BaseModel):
+    user_id: str
+    name: str | None
+    created_count: int
+    completed_count: int
+    assigned_count: int
+    labor_hours: float
+    labor_cost: Decimal
+
+
+class PersonnelAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    users: list[PersonnelRow]
+
+
 class InventoryAnalytics(BaseModel):
     total_inventory_value: Decimal
     inventory_value_by_category: list[CategoryValueRow]
