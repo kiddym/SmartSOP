@@ -32,3 +32,18 @@ class CurrencyOut(BaseModel):
     code: str
     name: str
     symbol: str
+
+
+class CompanySettingsOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    date_format: str
+    timezone: str
+    default_currency_code: str
+    auto_assign: bool
+
+
+class CompanySettingsUpdate(BaseModel):
+    date_format: str | None = Field(default=None, max_length=32)
+    timezone: str | None = Field(default=None, max_length=64)
+    default_currency_code: str | None = Field(default=None, max_length=8)
+    auto_assign: bool | None = None

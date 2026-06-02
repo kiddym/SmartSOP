@@ -13,6 +13,7 @@ from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
 from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.company import Company
+from app.models.company_settings import CompanySettings
 from app.models.cost_category import CostCategory
 from app.models.currency import Currency
 from app.models.customer import Customer, CustomerPart
@@ -67,6 +68,7 @@ __all__ = [
     "BatchImportItem",
     "BatchImportJob",
     "Company",
+    "CompanySettings",
     "CostCategory",
     "Currency",
     "Customer",
