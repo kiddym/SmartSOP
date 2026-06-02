@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -14,6 +14,10 @@ from app.models.part import Part
 from app.models.part_category import PartCategory
 from app.models.part_consumption import PartConsumption
 from app.services.analytics._common import resolve_window
+
+# ABC/Pareto 累计占比阈值：累计 ≤ A 占比 → A 类（高价值少数），≤ B 占比 → B 类，其余 C 类。
+_ABC_A_THRESHOLD = 80.0
+_ABC_B_THRESHOLD = 95.0
 
 
 def inventory_dashboard(
@@ -61,22 +65,73 @@ def inventory_dashboard(
         reverse=True,
     )
 
-    # 窗内 top 消耗（按量降序）
+    # 窗内消耗：一次查询同时喂"按量"（top_consumed）与"按价值"（ABC）两累加器，
+    # 避免对消耗台账二次全表扫描。仅比原 top 查询多取 unit_cost 一列。
     start, end_excl, _df, _dt = resolve_window(date_from, date_to)
     c_stmt = (
-        select(PartConsumption.part_id, Part.custom_id, Part.name, PartConsumption.quantity)
+        select(
+            PartConsumption.part_id,
+            Part.custom_id,
+            Part.name,
+            PartConsumption.quantity,
+            PartConsumption.unit_cost,
+        )
         .join(Part, PartConsumption.part_id == Part.id)
         .where(PartConsumption.consumed_at >= start, PartConsumption.consumed_at < end_excl)
     )
     if category_id is not None:
         c_stmt = c_stmt.where(Part.category_id == category_id)
     consumed: dict[str, dict[str, Any]] = {}
-    for part_id, custom_id, name, qty in db.execute(c_stmt).all():
+    value_acc: dict[str, dict[str, Any]] = {}
+    for part_id, custom_id, name, qty, unit_cost in db.execute(c_stmt).all():
         slot = consumed.setdefault(
             part_id, {"part_id": part_id, "custom_id": custom_id, "name": name, "qty": Decimal("0")}
         )
         slot["qty"] += qty
+        vslot = value_acc.setdefault(
+            part_id,
+            {"part_id": part_id, "custom_id": custom_id, "name": name, "value": Decimal("0")},
+        )
+        vslot["value"] += qty * unit_cost
     top_consumed = sorted(consumed.values(), key=lambda r: cast(Decimal, r["qty"]), reverse=True)
+
+    # ABC / Pareto 分级：按消耗价值降序累计，累计占比 ≤80%→A、≤95%→B、>95%→C。
+    # 价值并列时以 custom_id 升序兜底，保证输出与类别归属确定（不随 DB 行序漂移）。
+    ranked = sorted(
+        value_acc.values(),
+        key=lambda r: (-cast(Decimal, r["value"]), cast(str, r["custom_id"])),
+    )
+    total_consumption_value = sum((cast(Decimal, r["value"]) for r in ranked), Decimal("0"))
+    abc_classification: list[dict[str, Any]] = []
+    abc_summary = {"A": 0, "B": 0, "C": 0}
+    running = Decimal("0")
+    for r in ranked:
+        running += cast(Decimal, r["value"])
+        cum_pct = (
+            float(running / total_consumption_value * 100)
+            if total_consumption_value > 0
+            else 0.0
+        )
+        cls = (
+            "A"
+            if cum_pct <= _ABC_A_THRESHOLD
+            else "B"
+            if cum_pct <= _ABC_B_THRESHOLD
+            else "C"
+        )
+        abc_summary[cls] += 1
+        abc_classification.append(
+            {
+                "part_id": r["part_id"],
+                "custom_id": r["custom_id"],
+                "name": r["name"],
+                "consumption_value": cast(Decimal, r["value"]).quantize(
+                    Decimal("0.01"), rounding=ROUND_HALF_UP
+                ),
+                "cumulative_pct": round(cum_pct, 2),
+                "abc_class": cls,
+            }
+        )
 
     return {
         "total_inventory_value": total_value,
@@ -84,4 +139,6 @@ def inventory_dashboard(
         "low_stock_count": len(low_items),
         "low_stock_items": low_items,
         "top_consumed_parts": top_consumed,
+        "abc_classification": abc_classification,
+        "abc_summary": abc_summary,
     }

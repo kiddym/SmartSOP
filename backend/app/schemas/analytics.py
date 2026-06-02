@@ -115,9 +115,20 @@ class TopConsumedRow(BaseModel):
     qty: Decimal
 
 
+class ABCRow(BaseModel):
+    part_id: str
+    custom_id: str
+    name: str
+    consumption_value: Decimal
+    cumulative_pct: float
+    abc_class: str
+
+
 class InventoryAnalytics(BaseModel):
     total_inventory_value: Decimal
     inventory_value_by_category: list[CategoryValueRow]
     low_stock_count: int
     low_stock_items: list[LowStockRow]
     top_consumed_parts: list[TopConsumedRow]
+    abc_classification: list[ABCRow]
+    abc_summary: dict[str, int]
