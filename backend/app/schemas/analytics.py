@@ -156,6 +156,21 @@ class PersonnelAnalytics(BaseModel):
     users: list[PersonnelRow]
 
 
+class TrendBucket(BaseModel):
+    bucket_start: date
+    work_orders_created: int
+    work_orders_completed: int
+    requests_received: int
+    requests_resolved: int
+
+
+class TrendAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    granularity: str
+    buckets: list[TrendBucket]
+
+
 class InventoryAnalytics(BaseModel):
     total_inventory_value: Decimal
     inventory_value_by_category: list[CategoryValueRow]

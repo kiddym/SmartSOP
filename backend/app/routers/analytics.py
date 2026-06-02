@@ -23,6 +23,7 @@ from app.schemas.analytics import (
     InventoryAnalytics,
     PersonnelAnalytics,
     RequestAnalytics,
+    TrendAnalytics,
     WorkOrderAnalytics,
 )
 from app.services.analytics import (
@@ -31,6 +32,7 @@ from app.services.analytics import (
     inventory_analytics,
     personnel_analytics,
     request_analytics,
+    trend_analytics,
     work_order_analytics,
 )
 
@@ -122,6 +124,19 @@ def personnel_dashboard(
     current_user: User = _VIEW,
 ) -> dict[str, Any]:
     return personnel_analytics.personnel_dashboard(db, date_from=date_from, date_to=date_to)
+
+
+@router.get("/trends", response_model=TrendAnalytics)
+def trend_dashboard(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    granularity: str = "day",
+    db: Session = Depends(get_db),
+    current_user: User = _VIEW,
+) -> dict[str, Any]:
+    return trend_analytics.trend_dashboard(
+        db, date_from=date_from, date_to=date_to, granularity=granularity
+    )
 
 
 def _stream_csv(header: list[str], rows: list[list[Any]]) -> StreamingResponse:
