@@ -56,6 +56,7 @@ from app.routers import (
     time_categories,
     users,
     vendors,
+    work_order_costs,
     work_orders,
 )
 from app.routers import settings as settings_router
@@ -137,6 +138,7 @@ app.include_router(part_categories.router)
 app.include_router(parts.router)
 app.include_router(multi_parts.router)
 app.include_router(part_consumptions.router)
+app.include_router(work_order_costs.router)
 app.include_router(cost_categories.router)
 app.include_router(time_categories.router)
 app.include_router(vendors.router)
