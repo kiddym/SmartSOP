@@ -102,3 +102,4 @@ class DowntimeRead(BaseModel):
     ended_at: datetime | None = None
     reason: str
     downtime_type: str
+    source_asset_id: str | None = None
