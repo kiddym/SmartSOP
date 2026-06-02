@@ -11,6 +11,7 @@ from app.errors import conflict, unauthorized
 from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.schemas.auth import (
+    ChangePasswordRequest,
     CurrentUser,
     ForgotPasswordRequest,
     LoginRequest,
@@ -88,6 +89,17 @@ def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db
 @router.post("/reset-password", status_code=200)
 def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)) -> dict[str, str]:
     password_reset_service.reset(db, token=payload.token, new_password=payload.new_password)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/change-password", status_code=200)
+def change_password(
+    payload: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> dict[str, str]:
+    auth_service.change_password(db, current_user, payload.old_password, payload.new_password)
     db.commit()
     return {"status": "ok"}
 
