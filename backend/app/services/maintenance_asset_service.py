@@ -8,6 +8,7 @@ from sqlalchemy.orm.attributes import InstrumentedAttribute
 
 from app.errors import bad_request, conflict
 from app.models.asset_downtime import AssetDowntime
+from app.models.asset_status import DOWN_STATUSES, AssetStatus
 from app.models.base import utcnow
 from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
 from app.schemas.asset import AssetCreate, AssetUpdate, DowntimeClose, DowntimeCreate
@@ -178,8 +179,11 @@ def update_asset(db: Session, a: Asset, payload: AssetUpdate, company_id: str) -
         _check_code_unique(db, Asset.nfc_id, data["nfc_id"], a.id)
     user_ids = data.pop("assigned_user_ids", None)
     team_ids_ = data.pop("team_ids", None)
+    old_status = a.status
     for k, v in data.items():
         setattr(a, k, v)
+    if "status" in data:
+        apply_status_transition(db, a, old_status, a.status, company_id)
     _sync_relations(db, a, user_ids, team_ids_, company_id)
     db.commit()
     db.refresh(a)
@@ -192,6 +196,52 @@ def delete_asset(db: Session, a: Asset) -> None:
     a.is_active = False
     a.deleted_at = utcnow()
     db.commit()
+
+
+def _open_downtimes_for(db: Session, asset_id: str) -> list[AssetDowntime]:
+    return list(
+        db.execute(
+            select(AssetDowntime).where(
+                AssetDowntime.asset_id == asset_id, AssetDowntime.ended_at.is_(None)
+            )
+        )
+        .scalars()
+        .all()
+    )
+
+
+def _go_down(db: Session, asset: Asset, company_id: str) -> None:
+    now = utcnow()
+    db.add(
+        AssetDowntime(
+            asset_id=asset.id,
+            downtime_type="auto",
+            source_asset_id=None,
+            started_at=now,
+            company_id=company_id,
+        )
+    )
+    # 向下级联（T3 填充；T2 先留空体以便自动触发测试通过）
+
+
+def _recover(db: Session, asset: Asset, company_id: str) -> None:
+    now = utcnow()
+    for dt in _open_downtimes_for(db, asset.id):
+        if dt.source_asset_id is None and dt.downtime_type == "auto":
+            dt.ended_at = now
+    # 级联反转（T3 填充）
+
+
+def apply_status_transition(
+    db: Session, asset: Asset, old_status: AssetStatus, new_status: AssetStatus, company_id: str
+) -> None:
+    was_down = old_status in DOWN_STATUSES
+    now_down = new_status in DOWN_STATUSES
+    if not was_down and now_down:
+        _go_down(db, asset, company_id)
+    elif was_down and not now_down:
+        _recover(db, asset, company_id)
+    # UP->UP / DOWN->DOWN：无副作用
 
 
 # --- 停机 ---
