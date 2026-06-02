@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
@@ -10,6 +10,8 @@ from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 class CompanySettings(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_company_settings"
+    # singleton：每 company 至多一行（DB 级硬化，配合 service.get_or_create）
+    __table_args__ = (UniqueConstraint("company_id", name="uq_company_settings_company"),)
 
     date_format: Mapped[str] = mapped_column(
         String(32), default="YYYY-MM-DD", server_default="YYYY-MM-DD"
