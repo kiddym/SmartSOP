@@ -14,7 +14,7 @@ def _mod():
 def test_revision_chain():
     m = _mod()
     assert m.revision == "inventory_backfill"
-    assert m.down_revision == "workorder_labor_cost"  # 合并时按 runbook rebase
+    assert m.down_revision == "asset_downtime_propagation"  # rebased at merge for linear chain
 
 
 def test_upgrade_downgrade_sqlite():

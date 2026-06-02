@@ -1,7 +1,7 @@
 """inventory backfill: 6 张关联表 + tb_purchase_order_category + PO 5 列
 
 Revision ID: inventory_backfill
-Revises: workorder_labor_cost
+Revises: asset_downtime_propagation (rebased at merge; was workorder_labor_cost)
 Create Date: 2026-06-02
 
 手工撰写（MySQL 生产 + SQLite 开发/测试）。本轮库存采购补全统一迁移：
@@ -32,7 +32,7 @@ from alembic import op
 from app.models.base import DATETIME6
 
 revision: str = "inventory_backfill"
-down_revision: str | Sequence[str] | None = "workorder_labor_cost"
+down_revision: str | Sequence[str] | None = "asset_downtime_propagation"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
