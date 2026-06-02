@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.services import node_numbering, pdf
 from app.services.pdf import context
 from app.services.pdf.document import to_roman
@@ -60,8 +60,9 @@ def _rich_proc(db: Session, factory: Factory):
         sort_order=5000,
     )
     db.add(
-        ProcedureAttachment(
-            procedure_id=proc.id,
+        Attachment(
+            entity_type="procedure",
+            entity_id=proc.id,
             file_name="图纸.pdf",
             storage_path="/x/a",
             mime_type="application/pdf",

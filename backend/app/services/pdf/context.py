@@ -15,7 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.errors import not_found
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.field import ProcedureField
 from app.models.folder import Folder
 from app.models.procedure import Procedure
@@ -217,12 +217,13 @@ def load_render_data(db: Session, proc_id: str) -> RenderData:
             sort_order=a.sort_order,
         )
         for a in db.execute(
-            select(ProcedureAttachment)
+            select(Attachment)
             .where(
-                ProcedureAttachment.procedure_id == proc_id,
-                ProcedureAttachment.is_active.is_(True),
+                Attachment.entity_type == "procedure",
+                Attachment.entity_id == proc_id,
+                Attachment.is_active.is_(True),
             )
-            .order_by(ProcedureAttachment.sort_order, ProcedureAttachment.created_at)
+            .order_by(Attachment.sort_order, Attachment.created_at)
         ).scalars()
     ]
 

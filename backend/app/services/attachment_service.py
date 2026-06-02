@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 from app import storage
 from app.deps import RequestMeta
 from app.errors import app_error, bad_request, not_found
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.base import new_uuid, utcnow
 from app.models.procedure import Procedure
 from app.services import audit_service
@@ -67,20 +67,21 @@ def _resolve_mime(file_name: str, content_type: str | None) -> str:
     return guessed or _DEFAULT_MIME
 
 
-def _active_rows(db: Session, procedure_id: str) -> list[ProcedureAttachment]:
+def _active_rows(db: Session, procedure_id: str) -> list[Attachment]:
     return list(
         db.execute(
-            select(ProcedureAttachment)
+            select(Attachment)
             .where(
-                ProcedureAttachment.procedure_id == procedure_id,
-                ProcedureAttachment.is_active.is_(True),
+                Attachment.entity_type == "procedure",
+                Attachment.entity_id == procedure_id,
+                Attachment.is_active.is_(True),
             )
-            .order_by(ProcedureAttachment.sort_order, ProcedureAttachment.created_at)
+            .order_by(Attachment.sort_order, Attachment.created_at)
         ).scalars()
     )
 
 
-def _bytes_or_404(att: ProcedureAttachment) -> bytes:
+def _bytes_or_404(att: Attachment) -> bytes:
     try:
         return get_storage_backend().read(att.storage_path)
     except FileNotFoundError:
@@ -90,21 +91,21 @@ def _bytes_or_404(att: ProcedureAttachment) -> bytes:
 # --------------------------------------------------------------------------- #
 # 读取
 # --------------------------------------------------------------------------- #
-def list_attachments(db: Session, procedure_id: str) -> list[ProcedureAttachment]:
+def list_attachments(db: Session, procedure_id: str) -> list[Attachment]:
     """列出某版本的 active 附件（任意状态可读）。程序不存在 → 404。"""
     _get_proc(db, procedure_id)
     return _active_rows(db, procedure_id)
 
 
-def rows_for(db: Session, procedure_id: str) -> list[ProcedureAttachment]:
+def rows_for(db: Session, procedure_id: str) -> list[Attachment]:
     """get_detail 内嵌用：直接查 active 附件行（proc 已由调用方保证存在）。"""
     return _active_rows(db, procedure_id)
 
 
-def get_or_404(db: Session, attachment_id: str) -> ProcedureAttachment:
+def get_or_404(db: Session, attachment_id: str) -> Attachment:
     att = db.execute(
-        select(ProcedureAttachment).where(
-            ProcedureAttachment.id == attachment_id, ProcedureAttachment.is_active.is_(True)
+        select(Attachment).where(
+            Attachment.id == attachment_id, Attachment.is_active.is_(True)
         )
     ).scalar_one_or_none()
     if att is None:
@@ -142,7 +143,7 @@ def upload(
     content_type: str | None,
     description: str,
     meta: RequestMeta,
-) -> ProcedureAttachment:
+) -> Attachment:
     """上传附件（仅当前草稿，Q228）+ 上限校验（Q120）+ 落盘 + 审计 upload。"""
     proc = _get_proc(db, procedure_id)
     _assert_editable(proc)
@@ -162,8 +163,9 @@ def upload(
     rel = path.relative_to(storage.storage_root()).as_posix()
     get_storage_backend().write(rel, data)
 
-    att = ProcedureAttachment(
-        procedure_id=procedure_id,
+    att = Attachment(
+        entity_type="procedure",
+        entity_id=procedure_id,
         file_name=name,
         storage_path=rel,
         mime_type=_resolve_mime(name, content_type),
@@ -191,10 +193,10 @@ def update(
     description: str | None,
     sort_order: int | None,
     meta: RequestMeta,
-) -> ProcedureAttachment:
+) -> Attachment:
     """改元数据（仅 description / sort_order；仅当前草稿生效、不传播，Q116/Q228）。"""
     att = get_or_404(db, attachment_id)
-    proc = _get_proc(db, att.procedure_id)
+    proc = _get_proc(db, att.entity_id)
     _assert_editable(proc)
 
     before = {"description": att.description, "sort_order": att.sort_order}
@@ -221,7 +223,7 @@ def update(
 def delete(db: Session, attachment_id: str, meta: RequestMeta) -> None:
     """软删（文件保留供其他版本引用，Q114；仅当前草稿，Q228）+ 审计 delete。"""
     att = get_or_404(db, attachment_id)
-    proc = _get_proc(db, att.procedure_id)
+    proc = _get_proc(db, att.entity_id)
     _assert_editable(proc)
 
     att.is_active = False
@@ -244,8 +246,9 @@ def copy_for_version(db: Session, src_procedure_id: str, dst_procedure_id: str) 
     """复制 src 版本的 active 附件元数据到 dst（新 id、复用 storage_path，物理文件不复制）。"""
     for src in _active_rows(db, src_procedure_id):
         db.add(
-            ProcedureAttachment(
-                procedure_id=dst_procedure_id,
+            Attachment(
+                entity_type="procedure",
+                entity_id=dst_procedure_id,
                 file_name=src.file_name,
                 storage_path=src.storage_path,
                 mime_type=src.mime_type,
@@ -264,10 +267,10 @@ def _active_ref_count(db: Session, storage_path: str) -> int:
     return int(
         db.execute(
             select(func.count())
-            .select_from(ProcedureAttachment)
+            .select_from(Attachment)
             .where(
-                ProcedureAttachment.storage_path == storage_path,
-                ProcedureAttachment.is_active.is_(True),
+                Attachment.storage_path == storage_path,
+                Attachment.is_active.is_(True),
             )
         ).scalar_one()
     )
@@ -277,11 +280,11 @@ def orphan_storage_paths(db: Session, *, retention_days: int, now: datetime) -> 
     """无 active 引用、且存在软删 ≥ retention 天行的 storage_path 列表（清理候选）。"""
     threshold = now - timedelta(days=retention_days)
     aged = db.execute(
-        select(ProcedureAttachment.storage_path)
+        select(Attachment.storage_path)
         .where(
-            ProcedureAttachment.is_active.is_(False),
-            ProcedureAttachment.deleted_at.is_not(None),
-            ProcedureAttachment.deleted_at <= threshold,
+            Attachment.is_active.is_(False),
+            Attachment.deleted_at.is_not(None),
+            Attachment.deleted_at <= threshold,
         )
         .distinct()
     ).scalars()
@@ -305,11 +308,11 @@ def delete_orphan_path(
     )  # 缺失幂等；其他 OSError 抛出由 task 记录并保留行下轮重试（§53.2）
     threshold = now - timedelta(days=retention_days)
     rows = db.execute(
-        select(ProcedureAttachment).where(
-            ProcedureAttachment.storage_path == storage_path,
-            ProcedureAttachment.is_active.is_(False),
-            ProcedureAttachment.deleted_at.is_not(None),
-            ProcedureAttachment.deleted_at <= threshold,
+        select(Attachment).where(
+            Attachment.storage_path == storage_path,
+            Attachment.is_active.is_(False),
+            Attachment.deleted_at.is_not(None),
+            Attachment.deleted_at <= threshold,
         )
     ).scalars()
     deleted = 0

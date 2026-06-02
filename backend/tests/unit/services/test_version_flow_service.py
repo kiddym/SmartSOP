@@ -60,11 +60,12 @@ def test_upgrade_forks_new_draft(db: Session, factory: Factory) -> None:
 
 
 def _add_attachment(db: Session, proc_id: str, *, storage_path: str) -> None:
-    from app.models.attachment import ProcedureAttachment
+    from app.models.attachment import Attachment
 
     db.add(
-        ProcedureAttachment(
-            procedure_id=proc_id,
+        Attachment(
+            entity_type="procedure",
+            entity_id=proc_id,
             file_name="规程.pdf",
             storage_path=storage_path,
             mime_type="application/pdf",

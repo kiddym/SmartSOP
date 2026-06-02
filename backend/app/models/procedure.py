@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     DATETIME6,
@@ -16,9 +16,6 @@ from app.models.base import (
     TimestampMixin,
     UUIDMixin,
 )
-
-if TYPE_CHECKING:
-    from app.models.attachment import ProcedureAttachment
 
 
 class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
@@ -62,6 +59,4 @@ class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenant
     # PDF 操作员签字栏总开关（程序级，受控文档属性）
     signoff_enabled: Mapped[bool] = mapped_column(default=False, server_default="0")
 
-    # 不用 delete-orphan / cascade delete：本项目全软删（database-spec §9）+ FK RESTRICT
-    # （§8），子节点生命周期由 service 层软删管理，避免 ORM 触发硬 DELETE。
-    attachments: Mapped[list[ProcedureAttachment]] = relationship(back_populates="procedure")
+    # 附件通过多态 Attachment（entity_type='procedure', entity_id=self.id）关联，无 ORM relationship。

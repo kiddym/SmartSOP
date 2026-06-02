@@ -8,7 +8,7 @@ from __future__ import annotations
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.asset_category import AssetCategory
 from app.models.asset_downtime import AssetDowntime
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
 from app.models.batch import BatchImportItem, BatchImportJob
@@ -64,6 +64,7 @@ __all__ = [
     "AssetDowntime",
     "AssetTeam",
     "AssetUser",
+    "Attachment",
     "Base",
     "BatchImportItem",
     "BatchImportJob",
@@ -107,7 +108,6 @@ __all__ = [
     "Procedure",
     "ProcedureAsset",
     "ProcedureAssetReference",
-    "ProcedureAttachment",
     "ProcedureAuditLog",
     "ProcedureField",
     "ProcedureNode",

@@ -6,7 +6,7 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.field import ProcedureField
 from app.services import node_numbering
 from app.services.pdf import context
@@ -70,8 +70,9 @@ def test_attachments_loaded_sorted(db: Session, factory: Factory) -> None:
     proc = _proc(factory)
     for i, name in enumerate(["b.pdf", "a.png"]):
         db.add(
-            ProcedureAttachment(
-                procedure_id=proc.id,
+            Attachment(
+                entity_type="procedure",
+                entity_id=proc.id,
                 file_name=name,
                 storage_path=f"/x/{name}",
                 mime_type="application/octet-stream",

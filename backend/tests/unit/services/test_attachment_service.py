@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.base import utcnow
 from app.services import attachment_service
 from tests.conftest import Factory
@@ -201,7 +201,7 @@ def test_orphan_cleanup_deletes_after_retention(
     assert removed == 1
     assert not path.exists()
     assert (
-        db.execute(select(ProcedureAttachment).where(ProcedureAttachment.id == att.id)).first()
+        db.execute(select(Attachment).where(Attachment.id == att.id)).first()
         is None
     )
 

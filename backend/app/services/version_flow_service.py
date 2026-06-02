@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from app.deps import RequestMeta
 from app.errors import bad_request, conflict, not_found
 from app.models.asset import ProcedureAssetReference
-from app.models.attachment import ProcedureAttachment
+from app.models.attachment import Attachment
 from app.models.base import new_uuid, utcnow
 from app.models.folder import Folder
 from app.models.node import ProcedureNode
@@ -523,7 +523,11 @@ def delete_group(db: Session, group_id: str, reason: str, meta: RequestMeta) -> 
     db.execute(
         delete(ProcedureAssetReference).where(ProcedureAssetReference.procedure_id == proc.id)
     )
-    db.execute(delete(ProcedureAttachment).where(ProcedureAttachment.procedure_id == proc.id))
+    db.execute(
+        delete(Attachment).where(
+            Attachment.entity_type == "procedure", Attachment.entity_id == proc.id
+        )
+    )
     # 原始 Word 源文件按 group 一份（行 + 落盘），随整组硬删一并清理（模型契约：随版本组删除即物理清理）。
     source_docx_service.delete_for_group(db, group_id)
     db.execute(delete(Procedure).where(Procedure.id == proc.id))

@@ -1,19 +1,20 @@
-"""附件 schema（api-specification §5.5 / data-model §3.6 / Q113-Q120 / Q371）。"""
+"""附件 schema（通用多态 + procedure 兼容别名）。"""
 
 from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 
 class AttachmentOut(BaseModel):
-    """附件元数据（GET /procedures/{id}/attachments 行 / 上传响应）。"""
+    """附件元数据（通用 list/upload 响应）。"""
 
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    procedure_id: str
+    entity_type: str
+    entity_id: str
     file_name: str
     mime_type: str
     size_bytes: int
@@ -22,9 +23,15 @@ class AttachmentOut(BaseModel):
     created_at: datetime
     updated_at: datetime
 
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def procedure_id(self) -> str:
+        """兼容别名：前端 SOP 仍读 procedure_id（= entity_id）。"""
+        return self.entity_id
+
 
 class AttachmentUpdate(BaseModel):
-    """修改附件元数据（PUT /attachments/{id}，仅 description / sort_order，Q116）。"""
+    """修改附件元数据（仅 description / sort_order）。"""
 
     description: str | None = Field(default=None, max_length=2000)
     sort_order: int | None = Field(default=None, ge=0)
