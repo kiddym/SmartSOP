@@ -57,6 +57,7 @@ from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorPart
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
+from app.models.work_order_labor import WorkOrderLabor
 from app.models.work_order_step_result import WorkOrderStepResult
 
 __all__ = [
@@ -131,6 +132,7 @@ __all__ = [
     "WorkOrder",
     "WorkOrderActivity",
     "WorkOrderAssignee",
+    "WorkOrderLabor",
     "WorkOrderStepResult",
     "WorkOrderTeam",
 ]
