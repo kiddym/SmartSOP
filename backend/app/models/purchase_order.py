@@ -38,6 +38,9 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
         SAEnum(PurchaseOrderStatus), nullable=False, default=PurchaseOrderStatus.DRAFT
     )
     notes: Mapped[str] = mapped_column(Text, default="", server_default="")
+    category_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tb_purchase_order_category.id", ondelete="SET NULL"), index=True
+    )
     resolution_note: Mapped[str] = mapped_column(Text, default="", server_default="")
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)

@@ -33,12 +33,14 @@ class POLineRead(BaseModel):
 class PurchaseOrderCreate(BaseModel):
     vendor_id: str = Field(min_length=1)
     notes: str = ""
+    category_id: str | None = None
     lines: list[POLineCreate] = []
 
 
 class PurchaseOrderUpdate(BaseModel):
     vendor_id: str | None = Field(default=None, min_length=1)
     notes: str | None = None
+    category_id: str | None = None
     lines: list[POLineCreate] | None = None
 
 
@@ -49,6 +51,7 @@ class PurchaseOrderRead(BaseModel):
     vendor_id: str
     status: PurchaseOrderStatus
     notes: str
+    category_id: str | None = None
     resolution_note: str
     resolved_by_user_id: str | None
     resolved_at: datetime | None

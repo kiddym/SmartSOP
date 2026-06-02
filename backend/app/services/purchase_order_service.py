@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request
+from app.errors import bad_request, not_found
 from app.models.base import utcnow
 from app.models.part import Part
 from app.models.purchase_order import (
@@ -13,6 +13,7 @@ from app.models.purchase_order import (
     PurchaseOrderActivity,
     PurchaseOrderLine,
 )
+from app.models.purchase_order_category import PurchaseOrderCategory
 from app.models.purchase_order_status import PurchaseOrderStatus, can_transition
 from app.schemas.purchase_order import (
     POLineCreate,
@@ -74,14 +75,24 @@ def _set_lines(
         )
 
 
+def _validate_category_id(db: Session, category_id: str | None, company_id: str) -> None:
+    if category_id is None:
+        return
+    cat = db.get(PurchaseOrderCategory, category_id)
+    if cat is None or not cat.is_active or cat.company_id != company_id:
+        raise not_found("PURCHASE_ORDER_CATEGORY_NOT_FOUND", "采购单分类不存在")
+
+
 def create_purchase_order(
     db: Session, payload: PurchaseOrderCreate, company_id: str, actor_user_id: str | None
 ) -> PurchaseOrder:
+    _validate_category_id(db, payload.category_id, company_id)
     seq = sequence_service.next_value(db, "purchase_order", company_id)
     po = PurchaseOrder(
         custom_id=sequence_service.format_custom_id("PO", seq),
         vendor_id=payload.vendor_id,
         notes=payload.notes,
+        category_id=payload.category_id,
         company_id=company_id,
     )
     db.add(po)
@@ -125,6 +136,8 @@ def update_purchase_order(
     _assert_draft(po)
     data = payload.model_dump(exclude_unset=True)
     data.pop("lines", None)
+    if "category_id" in data:
+        _validate_category_id(db, data["category_id"], company_id)
     for k, v in data.items():
         setattr(po, k, v)
     if payload.lines is not None:

@@ -44,6 +44,7 @@ from app.models.purchase_order import (
     PurchaseOrderActivity,
     PurchaseOrderLine,
 )
+from app.models.purchase_order_category import PurchaseOrderCategory
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
 from app.models.role import Role
@@ -122,6 +123,7 @@ __all__ = [
     "ProcedureSourceDocx",
     "PurchaseOrder",
     "PurchaseOrderActivity",
+    "PurchaseOrderCategory",
     "PurchaseOrderLine",
     "Request",
     "RequestActivity",

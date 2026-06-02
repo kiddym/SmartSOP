@@ -49,6 +49,7 @@ from app.routers import (
     preventive_maintenances,
     procedure_groups,
     procedures,
+    purchase_order_categories,
     purchase_orders,
     requests,
     roles,
@@ -143,6 +144,7 @@ app.include_router(cost_categories.router)
 app.include_router(time_categories.router)
 app.include_router(vendors.router)
 app.include_router(customers.router)
+app.include_router(purchase_order_categories.router)
 app.include_router(purchase_orders.router)
 app.include_router(analytics.router)
 app.include_router(notifications.router)
