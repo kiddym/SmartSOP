@@ -10,14 +10,23 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request
+from app.errors import bad_request, not_found
 from app.models.base import utcnow
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
+from app.models.work_order_category import WorkOrderCategory
 from app.models.work_order_status import WorkOrderStatus, can_transition
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
 from app.services import notification_service as _notif
 from app.services import sequence_service
+
+
+def _validate_category(db: Session, category_id: str | None, company_id: str) -> None:
+    if category_id is None:
+        return
+    cat = db.get(WorkOrderCategory, category_id)
+    if cat is None or not cat.is_active or cat.company_id != company_id:
+        raise not_found("WORK_ORDER_CATEGORY_NOT_FOUND", "工单分类不存在")
 
 
 def assignee_ids(db: Session, work_order_id: str) -> list[str]:
@@ -57,6 +66,8 @@ def to_read(db: Session, wo: WorkOrder) -> dict[str, object]:
         "procedure_id": wo.procedure_id,
         "procedure_group_id": wo.procedure_group_id,
         "completed_at": wo.completed_at,
+        "category_id": wo.category_id,
+        "created_by_user_id": wo.created_by_user_id,
         "assignee_ids": assignee_ids(db, wo.id),
         "team_ids": team_ids(db, wo.id),
     }
@@ -137,8 +148,9 @@ def set_teams(
 def create_work_order(
     db: Session, payload: WorkOrderCreate, company_id: str, actor_user_id: str | None
 ) -> WorkOrder:
-    # actor_user_id 预留：spec §3.4 当前未定义 CREATE 活动类型，建单不写时间线；
-    # 保留参数以便将来补 CREATE 活动而无需改调用方签名。
+    # spec §3.4 当前未定义 CREATE 活动类型，建单不写时间线；
+    # actor_user_id 用于落 created_by_user_id（创建者归属，供分析归集）。
+    _validate_category(db, payload.category_id, company_id)
     seq = sequence_service.next_value(db, "work_order", company_id)
     wo = WorkOrder(
         custom_id=sequence_service.format_custom_id("WO", seq),
@@ -149,6 +161,8 @@ def create_work_order(
         asset_id=payload.asset_id,
         location_id=payload.location_id,
         primary_user_id=payload.primary_user_id,
+        category_id=payload.category_id,
+        created_by_user_id=actor_user_id,
         company_id=company_id,
     )
     db.add(wo)
@@ -201,8 +215,13 @@ def get_work_order(db: Session, work_order_id: str) -> WorkOrder | None:
     return wo
 
 
-def update_work_order(db: Session, wo: WorkOrder, payload: WorkOrderUpdate) -> WorkOrder:
-    for k, v in payload.model_dump(exclude_unset=True).items():
+def update_work_order(
+    db: Session, wo: WorkOrder, payload: WorkOrderUpdate, company_id: str
+) -> WorkOrder:
+    data = payload.model_dump(exclude_unset=True)
+    if "category_id" in data:
+        _validate_category(db, data["category_id"], company_id)
+    for k, v in data.items():
         setattr(wo, k, v)
     db.commit()
     db.refresh(wo)

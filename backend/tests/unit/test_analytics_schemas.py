@@ -21,6 +21,9 @@ def test_work_order_analytics_shape():
         overdue=0,
         avg_cycle_time_hours=12.0,
         avg_response_time_hours=None,
+        by_asset=[],
+        by_user=[],
+        by_category=[],
     )
     assert m.completion_rate == 0.5 and m.avg_response_time_hours is None
 
@@ -42,8 +45,21 @@ def test_cost_analytics_decimal():
         consumption_by_asset=[{"asset_id": None, "cost": Decimal("6")}],
         po_spend_approved=Decimal("0"),
         po_spend_by_vendor=[],
+        labor_cost=Decimal("0.00"),
+        additional_cost=Decimal("0.00"),
+        total_maintenance_cost=Decimal("6.00"),
+        maintenance_cost_by_asset=[
+            {
+                "asset_id": None,
+                "parts_cost": Decimal("6.00"),
+                "labor_cost": Decimal("0.00"),
+                "additional_cost": Decimal("0.00"),
+                "total": Decimal("6.00"),
+            }
+        ],
     )
     assert m.consumption_by_part[0].cost == Decimal("6")
+    assert m.maintenance_cost_by_asset[0].total == Decimal("6.00")
 
 
 def test_asset_reliability_nullable_mtbf():
@@ -61,12 +77,16 @@ def test_asset_reliability_nullable_mtbf():
                 "total_downtime_hours": 0.0,
                 "mttr_hours": None,
                 "mtbf_hours": None,
+                "total_maintenance_cost": Decimal("0.00"),
+                "acquisition_cost": None,
+                "cost_to_value_ratio": None,
             }
         ],
         fleet_availability_pct=100.0,
         fleet_total_downtime_hours=0.0,
         fleet_mttr_hours=None,
         fleet_mtbf_hours=None,
+        fleet_total_maintenance_cost=Decimal("0.00"),
     )
     assert m.assets[0].mtbf_hours is None
 
@@ -87,5 +107,7 @@ def test_inventory_analytics_shape():
             }
         ],
         top_consumed_parts=[],
+        abc_classification=[],
+        abc_summary={},
     )
     assert m.low_stock_items[0].shortfall == Decimal("4")

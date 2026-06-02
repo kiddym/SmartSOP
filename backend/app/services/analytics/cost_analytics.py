@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from datetime import date
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
 from sqlalchemy import select
@@ -15,7 +15,14 @@ from app.models.part_consumption import PartConsumption
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderLine
 from app.models.purchase_order_status import PurchaseOrderStatus
 from app.models.work_order import WorkOrder
+from app.services.analytics import _cost_attribution
 from app.services.analytics._common import resolve_window
+
+_CENT = Decimal("0.01")
+
+
+def _q(v: Decimal) -> Decimal:
+    return v.quantize(_CENT, rounding=ROUND_HALF_UP)
 
 
 def cost_dashboard(
@@ -100,6 +107,31 @@ def cost_dashboard(
         reverse=True,
     )
 
+    attrib = _cost_attribution.cost_by_asset(
+        db, start, end_excl, asset_id=asset_id, location_id=location_id
+    )
+    labor_total = sum((v["labor"] for v in attrib.values()), Decimal("0"))
+    additional_total = sum((v["additional"] for v in attrib.values()), Decimal("0"))
+    maintenance_cost_by_asset = sorted(
+        (
+            {
+                "asset_id": a_id,
+                "parts_cost": _q(v["parts"]),
+                "labor_cost": _q(v["labor"]),
+                "additional_cost": _q(v["additional"]),
+                "total": _q(v["parts"]) + _q(v["labor"]) + _q(v["additional"]),
+            }
+            for a_id, v in attrib.items()
+        ),
+        # total 降序；并列时按 asset_id 升序兜底（None 视作空串），保证输出确定。
+        key=lambda r: (-cast(Decimal, r["total"]), str(r["asset_id"] or "")),
+    )
+    labor_q, additional_q, parts_q = (
+        _q(labor_total),
+        _q(additional_total),
+        _q(total_consumption),
+    )
+
     return {
         "date_from": df,
         "date_to": dt,
@@ -108,4 +140,10 @@ def cost_dashboard(
         "consumption_by_asset": consumption_by_asset,
         "po_spend_approved": po_total,
         "po_spend_by_vendor": po_spend_by_vendor,
+        "labor_cost": labor_q,
+        "additional_cost": additional_q,
+        # 全局 total 走各类未量化原值求和后再 quantize；与 by_asset 各行 2dp 小计之和
+        # 在多资产场景可能相差 1 分（已定口径，沿用 2A：小计 2dp 后求和），非缺陷。
+        "total_maintenance_cost": labor_q + additional_q + parts_q,
+        "maintenance_cost_by_asset": maintenance_cost_by_asset,
     }

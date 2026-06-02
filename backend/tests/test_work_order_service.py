@@ -140,7 +140,7 @@ def test_update_and_soft_delete(db):
     c = _company(db, "acme")
     _ctx(c.id)
     wo = svc.create_work_order(db, WorkOrderCreate(title="t"), c.id, actor_user_id=None)
-    svc.update_work_order(db, wo, WorkOrderUpdate(title="t2", description="d"))
+    svc.update_work_order(db, wo, WorkOrderUpdate(title="t2", description="d"), c.id)
     assert wo.title == "t2" and wo.description == "d"
     svc.delete_work_order(db, wo)
     assert wo.is_active is False

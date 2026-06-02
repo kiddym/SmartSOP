@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, cast
 
 from sqlalchemy import or_, select
@@ -13,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.models.asset_downtime import AssetDowntime
 from app.models.maintenance_asset import Asset
+from app.services.analytics import _cost_attribution
 from app.services.analytics._common import clip_interval, hours_between, resolve_window
 
 
@@ -36,6 +38,19 @@ def asset_reliability_dashboard(
     if category_id is not None:
         a_stmt = a_stmt.where(Asset.category_id == category_id)
     assets = list(db.execute(a_stmt.order_by(Asset.custom_id)).scalars().all())
+
+    attrib = _cost_attribution.cost_by_asset(db, start, end_excl)
+    cent = Decimal("0.01")
+
+    def _asset_total(a_id: str) -> Decimal:
+        v = attrib.get(a_id)
+        if v is None:
+            return Decimal("0.00")
+        return (
+            v["parts"].quantize(cent, rounding=ROUND_HALF_UP)
+            + v["labor"].quantize(cent, rounding=ROUND_HALF_UP)
+            + v["additional"].quantize(cent, rounding=ROUND_HALF_UP)
+        )
 
     asset_rows: list[dict[str, Any]] = []
     for a in assets:
@@ -67,6 +82,8 @@ def asset_reliability_dashboard(
                     ended_durations.append(hours_between(interval[0], interval[1]))
         mttr = round(sum(ended_durations) / len(ended_durations), 2) if ended_durations else None
         mtbf = round((window_hours - total_down) / count, 2) if count else None
+        tmc = _asset_total(a.id)
+        acq = cast("Decimal | None", a.acquisition_cost)
         asset_rows.append(
             {
                 "asset_id": a.id,
@@ -77,6 +94,15 @@ def asset_reliability_dashboard(
                 "total_downtime_hours": round(total_down, 2),
                 "mttr_hours": mttr,
                 "mtbf_hours": mtbf,
+                "total_maintenance_cost": tmc,
+                "acquisition_cost": (
+                    acq.quantize(cent, rounding=ROUND_HALF_UP) if acq is not None else None
+                ),
+                "cost_to_value_ratio": (
+                    round(float(tmc / acq), 4)
+                    if acq is not None and acq > 0
+                    else None
+                ),
             }
         )
 
@@ -91,6 +117,10 @@ def asset_reliability_dashboard(
     mtbfs = [cast(float, r["mtbf_hours"]) for r in asset_rows if r["mtbf_hours"] is not None]
     fleet_mtbf = round(sum(mtbfs) / len(mtbfs), 2) if mtbfs else None
 
+    fleet_total_maintenance_cost = sum(
+        (cast(Decimal, r["total_maintenance_cost"]) for r in asset_rows), Decimal("0")
+    )
+
     return {
         "date_from": df,
         "date_to": dt,
@@ -100,4 +130,5 @@ def asset_reliability_dashboard(
         "fleet_total_downtime_hours": fleet_total_down,
         "fleet_mttr_hours": fleet_mttr,
         "fleet_mtbf_hours": fleet_mtbf,
+        "fleet_total_maintenance_cost": fleet_total_maintenance_cost,
     }

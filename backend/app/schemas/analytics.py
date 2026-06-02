@@ -8,6 +8,13 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 
+class CountRow(BaseModel):
+    asset_id: str | None = None
+    user_id: str | None = None
+    category_id: str | None = None
+    count: int
+
+
 class WorkOrderAnalytics(BaseModel):
     date_from: date
     date_to: date
@@ -19,6 +26,21 @@ class WorkOrderAnalytics(BaseModel):
     overdue: int
     avg_cycle_time_hours: float | None
     avg_response_time_hours: float | None
+    by_asset: list[CountRow]
+    by_user: list[CountRow]
+    by_category: list[CountRow]
+
+
+class RequestAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    total: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    received: int
+    resolved: int
+    converted: int
+    avg_resolution_cycle_hours: float | None
 
 
 class PartCostRow(BaseModel):
@@ -39,6 +61,14 @@ class VendorSpendRow(BaseModel):
     spend: Decimal
 
 
+class MaintenanceCostByAssetRow(BaseModel):
+    asset_id: str | None
+    parts_cost: Decimal
+    labor_cost: Decimal
+    additional_cost: Decimal
+    total: Decimal
+
+
 class CostAnalytics(BaseModel):
     date_from: date
     date_to: date
@@ -47,6 +77,10 @@ class CostAnalytics(BaseModel):
     consumption_by_asset: list[AssetCostRow]
     po_spend_approved: Decimal
     po_spend_by_vendor: list[VendorSpendRow]
+    labor_cost: Decimal
+    additional_cost: Decimal
+    total_maintenance_cost: Decimal
+    maintenance_cost_by_asset: list[MaintenanceCostByAssetRow]
 
 
 class AssetReliabilityRow(BaseModel):
@@ -58,6 +92,9 @@ class AssetReliabilityRow(BaseModel):
     total_downtime_hours: float
     mttr_hours: float | None
     mtbf_hours: float | None
+    total_maintenance_cost: Decimal
+    acquisition_cost: Decimal | None
+    cost_to_value_ratio: float | None
 
 
 class AssetReliabilityAnalytics(BaseModel):
@@ -69,6 +106,7 @@ class AssetReliabilityAnalytics(BaseModel):
     fleet_total_downtime_hours: float
     fleet_mttr_hours: float | None
     fleet_mtbf_hours: float | None
+    fleet_total_maintenance_cost: Decimal
 
 
 class CategoryValueRow(BaseModel):
@@ -93,9 +131,51 @@ class TopConsumedRow(BaseModel):
     qty: Decimal
 
 
+class ABCRow(BaseModel):
+    part_id: str
+    custom_id: str
+    name: str
+    consumption_value: Decimal
+    cumulative_pct: float
+    abc_class: str
+
+
+class PersonnelRow(BaseModel):
+    user_id: str
+    name: str | None
+    created_count: int
+    completed_count: int
+    assigned_count: int
+    labor_hours: float
+    labor_cost: Decimal
+
+
+class PersonnelAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    users: list[PersonnelRow]
+
+
+class TrendBucket(BaseModel):
+    bucket_start: date
+    work_orders_created: int
+    work_orders_completed: int
+    requests_received: int
+    requests_resolved: int
+
+
+class TrendAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    granularity: str
+    buckets: list[TrendBucket]
+
+
 class InventoryAnalytics(BaseModel):
     total_inventory_value: Decimal
     inventory_value_by_category: list[CategoryValueRow]
     low_stock_count: int
     low_stock_items: list[LowStockRow]
     top_consumed_parts: list[TopConsumedRow]
+    abc_classification: list[ABCRow]
+    abc_summary: dict[str, int]

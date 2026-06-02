@@ -53,6 +53,15 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     completed_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     # 来源请求（弱引用，无 FK；直建工单时为 None）
     request_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
+    # 工单分类（FK，删分类时置空）
+    category_id: Mapped[str | None] = mapped_column(
+        String(36),
+        ForeignKey("tb_work_order_category.id", ondelete="SET NULL"),
+        default=None,
+        index=True,
+    )
+    # 创建者 user id（仅记录，不建 FK）
+    created_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
 
 
 class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
