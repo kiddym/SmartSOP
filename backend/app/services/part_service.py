@@ -8,8 +8,10 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.errors import not_found
 from app.models.base import utcnow
-from app.models.part import Part, PartAsset, PartAssignee, PartTeam
+from app.models.location import Location
+from app.models.part import Part, PartAsset, PartAssignee, PartLocation, PartTeam
 from app.schemas.part import PartCreate, PartUpdate
 from app.services import sequence_service
 
@@ -48,6 +50,26 @@ def asset_ids(db: Session, part_id: str) -> list[str]:
     )
 
 
+def location_ids(db: Session, part_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(PartLocation.location_id)
+            .where(PartLocation.part_id == part_id)
+            .order_by(PartLocation.location_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def _validate_location_ids(db: Session, ids: list[str], company_id: str) -> None:
+    # 守红线：目标位置必须属当前 company（且未软删），否则跨租户引用 → 404
+    for lid in dict.fromkeys(ids):
+        loc = db.get(Location, lid)
+        if loc is None or not loc.is_active or loc.company_id != company_id:
+            raise not_found("LOCATION_NOT_FOUND", "位置不存在")
+
+
 def _set_relations(
     db: Session,
     part_id: str,
@@ -55,6 +77,7 @@ def _set_relations(
     user_ids: list[str],
     team_id_list: list[str],
     asset_id_list: list[str],
+    location_id_list: list[str],
 ) -> None:
     for uid in dict.fromkeys(user_ids):
         db.add(PartAssignee(part_id=part_id, user_id=uid, company_id=company_id))
@@ -62,6 +85,8 @@ def _set_relations(
         db.add(PartTeam(part_id=part_id, team_id=tid, company_id=company_id))
     for aid in dict.fromkeys(asset_id_list):
         db.add(PartAsset(part_id=part_id, asset_id=aid, company_id=company_id))
+    for lid in dict.fromkeys(location_id_list):
+        db.add(PartLocation(part_id=part_id, location_id=lid, company_id=company_id))
 
 
 def create_part(
@@ -83,7 +108,16 @@ def create_part(
     )
     db.add(p)
     db.flush()
-    _set_relations(db, p.id, company_id, payload.assignee_ids, payload.team_ids, payload.asset_ids)
+    _validate_location_ids(db, payload.location_ids, company_id)
+    _set_relations(
+        db,
+        p.id,
+        company_id,
+        payload.assignee_ids,
+        payload.team_ids,
+        payload.asset_ids,
+        payload.location_ids,
+    )
     db.commit()
     db.refresh(p)
     return p
@@ -122,6 +156,7 @@ def update_part(
     new_assignees = data.pop("assignee_ids", None)
     new_teams = data.pop("team_ids", None)
     new_assets = data.pop("asset_ids", None)
+    new_locations = data.pop("location_ids", None)
     for k, v in data.items():
         setattr(p, k, v)
     if new_assignees is not None:
@@ -136,6 +171,11 @@ def update_part(
         db.execute(delete(PartAsset).where(PartAsset.part_id == p.id))
         for aid in dict.fromkeys(new_assets):
             db.add(PartAsset(part_id=p.id, asset_id=aid, company_id=company_id))
+    if new_locations is not None:
+        _validate_location_ids(db, new_locations, company_id)
+        db.execute(delete(PartLocation).where(PartLocation.part_id == p.id))
+        for lid in dict.fromkeys(new_locations):
+            db.add(PartLocation(part_id=p.id, location_id=lid, company_id=company_id))
     db.commit()
     db.refresh(p)
     return p
