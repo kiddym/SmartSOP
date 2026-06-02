@@ -4,7 +4,7 @@
 
 | # | 标题 | 区域 | 严重度 | 状态 | 发现 |
 |---|---|---|---|---|---|
-| KI-1 | SOP 附件上传前后端契约失配（字段名 `files` vs `file`，必然 422） | 前端×后端 / 附件 | 高（功能不可用） | 待修 | 2026-06-02（通用附件特性最终审查） |
+| KI-1 | SOP 附件上传前后端契约失配（字段名 `files` vs `file`，必然 422） | 前端×后端 / 附件 | 高（功能不可用） | 已修复（fix/sop-attachment-upload-multifile） | 2026-06-02（通用附件特性最终审查） |
 
 ---
 
@@ -33,3 +33,5 @@
 **建议补测**：加一条前端↔后端的上传集成/契约测试（或 e2e），覆盖 SOP 附件上传成功路径，防止此类契约漂移再次无声发生。
 
 **关联**：通用附件基础设施见记忆 `universal-attachment-spec-draft`；通用 `POST /api/v1/attachments`（认证端点）字段为 `file` 单数 + `entity_type/entity_id`，前端若接入需注意与此别名端点的差异。
+
+**修复**：后端别名 POST 改多文件 `files: list[UploadFile]` + 返回 `list[AttachmentOut]`，与前端对齐；2026-06-02。

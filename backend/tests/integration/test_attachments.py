@@ -30,11 +30,11 @@ def test_upload_list_and_detail(client: TestClient, storage_tmp: Path) -> None:
     pid = _make_procedure(client)
     resp = client.post(
         f"{PROC}/{pid}/attachments",
-        files={"file": ("报告.pdf", b"PDFDATA", "application/pdf")},
+        files=[("files", ("报告.pdf", b"PDFDATA", "application/pdf"))],
         data={"description": "季度报告"},
     )
     assert resp.status_code == 201, resp.text
-    att = resp.json()
+    att = resp.json()[0]
     assert att["file_name"] == "报告.pdf"
     assert att["description"] == "季度报告"
     assert att["procedure_id"] == att["entity_id"]
@@ -50,8 +50,8 @@ def test_download_forces_attachment(client: TestClient, storage_tmp: Path) -> No
     pid = _make_procedure(client)
     att = client.post(
         f"{PROC}/{pid}/attachments",
-        files={"file": ("数据.bin", b"\x00\x01\x02", "application/octet-stream")},
-    ).json()
+        files=[("files", ("数据.bin", b"\x00\x01\x02", "application/octet-stream"))],
+    ).json()[0]
     h = _auth(client)
     resp = client.get(f"/api/v1/attachments/{att['id']}/download", headers=h)
     assert resp.status_code == 200
@@ -63,8 +63,8 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
     pid = _make_procedure(client)
     png = client.post(
         f"{PROC}/{pid}/attachments",
-        files={"file": ("p.png", b"img", "image/png")},
-    ).json()
+        files=[("files", ("p.png", b"img", "image/png"))],
+    ).json()[0]
     h = _auth(client)
     ok = client.get(f"/api/v1/attachments/{png['id']}/preview", headers=h)
     assert ok.status_code == 200
@@ -72,8 +72,8 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
 
     txt = client.post(
         f"{PROC}/{pid}/attachments",
-        files={"file": ("n.txt", b"hi", "text/plain")},
-    ).json()
+        files=[("files", ("n.txt", b"hi", "text/plain"))],
+    ).json()[0]
     blocked = client.get(f"/api/v1/attachments/{txt['id']}/preview", headers=h)
     assert blocked.status_code == 415
     assert blocked.json()["detail"]["code"] == "ATTACHMENT_NOT_PREVIEWABLE"
@@ -83,8 +83,8 @@ def test_update_and_delete(client: TestClient, storage_tmp: Path) -> None:
     pid = _make_procedure(client)
     att = client.post(
         f"{PROC}/{pid}/attachments",
-        files={"file": ("a.txt", b"hi", "text/plain")},
-    ).json()
+        files=[("files", ("a.txt", b"hi", "text/plain"))],
+    ).json()[0]
 
     h = _auth(client)
     upd = client.put(f"/api/v1/attachments/{att['id']}", json={"description": "改了"}, headers=h)
@@ -99,6 +99,26 @@ def test_update_and_delete(client: TestClient, storage_tmp: Path) -> None:
 def test_upload_to_missing_procedure_404(client: TestClient, storage_tmp: Path) -> None:
     resp = client.post(
         f"{PROC}/ghost/attachments",
-        files={"file": ("a.txt", b"hi", "text/plain")},
+        files=[("files", ("a.txt", b"hi", "text/plain"))],
     )
     assert resp.status_code == 404
+
+
+def test_upload_multiple_files_returns_list(client: TestClient, storage_tmp: Path) -> None:
+    pid = _make_procedure(client)
+    resp = client.post(
+        f"{PROC}/{pid}/attachments",
+        files=[
+            ("files", ("a.pdf", b"AAA", "application/pdf")),
+            ("files", ("b.png", b"BBB", "image/png")),
+        ],
+        data={"description": "批量"},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    assert isinstance(body, list) and len(body) == 2
+    assert {a["file_name"] for a in body} == {"a.pdf", "b.png"}
+    assert all(a["entity_type"] == "procedure" and a["entity_id"] == pid for a in body)
+    # 列表端点应见到这 2 个
+    listed = client.get(f"{PROC}/{pid}/attachments").json()
+    assert {a["file_name"] for a in listed} == {"a.pdf", "b.png"}

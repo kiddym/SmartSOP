@@ -120,20 +120,23 @@ def list_procedure_attachments(
 
 @router.post(
     "/procedures/{procedure_id}/attachments",
-    response_model=AttachmentOut,
+    response_model=list[AttachmentOut],
     status_code=status.HTTP_201_CREATED,
 )
-async def upload_procedure_attachment(
+async def upload_procedure_attachments(
     procedure_id: str,
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     description: str = Form(default=""),
     db: Session = Depends(get_db),
     meta: RequestMeta = Depends(get_request_meta),
-) -> AttachmentOut:
-    data = await file.read()
-    att = attachment_service.upload_for(
-        db, None, "procedure", procedure_id, data, file.filename or "",
-        content_type=file.content_type, description=description, meta=meta,
-    )
+) -> list[AttachmentOut]:
+    created = []
+    for f in files:
+        data = await f.read()
+        att = attachment_service.upload_for(
+            db, None, "procedure", procedure_id, data, f.filename or "",
+            content_type=f.content_type, description=description, meta=meta,
+        )
+        created.append(att)
     db.commit()
-    return AttachmentOut.model_validate(att)
+    return [AttachmentOut.model_validate(a) for a in created]
