@@ -53,17 +53,18 @@ def _resolve_mime(file_name: str, content_type: str | None) -> str:
 
 
 def _active_rows(db: Session, entity_type: str, entity_id: str) -> list[Attachment]:
-    return list(
-        db.execute(
-            select(Attachment)
-            .where(
-                Attachment.entity_type == entity_type,
-                Attachment.entity_id == entity_id,
-                Attachment.is_active.is_(True),
-            )
-            .order_by(Attachment.sort_order, Attachment.created_at)
-        ).scalars()
-    )
+    with tenant.bypass_tenant_scope():
+        return list(
+            db.execute(
+                select(Attachment)
+                .where(
+                    Attachment.entity_type == entity_type,
+                    Attachment.entity_id == entity_id,
+                    Attachment.is_active.is_(True),
+                )
+                .order_by(Attachment.sort_order, Attachment.created_at)
+            ).scalars()
+        )
 
 
 def _bytes_or_404(att: Attachment) -> bytes:

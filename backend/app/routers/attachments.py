@@ -16,6 +16,7 @@ router = APIRouter(prefix="/api/v1", tags=["attachments"])
 
 
 def _content_disposition(disposition: str, file_name: str) -> str:
+    """构造含 RFC 5987 编码的 Content-Disposition（兼容中文文件名，下载强制 attachment 防 XSS）。"""
     ascii_fallback = file_name.encode("ascii", "ignore").decode() or "download"
     return f"{disposition}; filename=\"{ascii_fallback}\"; filename*=UTF-8''{quote(file_name)}"
 

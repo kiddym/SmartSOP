@@ -37,6 +37,7 @@ def test_upload_list_and_detail(client: TestClient, storage_tmp: Path) -> None:
     att = resp.json()
     assert att["file_name"] == "报告.pdf"
     assert att["description"] == "季度报告"
+    assert att["procedure_id"] == att["entity_id"]
 
     listed = client.get(f"{PROC}/{pid}/attachments").json()
     assert [a["id"] for a in listed] == [att["id"]]

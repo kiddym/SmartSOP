@@ -91,3 +91,16 @@ def test_cross_tenant_attachment_not_leaked(
     ).json()
     assert client.get(ATT, headers=hB, params={"entity_type": "asset", "entity_id": aid}).status_code == 404
     assert client.get(f"{ATT}/{att['id']}/download", headers=hB).status_code == 404
+    assert client.put(f"{ATT}/{att['id']}", headers=hB, json={"description": "x"}).status_code == 404
+    assert client.delete(f"{ATT}/{att['id']}", headers=hB).status_code == 404
+
+
+def test_single_resource_endpoints_require_auth(client: TestClient, storage_tmp: Path) -> None:
+    """通用单资源端点需认证：匿名访问 → 401。"""
+    assert client.get(f"{ATT}/whatever/download").status_code == 401
+    assert client.get(f"{ATT}/whatever/preview").status_code == 401
+    assert client.put(f"{ATT}/whatever", json={"description": "x"}).status_code == 401
+    assert client.delete(f"{ATT}/whatever").status_code == 401
+    assert client.get(ATT, params={"entity_type": "asset", "entity_id": "x"}).status_code == 401
+    assert client.post(ATT, data={"entity_type": "asset", "entity_id": "x"},
+                       files={"file": ("a.txt", b"x", "text/plain")}).status_code == 401
