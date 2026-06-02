@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
@@ -38,6 +39,16 @@ def hash_password(password: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     """Return True iff *plain* matches the bcrypt(sha256(...)) *hashed* value."""
     return _bcrypt.checkpw(_prehash(plain), hashed.encode("utf-8"))
+
+
+def generate_token() -> str:
+    """生成 URL-safe 随机 token（明文仅入邮件，DB 存其哈希）。"""
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    """token 的 sha256 十六进制（DB 存哈希，不存明文）。"""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 def _create_token(

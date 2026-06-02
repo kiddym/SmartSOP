@@ -14,7 +14,7 @@ class EmailOutbox(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_email_outbox"
     __table_args__ = (Index("ix_email_outbox_status", "company_id", "status"),)
 
-    recipient_user_id: Mapped[str] = mapped_column(String(36), index=True)
+    recipient_user_id: Mapped[str | None] = mapped_column(String(36), index=True, default=None)
     recipient_email: Mapped[str] = mapped_column(String(255))
     type: Mapped[str] = mapped_column(String(40))
     subject: Mapped[str] = mapped_column(Text)

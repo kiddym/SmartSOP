@@ -9,8 +9,9 @@ from app import permissions
 from app.deps import get_db, require_permission
 from app.errors import not_found
 from app.models.user import User
+from app.schemas.platform import InviteResult, InviteUserRequest
 from app.schemas.user import UserCreate, UserRead, UserUpdate
-from app.services import user_service
+from app.services import invitation_service, user_service
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
 
@@ -31,6 +32,23 @@ def create_user(
     current_user: User = Depends(require_permission(permissions.USER_CREATE)),
 ) -> User:
     return user_service.create_user(db, payload, current_user.company_id)
+
+
+@router.post("/invite", response_model=InviteResult, status_code=201)
+def invite_user(
+    payload: InviteUserRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.USER_CREATE)),
+) -> InviteResult:
+    inv, _raw = invitation_service.invite(
+        db,
+        company_id=current_user.company_id,
+        email=payload.email,
+        role_id=payload.role_id,
+        invited_by=current_user.id,
+    )
+    db.commit()
+    return InviteResult(id=inv.id, email=inv.email, status=inv.status)
 
 
 @router.get("", response_model=list[UserRead])

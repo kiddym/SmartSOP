@@ -13,6 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import security, tenant
+from app.errors import bad_request
 from app.models.company import Company
 from app.models.role import Role
 from app.models.user import User, UserStatus
@@ -88,3 +89,10 @@ def authenticate(db: Session, payload: LoginRequest) -> User:
     if not security.verify_password(payload.password, user.password_hash):
         raise AuthError("邮箱或密码错误")
     return user
+
+
+def change_password(db: Session, user: User, old_password: str, new_password: str) -> None:
+    if not security.verify_password(old_password, user.password_hash):
+        raise bad_request("INVALID_CREDENTIALS", "原密码不正确")
+    user.password_hash = security.hash_password(new_password)
+    db.flush()

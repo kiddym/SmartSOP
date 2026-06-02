@@ -13,7 +13,9 @@ from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
 from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.company import Company
+from app.models.company_settings import CompanySettings
 from app.models.cost_category import CostCategory
+from app.models.currency import Currency
 from app.models.customer import Customer, CustomerPart
 from app.models.email_outbox import EmailOutbox
 from app.models.field import ProcedureField
@@ -33,6 +35,7 @@ from app.models.numbering_profile import NumberingProfile
 from app.models.part import Part, PartAsset, PartAssignee, PartTeam
 from app.models.part_category import PartCategory
 from app.models.part_consumption import PartConsumption
+from app.models.password_reset_token import PasswordResetToken
 from app.models.pm_activity import PMActivity
 from app.models.preventive_maintenance import PMAssignee, PMTeam, PreventiveMaintenance
 from app.models.procedure import Procedure
@@ -49,6 +52,7 @@ from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
 from app.models.team import Team, TeamUser
 from app.models.user import User
+from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorPart
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
@@ -64,7 +68,9 @@ __all__ = [
     "BatchImportItem",
     "BatchImportJob",
     "Company",
+    "CompanySettings",
     "CostCategory",
+    "Currency",
     "Customer",
     "CustomerPart",
     "EmailOutbox",
@@ -96,6 +102,7 @@ __all__ = [
     "PartCategory",
     "PartConsumption",
     "PartTeam",
+    "PasswordResetToken",
     "PreventiveMaintenance",
     "Procedure",
     "ProcedureAsset",
@@ -116,6 +123,7 @@ __all__ = [
     "Team",
     "TeamUser",
     "User",
+    "UserInvitation",
     "Vendor",
     "VendorPart",
     "WorkOrder",
