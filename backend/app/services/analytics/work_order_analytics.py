@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime
 from typing import Any
 
@@ -74,6 +76,22 @@ def work_order_dashboard(
     resp = [hours_between(wo.created_at, first_ip[wo.id]) for wo in wos if wo.id in first_ip]
     avg_response = round(sum(resp) / len(resp), 2) if resp else None
 
+    def _count_by(key: Callable[[WorkOrder], object]) -> dict[object, int]:
+        acc: dict[object, int] = defaultdict(int)
+        for wo in wos:
+            acc[key(wo)] += 1
+        return acc
+
+    def _rows(field: str, acc: dict[object, int]) -> list[dict[str, Any]]:
+        rows: list[dict[str, Any]] = [{field: k, "count": v} for k, v in acc.items()]
+        # count 降序；并列时按维度键升序，保证输出确定（None 视作空串参与排序）。
+        rows.sort(key=lambda r: (-r["count"], str(r[field] or "")))
+        return rows
+
+    by_asset = _rows("asset_id", _count_by(lambda w: w.asset_id))
+    by_user = _rows("user_id", _count_by(lambda w: w.primary_user_id))
+    by_category = _rows("category_id", _count_by(lambda w: w.category_id))
+
     return {
         "date_from": df,
         "date_to": dt,
@@ -85,4 +103,7 @@ def work_order_dashboard(
         "overdue": overdue,
         "avg_cycle_time_hours": avg_cycle,
         "avg_response_time_hours": avg_response,
+        "by_asset": by_asset,
+        "by_user": by_user,
+        "by_category": by_category,
     }

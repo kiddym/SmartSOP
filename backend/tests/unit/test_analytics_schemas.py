@@ -21,6 +21,9 @@ def test_work_order_analytics_shape():
         overdue=0,
         avg_cycle_time_hours=12.0,
         avg_response_time_hours=None,
+        by_asset=[],
+        by_user=[],
+        by_category=[],
     )
     assert m.completion_rate == 0.5 and m.avg_response_time_hours is None
 

@@ -8,6 +8,13 @@ from decimal import Decimal
 from pydantic import BaseModel
 
 
+class CountRow(BaseModel):
+    asset_id: str | None = None
+    user_id: str | None = None
+    category_id: str | None = None
+    count: int
+
+
 class WorkOrderAnalytics(BaseModel):
     date_from: date
     date_to: date
@@ -19,6 +26,9 @@ class WorkOrderAnalytics(BaseModel):
     overdue: int
     avg_cycle_time_hours: float | None
     avg_response_time_hours: float | None
+    by_asset: list[CountRow]
+    by_user: list[CountRow]
+    by_category: list[CountRow]
 
 
 class PartCostRow(BaseModel):
