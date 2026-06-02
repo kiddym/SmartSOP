@@ -24,7 +24,9 @@ from app.deps import RequestMeta
 from app.errors import app_error, bad_request, not_found
 from app.models.attachment import Attachment
 from app.models.base import new_uuid, utcnow
-from app.models.procedure import Procedure
+from app.models.user import User
+from app.services import attachment_entities as entities
+from app.services import attachment_hooks as hooks
 from app.services import audit_service
 from app.storage_backends import get_storage_backend
 
@@ -42,23 +44,6 @@ _DEFAULT_MIME = "application/octet-stream"
 # --------------------------------------------------------------------------- #
 # 内部
 # --------------------------------------------------------------------------- #
-def _get_proc(db: Session, procedure_id: str) -> Procedure:
-    proc = db.execute(
-        select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
-    ).scalar_one_or_none()
-    if proc is None:
-        raise not_found("NOT_FOUND", "程序不存在")
-    return proc
-
-
-def _assert_editable(proc: Procedure) -> None:
-    """附件写约束（Q228）：deprecated → PROCEDURE_DEPRECATED；非当前草稿 → PROCEDURE_READONLY。"""
-    if proc.deprecated_at is not None:
-        raise bad_request("PROCEDURE_DEPRECATED", "程序已被废止，请先恢复后再操作")
-    if not (proc.is_current and proc.status == "DRAFT"):
-        raise bad_request("PROCEDURE_READONLY", "仅当前版本的草稿可编辑附件")
-
-
 def _resolve_mime(file_name: str, content_type: str | None) -> str:
     """优先用上传声明的 content_type，缺失/通用则按扩展名猜测，最终回退 octet-stream。"""
     if content_type and content_type != _DEFAULT_MIME:
@@ -67,13 +52,13 @@ def _resolve_mime(file_name: str, content_type: str | None) -> str:
     return guessed or _DEFAULT_MIME
 
 
-def _active_rows(db: Session, procedure_id: str) -> list[Attachment]:
+def _active_rows(db: Session, entity_type: str, entity_id: str) -> list[Attachment]:
     return list(
         db.execute(
             select(Attachment)
             .where(
-                Attachment.entity_type == "procedure",
-                Attachment.entity_id == procedure_id,
+                Attachment.entity_type == entity_type,
+                Attachment.entity_id == entity_id,
                 Attachment.is_active.is_(True),
             )
             .order_by(Attachment.sort_order, Attachment.created_at)
@@ -89,19 +74,8 @@ def _bytes_or_404(att: Attachment) -> bytes:
 
 
 # --------------------------------------------------------------------------- #
-# 读取
+# 读取（泛型）
 # --------------------------------------------------------------------------- #
-def list_attachments(db: Session, procedure_id: str) -> list[Attachment]:
-    """列出某版本的 active 附件（任意状态可读）。程序不存在 → 404。"""
-    _get_proc(db, procedure_id)
-    return _active_rows(db, procedure_id)
-
-
-def rows_for(db: Session, procedure_id: str) -> list[Attachment]:
-    """get_detail 内嵌用：直接查 active 附件行（proc 已由调用方保证存在）。"""
-    return _active_rows(db, procedure_id)
-
-
 def get_or_404(db: Session, attachment_id: str) -> Attachment:
     att = db.execute(
         select(Attachment).where(
@@ -113,15 +87,22 @@ def get_or_404(db: Session, attachment_id: str) -> Attachment:
     return att
 
 
-def download(db: Session, attachment_id: str) -> tuple[bytes, str, str]:
-    """下载（不受 deprecated 限制，Q118）。返回 (字节, mime, 原文件名)。"""
+def list_for(
+    db: Session, user: User | None, entity_type: str, entity_id: str
+) -> list[Attachment]:
+    entities.resolve_and_authorize(db, user, entity_type, entity_id, "read")
+    return _active_rows(db, entity_type, entity_id)
+
+
+def download_for(db: Session, user: User | None, attachment_id: str) -> tuple[bytes, str, str]:
     att = get_or_404(db, attachment_id)
+    entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "read")
     return _bytes_or_404(att), att.mime_type, att.file_name
 
 
-def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
-    """在线预览（仅白名单类型，Q229）；非白名单 → 415。"""
+def preview_for(db: Session, user: User | None, attachment_id: str) -> tuple[bytes, str]:
     att = get_or_404(db, attachment_id)
+    entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "read")
     if att.mime_type not in PREVIEW_WHITELIST:
         raise app_error(
             status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -132,11 +113,13 @@ def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
 
 
 # --------------------------------------------------------------------------- #
-# 写入
+# 写入（泛型）
 # --------------------------------------------------------------------------- #
-def upload(
+def upload_for(
     db: Session,
-    procedure_id: str,
+    user: User | None,
+    entity_type: str,
+    entity_id: str,
     data: bytes,
     file_name: str,
     *,
@@ -144,14 +127,13 @@ def upload(
     description: str,
     meta: RequestMeta,
 ) -> Attachment:
-    """上传附件（仅当前草稿，Q228）+ 上限校验（Q120）+ 落盘 + 审计 upload。"""
-    proc = _get_proc(db, procedure_id)
-    _assert_editable(proc)
+    """上传附件（resolve+authorize 含 write_guard）+ 上限校验 + 落盘 + 钩子。"""
+    host = entities.resolve_and_authorize(db, user, entity_type, entity_id, "write")
 
     size = len(data)
     if size > MAX_FILE_BYTES:
         raise bad_request("ATTACHMENT_LIMIT_EXCEEDED", "单文件超过 50MB 上限", field="file")
-    existing = _active_rows(db, procedure_id)
+    existing = _active_rows(db, entity_type, entity_id)
     if len(existing) + 1 > MAX_COUNT:
         raise bad_request("ATTACHMENT_LIMIT_EXCEEDED", "附件数量超过 30 个上限", field="file")
     if sum(a.size_bytes for a in existing) + size > MAX_TOTAL_BYTES:
@@ -164,8 +146,8 @@ def upload(
     get_storage_backend().write(rel, data)
 
     att = Attachment(
-        entity_type="procedure",
-        entity_id=procedure_id,
+        entity_type=entity_type,
+        entity_id=entity_id,
         file_name=name,
         storage_path=rel,
         mime_type=_resolve_mime(name, content_type),
@@ -175,15 +157,92 @@ def upload(
     )
     db.add(att)
     db.flush()
-    audit_service.log_procedure_action(
-        db,
-        target_id=att.id,
-        procedure_group_id=proc.procedure_group_id,
-        action="upload",
-        meta=meta,
-        new_value={"file_name": name, "size_bytes": size},
-    )
+    if entity_type == "procedure":
+        hooks.procedure_audit_upload(db, host, att, meta=meta)
     return att
+
+
+def update_for(
+    db: Session,
+    user: User | None,
+    attachment_id: str,
+    *,
+    description: str | None,
+    sort_order: int | None,
+    meta: RequestMeta,
+) -> Attachment:
+    """改元数据（仅 description / sort_order）+ 钩子。"""
+    att = get_or_404(db, attachment_id)
+    host = entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "write")
+
+    before = {"description": att.description, "sort_order": att.sort_order}
+    if description is not None:
+        att.description = description.strip()
+    if sort_order is not None:
+        att.sort_order = sort_order
+    db.flush()
+    after = {"description": att.description, "sort_order": att.sort_order}
+    if att.entity_type == "procedure":
+        old_value, new_value = audit_service.compute_diff(before, after)
+        if new_value:
+            hooks.procedure_audit_update(
+                db, host, att, meta=meta, old_value=old_value, new_value=new_value
+            )
+    return att
+
+
+def delete_for(
+    db: Session, user: User | None, attachment_id: str, *, meta: RequestMeta
+) -> None:
+    """软删 + 钩子。"""
+    att = get_or_404(db, attachment_id)
+    host = entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "write")
+
+    att.is_active = False
+    att.deleted_at = utcnow()
+    db.flush()
+    if att.entity_type == "procedure":
+        hooks.procedure_audit_delete(db, host, att, meta=meta)
+
+
+# --------------------------------------------------------------------------- #
+# procedure 专属薄包装（保持 router 与既有调用零破坏，Task 4 后可逐步清理）
+# --------------------------------------------------------------------------- #
+def rows_for(db: Session, procedure_id: str) -> list[Attachment]:
+    """get_detail 内嵌用：直接查 active 附件行（proc 已由调用方保证存在）。"""
+    return _active_rows(db, "procedure", procedure_id)
+
+
+def list_attachments(db: Session, procedure_id: str) -> list[Attachment]:
+    """列出某版本的 active 附件（任意状态可读）。程序不存在 → 404。"""
+    return list_for(db, None, "procedure", procedure_id)
+
+
+def download(db: Session, attachment_id: str) -> tuple[bytes, str, str]:
+    """下载（不受 deprecated 限制，Q118）。返回 (字节, mime, 原文件名)。"""
+    return download_for(db, None, attachment_id)
+
+
+def preview(db: Session, attachment_id: str) -> tuple[bytes, str]:
+    """在线预览（仅白名单类型，Q229）；非白名单 → 415。"""
+    return preview_for(db, None, attachment_id)
+
+
+def upload(
+    db: Session,
+    procedure_id: str,
+    data: bytes,
+    file_name: str,
+    *,
+    content_type: str | None,
+    description: str,
+    meta: RequestMeta,
+) -> Attachment:
+    """上传附件薄包装（procedure 专属，router 用）。"""
+    return upload_for(
+        db, None, "procedure", procedure_id, data, file_name,
+        content_type=content_type, description=description, meta=meta,
+    )
 
 
 def update(
@@ -194,49 +253,13 @@ def update(
     sort_order: int | None,
     meta: RequestMeta,
 ) -> Attachment:
-    """改元数据（仅 description / sort_order；仅当前草稿生效、不传播，Q116/Q228）。"""
-    att = get_or_404(db, attachment_id)
-    proc = _get_proc(db, att.entity_id)
-    _assert_editable(proc)
-
-    before = {"description": att.description, "sort_order": att.sort_order}
-    if description is not None:
-        att.description = description.strip()
-    if sort_order is not None:
-        att.sort_order = sort_order
-    db.flush()
-    after = {"description": att.description, "sort_order": att.sort_order}
-    old_value, new_value = audit_service.compute_diff(before, after)
-    if new_value:
-        audit_service.log_procedure_action(
-            db,
-            target_id=att.id,
-            procedure_group_id=proc.procedure_group_id,
-            action="update",
-            meta=meta,
-            old_value=old_value,
-            new_value=new_value,
-        )
-    return att
+    """改元数据薄包装（procedure 专属，router 用）。"""
+    return update_for(db, None, attachment_id, description=description, sort_order=sort_order, meta=meta)
 
 
 def delete(db: Session, attachment_id: str, meta: RequestMeta) -> None:
-    """软删（文件保留供其他版本引用，Q114；仅当前草稿，Q228）+ 审计 delete。"""
-    att = get_or_404(db, attachment_id)
-    proc = _get_proc(db, att.entity_id)
-    _assert_editable(proc)
-
-    att.is_active = False
-    att.deleted_at = utcnow()
-    db.flush()
-    audit_service.log_procedure_action(
-        db,
-        target_id=att.id,
-        procedure_group_id=proc.procedure_group_id,
-        action="delete",
-        meta=meta,
-        old_value={"file_name": att.file_name},
-    )
+    """软删薄包装（procedure 专属，router 用）。"""
+    return delete_for(db, None, attachment_id, meta=meta)
 
 
 # --------------------------------------------------------------------------- #
@@ -244,7 +267,7 @@ def delete(db: Session, attachment_id: str, meta: RequestMeta) -> None:
 # --------------------------------------------------------------------------- #
 def copy_for_version(db: Session, src_procedure_id: str, dst_procedure_id: str) -> None:
     """复制 src 版本的 active 附件元数据到 dst（新 id、复用 storage_path，物理文件不复制）。"""
-    for src in _active_rows(db, src_procedure_id):
+    for src in _active_rows(db, "procedure", src_procedure_id):
         db.add(
             Attachment(
                 entity_type="procedure",
