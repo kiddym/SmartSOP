@@ -6,11 +6,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 
+from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -41,6 +41,11 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
     category_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_purchase_order_category.id", ondelete="SET NULL"), index=True
     )
+    # 扩展元数据（非货币）：收货地址/方式/付款条款/预计交货日期
+    shipping_address: Mapped[str] = mapped_column(String(500), default="", server_default="")
+    shipping_method: Mapped[str] = mapped_column(String(120), default="", server_default="")
+    terms_of_payment: Mapped[str] = mapped_column(String(200), default="", server_default="")
+    expected_delivery_date: Mapped[date | None] = mapped_column(Date, default=None)
     resolution_note: Mapped[str] = mapped_column(Text, default="", server_default="")
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)

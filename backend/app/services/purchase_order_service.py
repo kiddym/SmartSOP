@@ -93,6 +93,10 @@ def create_purchase_order(
         vendor_id=payload.vendor_id,
         notes=payload.notes,
         category_id=payload.category_id,
+        shipping_address=payload.shipping_address,
+        shipping_method=payload.shipping_method,
+        terms_of_payment=payload.terms_of_payment,
+        expected_delivery_date=payload.expected_delivery_date,
         company_id=company_id,
     )
     db.add(po)
