@@ -3,7 +3,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.deps import get_current_user, get_db
+from app import permissions
+from app.deps import get_current_user, get_db, require_permission
 from app.models.company_settings import CompanySettings
 from app.models.user import User
 from app.schemas.platform import CompanySettingsOut, CompanySettingsUpdate
@@ -23,7 +24,7 @@ def get_settings(
 def update_settings(
     payload: CompanySettingsUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission(permissions.COMPANY_SETTINGS)),
 ) -> CompanySettings:
     row = company_settings_service.update(db, user.company_id, payload)
     db.commit()
