@@ -100,7 +100,7 @@ def update_work_order(
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
-    wo = svc.update_work_order(db, wo, payload)
+    wo = svc.update_work_order(db, wo, payload, current_user.company_id)
     return svc.to_read(db, wo)
 
 

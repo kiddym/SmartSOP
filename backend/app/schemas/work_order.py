@@ -20,6 +20,7 @@ class WorkOrderCreate(BaseModel):
     primary_user_id: str | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
+    category_id: str | None = None
     # 建单时可选立即挂接已发布 SOP
     procedure_id: str | None = None
 
@@ -32,6 +33,7 @@ class WorkOrderUpdate(BaseModel):
     asset_id: str | None = None
     location_id: str | None = None
     primary_user_id: str | None = None
+    category_id: str | None = None
 
 
 class WorkOrderTransition(BaseModel):
@@ -62,6 +64,8 @@ class WorkOrderRead(BaseModel):
     procedure_id: str | None = None
     procedure_group_id: str | None = None
     completed_at: datetime | None = None
+    category_id: str | None = None
+    created_by_user_id: str | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
 
