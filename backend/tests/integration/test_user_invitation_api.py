@@ -82,3 +82,42 @@ def test_cross_tenant_invitation_isolation(client, db):
     assert len(shared) == 1
     assert shared[0].company_id == adminA.company_id
     assert shared[0].company_id != adminB.company_id
+
+
+def test_accept_token_single_use(client, db):
+    """token 单次：accept 成功后同一 token 再次 accept 应被拒（status 已置 accepted）。"""
+    from app.services import invitation_service
+    _admin_token(client)
+    with tenant.bypass_tenant_scope():
+        admin = db.execute(select(User).where(User.email == "admin@acme.com")).scalar_one()
+    _inv, raw = invitation_service.invite(
+        db, company_id=admin.company_id, email="dave@acme.com", role_id=None, invited_by=admin.id)
+    db.commit()
+    first = client.post("/api/v1/auth/accept-invite",
+                        json={"token": raw, "name": "Dave", "password": "davesecret1"})
+    assert first.status_code == 200, first.text
+    replay = client.post("/api/v1/auth/accept-invite",
+                         json={"token": raw, "name": "Dave2", "password": "davesecret2"})
+    assert replay.status_code == 400
+
+
+def test_accept_expired_token_400(client, db):
+    """过期 token：accept 应被拒。"""
+    from datetime import timedelta
+
+    from app.models.base import utcnow
+    from app.models.user_invitation import UserInvitation
+    from app.services import invitation_service
+    _admin_token(client)
+    with tenant.bypass_tenant_scope():
+        admin = db.execute(select(User).where(User.email == "admin@acme.com")).scalar_one()
+        inv, raw = invitation_service.invite(
+            db, company_id=admin.company_id, email="erin@acme.com", role_id=None, invited_by=admin.id)
+        # 人为把过期时间设为过去
+        row = db.get(UserInvitation, inv.id)
+        assert row is not None
+        row.expires_at = utcnow() - timedelta(minutes=1)
+        db.commit()
+    r = client.post("/api/v1/auth/accept-invite",
+                    json={"token": raw, "name": "Erin", "password": "erinsecret1"})
+    assert r.status_code == 400

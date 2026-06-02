@@ -49,7 +49,7 @@ def invite(
         params={
             "invite_url": f"/accept-invite?token={raw}",
             "company_name": company_name,
-            "deadline": "7 天后",
+            "deadline": f"{_TTL_DAYS} 天后",
         },
     )
     db.flush()
