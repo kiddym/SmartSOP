@@ -21,12 +21,14 @@ from app.schemas.analytics import (
     AssetReliabilityAnalytics,
     CostAnalytics,
     InventoryAnalytics,
+    RequestAnalytics,
     WorkOrderAnalytics,
 )
 from app.services.analytics import (
     asset_reliability_analytics,
     cost_analytics,
     inventory_analytics,
+    request_analytics,
     work_order_analytics,
 )
 
@@ -93,6 +95,20 @@ def inventory_dashboard(
 ) -> dict[str, Any]:
     return inventory_analytics.inventory_dashboard(
         db, date_from=date_from, date_to=date_to, category_id=category_id
+    )
+
+
+@router.get("/requests", response_model=RequestAnalytics)
+def request_dashboard(
+    date_from: date | None = None,
+    date_to: date | None = None,
+    asset_id: str | None = None,
+    location_id: str | None = None,
+    db: Session = Depends(get_db),
+    current_user: User = _VIEW,
+) -> dict[str, Any]:
+    return request_analytics.request_dashboard(
+        db, date_from=date_from, date_to=date_to, asset_id=asset_id, location_id=location_id
     )
 
 

@@ -31,6 +31,18 @@ class WorkOrderAnalytics(BaseModel):
     by_category: list[CountRow]
 
 
+class RequestAnalytics(BaseModel):
+    date_from: date
+    date_to: date
+    total: int
+    by_status: dict[str, int]
+    by_priority: dict[str, int]
+    received: int
+    resolved: int
+    converted: int
+    avg_resolution_cycle_hours: float | None
+
+
 class PartCostRow(BaseModel):
     part_id: str
     custom_id: str
