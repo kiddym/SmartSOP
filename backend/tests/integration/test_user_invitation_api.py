@@ -101,6 +101,30 @@ def test_accept_token_single_use(client, db):
     assert replay.status_code == 400
 
 
+def test_invite_foreign_role_rejected(client, db):
+    """不能用他公司的 role 邀请：role 不属于本公司 → 400。"""
+    import pytest
+    from fastapi import HTTPException
+
+    from app.models.role import Role
+    from app.services import invitation_service
+    _register(client, company="AcmeA", email="adminA@a.com")
+    with tenant.bypass_tenant_scope():
+        adminA = db.execute(select(User).where(User.email == "adminA@a.com")).scalar_one()
+    _register(client, company="AcmeB", email="adminB@b.com")
+    with tenant.bypass_tenant_scope():
+        adminB = db.execute(select(User).where(User.email == "adminB@b.com")).scalar_one()
+        foreign_role = (
+            db.execute(select(Role).where(Role.company_id == adminB.company_id)).scalars().first()
+        )
+    assert foreign_role is not None
+    with pytest.raises(HTTPException) as ei:
+        invitation_service.invite(
+            db, company_id=adminA.company_id, email="x@a.com",
+            role_id=foreign_role.id, invited_by=adminA.id)
+    assert ei.value.status_code == 400
+
+
 def test_accept_expired_token_400(client, db):
     """过期 token：accept 应被拒。"""
     from datetime import timedelta

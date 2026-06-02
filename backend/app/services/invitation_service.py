@@ -11,6 +11,7 @@ from app import security, tenant
 from app.errors import bad_request, conflict
 from app.models.base import utcnow
 from app.models.company import Company
+from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.models.user_invitation import UserInvitation
 from app.services import email_outbox_service
@@ -27,6 +28,13 @@ def invite(
     ).scalar_one_or_none()
     if existing is not None:
         raise conflict("EMAIL_EXISTS", "该邮箱已是本组织成员")
+    if role_id is not None:
+        # 校验 role 属于本公司，防止赋予他公司的角色（跨租户边界）
+        role = db.execute(
+            select(Role).where(Role.id == role_id, Role.company_id == company_id)
+        ).scalar_one_or_none()
+        if role is None:
+            raise bad_request("INVALID_ROLE", "角色不存在或不属于本组织")
     raw = security.generate_token()
     inv = UserInvitation(
         company_id=company_id,
