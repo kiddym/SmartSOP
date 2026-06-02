@@ -16,13 +16,18 @@ from app.deps import get_db, require_permission
 from app.errors import not_found
 from app.models.user import User
 from app.models.work_order import WorkOrder
+from app.models.work_order_additional_cost import WorkOrderAdditionalCost
 from app.models.work_order_labor import WorkOrderLabor
 from app.schemas.work_order_cost import (
+    AdditionalCostCreate,
+    AdditionalCostRead,
+    AdditionalCostUpdate,
     LaborCreate,
     LaborRead,
     LaborTimerStart,
     LaborUpdate,
 )
+from app.services import work_order_additional_cost_service as addcost
 from app.services import work_order_labor_service as labor
 from app.services import work_order_service as wos
 
@@ -123,3 +128,78 @@ def delete_labor(
     _ensure_wo(db, work_order_id, current_user.company_id)
     row = _ensure_labor(db, labor_id, work_order_id, current_user.company_id)
     labor.delete_labor(db, row)
+
+
+# ---------------------------------------------------------------------------
+# 额外成本（AdditionalCost）
+# ---------------------------------------------------------------------------
+
+
+def _ensure_cost(
+    db: Session,
+    cost_id: str,
+    work_order_id: str,
+    company_id: str,
+) -> WorkOrderAdditionalCost:
+    row = db.get(WorkOrderAdditionalCost, cost_id)
+    if (
+        row is None
+        or row.work_order_id != work_order_id
+        or row.company_id != company_id
+    ):
+        raise not_found("ADDITIONAL_COST_NOT_FOUND", "额外成本不存在")
+    return row
+
+
+@router.get("/additional-costs", response_model=list[AdditionalCostRead])
+def list_additional_costs(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> list[WorkOrderAdditionalCost]:
+    _ensure_wo(db, work_order_id, current_user.company_id)
+    return addcost.list_additional_costs(db, work_order_id)
+
+
+@router.post(
+    "/additional-costs", response_model=AdditionalCostRead, status_code=status.HTTP_201_CREATED
+)
+def create_additional_cost(
+    work_order_id: str,
+    payload: AdditionalCostCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> WorkOrderAdditionalCost:
+    wo = _ensure_wo(db, work_order_id, current_user.company_id)
+    return addcost.create_additional_cost(
+        db, wo, payload, current_user.company_id, actor_user_id=current_user.id
+    )
+
+
+@router.patch("/additional-costs/{cost_id}", response_model=AdditionalCostRead)
+def update_additional_cost(
+    work_order_id: str,
+    cost_id: str,
+    payload: AdditionalCostUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> WorkOrderAdditionalCost:
+    _ensure_wo(db, work_order_id, current_user.company_id)
+    row = _ensure_cost(db, cost_id, work_order_id, current_user.company_id)
+    return addcost.update_additional_cost(db, row, payload, current_user.company_id)
+
+
+@router.delete(
+    "/additional-costs/{cost_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
+def delete_additional_cost(
+    work_order_id: str,
+    cost_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> None:
+    _ensure_wo(db, work_order_id, current_user.company_id)
+    row = _ensure_cost(db, cost_id, work_order_id, current_user.company_id)
+    addcost.delete_additional_cost(db, row)

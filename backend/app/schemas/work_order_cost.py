@@ -92,3 +92,33 @@ class LaborRead(BaseModel):
         from app.models.base import utcnow
 
         return max(0, int((utcnow() - self.started_at).total_seconds()))
+
+
+# ---------------------------------------------------------------------------
+# AdditionalCost（工单额外成本）
+# ---------------------------------------------------------------------------
+
+
+class AdditionalCostCreate(BaseModel):
+    title: str = Field(min_length=1, max_length=300)
+    amount: Decimal = Field(ge=0)
+    cost_category_id: str | None = None
+    description: str = ""
+
+
+class AdditionalCostUpdate(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=300)
+    amount: Decimal | None = Field(default=None, ge=0)
+    cost_category_id: str | None = None
+    description: str | None = None
+
+
+class AdditionalCostRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    work_order_id: str
+    cost_category_id: str | None = None
+    title: str
+    amount: Decimal
+    description: str
+    created_by_user_id: str | None = None
