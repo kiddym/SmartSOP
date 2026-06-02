@@ -81,3 +81,40 @@ def test_additional_cost_tenant_isolation(client):
     assert (
         client.get(f"/api/v1/work-orders/{wo}/additional-costs", headers=_h(b)).status_code == 404
     )
+
+
+def test_additional_cost_patch_cross_tenant_cost_category_404(client):
+    """M2-c：PATCH additional-cost 引用他租户成本分类 → 404。"""
+    # A 租户
+    a = _admin(client)
+    wo = _wo_id(client, a)
+    aid = client.post(
+        f"/api/v1/work-orders/{wo}/additional-costs",
+        json={"title": "差旅", "amount": "50"},
+        headers=_h(a),
+    ).json()["id"]
+    cat_a = client.post(
+        "/api/v1/cost-categories", json={"name": "A类成本"}, headers=_h(a)
+    ).json()["id"]
+
+    # B 租户
+    b = _admin(client, company="Beta", email="admin@beta.com")
+    cat_b = client.post(
+        "/api/v1/cost-categories", json={"name": "B类成本"}, headers=_h(b)
+    ).json()["id"]
+
+    # A 租户对自己的 additional-cost PATCH，引用 B 租户的 cost_category → 404
+    r = client.patch(
+        f"/api/v1/work-orders/{wo}/additional-costs/{aid}",
+        json={"cost_category_id": cat_b},
+        headers=_h(a),
+    )
+    assert r.status_code == 404, f"期望 404，实际 {r.status_code}: {r.text}"
+
+    # 确认 cat_a 同租户分类可正常引用（防止误拦截）
+    r_ok = client.patch(
+        f"/api/v1/work-orders/{wo}/additional-costs/{aid}",
+        json={"cost_category_id": cat_a},
+        headers=_h(a),
+    )
+    assert r_ok.status_code == 200, f"同租户分类应 200，实际 {r_ok.status_code}: {r_ok.text}"

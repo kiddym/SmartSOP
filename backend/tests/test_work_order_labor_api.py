@@ -123,3 +123,58 @@ def test_labor_requires_edit_permission(client) -> None:
         headers=_h(viewer),
     )
     assert r.status_code == 403
+
+
+def test_labor_patch_cross_tenant_time_category_404(client) -> None:
+    """M2-a：PATCH labor 引用他租户时间分类 → 404。"""
+    # A 租户
+    a = _admin(client)
+    wo = _wo_id(client, a)
+    lid = client.post(
+        f"/api/v1/work-orders/{wo}/labor",
+        json={"duration_seconds": 60, "hourly_rate": "10"},
+        headers=_h(a),
+    ).json()["id"]
+    cat_a = client.post(
+        "/api/v1/time-categories", json={"name": "A类工时"}, headers=_h(a)
+    ).json()["id"]
+
+    # B 租户
+    b = _admin(client, company="Beta", email="admin@beta.com")
+    cat_b = client.post(
+        "/api/v1/time-categories", json={"name": "B类工时"}, headers=_h(b)
+    ).json()["id"]
+
+    # A 租户对自己的 labor PATCH，引用 B 租户的 time_category → 404
+    r = client.patch(
+        f"/api/v1/work-orders/{wo}/labor/{lid}",
+        json={"time_category_id": cat_b},
+        headers=_h(a),
+    )
+    assert r.status_code == 404, f"期望 404，实际 {r.status_code}: {r.text}"
+
+    # 确认 cat_a 本租户分类可正常引用（防止误拦截）
+    r_ok = client.patch(
+        f"/api/v1/work-orders/{wo}/labor/{lid}",
+        json={"time_category_id": cat_a},
+        headers=_h(a),
+    )
+    assert r_ok.status_code == 200, f"同租户分类应 200，实际 {r_ok.status_code}: {r_ok.text}"
+
+
+def test_labor_patch_nonexistent_time_category_404(client) -> None:
+    """M2-b：PATCH labor 引用不存在的 time_category → 404（API 集成层）。"""
+    a = _admin(client)
+    wo = _wo_id(client, a)
+    lid = client.post(
+        f"/api/v1/work-orders/{wo}/labor",
+        json={"duration_seconds": 60, "hourly_rate": "10"},
+        headers=_h(a),
+    ).json()["id"]
+
+    r = client.patch(
+        f"/api/v1/work-orders/{wo}/labor/{lid}",
+        json={"time_category_id": "nope"},
+        headers=_h(a),
+    )
+    assert r.status_code == 404, f"期望 404，实际 {r.status_code}: {r.text}"

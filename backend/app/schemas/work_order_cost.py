@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field
+from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
 
 class TimeCategoryCreate(BaseModel):
@@ -38,6 +38,20 @@ class LaborCreate(BaseModel):
     started_at: datetime | None = None
     stopped_at: datetime | None = None
     notes: str = ""
+
+    @model_validator(mode="after")
+    def _no_running_with_manual_duration(self) -> LaborCreate:
+        """禁止「运行中（仅 started_at）且手填 duration_seconds>0」的矛盾组合。
+
+        运行中的行 compute_cost 计 0（手填时长被忽略），且 stop 时会用 now-started_at
+        覆写 duration_seconds，手填值会静默丢失。
+        """
+        if self.started_at is not None and self.stopped_at is None and self.duration_seconds > 0:
+            raise ValueError(
+                "运行中的工时（仅给 started_at）不可同时手填 duration_seconds；"
+                "请用计时器或同时提供 stopped_at"
+            )
+        return self
 
 
 class LaborTimerStart(BaseModel):
