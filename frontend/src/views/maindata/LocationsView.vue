@@ -126,7 +126,7 @@ async function submitForm() {
   submitting.value = true
   try {
     const payload: LocationCreate | LocationUpdate = {
-      name: form.name,
+      name: form.name.trim(),
       description: form.description,
       parent_id: form.parent_id,
       address: form.address,

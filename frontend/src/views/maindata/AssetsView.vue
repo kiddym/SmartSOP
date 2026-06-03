@@ -230,7 +230,7 @@ async function submitForm() {
   submitting.value = true
   try {
     const payload: AssetCreate | AssetUpdate = {
-      name: form.name,
+      name: form.name.trim(),
       description: form.description,
       parent_id: form.parent_id,
       location_id: form.location_id,

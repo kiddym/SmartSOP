@@ -1,9 +1,3 @@
-export interface TreeNode {
-  id: string
-  parent_id: string | null
-  children?: TreeNode[]
-}
-
 /** 递归挂 children 的节点类型；叶子不含 children 键。 */
 export type Tree<T> = T & { children?: Tree<T>[] }
 
