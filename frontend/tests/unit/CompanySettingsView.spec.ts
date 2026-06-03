@@ -72,6 +72,13 @@ describe('CompanySettingsView', () => {
     await saveBtn!.trigger('click')
     await flushPromises()
 
-    expect(ucs).toHaveBeenCalledWith(expect.objectContaining({ timezone: 'Asia/Tokyo' }))
+    expect(ucs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        date_format: 'YYYY-MM-DD',
+        timezone: 'Asia/Tokyo',
+        default_currency_code: 'CNY',
+        auto_assign: true,
+      }),
+    )
   })
 })

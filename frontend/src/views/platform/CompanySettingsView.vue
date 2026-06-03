@@ -44,11 +44,13 @@ onMounted(async () => {
 
 // ── save ───────────────────────────────────────────────────
 async function handleSave() {
-  saving.value = true
   try {
+    saving.value = true
     const updated = await updateCompanySettings({ ...form })
     Object.assign(form, updated)
     ElMessage.success('保存成功')
+  } catch {
+    ElMessage.error('保存失败，请重试')
   } finally {
     saving.value = false
   }
