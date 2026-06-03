@@ -119,6 +119,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/platform/CurrenciesView.vue'),
     meta: { title: '货币', requiresAuth: true, requiredPermission: 'currency.manage' },
   },
+  {
+    path: '/maindata/locations',
+    name: 'maindata-locations',
+    component: () => import('@/views/maindata/LocationsView.vue'),
+    meta: { title: '位置', requiresAuth: true, requiredPermission: 'location.view' },
+  },
+  {
+    path: '/maindata/assets',
+    name: 'maindata-assets',
+    component: () => import('@/views/maindata/AssetsView.vue'),
+    meta: { title: '资产', requiresAuth: true, requiredPermission: 'asset.view' },
+  },
 ]
 
 const router = createRouter({
