@@ -24,6 +24,10 @@ function makeRouter(initialPath: string): Router {
       { path: '/platform/currencies', component: { template: '<div/>' } },
       { path: '/maindata/locations', component: { template: '<div/>' } },
       { path: '/maindata/assets', component: { template: '<div/>' } },
+      { path: '/inventory/parts', component: { template: '<div/>' } },
+      { path: '/inventory/purchase-orders', component: { template: '<div/>' } },
+      { path: '/inventory/vendors', component: { template: '<div/>' } },
+      { path: '/inventory/customers', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
   })
@@ -145,5 +149,21 @@ describe('AppSidebar', () => {
   it('在 /maindata/assets 时 activeMenu 为该路径', async () => {
     const w = await mountSidebar('/maindata/assets')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/maindata/assets')
+  })
+
+  it('供应组：备件库存/采购单/供应商/客户 均可点（无 is-disabled、不渲染「即将上线」）', async () => {
+    const w = await mountSidebar('/procedures/library')
+    const items = w.findAll('.el-menu-item')
+    const find = (label: string) => items.find((i) => i.text().includes(label))!
+    for (const label of ['备件库存', '采购单', '供应商', '客户']) {
+      const it = find(label)
+      expect(it.classes()).not.toContain('is-disabled')
+      expect(it.text()).not.toContain('即将上线')
+    }
+  })
+
+  it('在 /inventory/* 时 activeMenu 为该路径', async () => {
+    const w = await mountSidebar('/inventory/parts')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/inventory/parts')
   })
 })

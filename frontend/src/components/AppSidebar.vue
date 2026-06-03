@@ -57,10 +57,10 @@ const groups = computed<NavGroup[]>(() => [
   {
     label: '供应',
     items: [
-      { label: '备件库存', soon: true },
-      { label: '采购单', soon: true },
-      { label: '供应商', soon: true },
-      { label: '客户', soon: true },
+      { label: '备件库存', path: '/inventory/parts' },
+      { label: '采购单', path: '/inventory/purchase-orders' },
+      { label: '供应商', path: '/inventory/vendors' },
+      { label: '客户', path: '/inventory/customers' },
     ],
   },
   {
@@ -79,6 +79,7 @@ const groups = computed<NavGroup[]>(() => [
 const activeMenu = computed<string>(() => {
   if (route.path.startsWith('/platform/')) return route.path
   if (route.path.startsWith('/maindata/')) return route.path
+  if (route.path.startsWith('/inventory/')) return route.path
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   if (route.path.startsWith('/procedures')) return '/procedures/library'
   if (route.path.startsWith('/folders')) return '/folders'

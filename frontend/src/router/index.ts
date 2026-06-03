@@ -131,6 +131,30 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/maindata/AssetsView.vue'),
     meta: { title: '资产', requiresAuth: true, requiredPermission: 'asset.view' },
   },
+  {
+    path: '/inventory/parts',
+    name: 'inventory-parts',
+    component: () => import('@/views/inventory/PartsView.vue'),
+    meta: { title: '备件库存', requiresAuth: true, requiredPermission: 'part.view' },
+  },
+  {
+    path: '/inventory/purchase-orders',
+    name: 'inventory-purchase-orders',
+    component: () => import('@/views/inventory/PurchaseOrdersView.vue'),
+    meta: { title: '采购单', requiresAuth: true, requiredPermission: 'purchase_order.view' },
+  },
+  {
+    path: '/inventory/vendors',
+    name: 'inventory-vendors',
+    component: () => import('@/views/inventory/VendorsView.vue'),
+    meta: { title: '供应商', requiresAuth: true, requiredPermission: 'vendor.view' },
+  },
+  {
+    path: '/inventory/customers',
+    name: 'inventory-customers',
+    component: () => import('@/views/inventory/CustomersView.vue'),
+    meta: { title: '客户', requiresAuth: true, requiredPermission: 'customer.view' },
+  },
 ]
 
 const router = createRouter({
