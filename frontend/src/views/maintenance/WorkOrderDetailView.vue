@@ -78,9 +78,7 @@ onMounted(load)
 async function doTransition(t: { to: WorkOrderStatus; label: string }) {
   if (t.to === 'COMPLETE' || t.to === 'CANCELED') {
     const msg =
-      t.to === 'COMPLETE'
-        ? '确认标记完成？若有未完成步骤将被后端拒绝'
-        : '确认取消该工单？'
+      t.to === 'COMPLETE' ? '确认标记完成？若有未完成步骤将被后端拒绝' : '确认取消该工单？'
     const result = await ElMessageBox.confirm(msg, '提示', { type: 'warning' }).catch(
       () => '__cancel__',
     )
@@ -104,21 +102,12 @@ defineExpose({ doTransition, load, wo })
       <el-button link @click="router.push('/maintenance/work-orders')">← 返回</el-button>
       <div class="header-main">
         <span v-if="wo" class="page-title">{{ wo.custom_id }} {{ wo.title }}</span>
-        <el-tag
-          v-if="wo"
-          :type="WO_STATUS_TAG[wo.status]"
-          style="margin-left: 12px"
-        >
+        <el-tag v-if="wo" :type="WO_STATUS_TAG[wo.status]" style="margin-left: 12px">
           {{ WO_STATUS_LABELS[wo.status] }}
         </el-tag>
       </div>
       <div v-if="auth.hasPermission('work_order.edit')" class="header-actions">
-        <el-button
-          v-for="t in transitions"
-          :key="t.to"
-          type="primary"
-          @click="doTransition(t)"
-        >
+        <el-button v-for="t in transitions" :key="t.to" type="primary" @click="doTransition(t)">
           {{ t.label }}
         </el-button>
         <el-button @click="editVisible = true">编辑</el-button>
@@ -142,12 +131,7 @@ defineExpose({ doTransition, load, wo })
     </el-tabs>
 
     <!-- 编辑对话框 -->
-    <WorkOrderFormDialog
-      v-model:visible="editVisible"
-      mode="edit"
-      :editing="wo"
-      @saved="load"
-    />
+    <WorkOrderFormDialog v-model:visible="editVisible" mode="edit" :editing="wo" @saved="load" />
   </div>
 </template>
 
