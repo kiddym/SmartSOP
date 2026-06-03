@@ -266,9 +266,6 @@ async function submitForm() {
   }
 }
 
-// expose for tests (cycle-prevention assertion on parentOptions)
-defineExpose({ parentOptions, openEdit })
-
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: AssetRead) {
   try {
@@ -295,6 +292,9 @@ function openDowntime(row: AssetRead) {
   downtimeAsset.value = { id: row.id, name: row.name }
   downtimeDialogVisible.value = true
 }
+
+// expose for tests (cycle-prevention on parentOptions, downtime entry wiring)
+defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
 </script>
 
 <template>
