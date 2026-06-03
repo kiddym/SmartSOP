@@ -49,9 +49,9 @@ const groups = computed<NavGroup[]>(() => [
       { label: '工单', soon: true },
       { label: '资产', path: '/maindata/assets' },
       { label: '位置', path: '/maindata/locations' },
-      { label: '请求', soon: true },
-      { label: '预防性维护', soon: true },
-      { label: '计量', soon: true },
+      { label: '请求', path: '/maintenance/requests' },
+      { label: '预防性维护', path: '/maintenance/preventive-maintenances' },
+      { label: '计量', path: '/maintenance/meters' },
     ],
   },
   {
@@ -80,6 +80,7 @@ const activeMenu = computed<string>(() => {
   if (route.path.startsWith('/platform/')) return route.path
   if (route.path.startsWith('/maindata/')) return route.path
   if (route.path.startsWith('/inventory/')) return route.path
+  if (route.path.startsWith('/maintenance/')) return route.path
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   if (route.path.startsWith('/procedures')) return '/procedures/library'
   if (route.path.startsWith('/folders')) return '/folders'

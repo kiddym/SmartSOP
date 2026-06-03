@@ -28,6 +28,9 @@ function makeRouter(initialPath: string): Router {
       { path: '/inventory/purchase-orders', component: { template: '<div/>' } },
       { path: '/inventory/vendors', component: { template: '<div/>' } },
       { path: '/inventory/customers', component: { template: '<div/>' } },
+      { path: '/maintenance/requests', component: { template: '<div/>' } },
+      { path: '/maintenance/preventive-maintenances', component: { template: '<div/>' } },
+      { path: '/maintenance/meters', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
   })
@@ -127,23 +130,25 @@ describe('AppSidebar', () => {
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('')
   })
 
-  it('维护组：资产/位置 可点（无 is-disabled、含路由 index），工单/请求/预防性维护/计量 仍禁用', async () => {
+  it('维护组：资产/位置/请求/预防性维护/计量 可点（无 is-disabled、不渲染「即将上线」），仅工单仍禁用', async () => {
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     const find = (label: string) => items.find((i) => i.text().includes(label))!
 
-    const asset = find('资产')
-    const location = find('位置')
-    expect(asset.classes()).not.toContain('is-disabled')
-    expect(location.classes()).not.toContain('is-disabled')
-    expect(asset.text()).not.toContain('即将上线')
-    expect(location.text()).not.toContain('即将上线')
-
-    for (const label of ['工单', '请求', '预防性维护', '计量']) {
+    for (const label of ['资产', '位置', '请求', '预防性维护', '计量']) {
       const it = find(label)
-      expect(it.classes()).toContain('is-disabled')
-      expect(it.text()).toContain('即将上线')
+      expect(it.classes()).not.toContain('is-disabled')
+      expect(it.text()).not.toContain('即将上线')
     }
+
+    const wo = find('工单')
+    expect(wo.classes()).toContain('is-disabled')
+    expect(wo.text()).toContain('即将上线')
+  })
+
+  it('在 /maintenance/* 时 activeMenu 为该路径', async () => {
+    const w = await mountSidebar('/maintenance/requests')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/maintenance/requests')
   })
 
   it('在 /maindata/assets 时 activeMenu 为该路径', async () => {

@@ -155,6 +155,28 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/inventory/CustomersView.vue'),
     meta: { title: '客户', requiresAuth: true, requiredPermission: 'customer.view' },
   },
+  {
+    path: '/maintenance/requests',
+    name: 'maintenance-requests',
+    component: () => import('@/views/maintenance/RequestsView.vue'),
+    meta: { title: '请求', requiresAuth: true, requiredPermission: 'request.view' },
+  },
+  {
+    path: '/maintenance/preventive-maintenances',
+    name: 'maintenance-preventive-maintenances',
+    component: () => import('@/views/maintenance/PreventiveMaintenancesView.vue'),
+    meta: {
+      title: '预防性维护',
+      requiresAuth: true,
+      requiredPermission: 'preventive_maintenance.view',
+    },
+  },
+  {
+    path: '/maintenance/meters',
+    name: 'maintenance-meters',
+    component: () => import('@/views/maintenance/MetersView.vue'),
+    meta: { title: '计量', requiresAuth: true, requiredPermission: 'meter.view' },
+  },
 ]
 
 const router = createRouter({

@@ -1,5 +1,6 @@
 import { http } from './http'
 import type { BatchDeleteResult, PageResult } from '@/types/common'
+import type { ProcedureMini } from '@/types/maintenance'
 import type { PdfLayout } from '@/types/pdf'
 import type {
   BatchMoveResult,
@@ -114,10 +115,7 @@ export const archiveGroup = async (id: string, reason: string): Promise<Procedur
 export const restorePreview = async (id: string): Promise<RestorePreview> =>
   (await http.get<RestorePreview>(`/procedures/${id}/restore-preview`)).data
 
-export const restoreGroup = async (
-  id: string,
-  payload: RestorePayload,
-): Promise<ProcedureMeta> =>
+export const restoreGroup = async (id: string, payload: RestorePayload): Promise<ProcedureMeta> =>
   (await http.post<ProcedureMeta>(`/procedures/${id}/restore`, payload)).data
 
 export const copyProcedure = async (id: string, payload: CopyPayload): Promise<ProcedureMeta> =>
@@ -175,4 +173,10 @@ export const fetchSourceDocx = async (
   } catch {
     return null
   }
+}
+
+// 维护域（PM/请求审批/触发器）的 procedure 下拉源：取当前版本行，扁平为 {id,name}
+export const listProceduresMini = async (): Promise<ProcedureMini[]> => {
+  const page = await fetchProcedureList({ page: 1, page_size: 100 })
+  return page.items.filter((p) => p.is_current).map((p) => ({ id: p.id, name: p.name }))
 }
