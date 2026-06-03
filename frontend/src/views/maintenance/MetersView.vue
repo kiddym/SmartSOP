@@ -380,7 +380,7 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
         <el-form-item label="推荐更新频率(天)">
           <el-input-number
             v-model="metaForm.update_frequency_days"
-            :min="0"
+            :min="1"
             controls-position="right"
             style="width: 100%"
           />

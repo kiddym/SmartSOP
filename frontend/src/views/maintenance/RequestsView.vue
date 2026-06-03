@@ -28,7 +28,7 @@ import type {
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
-import { formatDate, formatDateTime } from '@/utils/format'
+import { formatDateTime } from '@/utils/format'
 
 const auth = useAuthStore()
 
@@ -433,7 +433,7 @@ defineExpose({
         <template #default="{ row }">{{ locationName(row.location_id) }}</template>
       </el-table-column>
       <el-table-column label="到期" min-width="120">
-        <template #default="{ row }">{{ row.due_date ? formatDate(row.due_date) : '—' }}</template>
+        <template #default="{ row }">{{ row.due_date || '—' }}</template>
       </el-table-column>
       <el-table-column label="工单" min-width="120" align="center">
         <template #default="{ row }">
