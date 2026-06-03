@@ -637,11 +637,11 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 每个面板组件 `<script setup lang="ts">`：
 - props `baseParams: Record<string, string | undefined>`。
 - state：自身响应数据 `ref<XxxAnalytics | null>(null)`、`loading`、（部分）`assetsMini`/`users` 做 id→name 映射、（部分）自身分类过滤。
-- `buildParams()`：从 `props.baseParams` 拷贝并剔除 `undefined` 键（`Object.fromEntries(Object.entries(props.baseParams).filter(([, v]) => v !== undefined))`），叠加面板特有键（category_id/granularity）。**注意**：personnel/trends 端点只认 date_*，多余键后端忽略无害，但为干净起见 personnel/trends 面板可只取 date_from/date_to。
+- `buildParams(): AnalyticsParams`（**注解返回类型为 `AnalyticsParams`**，给调用点类型契约）：从 `props.baseParams` 拷贝并剔除 `undefined` 键（`Object.fromEntries(Object.entries(props.baseParams).filter(([, v]) => v !== undefined)) as AnalyticsParams`），叠加面板特有键（category_id/granularity）。**注意**：personnel/trends 端点只认 date_*，多余键后端忽略无害，但为干净起见 personnel/trends 面板只取 date_from/date_to。
 - `fetch()`：`loading=true; try { data.value = await getXxxAnalytics(buildParams()) } catch { ElMessage.error('加载失败，请重试') } finally { loading=false }`。
 - `watch(() => props.baseParams, fetch, { immediate: true, deep: true })`。
 - 图表经 `<BaseChart :option="xxxOption" />`，option 用 `computed` 从 data 生成（data 为 null 时返回空 series 的安全 option）。
-- 「导出CSV」按钮 `@click="exportAnalytics('<dashboard>', buildParams())"`。
+- 「导出CSV」按钮经 `onExport` 处理器（**带 try/catch**，避免未捕获 rejection）：`async function onExport() { try { await exportAnalytics('<dashboard>', buildParams()) } catch { ElMessage.error('导出失败，请重试') } }`，按钮 `@click="onExport"`。
 - helper 函数化映射：`assetName(id)`/`userName(id)` 查 mini（缺失→id 或 '—'）。
 - 模板根 `<div class="panel" v-loading="loading">`，KPI 行 `el-row`/`el-col`，图表/表格分块。
 - 数值展示：`pct(n)`=`(n).toFixed(1)`、`hrs(n)`=`n==null?'—':n.toFixed(1)`、金额 string 直接渲染（null→'—'）。
