@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
@@ -75,6 +75,12 @@ beforeEach(() => {
   lt.mockReset().mockResolvedValue([{ id: 't1', name: '机械组', description: '', member_ids: [] }])
 })
 
+// el-dialog 通过 teleport 挂到 document.body，attachTo 不会随组件卸载清理，
+// 测试间会残留旧 dialog 干扰 querySelector，这里手动清空。
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
 describe('LocationsView', () => {
   it('加载并渲染位置树行（含父子）', async () => {
     const w = mountView()
@@ -105,6 +111,32 @@ describe('LocationsView', () => {
     await flushPromises()
     expect(cl).toHaveBeenCalled()
     expect(cl.mock.calls[0][0]).toMatchObject({ name: '新机房' })
+  })
+
+  it('编辑回填名称到表单', async () => {
+    const w = mountView()
+    await flushPromises()
+    const editBtn = w.findAll('.el-button').find((b) => b.text() === '编辑')
+    expect(editBtn).toBeTruthy()
+    await editBtn!.trigger('click')
+    await flushPromises()
+    const nameInput = document.querySelector(
+      '.el-dialog input[placeholder="请输入名称"]',
+    ) as HTMLInputElement
+    expect(nameInput.value).toBe('总部大楼')
+  })
+
+  it('编辑时父位置选项排除自身与后代（防环）', async () => {
+    const w = mountView()
+    await flushPromises()
+    // 第一个「编辑」按钮对应根行 l1（default-expand-all），其后代为 l2。
+    const editBtn = w.findAll('.el-button').find((b) => b.text() === '编辑')
+    await editBtn!.trigger('click')
+    await flushPromises()
+    const vm = w.vm as unknown as { parentOptions: Array<{ id: string }> }
+    const ids = vm.parentOptions.map((l) => l.id)
+    expect(ids).not.toContain('l1')
+    expect(ids).not.toContain('l2')
   })
 
   it('删除经确认调用 deleteLocation', async () => {

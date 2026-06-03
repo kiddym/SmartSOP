@@ -128,10 +128,10 @@ async function submitForm() {
     const payload: LocationCreate | LocationUpdate = {
       name: form.name,
       description: form.description,
-      parent_id: form.parent_id ?? null,
+      parent_id: form.parent_id,
       address: form.address,
-      longitude: form.longitude ?? null,
-      latitude: form.latitude ?? null,
+      longitude: form.longitude,
+      latitude: form.latitude,
       assigned_user_ids: form.assigned_user_ids,
       team_ids: form.team_ids,
     }
@@ -151,6 +151,9 @@ async function submitForm() {
     submitting.value = false
   }
 }
+
+// expose for tests (cycle-prevention assertion on parentOptions)
+defineExpose({ parentOptions, openEdit })
 
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: LocationRead) {
