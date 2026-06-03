@@ -1166,6 +1166,7 @@ describe('MeterTriggerDialog', () => {
     vm.form.name = '高温触发'
     vm.form.comparator = 'MORE_THAN'
     vm.form.threshold = '80'
+    vm.form.title = '降温处理'
     await flushPromises()
     const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
       (b) => b.textContent?.trim() === '保存',
@@ -1174,7 +1175,12 @@ describe('MeterTriggerDialog', () => {
     await flushPromises()
     expect(ct).toHaveBeenCalled()
     expect(ct.mock.calls[0][0]).toBe('m1')
-    expect(ct.mock.calls[0][1]).toMatchObject({ name: '高温触发', comparator: 'MORE_THAN', threshold: '80' })
+    expect(ct.mock.calls[0][1]).toMatchObject({
+      name: '高温触发',
+      comparator: 'MORE_THAN',
+      threshold: '80',
+      title: '降温处理',
+    })
     expect(w.emitted('saved')).toBeTruthy()
   })
 
@@ -1227,11 +1233,12 @@ describe('MeterTriggerDialog', () => {
 - props：`visible: boolean`、`meterId: string`、`editing: TriggerRead | null`。emits：`update:visible`、`saved`。
 - import：`createTrigger`/`updateTrigger`、`listUsers`/`listTeams`/`listProceduresMini`、`useAuthStore`、types、`ElMessage`。
 - 常量：`COMPARATOR_OPTIONS = [{ value: 'LESS_THAN', label: '小于' }, { value: 'MORE_THAN', label: '大于' }]`；`PRIORITY_OPTIONS`（同前）。
-- state：`users`/`teams`/`procedures`、`submitting`、`form = reactive<{name,comparator,threshold,priority,title,description,primary_user_id,procedure_id,assignee_ids,team_ids,is_enabled}>`（comparator 'MORE_THAN'，threshold ''，priority 'NONE'，title ''，description ''，primary/procedure null，数组 []，is_enabled true）。
+- state：`users`/`teams`/`procedures`、`submitting`、`form = reactive<{name,comparator,threshold,priority,title,description,primary_user_id,procedure_id,assignee_ids,team_ids}>`（comparator 'MORE_THAN'，threshold ''，priority 'NONE'，title ''，description ''，primary/procedure null，数组 []）。
+  - > 注：后端 `TriggerCreate` **无 `is_enabled` 字段**（启用/停用经独立 `/enable`·`/disable` 端点，在 MetersView 触发器子表行操作里做）；新建触发器默认启用。故本对话框**不放启用开关**、payload 不含 is_enabled。`title`（生单标题）后端**必填**。
 - `watch(() => props.visible, (v) => { if (v) { fetchOptions(); resetOrFill() } }, { immediate: true })`：打开时拉 users/teams/procedures，并按 `props.editing` 回填或重置 form。
-  - `resetOrFill`：editing 为 null→重置默认；否则逐字段回填 + 数组深拷贝。
-- 模板：`el-dialog :model-value="visible" @update:model-value="(v)=>emit('update:visible',v)" title="触发器" width="640px"` 内 `el-form`：名称(必填 placeholder「请输入触发器名称」)、比较符(`el-select` COMPARATOR_OPTIONS)、阈值(`el-input` placeholder「阈值」)、优先级、生单标题、描述(textarea)、负责人(`el-select clearable filterable` users)、协办人(multiple)、团队(multiple)、关联程序(clearable filterable procedures)、启用(`el-switch` is_enabled)。footer：「保存」→ submitForm、「取消」→ emit update:visible false。
-- `submitForm`：校验 `form.name.trim()` 与 `form.threshold`（空→`ElMessage.warning('请填写名称与阈值')` 返回）；payload `{ name: form.name.trim(), comparator: form.comparator, threshold: form.threshold, priority: form.priority, title: form.title, description: form.description, primary_user_id: form.primary_user_id || null, procedure_id: form.procedure_id || null, assignee_ids: form.assignee_ids, team_ids: form.team_ids, is_enabled: form.is_enabled }`；`props.editing ? updateTrigger(props.meterId, props.editing.id, payload) : createTrigger(props.meterId, payload)`；成功 `ElMessage.success('保存成功')` + `emit('saved')` + `emit('update:visible', false)`；try/catch 本地化 `ElMessage.error('保存失败，请重试')`，finally submitting=false。
+  - `resetOrFill`：editing 为 null→重置默认；否则逐字段回填（name/comparator/threshold/priority/title/description/primary_user_id/procedure_id）+ 数组深拷贝 `[...editing.assignee_ids]`/`[...editing.team_ids]`。
+- 模板：`el-dialog :model-value="visible" @update:model-value="(v)=>emit('update:visible',v)" title="触发器" width="640px"` 内 `el-form`：名称(必填 placeholder「请输入触发器名称」)、比较符(`el-select` COMPARATOR_OPTIONS)、阈值(`el-input` placeholder「阈值」)、优先级、生单标题(必填 placeholder「触发时生成的工单标题」)、描述(textarea)、负责人(`el-select clearable filterable` users)、协办人(multiple)、团队(multiple)、关联程序(clearable filterable procedures)。footer：「保存」→ submitForm、「取消」→ emit update:visible false。
+- `submitForm`：校验 `form.name.trim()`、`form.threshold`、`form.title.trim()`（任一空→`ElMessage.warning('请填写名称、阈值与生单标题')` 返回）；payload `{ name: form.name.trim(), comparator: form.comparator, threshold: form.threshold, priority: form.priority, title: form.title.trim(), description: form.description, primary_user_id: form.primary_user_id || null, procedure_id: form.procedure_id || null, assignee_ids: form.assignee_ids, team_ids: form.team_ids }`；`props.editing ? updateTrigger(props.meterId, props.editing.id, payload) : createTrigger(props.meterId, payload)`；成功 `ElMessage.success('保存成功')` + `emit('saved')` + `emit('update:visible', false)`；try/catch 本地化 `ElMessage.error('保存失败，请重试')`，finally submitting=false。
 - `defineExpose({ form, submitForm })`（供测试驱动）。
 
 ### 4B 计量 View
