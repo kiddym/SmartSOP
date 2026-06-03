@@ -31,12 +31,13 @@ function makeRouter(initialPath: string): Router {
       { path: '/maintenance/requests', component: { template: '<div/>' } },
       { path: '/maintenance/preventive-maintenances', component: { template: '<div/>' } },
       { path: '/maintenance/meters', component: { template: '<div/>' } },
+      { path: '/analytics', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
   })
 }
 
-function setUser(roleCode: string | null): void {
+function setUser(roleCode: string | null, permissions: string[] = []): void {
   const store = useAuthStore()
   store.user = {
     id: 'u1',
@@ -44,7 +45,7 @@ function setUser(roleCode: string | null): void {
     name: 'A',
     company_id: 'c1',
     role_code: roleCode,
-    permissions: [],
+    permissions,
   } satisfies CurrentUser
 }
 
@@ -170,5 +171,33 @@ describe('AppSidebar', () => {
   it('在 /inventory/* 时 activeMenu 为该路径', async () => {
     const w = await mountSidebar('/inventory/parts')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/inventory/parts')
+  })
+
+  it('洞察组：有 analytics.view 时「分析仪表盘」带 path、无 soon', async () => {
+    setUser('manager', ['analytics.view'])
+    const w = await mountSidebar('/analytics')
+    const items = (
+      w.vm as unknown as { insightItems: { label: string; path?: string; soon?: boolean }[] }
+    ).insightItems
+    const dash = items.find((i) => i.label === '分析仪表盘')!
+    expect(dash).toBeTruthy()
+    expect(dash.path).toBe('/analytics')
+    expect(dash.soon).toBeFalsy()
+    // 通知中心仍 soon
+    const notif = items.find((i) => i.label === '通知中心')!
+    expect(notif.soon).toBe(true)
+  })
+
+  it('洞察组：无 analytics.view 时隐藏「分析仪表盘」', async () => {
+    setUser('manager', [])
+    const w = await mountSidebar('/procedures/library')
+    const items = (w.vm as unknown as { insightItems: { label: string }[] }).insightItems
+    expect(items.map((i) => i.label)).toEqual(['通知中心'])
+  })
+
+  it('在 /analytics 时 activeMenu 为该路径', async () => {
+    setUser('super_admin')
+    const w = await mountSidebar('/analytics')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/analytics')
   })
 })

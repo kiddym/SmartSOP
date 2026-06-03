@@ -12,6 +12,7 @@ interface NavItem {
   label: string
   path?: string
   soon?: boolean
+  requiredPermission?: string
 }
 interface NavGroup {
   label: string
@@ -30,6 +31,16 @@ const platformItems = computed<NavItem[]>(() => {
   if (auth.user?.role_code !== 'super_admin') {
     return items.filter((it) => it.path !== '/platform/currencies')
   }
+  return items
+})
+
+// 「分析仪表盘」按 analytics.view 门控：有权限才显示并可点；无权限则隐藏。
+const insightItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = []
+  if (auth.hasPermission('analytics.view')) {
+    items.push({ label: '分析仪表盘', path: '/analytics', requiredPermission: 'analytics.view' })
+  }
+  items.push({ label: '通知中心', soon: true })
   return items
 })
 
@@ -65,10 +76,7 @@ const groups = computed<NavGroup[]>(() => [
   },
   {
     label: '洞察',
-    items: [
-      { label: '分析仪表盘', soon: true },
-      { label: '通知中心', soon: true },
-    ],
+    items: insightItems.value,
   },
   {
     label: '平台',
@@ -81,6 +89,7 @@ const activeMenu = computed<string>(() => {
   if (route.path.startsWith('/maindata/')) return route.path
   if (route.path.startsWith('/inventory/')) return route.path
   if (route.path.startsWith('/maintenance/')) return route.path
+  if (route.path.startsWith('/analytics')) return route.path
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   if (route.path.startsWith('/procedures')) return '/procedures/library'
   if (route.path.startsWith('/folders')) return '/folders'
@@ -88,7 +97,7 @@ const activeMenu = computed<string>(() => {
   return ''
 })
 
-defineExpose({ activeMenu, platformItems })
+defineExpose({ activeMenu, platformItems, insightItems })
 </script>
 
 <template>

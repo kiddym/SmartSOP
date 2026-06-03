@@ -177,6 +177,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/maintenance/MetersView.vue'),
     meta: { title: '计量', requiresAuth: true, requiredPermission: 'meter.view' },
   },
+  {
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('@/views/analytics/AnalyticsView.vue'),
+    meta: { title: '分析仪表盘', requiresAuth: true, requiredPermission: 'analytics.view' },
+  },
 ]
 
 const router = createRouter({
