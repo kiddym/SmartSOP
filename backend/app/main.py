@@ -61,6 +61,7 @@ from app.routers import (
     work_order_costs,
     work_orders,
 )
+from app.routers import permissions as permissions_router
 from app.routers import settings as settings_router
 from app.seed import run_seed
 from app.tenant_middleware import TenantContextMiddleware
@@ -166,6 +167,7 @@ app.include_router(nodes.router)
 app.include_router(company.router)
 app.include_router(company_settings.router)
 app.include_router(roles.router)
+app.include_router(permissions_router.router)
 app.include_router(users.router)
 app.include_router(currencies.router)
 
