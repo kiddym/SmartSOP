@@ -89,6 +89,36 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/settings/HeadingRulesView.vue'),
     meta: { title: '标题字典', requiresAuth: true },
   },
+  {
+    path: '/platform/users',
+    name: 'platform-users',
+    component: () => import('@/views/platform/UsersView.vue'),
+    meta: { title: '用户', requiresAuth: true, requiredPermission: 'user.view' },
+  },
+  {
+    path: '/platform/roles',
+    name: 'platform-roles',
+    component: () => import('@/views/platform/RolesView.vue'),
+    meta: { title: '角色', requiresAuth: true, requiredPermission: 'role.view' },
+  },
+  {
+    path: '/platform/teams',
+    name: 'platform-teams',
+    component: () => import('@/views/platform/TeamsView.vue'),
+    meta: { title: '团队', requiresAuth: true, requiredPermission: 'team.view' },
+  },
+  {
+    path: '/platform/settings',
+    name: 'platform-settings',
+    component: () => import('@/views/platform/CompanySettingsView.vue'),
+    meta: { title: '公司设置', requiresAuth: true },
+  },
+  {
+    path: '/platform/currencies',
+    name: 'platform-currencies',
+    component: () => import('@/views/platform/CurrenciesView.vue'),
+    meta: { title: '货币', requiresAuth: true, requiredPermission: 'currency.manage' },
+  },
 ]
 
 const router = createRouter({

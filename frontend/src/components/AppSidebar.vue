@@ -2,9 +2,11 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMenu, ElMenuItem } from 'element-plus'
+import { useAuthStore } from '@/store/auth'
 
 defineProps<{ collapsed: boolean }>()
 const route = useRoute()
+const auth = useAuthStore()
 
 interface NavItem {
   label: string
@@ -16,7 +18,22 @@ interface NavGroup {
   items: NavItem[]
 }
 
-const groups: NavGroup[] = [
+// 货币管理仅 super_admin 可见；其余平台项不受限。
+const platformItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = [
+    { label: '用户', path: '/platform/users' },
+    { label: '角色', path: '/platform/roles' },
+    { label: '团队', path: '/platform/teams' },
+    { label: '公司设置', path: '/platform/settings' },
+    { label: '货币', path: '/platform/currencies' },
+  ]
+  if (auth.user?.role_code !== 'super_admin') {
+    return items.filter((it) => it.path !== '/platform/currencies')
+  }
+  return items
+})
+
+const groups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
     items: [
@@ -55,16 +72,12 @@ const groups: NavGroup[] = [
   },
   {
     label: '平台',
-    items: [
-      { label: '用户', soon: true },
-      { label: '角色', soon: true },
-      { label: '团队', soon: true },
-      { label: '公司设置', soon: true },
-    ],
+    items: platformItems.value,
   },
-]
+])
 
 const activeMenu = computed<string>(() => {
+  if (route.path.startsWith('/platform/')) return route.path
   if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
   if (route.path.startsWith('/procedures')) return '/procedures/library'
   if (route.path.startsWith('/folders')) return '/folders'
@@ -72,7 +85,7 @@ const activeMenu = computed<string>(() => {
   return ''
 })
 
-defineExpose({ activeMenu })
+defineExpose({ activeMenu, platformItems })
 </script>
 
 <template>
