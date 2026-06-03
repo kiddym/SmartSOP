@@ -75,10 +75,10 @@ async function submitForm() {
   submitting.value = true
   try {
     if (formMode.value === 'create') {
-      await createAssetCategory({ name: form.name })
+      await createAssetCategory({ name: form.name.trim() })
     } else {
       if (!editingId.value) return
-      await updateAssetCategory(editingId.value, { name: form.name })
+      await updateAssetCategory(editingId.value, { name: form.name.trim() })
     }
     ElMessage.success('保存成功')
     formVisible.value = false
