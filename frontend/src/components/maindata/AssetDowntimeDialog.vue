@@ -33,8 +33,8 @@ async function fetchDowntimes() {
 }
 
 watch(
-  () => props.visible,
-  (v) => {
+  () => [props.visible, props.asset?.id] as const,
+  ([v]) => {
     if (v && props.asset) fetchDowntimes()
   },
   { immediate: true },
@@ -108,6 +108,8 @@ async function submitClose() {
     submitting.value = false
   }
 }
+
+defineExpose({ addForm, openAdd, submitAdd })
 </script>
 
 <template>
