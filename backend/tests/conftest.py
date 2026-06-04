@@ -215,6 +215,40 @@ def _enterprise_default() -> Generator[None, None, None]:
         event.remove(Company, "before_insert", _stamp)
 
 
+@pytest.fixture
+def _sop_auth(_enterprise_default, client, db):
+    """SOP 测试登录态：注册一家 enterprise 公司，默认带 token，并设 tenant 上下文。
+
+    - _enterprise_default（before_insert）确保新公司 enterprise → 解锁 sop。
+    - client 默认 header 让无 header 的既有 client 调用自动带 token（测试体不动）。
+    - 同步设 tenant 上下文：让用 factory 直接 db.add 的行也被盖对 company_id
+      （否则直建行 company_id=NULL，被自动过滤后 API 查不到）。
+    """
+    from sqlalchemy import select
+
+    from app import tenant
+    from app.models.company import Company
+
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={
+            "company_name": "SOPCo",
+            "email": "sop@example.com",
+            "password": "secret123",
+            "name": "Admin",
+        },
+    )
+    token = resp.json()["access_token"]
+    company_id = db.execute(select(Company).where(Company.slug == "sopco")).scalar_one().id
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    ctx = tenant.set_current_company_id(company_id)
+    try:
+        yield company_id
+    finally:
+        tenant.reset_current_company_id(ctx)
+        client.headers.pop("Authorization", None)
+
+
 @pytest.fixture(autouse=True)
 def _clear_tenant_context():
     """Each test starts/ends with no tenant scope (prevents leakage)."""
