@@ -73,6 +73,11 @@ h3,
   border-radius: 4px;
 }
 
+/* EP 按钮自带 outline 焦点环，避免与上面的 box-shadow 光环叠加成双环 */
+.el-button:focus-visible {
+  outline: none;
+}
+
 /* ---- 角标脉冲（通知/未读） ---- */
 @keyframes u-pulse {
   0%, 100% { opacity: 1; }
