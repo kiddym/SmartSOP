@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import AppTopBar from '@/components/AppTopBar.vue'
 import i18n from '@/i18n'
+import { useThemeStore } from '@/store/theme'
 
 // 最小路由 stub：只要 push 不报错即可
 function makeRouter() {
@@ -55,6 +56,16 @@ describe('AppTopBar', () => {
   it('不在顶栏渲染禁用的占位搜索框（全库搜索未上线前不占位）', () => {
     const w = mountTopBar()
     expect(w.find('input.topbar-search').exists()).toBe(false)
+  })
+
+  it('渲染主题切换按钮，点击切换暗/浅', async () => {
+    const w = mountTopBar()
+    const btn = w.find('.topbar-theme')
+    expect(btn.exists()).toBe(true)
+    const theme = useThemeStore()
+    const before = theme.isDark
+    await btn.trigger('click')
+    expect(theme.isDark).toBe(!before)
   })
 
   it('unreadCount 默认（不传）不渲染徽标', () => {

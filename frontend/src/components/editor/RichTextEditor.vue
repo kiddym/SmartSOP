@@ -114,7 +114,9 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="rte" :class="{ 'rte--readonly': readonly }">
+  <!-- paper：亮纸孤岛（design-system §3.8/§4.4）。暗壳下编辑器整体维持浅色，
+       像桌上一张待打印的文件；WangEditor 自带浅色主题天然契合。 -->
+  <div class="rte paper" :class="{ 'rte--readonly': readonly }">
     <Toolbar
       class="rte-toolbar"
       :editor="editorRef"
@@ -145,9 +147,10 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .rte {
-  border: 1px solid var(--el-border-color, #dcdfe6);
+  border: 1px solid var(--border-subtle, #dcdfe6);
   border-radius: 4px;
   overflow: hidden;
+  background: var(--bg-elevated); /* 纸底（.paper 下为浅白） */
 }
 .rte-toolbar {
   border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
@@ -157,13 +160,13 @@ onBeforeUnmount(() => {
   gap: 4px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--el-border-color-lighter, #ebeef5);
-  background: #fafafa;
+  background: var(--bg-hover);
 }
 .rte-body {
   min-height: 240px;
   overflow-y: auto;
 }
 .rte--readonly .rte-body {
-  background: #fafafa;
+  background: var(--bg-hover);
 }
 </style>

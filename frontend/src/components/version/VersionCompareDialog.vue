@@ -144,20 +144,20 @@ function charSegs(r: DiffRow) {
 .vc-line { display: flex; align-items: center; gap: 10px; padding: 6px 8px; }
 .vc-line.clickable { cursor: pointer; }
 .vc-glyph { width: 16px; text-align: center; font-weight: bold; }
-.vc-code { min-width: 48px; color: #909399; }
+.vc-code { min-width: 48px; color: var(--text-tertiary); }
 .vc-rowtitle { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.is-added { background: #f0f9eb; }
-.is-removed { background: #fef0f0; }
-.is-modified { background: #fdf6ec; }
+.is-added { background: var(--diff-add-bg); }
+.is-removed { background: var(--diff-del-bg); }
+.is-modified { background: var(--diff-mod-bg); }
 .vc-bodies { display: flex; gap: 16px; padding: 8px 8px 12px 42px; }
 .vc-col { flex: 1; min-width: 0; }
 .vc-coltag { font-size: 12px; color: #909399; margin-bottom: 4px; }
-.vc-html { border: 1px solid var(--el-border-color-lighter, #ebeef5); border-radius: 4px; padding: 8px; background: #fff; overflow-x: auto; }
+.vc-html { border: 1px solid var(--el-border-color-lighter, #ebeef5); border-radius: 4px; padding: 8px; background: var(--bg-elevated); overflow-x: auto; }
 .vc-chardiff {
   flex: 1;
   min-width: 0;
   padding: 8px;
-  background: #fff;
+  background: var(--bg-elevated);
   border: 1px solid var(--el-border-color-lighter, #ebeef5);
   border-radius: 4px;
   white-space: pre-wrap;
@@ -165,12 +165,12 @@ function charSegs(r: DiffRow) {
   line-height: 1.6;
 }
 .vc-del {
-  background: #fde2e2;
-  color: #c0392b;
+  background: var(--diff-del-bg);
+  color: var(--el-color-danger, #c0392b);
   text-decoration: line-through;
 }
 .vc-ins {
-  background: #e3f9e5;
-  color: #2e7d32;
+  background: var(--diff-add-bg);
+  color: var(--el-color-success, #2e7d32);
 }
 </style>

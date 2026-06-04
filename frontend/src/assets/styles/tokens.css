@@ -24,6 +24,14 @@
   --text-secondary: #6b635a; /* 次要文字 / 标签 */
   --text-tertiary: #9a8e80; /* 占位 / 分组标题 / 计数 */
   --text-disabled: #bbbbbb; /* 禁用（即将上线 / 锁标 / 空态图标） */
+  --bg-hover: #f0ece6; /* 行 / 按钮 hover */
+  --border-strong: #d4cfc6; /* 需存在感的分隔 */
+
+  /* diff / 评审高亮（浅/暗两套，§43 审计 diff 表）。组件禁止再散落浅色高亮 hex。 */
+  --diff-add-bg: #e9f4e4; /* 新增行底 */
+  --diff-del-bg: #f8e6e4; /* 删除行底 */
+  --diff-mod-bg: #f7eddb; /* 修改行底 */
+  --review-bg: #fbf1ee; /* 树节点评审 / 选中暖底 */
 
   /* 字体 */
   --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -53,4 +61,54 @@
   --el-color-primary-light-8: #f7e4dd;
   --el-color-primary-light-9: #fbf1ee;
   --el-color-primary-dark-2: #ae5f46;
+}
+
+/* —— 暗色（产品本色，design-system.md §1/§2.1）—— 默认主题。
+   只覆盖语义令牌的“值”，壳层组件已全部走 var()，故零改动随 class 切换。
+   EP 的 --el-* 在 element-overrides.css 的 html.dark 中重映射到这些令牌。 */
+html.dark {
+  --bg-base: #1a1714; /* 最底层应用背景 / 主内容区 */
+  --bg-surface: #211e1b; /* 侧栏 / 顶栏 / 面板（暖炭黑） */
+  --bg-elevated: #2a2622; /* 卡片 / 下拉 / 弹层 */
+  --bg-hover: #322d28; /* 行 / 按钮 hover */
+  --border-subtle: #3a352f; /* 主分隔线（低对比） */
+  --border-strong: #4a443c; /* 需存在感的分隔 */
+  --text-primary: #ece6dd; /* 正文（暖白）/ 品牌 */
+  --text-regular: #d9d2c7; /* 导航 / 图标 / 菜单文字 */
+  --text-secondary: #b3aa9e; /* 次要 / 标签 */
+  --text-tertiary: #7a7269; /* 占位 / 分组标题 / 计数 */
+  --text-disabled: #5a5249; /* 禁用 */
+  --accent-foreground: #faf8f4; /* accent 实底上的奶白前景（§3.3） */
+  --accent-bg-hover: rgba(217, 119, 87, 0.18);
+  /* accent / accent-bg 暗色通用，沿用 :root 值 */
+
+  /* diff / 评审高亮（暗色，半透陶土/绿/红落在暗底） */
+  --diff-add-bg: rgba(136, 176, 122, 0.16);
+  --diff-del-bg: rgba(217, 104, 94, 0.16);
+  --diff-mod-bg: rgba(217, 161, 78, 0.16);
+  --review-bg: rgba(217, 119, 87, 0.12);
+}
+
+/* —— 亮纸孤岛（design-system.md §3.8/§4.4）——
+   富文本编辑画布 + PDF 页面：把令牌局部切回浅色，使暗壳里嵌一张白纸。
+   EP teleport 的弹层在 .paper 之外，自动保持暗壳。 */
+.paper {
+  --bg-base: #faf8f4;
+  --bg-surface: #faf8f4;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f0ece6;
+  --border-subtle: #e5dfd5;
+  --border-strong: #d8d0c4;
+  --text-primary: #2a2521;
+  --text-regular: #2a2521;
+  --text-secondary: #6b635a;
+  --text-tertiary: #9a8e80;
+  /* EP 内联控件随纸变浅（弹层 teleport 到 body 不受影响） */
+  --el-bg-color: #faf8f4;
+  --el-bg-color-overlay: #ffffff;
+  --el-fill-color-blank: #faf8f4;
+  --el-text-color-primary: #2a2521;
+  --el-text-color-regular: #2a2521;
+  --el-border-color: #e5dfd5;
+  --el-border-color-light: #e5dfd5;
 }

@@ -1,0 +1,48 @@
+/* Element Plus 暗模式变量重映射 → 本设计令牌（集中通道，权威见 docs/design-system.md §4.3）。
+   仅在 html.dark 下生效；浅色态走 tokens.css :root 的 --el-color-primary* + EP 默认浅样式。
+   加载顺序必须在 element-plus/theme-chalk/dark/css-vars.css 之后（main.ts 已保证），
+   才能覆盖 EP 暗模式默认的冷灰，换成我们的暖炭黑。 */
+html.dark {
+  /* 背景 / 填充 */
+  --el-bg-color: var(--bg-base);
+  --el-bg-color-page: var(--bg-base);
+  --el-bg-color-overlay: var(--bg-elevated);
+  --el-fill-color: var(--bg-hover);
+  --el-fill-color-light: var(--bg-elevated);
+  --el-fill-color-lighter: var(--bg-elevated);
+  --el-fill-color-blank: var(--bg-base);
+
+  /* 文字 */
+  --el-text-color-primary: var(--text-primary);
+  --el-text-color-regular: var(--text-regular);
+  --el-text-color-secondary: var(--text-secondary);
+  --el-text-color-placeholder: var(--text-tertiary);
+  --el-text-color-disabled: var(--text-disabled);
+
+  /* 边框 + 工业小圆角 */
+  --el-border-color: var(--border-subtle);
+  --el-border-color-light: var(--border-subtle);
+  --el-border-color-lighter: var(--border-subtle);
+  --el-border-color-extra-light: var(--border-subtle);
+  --el-border-color-dark: var(--border-strong);
+  --el-border-color-darker: var(--border-strong);
+  --el-border-color-hover: var(--border-strong);
+  --el-border-radius-base: 4px;
+  --el-border-radius-small: 4px;
+
+  /* primary 阶梯 → 陶土橙（暗模式向底色混的 9 档；§4.3 示意硬值，验证阶段微调闷态） */
+  --el-color-primary: var(--accent);
+  --el-color-primary-light-3: #a85e45;
+  --el-color-primary-light-5: #7a4634;
+  --el-color-primary-light-7: #4d2e22;
+  --el-color-primary-light-8: #3a241b;
+  --el-color-primary-light-9: #261913;
+  --el-color-primary-dark-2: #c56546;
+
+  /* 语义色 → 状态暖盘（el-message / el-alert / el-tag 天然上盘） */
+  --el-color-success: var(--st-published);
+  --el-color-info: var(--st-draft);
+  --el-color-danger: var(--st-deprecated);
+  --el-color-error: var(--st-deprecated);
+  --el-color-warning: #d9a14e;
+}

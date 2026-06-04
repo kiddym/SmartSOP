@@ -7,8 +7,11 @@ import {
   ElDropdownMenu,
   ElIcon,
 } from 'element-plus'
-import { Expand, Fold, Setting } from '@element-plus/icons-vue'
+import { Expand, Fold, Moon, Setting, Sunny } from '@element-plus/icons-vue'
 import UserMenu from '@/components/UserMenu.vue'
+import { useThemeStore } from '@/store/theme'
+
+const theme = useThemeStore()
 
 defineProps<{
   collapsed: boolean
@@ -65,6 +68,14 @@ defineExpose({ MENU_COMMANDS, onCommand })
     >
       待阅读 <span class="badge">{{ unreadCount }}</span>
     </span>
+    <button
+      class="topbar-theme"
+      :aria-label="theme.isDark ? '切换到浅色' : '切换到暗色'"
+      :title="theme.isDark ? '切换到浅色' : '切换到暗色'"
+      @click="theme.toggle()"
+    >
+      <el-icon><Sunny v-if="theme.isDark" /><Moon v-else /></el-icon>
+    </button>
     <el-dropdown trigger="click" popper-class="app-topbar-cog-popper" @command="onCommand">
       <button class="topbar-cog" aria-label="设置菜单">
         <el-icon><Setting /></el-icon><span class="caret">▾</span>
@@ -118,7 +129,7 @@ defineExpose({ MENU_COMMANDS, onCommand })
   justify-content: center;
 }
 .topbar-toggle:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--bg-hover);
 }
 .app-brand {
   font-weight: 700;
@@ -161,7 +172,22 @@ defineExpose({ MENU_COMMANDS, onCommand })
   color: var(--text-tertiary);
 }
 .topbar-cog:hover {
-  background: rgba(0, 0, 0, 0.04);
+  background: var(--bg-hover);
+}
+.topbar-theme {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--text-regular);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.topbar-theme:hover {
+  background: var(--bg-hover);
 }
 
 /* ⚙ 下拉菜单中作为分组标题的 disabled item。

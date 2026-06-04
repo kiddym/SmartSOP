@@ -117,18 +117,18 @@ function onKeydown(ev: KeyboardEvent): void {
 <style scoped>
 .ntr { display: flex; align-items: center; gap: 4px; height: 30px; font-size: 13px; cursor: pointer; padding-right: 6px; white-space: nowrap; border-bottom: 1px solid transparent; }
 .ntr:hover { background: var(--el-fill-color-light, #f5f7fa); }
-.ntr--selected { background: var(--el-color-primary-light-9, #fbf1ee); }
+.ntr--selected { background: var(--accent-bg); }
 .ntr--drop-before { box-shadow: inset 0 2px 0 var(--el-color-primary, #d97757); }
 .ntr--drop-after { box-shadow: inset 0 -2px 0 var(--el-color-primary, #d97757); }
-.ntr-caret { width: 14px; text-align: center; color: #999; flex: none; }
+.ntr-caret { width: 14px; text-align: center; color: var(--text-tertiary); flex: none; }
 .ntr-caret--hidden { visibility: hidden; }
 .ntr-check { flex: none; }
 .ntr-actions { flex: none; }
 .ntr-chip { font-variant-numeric: tabular-nums; }
-.ntr-code { color: #888; font-variant-numeric: tabular-nums; flex: none; }
+.ntr-code { color: var(--text-tertiary); font-variant-numeric: tabular-nums; flex: none; }
 .ntr-title { overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; }
-.ntr-review { flex: none; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: #b88230; background: #fdf6ec; border: 1px solid #f5dab1; }
-.ntr-type { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: #5c6b7a; background: #eef1f4; border: 1px solid #dde3e9; }
+.ntr-review { flex: none; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: var(--accent); background: var(--review-bg); border: 1px solid var(--accent-bg); }
+.ntr-type { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: 11px; line-height: 1; padding: 1px 4px; border-radius: 3px; color: var(--text-secondary); background: var(--bg-hover); border: 1px solid var(--border-subtle); }
 .ntr-type .el-icon { font-size: 12px; }
 .ntr-del { flex: none; display: none; }
 .ntr:hover .ntr-del { display: inline-flex; }
