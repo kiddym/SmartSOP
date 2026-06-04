@@ -59,8 +59,11 @@
 
 | 角色 | 字体栈 | 用在 |
 |---|---|---|
-| 无衬线（UI / 正文） | `Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif` | 标题、正文、菜单、按钮、状态词 |
+| 展示（Display） | `"Space Grotesk", "PingFang SC", "Microsoft YaHei", sans-serif` | 大标题、页标题、空状态展示文字 |
+| 正文（Body） | `"DM Sans", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif` | 正文、菜单、按钮、标签、状态词 |
 | 等宽（数据） | `"JetBrains Mono", "Sarasa Mono SC", ui-monospace, monospace` | 编号 `QC-0001`、版本 `v3`、测量值 `12.5 mm`、状态枚举、日期 |
+
+西文走 Space Grotesk/DM Sans 自托管 webfont（OFL），中文回退 PingFang SC/Microsoft YaHei；数据字段（编号/版本/日期/测量值/状态枚举）仍走 mono。
 
 字号：页标题 `20/600` · 区块标题 `16/600` · 正文 `14/400`（基准）· 元信息 `12/400` · 等宽数据 `13`。行高：正文 1.6 / UI 1.5。
 
@@ -75,7 +78,7 @@
 - 分隔靠线不靠影：1px `border-subtle` 是主要分隔手段。
 - 阴影：仅下拉 / 模态 `0 4px 16px rgba(0,0,0,.4)`；纸面孤岛（§3.8）专用 `--shadow-paper` = `0 2px 12px rgba(0,0,0,.4)`（桌上一张文件的投影，与层级阴影不可混用）。
 - 焦点环：2px 陶土橙 + `accent-bg` 底，键盘可达。
-- 动效：120–160ms ease-out，无弹跳。
+- 动效：路由/入场 ~180–220ms、交互反馈 120–160ms，ease-out 无弹跳。位移+淡入为主；**不引入卡片 hover 阴影上浮、不引入按钮辉光**（「线不靠影」红线保留）。
 
 ## 3. 组件规范
 
