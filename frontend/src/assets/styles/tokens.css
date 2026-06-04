@@ -13,8 +13,10 @@
   --bg-elevated: #eceae5;
   --text-primary: #1a1714;
 
-  /* 字体 */
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* 字体（西文 webfont 见 fonts.css；中文自动回退系统字体）。
+     权威定义见 docs/design-system.md §2.2。 */
+  --font-display: 'Space Grotesk', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-body: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   /* 等宽数据字体：编号 / 版本 / 日期 / 测量值 / 状态枚举 走 mono，强化工业风性格。
      首选 JetBrains Mono（需自备 webfont，未引入时回落到系统 mono 上仍可读）；
      中文回退 Sarasa Mono SC（更纱黑体），系统兜底 ui-monospace（macOS=SF Mono / Win=Cascadia）。

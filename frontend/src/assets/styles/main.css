@@ -7,9 +7,12 @@ body,
 #app {
   height: 100%;
   margin: 0;
-  font-family: 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-body);
   color: var(--text-primary);
   background: var(--bg-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* 标题/品牌使用显示字（西文有性格，中文回退系统字） */
@@ -18,6 +21,7 @@ h2,
 h3,
 .app-brand {
   font-family: var(--font-display);
+  letter-spacing: -0.02em;
 }
 
 /* ---- 动效（克制，可访问） ---- */
@@ -53,4 +57,9 @@ h3,
     transition: none !important;
     animation: none !important;
   }
+}
+
+/* Element Plus 默认字体跟随设计字体栈 */
+:root {
+  --el-font-family: var(--font-body);
 }
