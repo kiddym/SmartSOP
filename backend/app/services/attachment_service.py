@@ -144,6 +144,9 @@ def upload_for(
     get_storage_backend().write(rel, data)
 
     att = Attachment(
+        # 显式落宿主 company_id：procedure 宿主解析走 bypass，且内部写路径可能无
+        # tenant 上下文（自动盖值不生效）。附件归属随宿主，故直接取宿主的 company_id。
+        company_id=host.company_id,
         entity_type=entity_type,
         entity_id=entity_id,
         file_name=name,
@@ -217,6 +220,8 @@ def copy_for_version(db: Session, src_procedure_id: str, dst_procedure_id: str) 
     for src in _active_rows(db, "procedure", src_procedure_id):
         db.add(
             Attachment(
+                # 附件归属随宿主：复制版本时显式沿用源附件（同宿主链）的 company_id。
+                company_id=src.company_id,
                 entity_type="procedure",
                 entity_id=dst_procedure_id,
                 file_name=src.file_name,

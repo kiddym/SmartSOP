@@ -6,6 +6,11 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app import tenant
+from app.models.attachment import Attachment
 
 pytestmark = pytest.mark.usefixtures("_sop_auth")
 
@@ -40,6 +45,42 @@ def test_upload_list_and_detail(client: TestClient, storage_tmp: Path) -> None:
 
     detail = client.get(f"{PROC}/{pid}").json()
     assert [a["id"] for a in detail["attachments"]] == [att["id"]]
+
+
+def test_uploaded_attachment_derives_company_from_host_not_ambient(
+    client: TestClient, db: Session, storage_tmp: Path, _sop_auth: str
+) -> None:
+    """附件 company_id 须显式取自宿主，而非依赖 ambient tenant 上下文自动盖值。
+
+    procedure 宿主解析走 bypass；若内部写路径无 tenant 上下文（context=None），
+    自动盖值不生效，company_id 会落 None（收 NOT NULL 后即 500）。显式从宿主取值
+    可保证附件归属随宿主——即便 ambient 上下文缺失。
+    """
+    from app.deps import RequestMeta
+    from app.services import attachment_service
+
+    pid = _make_procedure(client)
+    meta = RequestMeta(ip_address="", user_agent="", request_id="-")
+    token = tenant.set_current_company_id(None)  # 模拟无 tenant 上下文的内部写路径
+    try:
+        att = attachment_service.upload_for(
+            db,
+            None,
+            "procedure",
+            pid,
+            b"PDFDATA",
+            "报告.pdf",
+            content_type="application/pdf",
+            description="",
+            meta=meta,
+        )
+        db.flush()
+        att_id = att.id
+    finally:
+        tenant.reset_current_company_id(token)
+    with tenant.bypass_tenant_scope():
+        row = db.execute(select(Attachment).where(Attachment.id == att_id)).scalar_one()
+    assert row.company_id == _sop_auth
 
 
 def test_download_forces_attachment(client: TestClient, storage_tmp: Path) -> None:
