@@ -89,10 +89,12 @@ def _create_join_table(
 
 
 def _drop_join_table(table: str, left_col: str, right_col: str) -> None:
-    """逆序 drop 关联表：先 drop 三索引再 drop_table。"""
-    op.drop_index(f"ix_{table}_{right_col}", table_name=table)
-    op.drop_index(f"ix_{table}_{left_col}", table_name=table)
-    op.drop_index(f"ix_{table}_company_id", table_name=table)
+    """逆序 drop 关联表：MySQL 的列索引被 FK 占用（1553），DROP TABLE 连带清理，
+    故仅 SQLite 显式删索引。"""
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(f"ix_{table}_{right_col}", table_name=table)
+        op.drop_index(f"ix_{table}_{left_col}", table_name=table)
+        op.drop_index(f"ix_{table}_company_id", table_name=table)
     op.drop_table(table)
 
 
@@ -103,7 +105,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(length=36), primary_key=True),
         _company_fk(),
         sa.Column("name", sa.String(length=300), nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         *_ts(),
         sa.Column("is_active", sa.Boolean(), nullable=False),
         sa.Column("deleted_at", DATETIME6, nullable=True),
@@ -191,7 +193,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # --- 先回退 PO 5 列（及索引），逆序 ---
-    op.drop_index("ix_tb_purchase_order_category_id", table_name="tb_purchase_order")
+    # MySQL：category_id 带 FK，须先删 FK（否则其索引被 FK 占用 → 1553，且带 FK 的列
+    # 无法 in-place DROP）；删列会连带删除索引。SQLite 走 batch 重建，删 index 后整表
+    # 重建即丢弃列与 inline FK（保持既有验证行为）。
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_purchase_order_category_id", table_name="tb_purchase_order")
+    else:
+        op.drop_constraint(
+            "fk_tb_purchase_order_category_id", "tb_purchase_order", type_="foreignkey"
+        )
     with op.batch_alter_table("tb_purchase_order") as batch_op:
         batch_op.drop_column("expected_delivery_date")
         batch_op.drop_column("terms_of_payment")
@@ -207,14 +217,19 @@ def downgrade() -> None:
     _drop_join_table("tb_part_pm", "part_id", "pm_id")
     _drop_join_table("tb_part_location", "part_id", "location_id")
 
-    # --- 最后 drop 分类表（先 drop 三索引再 drop_table） ---
-    op.drop_index(
-        "ix_tb_purchase_order_category_is_active", table_name="tb_purchase_order_category"
-    )
-    op.drop_index(
-        "ix_tb_purchase_order_category_created_at", table_name="tb_purchase_order_category"
-    )
-    op.drop_index(
-        "ix_tb_purchase_order_category_company_id", table_name="tb_purchase_order_category"
-    )
+    # --- 最后 drop 分类表 ---
+    # MySQL：company_id 索引被 FK 占用，DROP TABLE 连带清理，故仅 SQLite 显式删索引。
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(
+            "ix_tb_purchase_order_category_is_active",
+            table_name="tb_purchase_order_category",
+        )
+        op.drop_index(
+            "ix_tb_purchase_order_category_created_at",
+            table_name="tb_purchase_order_category",
+        )
+        op.drop_index(
+            "ix_tb_purchase_order_category_company_id",
+            table_name="tb_purchase_order_category",
+        )
     op.drop_table("tb_purchase_order_category")

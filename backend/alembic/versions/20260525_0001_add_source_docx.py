@@ -34,6 +34,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index('uq_tb_procedure_source_docx_procedure_group_id', table_name='tb_procedure_source_docx')
-    op.drop_index(op.f('ix_tb_procedure_source_docx_created_at'), table_name='tb_procedure_source_docx')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('uq_tb_procedure_source_docx_procedure_group_id', table_name='tb_procedure_source_docx')
+        op.drop_index(op.f('ix_tb_procedure_source_docx_created_at'), table_name='tb_procedure_source_docx')
     op.drop_table('tb_procedure_source_docx')

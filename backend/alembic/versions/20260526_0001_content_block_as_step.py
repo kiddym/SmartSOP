@@ -73,7 +73,7 @@ def downgrade() -> None:
     )
     op.add_column(
         "tb_procedure_chapter",
-        sa.Column("rich_content", sa.Text(), nullable=False, server_default=""),
+        sa.Column("rich_content", sa.Text(), nullable=False, server_default=sa.text("('')")),
     )
     op.create_index(
         "ix_tb_procedure_chapter_content_type", "tb_procedure_chapter", ["content_type"]

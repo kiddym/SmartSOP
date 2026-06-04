@@ -49,7 +49,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         _company_fk(),
         sa.Column("name", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(), *_soft(),
         sa.UniqueConstraint("company_id", "name", name="uq_part_category_company_name"),
     )
@@ -61,7 +61,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("custom_id", sa.String(20), nullable=False),
         sa.Column("name", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("cost", sa.Numeric(18, 4), nullable=False, server_default="0"),
         sa.Column("quantity", sa.Numeric(18, 4), nullable=False, server_default="0"),
         sa.Column("min_quantity", sa.Numeric(18, 4), nullable=False, server_default="0"),
@@ -99,7 +99,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("custom_id", sa.String(20), nullable=False),
         sa.Column("name", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(), *_soft(),
     )
     op.create_index("ix_tb_multi_part_company_id", "tb_multi_part", ["company_id"])
@@ -166,30 +166,38 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_part_asset_asset_id", table_name="tb_part_asset")
-    op.drop_index("ix_tb_part_asset_part_id", table_name="tb_part_asset")
-    op.drop_index("ix_tb_part_asset_company_id", table_name="tb_part_asset")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_asset_asset_id", table_name="tb_part_asset")
+        op.drop_index("ix_tb_part_asset_part_id", table_name="tb_part_asset")
+        op.drop_index("ix_tb_part_asset_company_id", table_name="tb_part_asset")
     op.drop_table("tb_part_asset")
-    op.drop_index("ix_tb_part_team_team_id", table_name="tb_part_team")
-    op.drop_index("ix_tb_part_team_part_id", table_name="tb_part_team")
-    op.drop_index("ix_tb_part_team_company_id", table_name="tb_part_team")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_team_team_id", table_name="tb_part_team")
+        op.drop_index("ix_tb_part_team_part_id", table_name="tb_part_team")
+        op.drop_index("ix_tb_part_team_company_id", table_name="tb_part_team")
     op.drop_table("tb_part_team")
-    op.drop_index("ix_tb_part_assignee_user_id", table_name="tb_part_assignee")
-    op.drop_index("ix_tb_part_assignee_part_id", table_name="tb_part_assignee")
-    op.drop_index("ix_tb_part_assignee_company_id", table_name="tb_part_assignee")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_assignee_user_id", table_name="tb_part_assignee")
+        op.drop_index("ix_tb_part_assignee_part_id", table_name="tb_part_assignee")
+        op.drop_index("ix_tb_part_assignee_company_id", table_name="tb_part_assignee")
     op.drop_table("tb_part_assignee")
-    op.drop_index("ix_tb_multi_part_item_part_id", table_name="tb_multi_part_item")
-    op.drop_index("ix_tb_multi_part_item_multi_part_id", table_name="tb_multi_part_item")
-    op.drop_index("ix_tb_multi_part_item_company_id", table_name="tb_multi_part_item")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_multi_part_item_part_id", table_name="tb_multi_part_item")
+        op.drop_index("ix_tb_multi_part_item_multi_part_id", table_name="tb_multi_part_item")
+        op.drop_index("ix_tb_multi_part_item_company_id", table_name="tb_multi_part_item")
     op.drop_table("tb_multi_part_item")
-    op.drop_index("ix_tb_multi_part_company_id", table_name="tb_multi_part")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_multi_part_company_id", table_name="tb_multi_part")
     op.drop_table("tb_multi_part")
-    op.drop_index("ix_tb_part_consumption_work_order_id", table_name="tb_part_consumption")
-    op.drop_index("ix_tb_part_consumption_part_id", table_name="tb_part_consumption")
-    op.drop_index("ix_tb_part_consumption_company_id", table_name="tb_part_consumption")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_consumption_work_order_id", table_name="tb_part_consumption")
+        op.drop_index("ix_tb_part_consumption_part_id", table_name="tb_part_consumption")
+        op.drop_index("ix_tb_part_consumption_company_id", table_name="tb_part_consumption")
     op.drop_table("tb_part_consumption")
-    op.drop_index("ix_tb_part_category_id", table_name="tb_part")
-    op.drop_index("ix_tb_part_company_id", table_name="tb_part")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_category_id", table_name="tb_part")
+        op.drop_index("ix_tb_part_company_id", table_name="tb_part")
     op.drop_table("tb_part")
-    op.drop_index("ix_tb_part_category_company_id", table_name="tb_part_category")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_part_category_company_id", table_name="tb_part_category")
     op.drop_table("tb_part_category")

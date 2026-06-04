@@ -34,7 +34,7 @@ def upgrade() -> None:
         "tb_time_category",
         sa.Column("name", sa.String(length=300), nullable=False),
         sa.Column("hourly_rate", sa.Numeric(18, 4), server_default="0", nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
         sa.Column("updated_at", DATETIME6, nullable=False),
@@ -70,7 +70,7 @@ def upgrade() -> None:
         sa.Column("stopped_at", DATETIME6, nullable=True),
         sa.Column("duration_seconds", sa.Integer(), server_default="0", nullable=False),
         sa.Column("hourly_rate", sa.Numeric(18, 4), nullable=False),
-        sa.Column("notes", sa.Text(), server_default="", nullable=False),
+        sa.Column("notes", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
         sa.Column("updated_at", DATETIME6, nullable=False),
@@ -133,7 +133,7 @@ def upgrade() -> None:
         sa.Column("cost_category_id", sa.String(length=36), nullable=True),
         sa.Column("title", sa.String(length=300), nullable=False),
         sa.Column("amount", sa.Numeric(18, 4), nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("created_by_user_id", sa.String(length=36), nullable=True),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
@@ -180,39 +180,47 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        op.f("ix_tb_work_order_additional_cost_work_order_id"),
-        table_name="tb_work_order_additional_cost",
-    )
-    op.drop_index(
-        op.f("ix_tb_work_order_additional_cost_created_at"),
-        table_name="tb_work_order_additional_cost",
-    )
-    op.drop_index(
-        op.f("ix_tb_work_order_additional_cost_company_id"),
-        table_name="tb_work_order_additional_cost",
-    )
+    # MySQL：work_order_id/company_id 等列索引被 FK 占用（1553），DROP TABLE 连带清理，
+    # 故仅 SQLite 显式删索引（保持其既有验证行为）。
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    if is_sqlite:
+        op.drop_index(
+            op.f("ix_tb_work_order_additional_cost_work_order_id"),
+            table_name="tb_work_order_additional_cost",
+        )
+        op.drop_index(
+            op.f("ix_tb_work_order_additional_cost_created_at"),
+            table_name="tb_work_order_additional_cost",
+        )
+        op.drop_index(
+            op.f("ix_tb_work_order_additional_cost_company_id"),
+            table_name="tb_work_order_additional_cost",
+        )
     op.drop_table("tb_work_order_additional_cost")
 
-    op.drop_index(
-        op.f("ix_tb_work_order_labor_work_order_id"), table_name="tb_work_order_labor"
-    )
-    op.drop_index(op.f("ix_tb_work_order_labor_user_id"), table_name="tb_work_order_labor")
-    op.drop_index(
-        op.f("ix_tb_work_order_labor_created_at"), table_name="tb_work_order_labor"
-    )
-    op.drop_index(
-        op.f("ix_tb_work_order_labor_company_id"), table_name="tb_work_order_labor"
-    )
+    if is_sqlite:
+        op.drop_index(
+            op.f("ix_tb_work_order_labor_work_order_id"), table_name="tb_work_order_labor"
+        )
+        op.drop_index(
+            op.f("ix_tb_work_order_labor_user_id"), table_name="tb_work_order_labor"
+        )
+        op.drop_index(
+            op.f("ix_tb_work_order_labor_created_at"), table_name="tb_work_order_labor"
+        )
+        op.drop_index(
+            op.f("ix_tb_work_order_labor_company_id"), table_name="tb_work_order_labor"
+        )
     op.drop_table("tb_work_order_labor")
 
-    op.drop_index(
-        op.f("ix_tb_time_category_is_active"), table_name="tb_time_category"
-    )
-    op.drop_index(
-        op.f("ix_tb_time_category_created_at"), table_name="tb_time_category"
-    )
-    op.drop_index(
-        op.f("ix_tb_time_category_company_id"), table_name="tb_time_category"
-    )
+    if is_sqlite:
+        op.drop_index(
+            op.f("ix_tb_time_category_is_active"), table_name="tb_time_category"
+        )
+        op.drop_index(
+            op.f("ix_tb_time_category_created_at"), table_name="tb_time_category"
+        )
+        op.drop_index(
+            op.f("ix_tb_time_category_company_id"), table_name="tb_time_category"
+        )
     op.drop_table("tb_time_category")

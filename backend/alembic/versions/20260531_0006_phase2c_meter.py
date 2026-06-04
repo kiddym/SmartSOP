@@ -93,7 +93,7 @@ def upgrade() -> None:
                   sa.Enum("NONE", "LOW", "MEDIUM", "HIGH", name="workorderpriority"),
                   nullable=False),
         sa.Column("title", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("primary_user_id", sa.String(36),
                   sa.ForeignKey("tb_user.id", ondelete="SET NULL"), nullable=True),
         sa.Column("procedure_id", sa.String(36), nullable=True),
@@ -138,23 +138,28 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_meter_trigger_team_team_id", table_name="tb_meter_trigger_team")
-    op.drop_index("ix_tb_meter_trigger_team_trigger_id", table_name="tb_meter_trigger_team")
-    op.drop_index("ix_tb_meter_trigger_team_company_id", table_name="tb_meter_trigger_team")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_meter_trigger_team_team_id", table_name="tb_meter_trigger_team")
+        op.drop_index("ix_tb_meter_trigger_team_trigger_id", table_name="tb_meter_trigger_team")
+        op.drop_index("ix_tb_meter_trigger_team_company_id", table_name="tb_meter_trigger_team")
     op.drop_table("tb_meter_trigger_team")
-    op.drop_index("ix_tb_meter_trigger_assignee_user_id", table_name="tb_meter_trigger_assignee")
-    op.drop_index("ix_tb_meter_trigger_assignee_trigger_id", table_name="tb_meter_trigger_assignee")
-    op.drop_index("ix_tb_meter_trigger_assignee_company_id", table_name="tb_meter_trigger_assignee")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_meter_trigger_assignee_user_id", table_name="tb_meter_trigger_assignee")
+        op.drop_index("ix_tb_meter_trigger_assignee_trigger_id", table_name="tb_meter_trigger_assignee")
+        op.drop_index("ix_tb_meter_trigger_assignee_company_id", table_name="tb_meter_trigger_assignee")
     op.drop_table("tb_meter_trigger_assignee")
-    op.drop_index("ix_tb_meter_trigger_procedure_id", table_name="tb_meter_trigger")
-    op.drop_index("ix_tb_meter_trigger_primary_user_id", table_name="tb_meter_trigger")
-    op.drop_index("ix_tb_meter_trigger_meter_id", table_name="tb_meter_trigger")
-    op.drop_index("ix_tb_meter_trigger_company_id", table_name="tb_meter_trigger")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_meter_trigger_procedure_id", table_name="tb_meter_trigger")
+        op.drop_index("ix_tb_meter_trigger_primary_user_id", table_name="tb_meter_trigger")
+        op.drop_index("ix_tb_meter_trigger_meter_id", table_name="tb_meter_trigger")
+        op.drop_index("ix_tb_meter_trigger_company_id", table_name="tb_meter_trigger")
     op.drop_table("tb_meter_trigger")
-    op.drop_index("ix_tb_meter_reading_meter_id", table_name="tb_meter_reading")
-    op.drop_index("ix_tb_meter_reading_company_id", table_name="tb_meter_reading")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_meter_reading_meter_id", table_name="tb_meter_reading")
+        op.drop_index("ix_tb_meter_reading_company_id", table_name="tb_meter_reading")
     op.drop_table("tb_meter_reading")
-    op.drop_index("ix_tb_meter_location_id", table_name="tb_meter")
-    op.drop_index("ix_tb_meter_asset_id", table_name="tb_meter")
-    op.drop_index("ix_tb_meter_company_id", table_name="tb_meter")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_meter_location_id", table_name="tb_meter")
+        op.drop_index("ix_tb_meter_asset_id", table_name="tb_meter")
+        op.drop_index("ix_tb_meter_company_id", table_name="tb_meter")
     op.drop_table("tb_meter")

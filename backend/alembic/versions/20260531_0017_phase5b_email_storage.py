@@ -44,7 +44,7 @@ def upgrade() -> None:
         *_ts(),
         sa.Column("user_id", sa.String(36), nullable=False),
         sa.Column("email_enabled", sa.Boolean(), nullable=False, server_default="1"),
-        sa.Column("disabled_types", sa.Text(), nullable=False, server_default="[]"),
+        sa.Column("disabled_types", sa.Text(), nullable=False, server_default=sa.text("('[]')")),
         sa.UniqueConstraint("company_id", "user_id", name="uq_notif_pref_user"),
     )
     op.create_index("ix_tb_notification_preference_company_id",
@@ -78,15 +78,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_email_outbox_status", table_name="tb_email_outbox")
-    op.drop_index("ix_tb_email_outbox_recipient_user_id", table_name="tb_email_outbox")
-    op.drop_index("ix_tb_email_outbox_created_at", table_name="tb_email_outbox")
-    op.drop_index("ix_tb_email_outbox_company_id", table_name="tb_email_outbox")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_email_outbox_status", table_name="tb_email_outbox")
+        op.drop_index("ix_tb_email_outbox_recipient_user_id", table_name="tb_email_outbox")
+        op.drop_index("ix_tb_email_outbox_created_at", table_name="tb_email_outbox")
+        op.drop_index("ix_tb_email_outbox_company_id", table_name="tb_email_outbox")
     op.drop_table("tb_email_outbox")
-    op.drop_index("ix_tb_notification_preference_user_id",
-                  table_name="tb_notification_preference")
-    op.drop_index("ix_tb_notification_preference_created_at",
-                  table_name="tb_notification_preference")
-    op.drop_index("ix_tb_notification_preference_company_id",
-                  table_name="tb_notification_preference")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_notification_preference_user_id",
+                      table_name="tb_notification_preference")
+        op.drop_index("ix_tb_notification_preference_created_at",
+                      table_name="tb_notification_preference")
+        op.drop_index("ix_tb_notification_preference_company_id",
+                      table_name="tb_notification_preference")
     op.drop_table("tb_notification_preference")

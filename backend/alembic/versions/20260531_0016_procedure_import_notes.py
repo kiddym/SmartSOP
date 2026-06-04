@@ -21,7 +21,7 @@ depends_on = None
 def upgrade() -> None:
     with op.batch_alter_table("tb_procedure") as batch:
         batch.add_column(
-            sa.Column("import_notes", sa.JSON(), nullable=False, server_default="[]")
+            sa.Column("import_notes", sa.JSON(), nullable=False, server_default=sa.text("('[]')"))
         )
 
 

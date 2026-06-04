@@ -45,9 +45,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table('tb_procedure_step') as batch:
-        batch.add_column(sa.Column('note', sa.Text(), nullable=False, server_default=''))
-        batch.add_column(sa.Column('caution', sa.Text(), nullable=False, server_default=''))
-        batch.add_column(sa.Column('warning', sa.Text(), nullable=False, server_default=''))
-        batch.add_column(sa.Column('note_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'))
-        batch.add_column(sa.Column('caution_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'))
-        batch.add_column(sa.Column('warning_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'))
+        batch.add_column(sa.Column('note', sa.Text(), nullable=False, server_default=sa.text("('')")))
+        batch.add_column(sa.Column('caution', sa.Text(), nullable=False, server_default=sa.text("('')")))
+        batch.add_column(sa.Column('warning', sa.Text(), nullable=False, server_default=sa.text("('')")))
+        batch.add_column(sa.Column('note_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')))
+        batch.add_column(sa.Column('caution_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')))
+        batch.add_column(sa.Column('warning_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')))
