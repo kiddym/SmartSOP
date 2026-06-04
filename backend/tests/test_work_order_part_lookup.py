@@ -51,3 +51,27 @@ def test_list_part_filter_tenant_isolated(client, db):
     # Sanity: Beta's no-filter list returns its own WO, proving the empty result above is meaningful
     all_rows = client.get("/api/v1/work-orders", headers=_h(tb)).json()
     assert {r["title"] for r in all_rows} == {"B"}
+
+
+def test_list_part_filter_no_cross_tenant_leak_same_part_id(client, db):
+    ta = _admin(client, "Acme", "a@a.com")
+    tb = _admin(client, "Beta", "b@b.com")
+    cid_a = _company_id(db, "acme")
+    cid_b = _company_id(db, "beta")
+    # Acme WO "A" consumes literal part_id "p1" under Acme
+    a = client.post("/api/v1/work-orders", headers=_h(ta), json={"title": "A"}).json()["id"]
+    # Beta WO "B" consumes the SAME literal part_id "p1" but under Beta
+    b = client.post("/api/v1/work-orders", headers=_h(tb), json={"title": "B"}).json()["id"]
+    tenant.set_current_company_id(cid_a)
+    db.add(
+        PartConsumption(part_id="p1", work_order_id=a, quantity=1, unit_cost=1, company_id=cid_a)
+    )
+    db.commit()
+    tenant.set_current_company_id(cid_b)
+    db.add(
+        PartConsumption(part_id="p1", work_order_id=b, quantity=1, unit_cost=1, company_id=cid_b)
+    )
+    db.commit()
+    # Beta querying part_id=p1 sees only its own WO; Acme's A must not leak
+    rows = client.get("/api/v1/work-orders?part_id=p1", headers=_h(tb)).json()
+    assert {r["title"] for r in rows} == {"B"}

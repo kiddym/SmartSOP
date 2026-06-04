@@ -238,7 +238,11 @@ def list_work_orders(
         )
         stmt = stmt.where(WorkOrder.id.in_(sub))
     if part_id is not None:
-        sub = select(PartConsumption.work_order_id).where(PartConsumption.part_id == part_id)
+        sub = (
+            select(PartConsumption.work_order_id)
+            .where(PartConsumption.part_id == part_id)
+            .distinct()
+        )
         stmt = stmt.where(WorkOrder.id.in_(sub))
     return list(db.execute(stmt.order_by(WorkOrder.custom_id)).scalars().all())
 
