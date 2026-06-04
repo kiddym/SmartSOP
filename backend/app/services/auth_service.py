@@ -19,6 +19,7 @@ from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.permissions import BUILTIN_ROLES
 from app.schemas.auth import LoginRequest, RegisterRequest
+from app.seed import seed_tenant_sop
 
 
 class AuthError(Exception):
@@ -61,6 +62,8 @@ def register(db: Session, payload: RegisterRequest) -> User:
             status=UserStatus.active,
         )
         db.add(user)
+        db.flush()
+        seed_tenant_sop(db)  # 每公司 SOP 系统数据（上下文已是新公司）
         db.commit()
         db.refresh(user)
         return user

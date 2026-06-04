@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.config import settings
-from app.db import SessionLocal, engine
+from app.db import engine
 from app.logging_config import configure_logging
 from app.middleware import RequestIdMiddleware
 from app.parser.utils import images
@@ -65,7 +65,6 @@ from app.routers import (
 )
 from app.routers import permissions as permissions_router
 from app.routers import settings as settings_router
-from app.seed import run_seed
 from app.tenant_middleware import TenantContextMiddleware
 
 logger = logging.getLogger(__name__)
@@ -81,10 +80,8 @@ def _probe_soffice() -> None:
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     logger.info("Smart CMMS API starting env=%s", settings.app_env)
-    # 启动时幂等 seed 系统种子数据（system folders / settings / sample field）。
-    # seed.run_seed 自身幂等，重复运行不会重复插入。
-    with SessionLocal() as db:
-        run_seed(db)
+    # SOP 系统种子数据改为每公司在 register() 时按 tenant 上下文播种（见 app/seed.py
+    # seed_tenant_sop），不再启动时建 NULL-company 的全局死行。
     _probe_soffice()
     yield
     logger.info("Smart CMMS API shutting down")
