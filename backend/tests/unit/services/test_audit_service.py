@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.deps import RequestMeta
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.services import audit_service
 from tests.conftest import Factory
 
 META = RequestMeta(ip_address="203.0.113.7", user_agent="pytest-UA", request_id="r-1")
+
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_log_folder_action_persists_with_ip_ua(db, factory: Factory) -> None:

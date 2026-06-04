@@ -6,18 +6,25 @@
 
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, String
+from sqlalchemy import BigInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, NullableTenantMixin, TimestampMixin, UUIDMixin
+from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class ProcedureSourceDocx(Base, UUIDMixin, TimestampMixin, NullableTenantMixin):
-    """导入程序的原始 .docx（按 procedure_group 归属，唯一）。"""
+class ProcedureSourceDocx(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    """导入程序的原始 .docx（按 procedure_group 归属，本公司内唯一）。"""
 
     __tablename__ = "tb_procedure_source_docx"
+    __table_args__ = (
+        UniqueConstraint(
+            "company_id",
+            "procedure_group_id",
+            name="uq_tb_procedure_source_docx_company_procedure_group",
+        ),
+    )
 
-    procedure_group_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    procedure_group_id: Mapped[str] = mapped_column(String(64), index=True)
     filename: Mapped[str] = mapped_column(String(255))
     storage_path: Mapped[str] = mapped_column(String(500))
     sha256: Mapped[str] = mapped_column(String(64))

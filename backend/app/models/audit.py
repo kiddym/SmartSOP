@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import JSON, BigInteger, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, NullableTenantMixin, utcnow
+from app.models.base import DATETIME6, Base, TenantMixin, utcnow
 
 # 审计 PK：MySQL 用 BIGINT 自增；SQLite 须为 INTEGER 才能复用 rowid 自增。
 _AUDIT_PK = BigInteger().with_variant(Integer, "sqlite")
@@ -31,7 +31,7 @@ class _AuditLogColumns:
     created_at: Mapped[datetime] = mapped_column(DATETIME6, default=utcnow)
 
 
-class FolderAuditLog(_AuditLogColumns, Base, NullableTenantMixin):
+class FolderAuditLog(_AuditLogColumns, Base, TenantMixin):
     """文件夹审计日志。"""
 
     __tablename__ = "tb_folder_audit_log"
@@ -43,7 +43,7 @@ class FolderAuditLog(_AuditLogColumns, Base, NullableTenantMixin):
     )
 
 
-class ProcedureAuditLog(_AuditLogColumns, Base, NullableTenantMixin):
+class ProcedureAuditLog(_AuditLogColumns, Base, TenantMixin):
     """程序审计日志。冗存 procedure_group_id 便于查整族历史（Q127）。"""
 
     __tablename__ = "tb_procedure_audit_log"

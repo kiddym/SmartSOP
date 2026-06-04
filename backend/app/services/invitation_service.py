@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app import security, tenant
-from app.errors import bad_request, conflict
+from app.billing.catalog import effective_seat_limit
+from app.errors import bad_request, conflict, payment_required
 from app.models.base import utcnow
 from app.models.company import Company
 from app.models.role import Role
@@ -28,6 +29,31 @@ def invite(
     ).scalar_one_or_none()
     if existing is not None:
         raise conflict("EMAIL_EXISTS", "该邮箱已是本组织成员")
+    # 座席上限：在职用户 + 待处理邀请共同占席（待处理邀请预占，防绕过上限）。
+    company = db.get(Company, company_id)
+    limit = effective_seat_limit(
+        company.plan if company else None,
+        company.subscription_status if company else None,
+    )
+    if limit is not None:
+        active_users = db.execute(
+            select(func.count())
+            .select_from(User)
+            .where(User.company_id == company_id, User.status == UserStatus.active)
+        ).scalar_one()
+        # 仅「未过期」的待处理邀请占席：过期邀请无法被 accept（见 accept() 的 expires_at
+        # 过滤），不应继续占用席位，否则一旦失效便永久锁死一席。
+        pending_invites = db.execute(
+            select(func.count())
+            .select_from(UserInvitation)
+            .where(
+                UserInvitation.company_id == company_id,
+                UserInvitation.status == "pending",
+                UserInvitation.expires_at > utcnow(),
+            )
+        ).scalar_one()
+        if active_users + pending_invites >= limit:
+            raise payment_required("SEAT_LIMIT_REACHED", "席位已达上限，请升级订阅以增加席位")
     if role_id is not None:
         # 校验 role 属于本公司，防止赋予他公司的角色（跨租户边界）
         role = db.execute(
@@ -47,7 +73,6 @@ def invite(
     )
     db.add(inv)
     db.flush()
-    company = db.get(Company, company_id)
     company_name = company.name if company is not None else company_id
     email_outbox_service.enqueue_transactional(
         db,

@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import permissions
-from app.deps import get_db, require_permission
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature, require_permission
 from app.models.part import Part
 from app.models.part_category import PartCategory
 from app.models.user import User
@@ -36,7 +37,11 @@ from app.services.analytics import (
     work_order_analytics,
 )
 
-router = APIRouter(prefix="/api/v1/analytics", tags=["analytics"])
+router = APIRouter(
+    prefix="/api/v1/analytics",
+    tags=["analytics"],
+    dependencies=[Depends(require_feature(Feature.analytics))],
+)
 
 _VIEW = Depends(require_permission(permissions.ANALYTICS_VIEW))
 

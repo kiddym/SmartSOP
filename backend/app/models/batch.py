@@ -1,7 +1,7 @@
 """批量导入作业与条目（批量解析 Word MVP — 后端地基）。
 
 两阶段流水线的 parse-stage 状态载体：BatchImportJob 是一次批量上传，
-BatchImportItem 是其中一份 docx。company_id 由 NullableTenantMixin 提供，
+BatchImportItem 是其中一份 docx。company_id 由 TenantMixin 提供，
 隔离交给全局 ORM 事件（app/tenant_isolation.py）。
 """
 
@@ -16,14 +16,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import (
     DATETIME6,
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class BatchImportJob(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class BatchImportJob(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """一次批量导入（N 份 docx）。status 由 items 聚合冗余，便于列表与轮询。"""
 
     __tablename__ = "tb_batch_import_job"
@@ -46,7 +46,7 @@ class BatchImportJob(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableT
     )
 
 
-class BatchImportItem(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class BatchImportItem(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """批次内一份 docx 的解析/审阅/落库生命周期。"""
 
     __tablename__ = "tb_batch_import_item"

@@ -12,8 +12,9 @@ from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app import storage
+from app.billing.catalog import Feature
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, require_feature
 from app.errors import not_found
 from app.models.batch import BatchImportItem, BatchImportJob
 from app.models.user import User
@@ -30,7 +31,11 @@ from app.schemas.batch import (
 )
 from app.services import batch_import_service, batch_review_service
 
-router = APIRouter(prefix="/api/v1/batch-imports", tags=["batch-imports"])
+router = APIRouter(
+    prefix="/api/v1/batch-imports",
+    tags=["batch-imports"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 def _job_out(job: BatchImportJob) -> BatchImportJobOut:

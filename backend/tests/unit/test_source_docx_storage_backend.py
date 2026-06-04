@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.services import source_docx_service, upload_service
 from app.storage_backends import get_storage_backend
 from tests.unit.parser._docx_builder import styled_sop
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_store_then_exists_via_backend(db: Session, storage_tmp: Path):

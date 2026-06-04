@@ -13,13 +13,26 @@ from app import storage, tenant
 from app.deps import get_current_user
 from app.main import app
 from app.models.batch import BatchImportItem, BatchImportJob
+from app.models.company import Company
 from app.models.procedure import Procedure
 from app.models.user import User
 from app.services import batch_apply_service
 
 
 @pytest.fixture
-def auth_client(client: TestClient):
+def auth_client(client: TestClient, db: Session):
+    # 挂闸后 require_feature 会按 fake user 的 company_id 查公司套餐；建一家 enterprise
+    # 公司（id 即 co-1）以解锁 sop，并设 tenant 上下文让 factory 直建行落到该公司。
+    db.add(
+        Company(
+            id="co-1",
+            name="BatchCo",
+            slug="batchco",
+            plan="enterprise",
+            subscription_status="active",
+        )
+    )
+    db.commit()
     fake = User(id="u-1", email="t@e.com", password_hash="x", company_id="co-1", name="测试")
     app.dependency_overrides[get_current_user] = lambda: fake
     tenant.set_current_company_id("co-1")

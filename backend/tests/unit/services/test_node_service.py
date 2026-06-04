@@ -10,6 +10,8 @@ from app.services import node_numbering, node_service
 from app.services._invariants import enforce_node_invariants
 from tests.conftest import Factory
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_node_kind_with_input_schema_rejected() -> None:
     with pytest.raises(HTTPException):

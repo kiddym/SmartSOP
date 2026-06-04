@@ -4,23 +4,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app import tenant
+from app.models.attachment import Attachment
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 PROC = "/api/v1/procedures"
 FOLDER = "/api/v1/folders"
-
-
-def _auth(client: TestClient) -> dict[str, str]:
-    tok = client.post(
-        "/api/v1/auth/register",
-        json={
-            "company_name": "Acme",
-            "email": "a@acme.com",
-            "password": "secret123",
-            "name": "A",
-        },
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {tok}"}
 
 
 def _make_procedure(client: TestClient) -> str:
@@ -52,14 +47,54 @@ def test_upload_list_and_detail(client: TestClient, storage_tmp: Path) -> None:
     assert [a["id"] for a in detail["attachments"]] == [att["id"]]
 
 
+def test_uploaded_attachment_derives_company_from_host_not_ambient(
+    client: TestClient, db: Session, storage_tmp: Path, _sop_auth: str
+) -> None:
+    """附件 company_id 须显式取自宿主，而非依赖 ambient tenant 上下文。
+
+    procedure 宿主解析走 bypass。即便 ambient 上下文是另一家公司，附件归属也应随
+    宿主（_sop_auth 公司）——验证 upload_for 显式落宿主 company_id 而非靠自动盖值。
+    """
+    from app.deps import RequestMeta
+    from app.models.company import Company
+    from app.services import attachment_service
+
+    pid = _make_procedure(client)  # 宿主 procedure 属 _sop_auth 公司
+    with tenant.bypass_tenant_scope():
+        other = Company(name="OtherCo", slug="other-co")
+        db.add(other)
+        db.commit()
+
+    meta = RequestMeta(ip_address="", user_agent="", request_id="-")
+    token = tenant.set_current_company_id(other.id)  # ambient = 另一家公司
+    try:
+        att = attachment_service.upload_for(
+            db,
+            None,
+            "procedure",
+            pid,
+            b"PDFDATA",
+            "报告.pdf",
+            content_type="application/pdf",
+            description="",
+            meta=meta,
+        )
+        db.flush()
+        att_id = att.id
+    finally:
+        tenant.reset_current_company_id(token)
+    with tenant.bypass_tenant_scope():
+        row = db.execute(select(Attachment).where(Attachment.id == att_id)).scalar_one()
+    assert row.company_id == _sop_auth  # 随宿主，而非 ambient(other)
+
+
 def test_download_forces_attachment(client: TestClient, storage_tmp: Path) -> None:
     pid = _make_procedure(client)
     att = client.post(
         f"{PROC}/{pid}/attachments",
         files=[("files", ("数据.bin", b"\x00\x01\x02", "application/octet-stream"))],
     ).json()[0]
-    h = _auth(client)
-    resp = client.get(f"/api/v1/attachments/{att['id']}/download", headers=h)
+    resp = client.get(f"/api/v1/attachments/{att['id']}/download")
     assert resp.status_code == 200
     assert resp.content == b"\x00\x01\x02"
     assert resp.headers["content-disposition"].startswith("attachment")
@@ -71,8 +106,7 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
         f"{PROC}/{pid}/attachments",
         files=[("files", ("p.png", b"img", "image/png"))],
     ).json()[0]
-    h = _auth(client)
-    ok = client.get(f"/api/v1/attachments/{png['id']}/preview", headers=h)
+    ok = client.get(f"/api/v1/attachments/{png['id']}/preview")
     assert ok.status_code == 200
     assert ok.headers["content-disposition"] == "inline"
 
@@ -80,7 +114,7 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
         f"{PROC}/{pid}/attachments",
         files=[("files", ("n.txt", b"hi", "text/plain"))],
     ).json()[0]
-    blocked = client.get(f"/api/v1/attachments/{txt['id']}/preview", headers=h)
+    blocked = client.get(f"/api/v1/attachments/{txt['id']}/preview")
     assert blocked.status_code == 415
     assert blocked.json()["detail"]["code"] == "ATTACHMENT_NOT_PREVIEWABLE"
 
@@ -92,12 +126,11 @@ def test_update_and_delete(client: TestClient, storage_tmp: Path) -> None:
         files=[("files", ("a.txt", b"hi", "text/plain"))],
     ).json()[0]
 
-    h = _auth(client)
-    upd = client.put(f"/api/v1/attachments/{att['id']}", json={"description": "改了"}, headers=h)
+    upd = client.put(f"/api/v1/attachments/{att['id']}", json={"description": "改了"})
     assert upd.status_code == 200
     assert upd.json()["description"] == "改了"
 
-    dele = client.delete(f"/api/v1/attachments/{att['id']}", headers=h)
+    dele = client.delete(f"/api/v1/attachments/{att['id']}")
     assert dele.status_code == 204
     assert client.get(f"{PROC}/{pid}/attachments").json() == []
 

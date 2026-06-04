@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.models.node import ProcedureNode
 from app.parser import parse_docx
 from app.parser.eval.accuracy import level_distribution
 from app.schemas.heading_rule import HeadingRuleCreate
 from app.services import heading_learning_service, heading_rule_service
 from tests.unit.parser._docx_builder import styled_sop
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 
 def test_crud_flow(client) -> None:

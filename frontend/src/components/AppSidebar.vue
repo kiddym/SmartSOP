@@ -1,18 +1,42 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMenu, ElMenuItem } from 'element-plus'
+import { ElIcon, ElMenu, ElMenuItem } from 'element-plus'
+import { Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
+import { useBillingStore } from '@/store/billing'
 
 defineProps<{ collapsed: boolean }>()
 const route = useRoute()
 const auth = useAuthStore()
+const billing = useBillingStore()
+
+// 套餐对比页路径（锁定项点击引导至此，而非进入会满屏 402 的模块）。
+const PLANS_PATH = '/billing/plans'
 
 interface NavItem {
   label: string
   path?: string
   soon?: boolean
   requiredPermission?: string
+  // 已挂 feature gate 的高级模块对应功能码；未解锁时菜单项显示锁标。
+  feature?: string
+}
+
+// 菜单项是否因套餐未解锁而锁定。
+function isLocked(it: NavItem): boolean {
+  if (!it.feature) return false
+  // 订阅未知（未加载/拉取失败 → subscription=null）时不显示锁：/billing/subscription 是
+  // 自查端点，free 也会返回对象，故 null 只代表"未知"。后端 402 仍是真闸门，避免一次拉取
+  // 失败把已付费用户的整张菜单锁死。仅在订阅已知且不含该 feature 时锁。
+  if (!billing.subscription) return false
+  return !billing.hasFeature(it.feature)
+}
+
+// 锁定项的导航目标改为套餐页；其余照常。
+function menuIndex(it: NavItem): string {
+  if (isLocked(it)) return PLANS_PATH
+  return it.path ?? `soon:${it.label}`
 }
 interface NavGroup {
   label: string
@@ -38,7 +62,12 @@ const platformItems = computed<NavItem[]>(() => {
 const insightItems = computed<NavItem[]>(() => {
   const items: NavItem[] = []
   if (auth.hasPermission('analytics.view')) {
-    items.push({ label: '分析仪表盘', path: '/analytics', requiredPermission: 'analytics.view' })
+    items.push({
+      label: '分析仪表盘',
+      path: '/analytics',
+      requiredPermission: 'analytics.view',
+      feature: 'analytics',
+    })
   }
   items.push({ label: '通知中心', soon: true })
   return items
@@ -48,9 +77,9 @@ const groups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
     items: [
-      { label: '程序库', path: '/procedures/library' },
-      { label: '草稿箱', path: '/procedures/drafts' },
-      { label: '文件夹', path: '/folders' },
+      { label: '程序库', path: '/procedures/library', feature: 'sop' },
+      { label: '草稿箱', path: '/procedures/drafts', feature: 'sop' },
+      { label: '文件夹', path: '/folders', feature: 'sop' },
       { label: '审计日志', path: '/audit-logs' },
     ],
   },
@@ -61,15 +90,19 @@ const groups = computed<NavGroup[]>(() => [
       { label: '资产', path: '/maindata/assets' },
       { label: '位置', path: '/maindata/locations' },
       { label: '请求', path: '/maintenance/requests' },
-      { label: '预防性维护', path: '/maintenance/preventive-maintenances' },
-      { label: '计量', path: '/maintenance/meters' },
+      {
+        label: '预防性维护',
+        path: '/maintenance/preventive-maintenances',
+        feature: 'preventive_maintenance',
+      },
+      { label: '计量', path: '/maintenance/meters', feature: 'meters' },
     ],
   },
   {
     label: '供应',
     items: [
       { label: '备件库存', path: '/inventory/parts' },
-      { label: '采购单', path: '/inventory/purchase-orders' },
+      { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing' },
       { label: '供应商', path: '/inventory/vendors' },
       { label: '客户', path: '/inventory/customers' },
     ],
@@ -117,11 +150,12 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
         <el-menu-item
           v-for="it in g.items"
           :key="it.label"
-          :index="it.path ?? `soon:${it.label}`"
+          :index="menuIndex(it)"
           :disabled="it.soon"
         >
           <template #title>
             {{ it.label }}<span v-if="it.soon" class="soon-tag">即将上线</span>
+            <el-icon v-else-if="isLocked(it)" class="lock-icon"><Lock /></el-icon>
           </template>
         </el-menu-item>
       </template>
@@ -158,5 +192,11 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
   margin-left: 6px;
   font-size: 10px;
   color: #bbb;
+}
+.lock-icon {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #bbb;
+  vertical-align: middle;
 }
 </style>

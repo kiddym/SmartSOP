@@ -7,14 +7,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class Attachment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class Attachment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """通用附件（多态软关联宿主实体；procedure 经 entity_type='procedure' 平移）。"""
 
     __tablename__ = "tb_attachment"

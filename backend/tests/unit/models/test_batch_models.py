@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.models.batch import BatchImportItem, BatchImportJob
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_job_defaults(db: Session) -> None:

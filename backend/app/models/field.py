@@ -4,26 +4,29 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import JSON, Integer, String, Text
+from sqlalchemy import JSON, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
-    """全局自定义字段定义。key 创建后不可改（Q254）。"""
+class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
+    """自定义字段定义。key 创建后不可改（Q254），按公司唯一。"""
 
     __tablename__ = "tb_procedure_field"
+    __table_args__ = (
+        UniqueConstraint("company_id", "key", name="uq_tb_procedure_field_company_key"),
+    )
 
     name: Mapped[str] = mapped_column(String(100))
-    # 编程键：英文小写/数字/下划线，全局唯一，创建后不可改（Q254）
-    key: Mapped[str] = mapped_column(String(100), unique=True)
+    # 编程键：英文小写/数字/下划线，本公司内唯一，创建后不可改（Q254）
+    key: Mapped[str] = mapped_column(String(100))
     # text / number / date / select / multi_select / checkbox / textarea
     field_type: Mapped[str] = mapped_column(String(20))
     description: Mapped[str] = mapped_column(Text, default="", server_default="")

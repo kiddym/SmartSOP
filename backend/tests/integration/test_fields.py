@@ -14,7 +14,10 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 FIELDS = "/api/v1/procedure-fields"
 

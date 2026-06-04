@@ -6,10 +6,15 @@ import csv
 import io
 from datetime import datetime, timedelta
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
+
+# 审计行（直建 db）须有 tenant 上下文落 company_id（NOT NULL）；端点本身未鉴权，
+# 请求期上下文为 None 不作用域化，故直建行仍可见。
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 FOLDERS_BASE = "/api/v1/audit-logs/folders"
 PROCEDURES_BASE = "/api/v1/audit-logs/procedures"

@@ -186,6 +186,92 @@ def storage_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Pa
     yield root
 
 
+@pytest.fixture
+def _enterprise_default() -> Generator[None, None, None]:
+    """让本测试中新建的公司默认升到 enterprise+active。
+
+    P6 给 meters/pm/purchasing/analytics 挂了 feature gate；这些模块的既有集成测试
+    用默认 free 公司直访会变 402。受影响测试文件用
+    `pytestmark = pytest.mark.usefixtures("_enterprise_default")` 引用本 fixture 即可整
+    文件解锁，无需逐个改注册调用点。需要 free 默认的门控/计费/座席测试不引用本
+    fixture，保持显式 free。
+
+    实现走 before_insert 事件显式给实例赋值（而非改列默认）：SQLAlchemy 会把标量
+    列默认值烘焙进进程级语句缓存，改 default.arg 撤销后仍会泄漏到后续测试；事件监听
+    每次按实例赋值，event.remove 即彻底恢复，无跨测试污染。
+    """
+    from sqlalchemy import event
+
+    from app.models.company import Company
+
+    def _stamp(_mapper: object, _connection: object, target: Company) -> None:
+        target.plan = "enterprise"
+        target.subscription_status = "active"
+
+    event.listen(Company, "before_insert", _stamp)
+    try:
+        yield
+    finally:
+        event.remove(Company, "before_insert", _stamp)
+
+
+@pytest.fixture
+def _sop_auth(_enterprise_default, client, db):
+    """SOP 测试登录态：注册一家 enterprise 公司，默认带 token，并设 tenant 上下文。
+
+    - _enterprise_default（before_insert）确保新公司 enterprise → 解锁 sop。
+    - client 默认 header 让无 header 的既有 client 调用自动带 token（测试体不动）。
+    - 同步设 tenant 上下文：让用 factory 直接 db.add 的行也被盖对 company_id
+      （否则直建行 company_id=NULL，被自动过滤后 API 查不到）。
+    """
+    from sqlalchemy import select
+
+    from app import tenant
+    from app.models.company import Company
+
+    resp = client.post(
+        "/api/v1/auth/register",
+        json={
+            "company_name": "SOPCo",
+            "email": "sop@example.com",
+            "password": "secret123",
+            "name": "Admin",
+        },
+    )
+    token = resp.json()["access_token"]
+    company_id = db.execute(select(Company).where(Company.slug == "sopco")).scalar_one().id
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    ctx = tenant.set_current_company_id(company_id)
+    try:
+        yield company_id
+    finally:
+        tenant.reset_current_company_id(ctx)
+        client.headers.pop("Authorization", None)
+
+
+@pytest.fixture
+def _tenant_ctx(db: Session) -> Generator[str, None, None]:
+    """轻量 tenant 上下文：建一家 Company 并设上下文，供无认证的单测/service 测试用。
+
+    SOP 表 company_id 收 NOT NULL 后，直接 `db.add`/factory 造行须在某公司上下文下
+    才能落值（否则 fail-closed）。本 fixture 不经 register/seed，仅提供一个最小可用
+    的租户上下文；测试体不变，文件级 `pytestmark = pytest.mark.usefixtures("_tenant_ctx")`
+    引用即可。
+    """
+    from app import tenant
+    from app.models.company import Company
+
+    with tenant.bypass_tenant_scope():
+        co = Company(name="UnitCo", slug=f"unit-{uuid.uuid4().hex[:8]}")
+        db.add(co)
+        db.commit()
+    token = tenant.set_current_company_id(co.id)
+    try:
+        yield co.id
+    finally:
+        tenant.reset_current_company_id(token)
+
+
 @pytest.fixture(autouse=True)
 def _clear_tenant_context():
     """Each test starts/ends with no tenant scope (prevents leakage)."""

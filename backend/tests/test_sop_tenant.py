@@ -7,7 +7,8 @@ def test_sop_models_tenant_scoped():
     assert issubclass(Folder, TenantScoped)
     assert issubclass(Procedure, TenantScoped)
     assert "company_id" in Folder.__table__.columns
-    assert Folder.__table__.columns["company_id"].nullable is True
+    # 多租户硬化后 SOP 表 company_id 收 NOT NULL（fail-closed）。
+    assert Folder.__table__.columns["company_id"].nullable is False
 
 
 def test_folder_auto_stamped_and_scoped(db):

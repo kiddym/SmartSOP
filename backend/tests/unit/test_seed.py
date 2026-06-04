@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app import seed
 from app.models.field import ProcedureField
 from app.models.folder import Folder, FolderSequence
 from app.models.settings import ProcedureSettings
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_run_seed_creates_system_folders(db) -> None:

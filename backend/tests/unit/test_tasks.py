@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.models.base import utcnow
@@ -12,6 +13,8 @@ from app.services import asset_service, source_docx_service, upload_service
 from app.tasks import asset_gc, cleanup_attachments, cleanup_uploads, scheduler, sweep_source_docx
 from tests.conftest import Factory
 from tests.unit.parser._docx_builder import styled_sop, tiny_png
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_cleanup_uploads_run_removes_expired(storage_tmp: Path) -> None:

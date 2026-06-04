@@ -13,7 +13,8 @@ from fastapi import APIRouter, Depends, File, Header, Query, Response, UploadFil
 from fastapi.responses import FileResponse, JSONResponse
 from sqlalchemy.orm import Session
 
-from app.deps import RequestMeta, get_db, get_request_meta
+from app.billing.catalog import Feature
+from app.deps import RequestMeta, get_db, get_request_meta, require_feature
 from app.schemas.common import BatchDeleteResult, Page
 from app.schemas.parse import AssetUploadResult, ImportRequest
 from app.schemas.pdf import PdfLayoutOut
@@ -45,7 +46,11 @@ from app.services import (
 )
 from app.services.optimistic_lock import ensure_if_match
 
-router = APIRouter(prefix="/api/v1/procedures", tags=["procedures"])
+router = APIRouter(
+    prefix="/api/v1/procedures",
+    tags=["procedures"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 def _page(items: list[ProcedureOut], total: int, page: int, page_size: int) -> Page[ProcedureOut]:

@@ -8,6 +8,8 @@ from fastapi import HTTPException
 from app.schemas.heading_rule import HeadingRuleCreate, HeadingRuleUpdate
 from app.services import heading_rule_service as svc
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_create_and_active_overrides(db) -> None:
     rule = svc.create(db, HeadingRuleCreate(style_name="章节标题", level=2))

@@ -27,6 +27,6 @@ class Company(Base, UUIDMixin, TimestampMixin):
     locale: Mapped[str] = mapped_column(String(16), nullable=False, default="zh-CN")
     # Reserved: platform-operator org (Phase 0: always False, no UI).
     is_platform_admin_org: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
-    # Reserved billing placeholders (Phase 6) — no logic attached.
-    plan: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    subscription_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Billing (Phase 6): default free/active; platform admin 手动改档。
+    plan: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
+    subscription_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")

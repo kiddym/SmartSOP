@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
+
 from app.parser.heading_detector import classify_numbering
 from app.schemas.numbering_profile import NumberingProfileCreate
 from app.services import numbering_profile_service
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 
 def test_crud_flow(client) -> None:

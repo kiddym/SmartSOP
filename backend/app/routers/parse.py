@@ -10,11 +10,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, File, Response, UploadFile
 from sqlalchemy.orm import Session
 
-from app.deps import get_db
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature
 from app.schemas.parse import ParseMethodOut, ParseRequest, ParseResponse, UploadResult
 from app.services import parse_service, upload_service
 
-router = APIRouter(prefix="/api/v1", tags=["parse"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["parse"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 @router.post("/uploads", response_model=UploadResult)

@@ -2,9 +2,21 @@
 
 from __future__ import annotations
 
+from sqlalchemy import select
+
+from app.models.company import Company
+
 
 def _h(token):
     return {"Authorization": f"Bearer {token}"}
+
+
+def _unlock_pro(db):
+    """meters 已挂 feature gate；把全部公司升 pro 让既有用例可访问。"""
+    for c in db.execute(select(Company)).scalars().all():
+        c.plan = "pro"
+        c.subscription_status = "active"
+    db.commit()
 
 
 def _admin(client, *, company="Acme", email="admin@acme.com"):
@@ -40,8 +52,9 @@ def _trigger_body(**kw):
     return body
 
 
-def test_meter_crud(client):
+def test_meter_crud(client, db):
     t = _admin(client)
+    _unlock_pro(db)
     r = _meter(client, t)
     assert r.status_code == 201, r.text
     mid = r.json()["id"]
@@ -53,8 +66,9 @@ def test_meter_crud(client):
     assert client.delete(f"/api/v1/meters/{mid}", headers=_h(t)).status_code == 204
 
 
-def test_trigger_crud_and_enable_disable(client):
+def test_trigger_crud_and_enable_disable(client, db):
     t = _admin(client)
+    _unlock_pro(db)
     mid = _meter(client, t).json()["id"]
     r = client.post(f"/api/v1/meters/{mid}/triggers", json=_trigger_body(), headers=_h(t))
     assert r.status_code == 201, r.text
@@ -76,8 +90,9 @@ def test_trigger_crud_and_enable_disable(client):
     assert len(lst.json()) == 1
 
 
-def test_submit_reading_fires_and_returns_wo_ids(client):
+def test_submit_reading_fires_and_returns_wo_ids(client, db):
     t = _admin(client)
+    _unlock_pro(db)
     mid = _meter(client, t).json()["id"]
     client.post(
         f"/api/v1/meters/{mid}/triggers", json=_trigger_body(assignee_ids=["x"]), headers=_h(t)
@@ -90,8 +105,9 @@ def test_submit_reading_fires_and_returns_wo_ids(client):
     assert len(readings.json()) == 1
 
 
-def test_technician_can_read_but_not_configure(client):
+def test_technician_can_read_but_not_configure(client, db):
     admin = _admin(client)
+    _unlock_pro(db)
     tech = _technician_token(client, admin)
     mid = _meter(client, admin).json()["id"]
     # 不能建仪表
@@ -112,8 +128,10 @@ def test_technician_can_read_but_not_configure(client):
     )
 
 
-def test_tenant_isolation(client):
+def test_tenant_isolation(client, db):
     a = _admin(client)
+    _unlock_pro(db)
     mid = _meter(client, a).json()["id"]
     b = _admin(client, company="Beta", email="admin@beta.com")
+    _unlock_pro(db)
     assert client.get(f"/api/v1/meters/{mid}", headers=_h(b)).status_code == 404

@@ -7,7 +7,8 @@ from typing import Any
 from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy.orm import Session
 
-from app.deps import get_db
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature
 from app.schemas.node import (
     NodeBatchIn,
     NodeCreateIn,
@@ -18,7 +19,10 @@ from app.schemas.node import (
 from app.services import node_service, optimistic_lock
 
 # 不设共享 prefix:端点横跨两套 URL 层级(/api/v1/procedures/{id}/nodes 与 /api/v1/nodes/{id})。
-router = APIRouter(tags=["nodes"])
+router = APIRouter(
+    tags=["nodes"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 def _changes_from_patch(payload: NodePatchIn) -> dict[str, Any]:

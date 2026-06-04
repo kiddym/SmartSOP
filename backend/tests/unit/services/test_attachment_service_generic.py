@@ -15,6 +15,9 @@ from app.services import attachment_service as svc
 META = RequestMeta(ip_address="1.1.1.1", user_agent="t", request_id="r1")
 
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
+
 def _super_user(db: Session, company_id: str) -> User:
     from app.models.company import Company
     from app.models.role import Role

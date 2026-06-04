@@ -9,7 +9,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.deps import get_db
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature
 from app.schemas.heading_rule import HeadingRuleCreate, HeadingRuleOut, HeadingRuleUpdate
 from app.schemas.numbering_profile import (
     NumberingProfileCreate,
@@ -18,7 +19,11 @@ from app.schemas.numbering_profile import (
 )
 from app.services import heading_rule_service, numbering_profile_service
 
-router = APIRouter(prefix="/api/v1", tags=["heading-rules"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["heading-rules"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 @router.get("/heading-rules", response_model=list[HeadingRuleOut])

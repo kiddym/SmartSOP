@@ -4,12 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
 from app.services import attachment_service
 from app.storage_backends import get_storage_backend
 from tests.conftest import Factory
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_upload_then_download_via_backend(db: Session, factory: Factory, storage_tmp: Path):

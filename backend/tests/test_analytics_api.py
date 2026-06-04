@@ -4,10 +4,13 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pytest
 from sqlalchemy import select
 
 from app.models.company import Company
 from app.models.work_order import WorkOrder
+
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
 
 
 def _h(token):

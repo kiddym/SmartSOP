@@ -10,6 +10,8 @@ from fastapi import HTTPException
 from app.services import sequence_generator
 from tests.conftest import Factory
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_next_value_increments_and_zero_pads(db, factory: Factory) -> None:
     """连续生成自增并按 sequence_digits 补零。"""

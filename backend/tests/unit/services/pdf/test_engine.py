@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.models.attachment import Attachment
@@ -10,6 +11,8 @@ from app.services.pdf import context
 from app.services.pdf.document import to_roman
 from app.services.pdf.engine import compute_layout, render_pdf
 from tests.conftest import Factory
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def _rich_proc(db: Session, factory: Factory):

@@ -15,6 +15,8 @@ from app.services import asset_service
 from tests.conftest import Factory
 from tests.unit.parser._docx_builder import tiny_png
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def _proc(factory: Factory):  # type: ignore[no-untyped-def]
     leaf = factory.folder(name="叶子", prefix="QC", full_path="叶子")

@@ -19,6 +19,7 @@ from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.permissions import BUILTIN_ROLES
 from app.schemas.auth import LoginRequest, RegisterRequest
+from app.seed import seed_tenant_sop
 
 
 class AuthError(Exception):
@@ -30,7 +31,13 @@ def _slugify(name: str) -> str:
     return s or "company"
 
 
-def register(db: Session, payload: RegisterRequest) -> User:
+def create_company(db: Session, payload: RegisterRequest) -> User:
+    """唯一建公司工厂：建 Company → 设上下文 → 播 roles/super_admin user → SOP seed。
+
+    强制「新公司即有 SOP 系统数据」不变量——任何建公司路径（注册/未来管理台/导入）
+    都须经此，禁止裸 `db.add(Company(...))` 绕过 seed 与上下文设定。
+    返回新建的 super_admin User。
+    """
     slug = _slugify(payload.company_name)
     with tenant.bypass_tenant_scope():
         if db.execute(select(Company).where(Company.slug == slug)).scalar_one_or_none():
@@ -61,11 +68,18 @@ def register(db: Session, payload: RegisterRequest) -> User:
             status=UserStatus.active,
         )
         db.add(user)
+        db.flush()
+        seed_tenant_sop(db)  # 每公司 SOP 系统数据（上下文已是新公司）
         db.commit()
         db.refresh(user)
         return user
     finally:
         tenant.reset_current_company_id(token)
+
+
+def register(db: Session, payload: RegisterRequest) -> User:
+    """自助注册：薄封装 create_company，保证注册的公司带齐 SOP seed。"""
+    return create_company(db, payload)
 
 
 def authenticate(db: Session, payload: LoginRequest) -> User:

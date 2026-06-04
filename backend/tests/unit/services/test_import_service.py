@@ -1,5 +1,6 @@
 """单元测试：import_service 直接落 ProcedureNode（B4a）。"""
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta
@@ -9,6 +10,9 @@ from app.services import import_service
 from tests.conftest import Factory
 
 META = RequestMeta(ip_address="127.0.0.1", user_agent="pytest", request_id="r1")
+
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def _leaf(factory: Factory) -> str:

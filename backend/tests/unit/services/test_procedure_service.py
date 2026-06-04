@@ -21,6 +21,9 @@ from tests.conftest import Factory
 META = RequestMeta(ip_address="203.0.113.7", user_agent="pytest", request_id="r-1")
 
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
+
 def _leaf(factory: Factory, *, prefix: str = "QC", name: str = "叶子") -> Folder:
     folder = factory.folder(name=name, prefix=prefix, full_path=name)
     factory.sequence(folder.id)

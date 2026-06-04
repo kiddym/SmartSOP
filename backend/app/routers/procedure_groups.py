@@ -10,11 +10,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
-from app.deps import RequestMeta, get_db, get_request_meta
+from app.billing.catalog import Feature
+from app.deps import RequestMeta, get_db, get_request_meta, require_feature
 from app.schemas.procedure import ProcedureDeleteIn, VersionListItem, VersionListOut
 from app.services import version_flow_service
 
-router = APIRouter(prefix="/api/v1/procedure-groups", tags=["procedure-groups"])
+router = APIRouter(
+    prefix="/api/v1/procedure-groups",
+    tags=["procedure-groups"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 _PREVIEW_CHARS = 100
 

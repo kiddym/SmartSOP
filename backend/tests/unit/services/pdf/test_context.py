@@ -12,6 +12,8 @@ from app.services import node_numbering
 from app.services.pdf import context
 from tests.conftest import Factory
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def _proc(factory: Factory):
     leaf = factory.folder(name="质检", prefix="QC", full_path="根/质检")

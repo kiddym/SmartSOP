@@ -50,3 +50,7 @@ def unauthorized(code: str, message: str, field: str | None = None) -> HTTPExcep
 
 def forbidden(code: str, message: str, field: str | None = None) -> HTTPException:
     return app_error(status.HTTP_403_FORBIDDEN, code, message, field)
+
+
+def payment_required(code: str, message: str, field: str | None = None) -> HTTPException:
+    return app_error(status.HTTP_402_PAYMENT_REQUIRED, code, message, field)

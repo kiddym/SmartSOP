@@ -14,13 +14,13 @@ from datetime import datetime
 from sqlalchemy import BigInteger, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, NullableTenantMixin, utcnow
+from app.models.base import DATETIME6, Base, TenantMixin, utcnow
 
 # 仿 audit.py：MySQL BIGINT 自增；SQLite 须 INTEGER 才能复用 rowid 自增。
 _EVENT_PK = BigInteger().with_variant(Integer, "sqlite")
 
 
-class HeadingLearningEvent(Base, NullableTenantMixin):
+class HeadingLearningEvent(Base, TenantMixin):
     """一条样式标题的用户校正信号（append-only，按租户隔离）。"""
 
     __tablename__ = "tb_heading_learning_event"

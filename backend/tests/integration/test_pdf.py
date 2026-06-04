@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 PROC = "/api/v1/procedures"
 FOLDER = "/api/v1/folders"

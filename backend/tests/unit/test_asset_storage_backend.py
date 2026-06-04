@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from sqlalchemy.orm import Session
 
 from app.services import asset_service
 from app.storage_backends import get_storage_backend
 from tests.unit.parser._docx_builder import tiny_png
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_find_or_create_writes_via_backend(db: Session, storage_tmp: Path):

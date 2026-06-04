@@ -14,6 +14,9 @@ from tests.conftest import Factory
 META = RequestMeta(ip_address="203.0.113.7", user_agent="pytest", request_id="r-1")
 
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
+
 def _create(db: Session, name: str, *, parent_id: str | None = None, prefix: str = "") -> str:
     folder = folder_service.create_folder(
         db, FolderCreate(name=name, parent_id=parent_id, prefix=prefix), META
