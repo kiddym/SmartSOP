@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
+import pytest
 from sqlalchemy import select
 
 from app.models.company import Company
@@ -13,6 +14,8 @@ from app.models.work_order import WorkOrder, WorkOrderAssignee
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_labor import WorkOrderLabor
 from app.models.work_order_status import WorkOrderStatus
+
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
 
 
 def _h(token):

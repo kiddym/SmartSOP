@@ -186,6 +186,35 @@ def storage_tmp(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Generator[Pa
     yield root
 
 
+@pytest.fixture
+def _enterprise_default() -> Generator[None, None, None]:
+    """让本测试中新建的公司默认升到 enterprise+active。
+
+    P6 给 meters/pm/purchasing/analytics 挂了 feature gate；这些模块的既有集成测试
+    用默认 free 公司直访会变 402。受影响测试文件用
+    `pytestmark = pytest.mark.usefixtures("_enterprise_default")` 引用本 fixture 即可整
+    文件解锁，无需逐个改注册调用点。需要 free 默认的门控/计费/座席测试不引用本
+    fixture，保持显式 free。
+
+    实现走 before_insert 事件显式给实例赋值（而非改列默认）：SQLAlchemy 会把标量
+    列默认值烘焙进进程级语句缓存，改 default.arg 撤销后仍会泄漏到后续测试；事件监听
+    每次按实例赋值，event.remove 即彻底恢复，无跨测试污染。
+    """
+    from sqlalchemy import event
+
+    from app.models.company import Company
+
+    def _stamp(_mapper: object, _connection: object, target: Company) -> None:
+        target.plan = "enterprise"
+        target.subscription_status = "active"
+
+    event.listen(Company, "before_insert", _stamp)
+    try:
+        yield
+    finally:
+        event.remove(Company, "before_insert", _stamp)
+
+
 @pytest.fixture(autouse=True)
 def _clear_tenant_context():
     """Each test starts/ends with no tenant scope (prevents leakage)."""

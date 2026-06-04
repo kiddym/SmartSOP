@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import permissions
-from app.deps import get_db, require_permission
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature, require_permission
 from app.errors import not_found
 from app.models.purchase_order import PurchaseOrder, PurchaseOrderActivity
 from app.models.user import User
@@ -23,7 +24,11 @@ from app.schemas.purchase_order import (
 )
 from app.services import purchase_order_service as svc
 
-router = APIRouter(prefix="/api/v1/purchase-orders", tags=["purchase-orders"])
+router = APIRouter(
+    prefix="/api/v1/purchase-orders",
+    tags=["purchase-orders"],
+    dependencies=[Depends(require_feature(Feature.purchasing))],
+)
 
 
 def _ensure(po: PurchaseOrder | None, company_id: str) -> PurchaseOrder:

@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
+
 
 def _h(t):
     return {"Authorization": f"Bearer {t}"}

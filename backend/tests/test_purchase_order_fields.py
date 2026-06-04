@@ -5,6 +5,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
+
 
 def _admin(client, company="Acme", email="admin@acme.com"):
     return client.post(

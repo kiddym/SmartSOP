@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
+import pytest
 from sqlalchemy import select
 
 from app.models.company import Company
 from app.models.request import Request
 from app.models.request_status import RequestStatus
+
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
 
 
 def _h(token):

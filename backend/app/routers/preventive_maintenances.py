@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import permissions
-from app.deps import get_db, require_permission
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature, require_permission
 from app.errors import not_found
 from app.models.pm_activity import PMActivity
 from app.models.preventive_maintenance import PreventiveMaintenance
@@ -21,7 +22,11 @@ from app.schemas.pm import (
 from app.schemas.work_order import WorkOrderRead
 from app.services import pm_service as svc
 
-router = APIRouter(prefix="/api/v1/preventive-maintenances", tags=["preventive-maintenances"])
+router = APIRouter(
+    prefix="/api/v1/preventive-maintenances",
+    tags=["preventive-maintenances"],
+    dependencies=[Depends(require_feature(Feature.preventive_maintenance))],
+)
 
 
 def _ensure(pm: PreventiveMaintenance | None, company_id: str) -> PreventiveMaintenance:
