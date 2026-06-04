@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import { Files } from '@element-plus/icons-vue'
 import StatusTag from '@/components/StatusTag.vue'
+import EmptyState from '@/components/shared/EmptyState.vue'
 import { formatDateTime } from '@/utils/format'
 import type { ProcedureRow } from '@/types/procedure'
 
@@ -14,6 +16,9 @@ const emit = defineEmits<{ (e: 'open', id: string): void }>()
     stripe
     @row-click="(row: ProcedureRow) => emit('open', row.id)"
   >
+    <template #empty>
+      <EmptyState :icon="Files" title="暂无程序" description="此范围下还没有程序" />
+    </template>
     <!-- mono 数据列：编号/版本/日期 走等宽字体（docs/design-system.md §2.2）。
          class-name 落在 <td>，font-mono 通过继承生效到单元格内文本。 -->
     <el-table-column prop="code" label="编码" width="140" class-name="font-mono" />

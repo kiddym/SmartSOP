@@ -199,4 +199,24 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
   color: #bbb;
   vertical-align: middle;
 }
+
+/* 选中态：左 3px 陶土橙竖条 + accent-bg 底（design-system.md §3.2）。
+   EP 默认仅给激活项换文字色，这里补足竖条与底色，强化层级辨识。 */
+.app-aside :deep(.el-menu-item.is-active) {
+  position: relative;
+  background: rgba(217, 119, 87, 0.12);
+}
+.app-aside :deep(.el-menu-item.is-active)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--accent);
+}
+/* hover 不盖过选中底色 */
+.app-aside :deep(.el-menu-item.is-active:hover) {
+  background: rgba(217, 119, 87, 0.16);
+}
 </style>

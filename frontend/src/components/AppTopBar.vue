@@ -56,13 +56,8 @@ defineExpose({ MENU_COMMANDS, onCommand })
       <el-icon><Expand v-if="collapsed" /><Fold v-else /></el-icon>
     </button>
     <span class="app-brand">{{ $t('app.name') }}</span>
-    <input
-      class="topbar-search"
-      type="text"
-      disabled
-      placeholder="⌕ 全库搜索（即将上线）"
-      title="全库搜索 · 即将上线"
-    />
+    <!-- 全库搜索为路线图功能，未上线前不在顶栏占位（避免常驻的禁用控件传递半成品感）。
+         上线时在此处恢复一个可用的搜索入口。 -->
     <span class="topbar-spacer" />
     <span
       v-if="(unreadCount ?? 0) > 0"
@@ -130,19 +125,6 @@ defineExpose({ MENU_COMMANDS, onCommand })
   font-size: 14px;
   letter-spacing: 0.3px;
   color: var(--text-primary);
-}
-.topbar-search {
-  flex: 1;
-  max-width: 380px;
-  height: 28px;
-  background: #ece9e3;
-  border: 1px solid #d4cfc6;
-  border-radius: 4px;
-  padding: 0 10px;
-  color: #b5aa9c;
-  font-style: italic;
-  font-size: 12px;
-  cursor: not-allowed;
 }
 .topbar-spacer {
   flex: 1;

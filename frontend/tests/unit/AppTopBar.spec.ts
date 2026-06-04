@@ -52,11 +52,9 @@ describe('AppTopBar', () => {
     expect(w.emitted('toggle-sidebar')).toHaveLength(1)
   })
 
-  it('搜索框为 disabled，含「即将上线」title', () => {
+  it('不在顶栏渲染禁用的占位搜索框（全库搜索未上线前不占位）', () => {
     const w = mountTopBar()
-    const input = w.find('input.topbar-search')
-    expect(input.attributes('disabled')).toBeDefined()
-    expect(input.attributes('title')).toContain('即将上线')
+    expect(w.find('input.topbar-search').exists()).toBe(false)
   })
 
   it('unreadCount 默认（不传）不渲染徽标', () => {
