@@ -16,7 +16,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app import storage
+from app import storage, tenant
 from app.errors import bad_request, not_found, payload_too_large
 from app.models.asset import ProcedureAsset, ProcedureAssetReference
 from app.models.base import new_uuid, utcnow
@@ -251,13 +251,32 @@ def delete_asset_locked(db: Session, asset_id: str, *, grace_hours: int, now: da
         return False
     if asset.updated_at > now - timedelta(hours=grace_hours):
         return False
-    try:
-        get_storage_backend().delete(asset.storage_path)
-    except OSError:
-        return False  # 保留行，下轮重试自愈
+    # storage_path 按 sha256 全局分桶（不含 company_id），sha256 改 per-company 复合唯一后
+    # 同字节文件跨公司各一行但共享一份物理文件。仅当没有其它公司的 active 行引用该文件时
+    # 才删字节，否则只硬删本行、保留共享文件（避免孤立他公司资产）。
+    if not _storage_path_shared(db, storage_path=asset.storage_path, exclude_asset_id=asset_id):
+        try:
+            get_storage_backend().delete(asset.storage_path)
+        except OSError:
+            return False  # 保留行，下轮重试自愈
     db.delete(asset)
     db.flush()
     return True
+
+
+def _storage_path_shared(db: Session, *, storage_path: str, exclude_asset_id: str) -> bool:
+    """是否有其它公司的 active asset 仍引用同一物理文件（跨租户计数，故用 bypass）。"""
+    with tenant.bypass_tenant_scope():
+        others = db.execute(
+            select(func.count())
+            .select_from(ProcedureAsset)
+            .where(
+                ProcedureAsset.storage_path == storage_path,
+                ProcedureAsset.is_active.is_(True),
+                ProcedureAsset.id != exclude_asset_id,
+            )
+        ).scalar_one()
+    return int(others) > 0
 
 
 # --------------------------------------------------------------------------- #
