@@ -28,6 +28,15 @@
   /* 顶栏高度（AppTopBar 单一来源）。design-system.md §3.1 规定 48px。 */
   --topbar-height: 48px;
 
+  /* 动效（design-system.md §2.4：ease-out 无弹跳）。质感移植后路由/入场略放宽到 ~0.2s。 */
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-route: 0.2s;
+  --dur-enter: 0.28s;
+
+  /* 交互杂项 */
+  --bg-hover: rgba(0, 0, 0, 0.04);      /* 表格/菜单 hover 底色（中性，不引入新彩色） */
+  --ring-focus: 0 0 0 3px rgba(217, 119, 87, 0.18);  /* 焦点光环 = 赤陶 accent 18% */
+
   /* 阴影：纸面孤岛（PDF 预览、文档画布）"桌上一张文件"的投影。
      与 design-system.md §3.8「亮纸孤岛」 + §2.4 阴影规范 保持一致；
      绝非通用层级阴影 —— 应用壳分隔仍走"线不靠影"（§2.4）。 */
