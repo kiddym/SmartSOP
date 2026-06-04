@@ -47,7 +47,7 @@ h3,
   }
 }
 .u-fade-in {
-  animation: u-fade-in 0.28s ease both;
+  animation: u-fade-in var(--dur-enter) var(--ease-standard) both;
 }
 
 /* ---- 细滚动条（6px，中性） ---- */
@@ -95,9 +95,4 @@ h3,
     transition: none !important;
     animation: none !important;
   }
-}
-
-/* Element Plus 默认字体跟随设计字体栈 */
-:root {
-  --el-font-family: var(--font-body);
 }

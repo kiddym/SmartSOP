@@ -27,9 +27,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* EP 输入内层元素自身可聚焦，会被全局 :focus-visible 命中而生出内环；
+   焦点环统一交给下方 wrapper 级规则，这里清掉内层环避免双环。 */
+.el-input__inner:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 /* ---- 输入 / 选择 焦点光环 ---- */
 /* 不用 !important / #app：保持低权重(0,2,0)，靠加载顺序压过 EP 基础聚焦态；
-   EP 的 .is-error 校验规则权重更高(≥0,3,0)，出错时红环自然优先，无需特殊处理。 */
+   EP 的 .is-error 校验规则权重更高(≥0,4,0)，出错时红环自然优先，无需特殊处理。 */
 .el-input__wrapper.is-focus,
 .el-select__wrapper.is-focused {
   box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset;
