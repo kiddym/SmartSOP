@@ -15,14 +15,26 @@ def test_soft_delete_when_host_missing(db: Session) -> None:
     db.add(Asset(custom_id="A1", name="泵"))
     db.commit()
     aid = db.query(Asset).one().id
-    db.add(Attachment(
-        entity_type="asset", entity_id=aid, file_name="a.pdf",
-        storage_path="x/a.pdf", mime_type="application/pdf", size_bytes=1,
-    ))
-    db.add(Attachment(
-        entity_type="asset", entity_id="ghost", file_name="b.pdf",
-        storage_path="x/b.pdf", mime_type="application/pdf", size_bytes=1,
-    ))
+    db.add(
+        Attachment(
+            entity_type="asset",
+            entity_id=aid,
+            file_name="a.pdf",
+            storage_path="x/a.pdf",
+            mime_type="application/pdf",
+            size_bytes=1,
+        )
+    )
+    db.add(
+        Attachment(
+            entity_type="asset",
+            entity_id="ghost",
+            file_name="b.pdf",
+            storage_path="x/b.pdf",
+            mime_type="application/pdf",
+            size_bytes=1,
+        )
+    )
     db.commit()
     tenant.set_current_company_id(None)
 
@@ -42,10 +54,16 @@ def test_soft_delete_when_host_soft_deleted(db: Session) -> None:
     db.add(asset)
     db.flush()
     aid = asset.id
-    db.add(Attachment(
-        entity_type="asset", entity_id=aid, file_name="c.pdf",
-        storage_path="x/c.pdf", mime_type="application/pdf", size_bytes=1,
-    ))
+    db.add(
+        Attachment(
+            entity_type="asset",
+            entity_id=aid,
+            file_name="c.pdf",
+            storage_path="x/c.pdf",
+            mime_type="application/pdf",
+            size_bytes=1,
+        )
+    )
     asset.is_active = False
     asset.deleted_at = utcnow()
     db.commit()

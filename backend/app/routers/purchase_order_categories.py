@@ -17,9 +17,7 @@ from app.schemas.purchase_order_category import (
 )
 from app.services import purchase_order_category_service as svc
 
-router = APIRouter(
-    prefix="/api/v1/purchase-order-categories", tags=["purchase-order-categories"]
-)
+router = APIRouter(prefix="/api/v1/purchase-order-categories", tags=["purchase-order-categories"])
 
 
 def _ensure(c: PurchaseOrderCategory | None, company_id: str) -> PurchaseOrderCategory:
@@ -31,35 +29,25 @@ def _ensure(c: PurchaseOrderCategory | None, company_id: str) -> PurchaseOrderCa
 @router.get("", response_model=list[PurchaseOrderCategoryRead])
 def list_purchase_order_categories(
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_permission(permissions.PURCHASE_ORDER_CATEGORY_VIEW)
-    ),
+    current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CATEGORY_VIEW)),
 ) -> list[PurchaseOrderCategory]:
     return svc.list_categories(db)
 
 
-@router.post(
-    "", response_model=PurchaseOrderCategoryRead, status_code=status.HTTP_201_CREATED
-)
+@router.post("", response_model=PurchaseOrderCategoryRead, status_code=status.HTTP_201_CREATED)
 def create_purchase_order_category(
     payload: PurchaseOrderCategoryCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)
-    ),
+    current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)),
 ) -> PurchaseOrderCategory:
-    return svc.create_category(
-        db, payload, current_user.company_id, actor_user_id=current_user.id
-    )
+    return svc.create_category(db, payload, current_user.company_id, actor_user_id=current_user.id)
 
 
 @router.get("/{category_id}", response_model=PurchaseOrderCategoryRead)
 def get_purchase_order_category(
     category_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_permission(permissions.PURCHASE_ORDER_CATEGORY_VIEW)
-    ),
+    current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CATEGORY_VIEW)),
 ) -> PurchaseOrderCategory:
     return _ensure(svc.get_category(db, category_id), current_user.company_id)
 
@@ -69,9 +57,7 @@ def update_purchase_order_category(
     category_id: str,
     payload: PurchaseOrderCategoryUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)
-    ),
+    current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)),
 ) -> PurchaseOrderCategory:
     c = _ensure(svc.get_category(db, category_id), current_user.company_id)
     return svc.update_category(
@@ -79,15 +65,11 @@ def update_purchase_order_category(
     )
 
 
-@router.delete(
-    "/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
-)
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_purchase_order_category(
     category_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(
-        require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)
-    ),
+    current_user: User = Depends(require_permission(permissions.PURCHASE_ORDER_CATEGORY_MANAGE)),
 ) -> None:
     c = _ensure(svc.get_category(db, category_id), current_user.company_id)
     svc.delete_category(db, c)

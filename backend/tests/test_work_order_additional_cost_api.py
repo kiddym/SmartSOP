@@ -39,9 +39,7 @@ def test_additional_cost_crud(client):
     )
     assert float(upd.json()["amount"]) == 40.0
     assert (
-        client.delete(
-            f"/api/v1/work-orders/{wo}/additional-costs/{aid}", headers=_h(t)
-        ).status_code
+        client.delete(f"/api/v1/work-orders/{wo}/additional-costs/{aid}", headers=_h(t)).status_code
         == 204
     )
 
@@ -93,15 +91,15 @@ def test_additional_cost_patch_cross_tenant_cost_category_404(client):
         json={"title": "差旅", "amount": "50"},
         headers=_h(a),
     ).json()["id"]
-    cat_a = client.post(
-        "/api/v1/cost-categories", json={"name": "A类成本"}, headers=_h(a)
-    ).json()["id"]
+    cat_a = client.post("/api/v1/cost-categories", json={"name": "A类成本"}, headers=_h(a)).json()[
+        "id"
+    ]
 
     # B 租户
     b = _admin(client, company="Beta", email="admin@beta.com")
-    cat_b = client.post(
-        "/api/v1/cost-categories", json={"name": "B类成本"}, headers=_h(b)
-    ).json()["id"]
+    cat_b = client.post("/api/v1/cost-categories", json={"name": "B类成本"}, headers=_h(b)).json()[
+        "id"
+    ]
 
     # A 租户对自己的 additional-cost PATCH，引用 B 租户的 cost_category → 404
     r = client.patch(

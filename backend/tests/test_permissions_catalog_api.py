@@ -8,8 +8,12 @@ from app.permissions import ALL_PERMISSIONS
 def _admin(client):
     return client.post(
         "/api/v1/auth/register",
-        json={"company_name": "Acme", "email": "a@acme.com", "password": "secret123",
-              "name": "Admin"},
+        json={
+            "company_name": "Acme",
+            "email": "a@acme.com",
+            "password": "secret123",
+            "name": "Admin",
+        },
     ).json()["access_token"]
 
 

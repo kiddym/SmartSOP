@@ -18,7 +18,12 @@ def _pm(client, t, title="月度巡检"):
     return client.post(
         "/api/v1/preventive-maintenances",
         headers=_h(t),
-        json={"title": title, "start_date": "2026-01-01", "frequency_unit": "MONTH", "frequency_value": 1},
+        json={
+            "title": title,
+            "start_date": "2026-01-01",
+            "frequency_unit": "MONTH",
+            "frequency_value": 1,
+        },
     ).json()["id"]
 
 

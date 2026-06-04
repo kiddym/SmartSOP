@@ -43,16 +43,17 @@ def test_cascade_down_and_recover(client):
     # B、C 各有一条 source=A 的 open cascade
     for child in (b, c):
         rows = _downtimes(client, t, child)
-        assert any(r["downtime_type"] == "cascade" and r["source_asset_id"] == a
-                   and r["ended_at"] is None for r in rows)
+        assert any(
+            r["downtime_type"] == "cascade" and r["source_asset_id"] == a and r["ended_at"] is None
+            for r in rows
+        )
 
     client.patch(f"/api/v1/assets/{a}", headers=_h(t), json={"status": "OPERATIONAL"})
-    assert _status(client, t, b) == "OPERATIONAL"   # prior=OPERATIONAL 还原
-    assert _status(client, t, c) == "STANDBY"        # prior=STANDBY 还原
+    assert _status(client, t, b) == "OPERATIONAL"  # prior=OPERATIONAL 还原
+    assert _status(client, t, c) == "STANDBY"  # prior=STANDBY 还原
     # cascade 记录均已闭合（显式断言至少一条，避免空集合 all() 误判通过）
     for child in (b, c):
-        cascade_rows = [r for r in _downtimes(client, t, child)
-                        if r["downtime_type"] == "cascade"]
+        cascade_rows = [r for r in _downtimes(client, t, child) if r["downtime_type"] == "cascade"]
         assert cascade_rows
         assert all(r["ended_at"] is not None for r in cascade_rows)
 
@@ -62,8 +63,9 @@ def test_recover_keeps_independently_down_descendant(client):
     a = _mk(client, t, "A")
     b = _mk(client, t, "B", a)
     # B 先独立手动 open 停机（解耦：不改状态），再让父级联
-    client.post(f"/api/v1/assets/{b}/downtimes", headers=_h(t),
-                json={"started_at": "2026-05-01T00:00:00"})
+    client.post(
+        f"/api/v1/assets/{b}/downtimes", headers=_h(t), json={"started_at": "2026-05-01T00:00:00"}
+    )
     client.patch(f"/api/v1/assets/{a}", headers=_h(t), json={"status": "DOWN"})
     assert _status(client, t, b) == "DOWN"
     # 父恢复，但 B 仍有独立 open 手动停机 -> 维持 DOWN
@@ -74,8 +76,9 @@ def test_recover_keeps_independently_down_descendant(client):
 def test_manual_downtime_decoupled(client):
     t = _admin(client)
     aid = _mk(client, t, "孤立")
-    client.post(f"/api/v1/assets/{aid}/downtimes", headers=_h(t),
-                json={"started_at": "2026-05-01T00:00:00"})
+    client.post(
+        f"/api/v1/assets/{aid}/downtimes", headers=_h(t), json={"started_at": "2026-05-01T00:00:00"}
+    )
     assert _status(client, t, aid) == "OPERATIONAL"  # 手动停机不改状态
 
 

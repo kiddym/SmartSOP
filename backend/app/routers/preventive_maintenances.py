@@ -124,7 +124,7 @@ def generate_now(
 
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     wo = svc.generate_once(db, pm, actor_user_id=current_user.id, now=utcnow(), enforce_due=False)
-    return wos.to_read(db, wo)
+    return wos.to_read(db, wo, viewer=current_user)
 
 
 @router.get("/{pm_id}/activities", response_model=list[PMActivityRead])

@@ -229,8 +229,12 @@ def _go_down(db: Session, asset: Asset, company_id: str) -> None:
         if d.status in DOWN_STATUSES:
             db.add(
                 AssetDowntime(
-                    asset_id=d.id, downtime_type="cascade", source_asset_id=asset.id,
-                    prior_status=None, started_at=now, company_id=company_id,
+                    asset_id=d.id,
+                    downtime_type="cascade",
+                    source_asset_id=asset.id,
+                    prior_status=None,
+                    started_at=now,
+                    company_id=company_id,
                 )
             )
         else:
@@ -238,8 +242,12 @@ def _go_down(db: Session, asset: Asset, company_id: str) -> None:
             d.status = AssetStatus.DOWN
             db.add(
                 AssetDowntime(
-                    asset_id=d.id, downtime_type="cascade", source_asset_id=asset.id,
-                    prior_status=prior, started_at=now, company_id=company_id,
+                    asset_id=d.id,
+                    downtime_type="cascade",
+                    source_asset_id=asset.id,
+                    prior_status=prior,
+                    started_at=now,
+                    company_id=company_id,
                 )
             )
 
@@ -253,9 +261,7 @@ def _recover(db: Session, asset: Asset, company_id: str) -> None:
     cascade_rows = list(
         db.execute(
             select(AssetDowntime)
-            .where(
-                AssetDowntime.source_asset_id == asset.id, AssetDowntime.ended_at.is_(None)
-            )
+            .where(AssetDowntime.source_asset_id == asset.id, AssetDowntime.ended_at.is_(None))
             .order_by(AssetDowntime.started_at)
         )
         .scalars()

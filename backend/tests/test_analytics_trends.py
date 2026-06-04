@@ -17,8 +17,7 @@ def _h(token):
 def _admin(client, *, company="Acme", email="a@acme.com"):
     return client.post(
         "/api/v1/auth/register",
-        json={"company_name": company, "email": email, "password": "secret123",
-              "name": "Admin"},
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
     ).json()["access_token"]
 
 
@@ -29,8 +28,9 @@ def _company_id(db, slug):
 def test_daily_buckets_continuous(client, db):
     t = _admin(client)
     co = _company_id(db, "acme")
-    db.add(WorkOrder(custom_id="WO1", title="t", created_at=datetime(2026, 5, 30, 9),
-                     company_id=co))
+    db.add(
+        WorkOrder(custom_id="WO1", title="t", created_at=datetime(2026, 5, 30, 9), company_id=co)
+    )
     db.commit()
     body = client.get(
         "/api/v1/analytics/trends?date_from=2026-05-29&date_to=2026-05-31&granularity=day",
@@ -65,8 +65,9 @@ def test_tenant_isolation(client, db):
     t_a = _admin(client)
     _admin(client, company="Beta", email="b@beta.com")
     co_b = _company_id(db, "beta")
-    db.add(WorkOrder(custom_id="WO1", title="t", created_at=datetime(2026, 5, 30, 9),
-                     company_id=co_b))
+    db.add(
+        WorkOrder(custom_id="WO1", title="t", created_at=datetime(2026, 5, 30, 9), company_id=co_b)
+    )
     db.commit()
     body = client.get(
         "/api/v1/analytics/trends?date_from=2026-05-29&date_to=2026-05-31&granularity=day",

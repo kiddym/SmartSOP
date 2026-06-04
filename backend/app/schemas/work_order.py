@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from datetime import date, datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.work_order_status import WorkOrderPriority, WorkOrderStatus
+from app.models.work_order_status import WorkOrderPriority, WorkOrderRelationType, WorkOrderStatus
 
 
 class WorkOrderCreate(BaseModel):
@@ -66,8 +66,17 @@ class WorkOrderRead(BaseModel):
     completed_at: datetime | None = None
     category_id: str | None = None
     created_by_user_id: str | None = None
+    completed_by_user_id: str | None = None
+    feedback: str | None = None
+    urgent: bool = False
+    estimated_duration: int | None = None
+    estimated_start_date: date | None = None
+    first_responded_at: datetime | None = None
+    archived: bool = False
+    is_compliant: bool | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
+    can_be_edited: bool = False
 
 
 class StepResultUpdate(BaseModel):
@@ -130,3 +139,18 @@ class ActivityRead(BaseModel):
     to_status: str | None = None
     comment: str
     created_at: datetime
+
+
+class WorkOrderRelationCreate(BaseModel):
+    target_work_order_id: str
+    relation_type: WorkOrderRelationType
+
+
+class WorkOrderRelationRead(BaseModel):
+    id: str
+    relation_type: WorkOrderRelationType
+    direction: Literal["symmetric", "outgoing", "incoming"]
+    related_work_order_id: str
+    related_custom_id: str | None = None
+    related_title: str | None = None
+    related_status: WorkOrderStatus | None = None

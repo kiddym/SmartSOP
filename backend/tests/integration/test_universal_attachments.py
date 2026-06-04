@@ -36,7 +36,8 @@ def test_generic_flow_on_asset(client: TestClient, db: Session, storage_tmp: Pat
     aid = _make_asset(client, db, tok)
 
     up = client.post(
-        ATT, headers=h,
+        ATT,
+        headers=h,
         data={"entity_type": "asset", "entity_id": aid, "description": "手册"},
         files={"file": ("手册.pdf", b"PDF", "application/pdf")},
     )
@@ -56,13 +57,16 @@ def test_generic_flow_on_asset(client: TestClient, db: Session, storage_tmp: Pat
 
     dele = client.delete(f"{ATT}/{att['id']}", headers=h)
     assert dele.status_code == 204
-    assert client.get(ATT, headers=h, params={"entity_type": "asset", "entity_id": aid}).json() == []
+    assert (
+        client.get(ATT, headers=h, params={"entity_type": "asset", "entity_id": aid}).json() == []
+    )
 
 
 def test_unknown_entity_type_400(client: TestClient, db: Session, storage_tmp: Path) -> None:
     h = {"Authorization": f"Bearer {_register(client, 'Acme', 'a@acme.com')}"}
     r = client.post(
-        ATT, headers=h,
+        ATT,
+        headers=h,
         data={"entity_type": "ghost", "entity_id": "x"},
         files={"file": ("a.txt", b"x", "text/plain")},
     )
@@ -85,13 +89,19 @@ def test_cross_tenant_attachment_not_leaked(
     hB = {"Authorization": f"Bearer {tokB}"}
     aid = _make_asset(client, db, tokA)
     att = client.post(
-        ATT, headers=hA,
+        ATT,
+        headers=hA,
         data={"entity_type": "asset", "entity_id": aid},
         files={"file": ("s.pdf", b"S", "application/pdf")},
     ).json()
-    assert client.get(ATT, headers=hB, params={"entity_type": "asset", "entity_id": aid}).status_code == 404
+    assert (
+        client.get(ATT, headers=hB, params={"entity_type": "asset", "entity_id": aid}).status_code
+        == 404
+    )
     assert client.get(f"{ATT}/{att['id']}/download", headers=hB).status_code == 404
-    assert client.put(f"{ATT}/{att['id']}", headers=hB, json={"description": "x"}).status_code == 404
+    assert (
+        client.put(f"{ATT}/{att['id']}", headers=hB, json={"description": "x"}).status_code == 404
+    )
     assert client.delete(f"{ATT}/{att['id']}", headers=hB).status_code == 404
 
 
@@ -102,5 +112,11 @@ def test_single_resource_endpoints_require_auth(client: TestClient, storage_tmp:
     assert client.put(f"{ATT}/whatever", json={"description": "x"}).status_code == 401
     assert client.delete(f"{ATT}/whatever").status_code == 401
     assert client.get(ATT, params={"entity_type": "asset", "entity_id": "x"}).status_code == 401
-    assert client.post(ATT, data={"entity_type": "asset", "entity_id": "x"},
-                       files={"file": ("a.txt", b"x", "text/plain")}).status_code == 401
+    assert (
+        client.post(
+            ATT,
+            data={"entity_type": "asset", "entity_id": "x"},
+            files={"file": ("a.txt", b"x", "text/plain")},
+        ).status_code
+        == 401
+    )

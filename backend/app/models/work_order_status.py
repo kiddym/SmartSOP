@@ -34,3 +34,15 @@ ALLOWED_TRANSITIONS: dict[WorkOrderStatus, frozenset[WorkOrderStatus]] = {
 
 def can_transition(src: WorkOrderStatus, dst: WorkOrderStatus) -> bool:
     return dst in ALLOWED_TRANSITIONS.get(src, frozenset())
+
+
+class WorkOrderRelationType(enum.StrEnum):
+    DUPLICATE = "DUPLICATE"
+    RELATED = "RELATED"
+    SPLIT = "SPLIT"
+    BLOCKS = "BLOCKS"
+
+
+SYMMETRIC_RELATION_TYPES: frozenset[WorkOrderRelationType] = frozenset(
+    {WorkOrderRelationType.DUPLICATE, WorkOrderRelationType.RELATED}
+)

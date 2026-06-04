@@ -41,9 +41,7 @@ def test_patch_category(client):
     t = _admin(client)
     cid = _category(client, t)
     wid = client.post("/api/v1/work-orders", headers=_h(t), json={"title": "x"}).json()["id"]
-    r = client.patch(
-        f"/api/v1/work-orders/{wid}", headers=_h(t), json={"category_id": cid}
-    )
+    r = client.patch(f"/api/v1/work-orders/{wid}", headers=_h(t), json={"category_id": cid})
     assert r.json()["category_id"] == cid
 
 

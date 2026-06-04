@@ -134,7 +134,14 @@ def recompute_counts(db: Session, job_id: str) -> None:
             )
         ).scalars()
     )
-    counts = {"total": len(items), "parsed": 0, "review": 0, "applied": 0, "failed": 0, "skipped": 0}
+    counts = {
+        "total": len(items),
+        "parsed": 0,
+        "review": 0,
+        "applied": 0,
+        "failed": 0,
+        "skipped": 0,
+    }
     for it in items:
         if it.status == "review":
             counts["review"] += 1

@@ -10,12 +10,20 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request, not_found
+from app.errors import bad_request, conflict, not_found
 from app.models.base import utcnow
-from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
+from app.models.part_consumption import PartConsumption
+from app.models.role import Role
+from app.models.user import User
+from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderRelation, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_category import WorkOrderCategory
-from app.models.work_order_status import WorkOrderStatus, can_transition
+from app.models.work_order_status import (
+    SYMMETRIC_RELATION_TYPES,
+    WorkOrderRelationType,
+    WorkOrderStatus,
+    can_transition,
+)
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
 from app.services import notification_service as _notif
 from app.services import sequence_service
@@ -51,7 +59,21 @@ def team_ids(db: Session, work_order_id: str) -> list[str]:
     )
 
 
-def to_read(db: Session, wo: WorkOrder) -> dict[str, object]:
+def can_edit_work_order(db: Session, user: User, wo: WorkOrder) -> bool:
+    """对象级可编辑谓词：角色 → 终态锁 → 归属。仅用于 PATCH 字段编辑，不锁 reopen。"""
+    role = db.get(Role, user.role_id) if user.role_id else None
+    if role is not None and role.code in {"super_admin", "admin"}:
+        return True
+    if wo.status in {WorkOrderStatus.COMPLETE, WorkOrderStatus.CANCELED}:
+        return False
+    if user.id == wo.created_by_user_id:
+        return True
+    if user.id == wo.primary_user_id:
+        return True
+    return user.id in set(assignee_ids(db, wo.id))
+
+
+def to_read(db: Session, wo: WorkOrder, viewer: User | None = None) -> dict[str, object]:
     return {
         "id": wo.id,
         "custom_id": wo.custom_id,
@@ -68,8 +90,17 @@ def to_read(db: Session, wo: WorkOrder) -> dict[str, object]:
         "completed_at": wo.completed_at,
         "category_id": wo.category_id,
         "created_by_user_id": wo.created_by_user_id,
+        "completed_by_user_id": wo.completed_by_user_id,
+        "feedback": wo.feedback,
+        "urgent": wo.urgent,
+        "estimated_duration": wo.estimated_duration,
+        "estimated_start_date": wo.estimated_start_date,
+        "first_responded_at": wo.first_responded_at,
+        "archived": wo.archived,
+        "is_compliant": wo.is_compliant,
         "assignee_ids": assignee_ids(db, wo.id),
         "team_ids": team_ids(db, wo.id),
+        "can_be_edited": can_edit_work_order(db, viewer, wo) if viewer is not None else False,
     }
 
 
@@ -185,6 +216,7 @@ def list_work_orders(
     location_id: str | None = None,
     assignee_id: str | None = None,
     procedure_attached: bool | None = None,
+    part_id: str | None = None,
 ) -> list[WorkOrder]:
     stmt = select(WorkOrder).where(WorkOrder.is_active.is_(True))
     if status is not None:
@@ -203,6 +235,13 @@ def list_work_orders(
     if assignee_id is not None:
         sub = select(WorkOrderAssignee.work_order_id).where(
             WorkOrderAssignee.user_id == assignee_id
+        )
+        stmt = stmt.where(WorkOrder.id.in_(sub))
+    if part_id is not None:
+        sub = (
+            select(PartConsumption.work_order_id)
+            .where(PartConsumption.part_id == part_id)
+            .distinct()
         )
         stmt = stmt.where(WorkOrder.id.in_(sub))
     return list(db.execute(stmt.order_by(WorkOrder.custom_id)).scalars().all())
@@ -238,13 +277,21 @@ def transition(
     src, dst = wo.status, payload.to_status
     if not can_transition(src, dst):
         raise bad_request("WORKORDER_BAD_TRANSITION", f"非法状态转移 {src.value}->{dst.value}")
+    # 首次离开 OPEN：戳记首响时间（只记一次，重开不覆盖）
+    if src == WorkOrderStatus.OPEN and wo.first_responded_at is None:
+        wo.first_responded_at = utcnow()
     if dst == WorkOrderStatus.COMPLETE:
         from app.services import work_order_execution_service as exe
 
         exe.assert_completable(db, wo)
         wo.completed_at = utcnow()
+        wo.completed_by_user_id = actor_user_id
+        # 合规快照：无截止日视为合规；否则按完成日 <= 截止日
+        wo.is_compliant = wo.due_date is None or wo.completed_at.date() <= wo.due_date
     if src == WorkOrderStatus.COMPLETE and dst == WorkOrderStatus.IN_PROGRESS:
         wo.completed_at = None
+        wo.completed_by_user_id = None
+        wo.is_compliant = None
     wo.status = dst
     _log(
         db,
@@ -296,3 +343,96 @@ def list_activities(db: Session, work_order_id: str) -> list[WorkOrderActivity]:
         .scalars()
         .all()
     )
+
+
+def relation_to_dict(db: Session, wo: WorkOrder, rel: WorkOrderRelation) -> dict[str, object]:
+    """Return the relation dict as seen from `wo` (direction, other-WO fields)."""
+    is_source = rel.source_work_order_id == wo.id
+    other_id = rel.target_work_order_id if is_source else rel.source_work_order_id
+    if rel.relation_type in SYMMETRIC_RELATION_TYPES:
+        direction = "symmetric"
+    else:
+        direction = "outgoing" if is_source else "incoming"
+    other = db.get(WorkOrder, other_id)
+    return {
+        "id": rel.id,
+        "relation_type": rel.relation_type,
+        "direction": direction,
+        "related_work_order_id": other_id,
+        "related_custom_id": other.custom_id if other else None,
+        "related_title": other.title if other else None,
+        "related_status": other.status if other else None,
+    }
+
+
+def create_relation(
+    db: Session,
+    wo: WorkOrder,
+    target_id: str,
+    relation_type: WorkOrderRelationType,
+    company_id: str,
+    actor_user_id: str | None,
+) -> WorkOrderRelation:
+    if target_id == wo.id:
+        raise bad_request("WORKORDER_RELATION_SELF", "不能关联自身")
+    target = get_work_order(db, target_id)
+    if target is None or target.company_id != company_id:
+        raise not_found("WORKORDER_NOT_FOUND", "目标工单不存在")
+    # Directional duplicate: exact (source, target, type) pair
+    dup = db.execute(
+        select(WorkOrderRelation).where(
+            WorkOrderRelation.source_work_order_id == wo.id,
+            WorkOrderRelation.target_work_order_id == target_id,
+            WorkOrderRelation.relation_type == relation_type,
+        )
+    ).scalar_one_or_none()
+    if dup is not None:
+        raise conflict("WORKORDER_RELATION_DUPLICATE", "关联已存在")
+    # Symmetric reverse-duplicate: for symmetric types, (target→wo) with same type is also a dup
+    if relation_type in SYMMETRIC_RELATION_TYPES:
+        rev_dup = db.execute(
+            select(WorkOrderRelation).where(
+                WorkOrderRelation.source_work_order_id == target_id,
+                WorkOrderRelation.target_work_order_id == wo.id,
+                WorkOrderRelation.relation_type == relation_type,
+            )
+        ).scalar_one_or_none()
+        if rev_dup is not None:
+            raise conflict("WORKORDER_RELATION_DUPLICATE", "关联已存在")
+    rel = WorkOrderRelation(
+        source_work_order_id=wo.id,
+        target_work_order_id=target_id,
+        relation_type=relation_type,
+        created_by_user_id=actor_user_id,
+        company_id=company_id,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
+    return rel
+
+
+def list_relations(db: Session, wo: WorkOrder) -> list[dict[str, object]]:
+    rels = (
+        db.execute(
+            select(WorkOrderRelation).where(
+                (WorkOrderRelation.source_work_order_id == wo.id)
+                | (WorkOrderRelation.target_work_order_id == wo.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return [relation_to_dict(db, wo, r) for r in rels]
+
+
+def delete_relation(db: Session, wo: WorkOrder, relation_id: str, company_id: str) -> None:
+    rel = db.get(WorkOrderRelation, relation_id)
+    if (
+        rel is None
+        or rel.company_id != company_id
+        or wo.id not in {rel.source_work_order_id, rel.target_work_order_id}
+    ):
+        raise not_found("WORKORDER_RELATION_NOT_FOUND", "关联不存在")
+    db.delete(rel)
+    db.commit()

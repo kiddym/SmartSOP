@@ -11,7 +11,9 @@ def test_generate_token_unique_and_hash_stable():
 def test_password_reset_template_renders():
     from app.email.templates import render
 
-    subject, body = render("PASSWORD_RESET", {"reset_url": "https://x/reset?token=t", "deadline": "1小时"})
+    subject, body = render(
+        "PASSWORD_RESET", {"reset_url": "https://x/reset?token=t", "deadline": "1小时"}
+    )
     assert "密码" in subject
     assert "https://x/reset?token=t" in body
 
@@ -19,6 +21,8 @@ def test_password_reset_template_renders():
 def test_invite_template_renders():
     from app.email.templates import render
 
-    subject, body = render("INVITE_USER", {"company_name": "Acme", "invite_url": "https://x/accept?token=t"})
+    subject, body = render(
+        "INVITE_USER", {"company_name": "Acme", "invite_url": "https://x/accept?token=t"}
+    )
     assert "Acme" in subject or "Acme" in body
     assert "https://x/accept?token=t" in body

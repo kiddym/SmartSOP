@@ -15,9 +15,7 @@ def _admin(client, *, company="Acme", email="admin@acme.com"):
 
 
 def _create(client, token, name="保养"):
-    return client.post(
-        "/api/v1/work-order-categories", headers=_h(token), json={"name": name}
-    )
+    return client.post("/api/v1/work-order-categories", headers=_h(token), json={"name": name})
 
 
 def test_requires_auth(client):
@@ -38,9 +36,7 @@ def test_crud_roundtrip(client):
         ).json()["name"]
         == "校准"
     )
-    assert (
-        client.delete(f"/api/v1/work-order-categories/{cid}", headers=_h(t)).status_code == 204
-    )
+    assert client.delete(f"/api/v1/work-order-categories/{cid}", headers=_h(t)).status_code == 204
     assert client.get(f"/api/v1/work-order-categories/{cid}", headers=_h(t)).status_code == 404
 
 

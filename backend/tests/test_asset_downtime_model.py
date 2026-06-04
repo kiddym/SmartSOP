@@ -15,8 +15,12 @@ def test_new_columns_roundtrip(db):
     db.add(co)
     db.flush()
     dt = AssetDowntime(
-        asset_id="a1", started_at=datetime.utcnow(), downtime_type="cascade",
-        source_asset_id="parent-1", prior_status="STANDBY", company_id=co.id,
+        asset_id="a1",
+        started_at=datetime.utcnow(),
+        downtime_type="cascade",
+        source_asset_id="parent-1",
+        prior_status="STANDBY",
+        company_id=co.id,
     )
     db.add(dt)
     db.commit()

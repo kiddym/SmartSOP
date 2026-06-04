@@ -38,7 +38,11 @@ def test_manual_labor_cost(db):
     cid = _company(db)
     wo = _wo(db, cid)
     row = labor.create_labor(
-        db, wo, LaborCreate(duration_seconds=3600, hourly_rate=Decimal("80")), cid, actor_user_id=None
+        db,
+        wo,
+        LaborCreate(duration_seconds=3600, hourly_rate=Decimal("80")),
+        cid,
+        actor_user_id=None,
     )
     assert row.duration_seconds == 3600
     assert row.hourly_rate == Decimal("80")
@@ -94,7 +98,11 @@ def test_unknown_category_404(db):
     wo = _wo(db, cid)
     with pytest.raises(HTTPException) as e:
         labor.create_labor(
-            db, wo, LaborCreate(duration_seconds=10, time_category_id="nope"), cid, actor_user_id=None
+            db,
+            wo,
+            LaborCreate(duration_seconds=10, time_category_id="nope"),
+            cid,
+            actor_user_id=None,
         )
     assert e.value.status_code == 404
 
@@ -102,7 +110,9 @@ def test_unknown_category_404(db):
 def test_timer_start_stop(db):
     cid = _company(db)
     wo = _wo(db, cid)
-    row = labor.start_timer(db, wo, LaborTimerStart(hourly_rate=Decimal("60")), cid, actor_user_id="u1")
+    row = labor.start_timer(
+        db, wo, LaborTimerStart(hourly_rate=Decimal("60")), cid, actor_user_id="u1"
+    )
     assert row.started_at is not None and row.stopped_at is None
     assert labor.is_running(row) is True
     assert labor.compute_cost(row) == Decimal("0.00")
@@ -128,7 +138,11 @@ def test_stop_non_running_400(db):
     cid = _company(db)
     wo = _wo(db, cid)
     row = labor.create_labor(
-        db, wo, LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")), cid, actor_user_id=None
+        db,
+        wo,
+        LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")),
+        cid,
+        actor_user_id=None,
     )
     with pytest.raises(HTTPException) as e:
         labor.stop_timer(db, row)
@@ -139,7 +153,11 @@ def test_update_and_delete(db):
     cid = _company(db)
     wo = _wo(db, cid)
     row = labor.create_labor(
-        db, wo, LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")), cid, actor_user_id=None
+        db,
+        wo,
+        LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")),
+        cid,
+        actor_user_id=None,
     )
     labor.update_labor(db, row, LaborUpdate(duration_seconds=1200, hourly_rate=Decimal("20")), cid)
     assert row.duration_seconds == 1200
@@ -152,7 +170,11 @@ def test_update_unknown_category_404(db):
     cid = _company(db)
     wo = _wo(db, cid)
     row = labor.create_labor(
-        db, wo, LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")), cid, actor_user_id=None
+        db,
+        wo,
+        LaborCreate(duration_seconds=600, hourly_rate=Decimal("10")),
+        cid,
+        actor_user_id=None,
     )
     with pytest.raises(HTTPException) as e:
         labor.update_labor(db, row, LaborUpdate(time_category_id="nope"), cid)
@@ -163,13 +185,19 @@ def test_running_elapsed_seconds(db):
     cid = _company(db)
     wo = _wo(db, cid)
     # 运行中计时器：running_elapsed_seconds 应为非负整数
-    row = labor.start_timer(db, wo, LaborTimerStart(hourly_rate=Decimal("60")), cid, actor_user_id="u2")
+    row = labor.start_timer(
+        db, wo, LaborTimerStart(hourly_rate=Decimal("60")), cid, actor_user_id="u2"
+    )
     read = LaborRead.model_validate(row)
     assert read.running_elapsed_seconds is not None
     assert read.running_elapsed_seconds >= 0
     # 手填（非运行中）labor：running_elapsed_seconds 应为 None
     static_row = labor.create_labor(
-        db, wo, LaborCreate(duration_seconds=3600, hourly_rate=Decimal("80")), cid, actor_user_id=None
+        db,
+        wo,
+        LaborCreate(duration_seconds=3600, hourly_rate=Decimal("80")),
+        cid,
+        actor_user_id=None,
     )
     static_read = LaborRead.model_validate(static_row)
     assert static_read.running_elapsed_seconds is None

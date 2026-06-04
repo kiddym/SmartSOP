@@ -78,7 +78,15 @@ def test_cleanup_attachments_run_deletes_orphan(
     proc = factory.procedure(leaf.id)
     meta = RequestMeta(ip_address="1.1.1.1", user_agent="ua", request_id="r")
     att = attachment_service.upload_for(
-        db, None, "procedure", proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta
+        db,
+        None,
+        "procedure",
+        proc.id,
+        b"hello",
+        "a.txt",
+        content_type="text/plain",
+        description="",
+        meta=meta,
     )
     path = storage_tmp / att.storage_path
     assert path.exists()
@@ -100,7 +108,15 @@ def test_cleanup_attachments_keeps_recent(db: Session, factory: Factory, storage
     proc = factory.procedure(leaf.id)
     meta = RequestMeta(ip_address="1.1.1.1", user_agent="ua", request_id="r")
     att = attachment_service.upload_for(
-        db, None, "procedure", proc.id, b"hello", "a.txt", content_type="text/plain", description="", meta=meta
+        db,
+        None,
+        "procedure",
+        proc.id,
+        b"hello",
+        "a.txt",
+        content_type="text/plain",
+        description="",
+        meta=meta,
     )
     attachment_service.delete_for(db, None, att.id, meta=meta)  # 软删但 deleted_at=now（<30 天）
     db.commit()

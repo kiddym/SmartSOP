@@ -108,17 +108,9 @@ def inventory_dashboard(
     for r in ranked:
         running += cast(Decimal, r["value"])
         cum_pct = (
-            float(running / total_consumption_value * 100)
-            if total_consumption_value > 0
-            else 0.0
+            float(running / total_consumption_value * 100) if total_consumption_value > 0 else 0.0
         )
-        cls = (
-            "A"
-            if cum_pct <= _ABC_A_THRESHOLD
-            else "B"
-            if cum_pct <= _ABC_B_THRESHOLD
-            else "C"
-        )
+        cls = "A" if cum_pct <= _ABC_A_THRESHOLD else "B" if cum_pct <= _ABC_B_THRESHOLD else "C"
         abc_summary[cls] += 1
         abc_classification.append(
             {

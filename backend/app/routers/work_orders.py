@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import permissions
 from app.deps import get_db, require_permission
-from app.errors import not_found
+from app.errors import forbidden, not_found
 from app.models.user import User
 from app.models.work_order import WorkOrder
 from app.models.work_order_activity import WorkOrderActivity
@@ -22,6 +22,8 @@ from app.schemas.work_order import (
     TeamsSet,
     WorkOrderCreate,
     WorkOrderRead,
+    WorkOrderRelationCreate,
+    WorkOrderRelationRead,
     WorkOrderTransition,
     WorkOrderUpdate,
 )
@@ -53,6 +55,7 @@ def list_work_orders(
     location_id: str | None = None,
     assignee_id: str | None = None,
     procedure_attached: bool | None = None,
+    part_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
 ) -> list[dict[str, object]]:
@@ -64,8 +67,9 @@ def list_work_orders(
         location_id=location_id,
         assignee_id=assignee_id,
         procedure_attached=procedure_attached,
+        part_id=part_id,
     )
-    return [svc.to_read(db, w) for w in rows]
+    return [svc.to_read(db, w, viewer=current_user) for w in rows]
 
 
 @router.post("", response_model=WorkOrderRead, status_code=201)
@@ -79,7 +83,7 @@ def create_work_order(
         exe.attach_procedure(
             db, wo, payload.procedure_id, current_user.company_id, actor_user_id=current_user.id
         )
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.get("/{work_order_id}", response_model=WorkOrderRead)
@@ -89,7 +93,7 @@ def get_work_order(
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.patch("/{work_order_id}", response_model=WorkOrderRead)
@@ -100,8 +104,10 @@ def update_work_order(
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    if not svc.can_edit_work_order(db, current_user, wo):
+        raise forbidden("WORKORDER_NOT_EDITABLE", "无权编辑该工单")
     wo = svc.update_work_order(db, wo, payload, current_user.company_id)
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.delete("/{work_order_id}", status_code=204, response_model=None)
@@ -125,7 +131,7 @@ def set_assignees(
     wo = svc.set_assignees(
         db, wo, payload.user_ids, current_user.company_id, actor_user_id=current_user.id
     )
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.put("/{work_order_id}/teams", response_model=WorkOrderRead)
@@ -139,7 +145,7 @@ def set_teams(
     wo = svc.set_teams(
         db, wo, payload.team_ids, current_user.company_id, actor_user_id=current_user.id
     )
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.post("/{work_order_id}/transition", response_model=WorkOrderRead)
@@ -151,7 +157,7 @@ def transition(
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = svc.transition(db, wo, payload, current_user.company_id, actor_user_id=current_user.id)
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.post("/{work_order_id}/attach-procedure", response_model=WorkOrderRead)
@@ -165,7 +171,7 @@ def attach_procedure(
     wo = exe.attach_procedure(
         db, wo, payload.procedure_id, current_user.company_id, actor_user_id=current_user.id
     )
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.delete("/{work_order_id}/procedure", response_model=WorkOrderRead)
@@ -176,7 +182,7 @@ def detach_procedure(
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     wo = exe.detach_procedure(db, wo, current_user.company_id)
-    return svc.to_read(db, wo)
+    return svc.to_read(db, wo, viewer=current_user)
 
 
 @router.get("/{work_order_id}/execution", response_model=ExecutionView)
@@ -201,6 +207,46 @@ def update_step(
     sr = _ensure_step(exe.get_step_result(db, result_id), work_order_id, current_user.company_id)
     exe.update_step(db, wo, sr, payload, current_user.company_id, actor_user_id=current_user.id)
     return exe.execution_view(db, wo)
+
+
+@router.get("/{work_order_id}/relations", response_model=list[WorkOrderRelationRead])
+def list_relations(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> list[dict[str, object]]:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    return svc.list_relations(db, wo)
+
+
+@router.post("/{work_order_id}/relations", response_model=WorkOrderRelationRead, status_code=201)
+def create_relation(
+    work_order_id: str,
+    payload: WorkOrderRelationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> dict[str, object]:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    rel = svc.create_relation(
+        db,
+        wo,
+        payload.target_work_order_id,
+        payload.relation_type,
+        current_user.company_id,
+        actor_user_id=current_user.id,
+    )
+    return svc.relation_to_dict(db, wo, rel)
+
+
+@router.delete("/{work_order_id}/relations/{relation_id}", status_code=204, response_model=None)
+def delete_relation(
+    work_order_id: str,
+    relation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> None:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    svc.delete_relation(db, wo, relation_id, current_user.company_id)
 
 
 @router.get("/{work_order_id}/activities", response_model=list[ActivityRead])

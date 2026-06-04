@@ -47,36 +47,29 @@ def test_category_crud(client):
     assert lst.status_code == 200
     assert any(c["id"] == cid for c in lst.json())
     # get
-    assert client.get(
-        f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)
-    ).status_code == 200
+    assert client.get(f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)).status_code == 200
     # patch 改名
     upd = client.patch(
         f"/api/v1/purchase-order-categories/{cid}", json={"name": "耗材"}, headers=_h(t)
     )
     assert upd.status_code == 200 and upd.json()["name"] == "耗材"
     # delete
-    assert client.delete(
-        f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)
-    ).status_code == 204
+    assert (
+        client.delete(f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)).status_code == 204
+    )
     # 软删后不可见
-    assert client.get(
-        f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)
-    ).status_code == 404
-    assert all(c["id"] != cid for c in client.get(
-        "/api/v1/purchase-order-categories", headers=_h(t)
-    ).json())
+    assert client.get(f"/api/v1/purchase-order-categories/{cid}", headers=_h(t)).status_code == 404
+    assert all(
+        c["id"] != cid
+        for c in client.get("/api/v1/purchase-order-categories", headers=_h(t)).json()
+    )
 
 
 def test_category_duplicate_name_409(client):
     t = _admin(client)
-    first = client.post(
-        "/api/v1/purchase-order-categories", json={"name": "重复"}, headers=_h(t)
-    )
+    first = client.post("/api/v1/purchase-order-categories", json={"name": "重复"}, headers=_h(t))
     assert first.status_code == 201
-    dup = client.post(
-        "/api/v1/purchase-order-categories", json={"name": "重复"}, headers=_h(t)
-    )
+    dup = client.post("/api/v1/purchase-order-categories", json={"name": "重复"}, headers=_h(t))
     assert dup.status_code == 409, dup.text
     assert dup.json()["detail"]["code"] == "PURCHASE_ORDER_CATEGORY_DUPLICATE"
 
@@ -90,9 +83,7 @@ def test_category_tenant_isolation(client):
     g = client.get(f"/api/v1/purchase-order-categories/{cid}", headers=_h(b))
     assert g.status_code == 404
     assert g.json()["detail"]["code"] == "PURCHASE_ORDER_CATEGORY_NOT_FOUND"
-    p = client.patch(
-        f"/api/v1/purchase-order-categories/{cid}", json={"name": "Y"}, headers=_h(b)
-    )
+    p = client.patch(f"/api/v1/purchase-order-categories/{cid}", json={"name": "Y"}, headers=_h(b))
     assert p.status_code == 404
     d = client.delete(f"/api/v1/purchase-order-categories/{cid}", headers=_h(b))
     assert d.status_code == 404
@@ -102,24 +93,29 @@ def test_category_technician_permissions(client):
     admin = _admin(client)
     tech = _technician_token(client, admin)
     # technician 有 view 无 manage
-    assert client.get(
-        "/api/v1/purchase-order-categories", headers=_h(tech)
-    ).status_code == 200
+    assert client.get("/api/v1/purchase-order-categories", headers=_h(tech)).status_code == 200
     cid = client.post(
         "/api/v1/purchase-order-categories", json={"name": "Z"}, headers=_h(admin)
     ).json()["id"]
-    assert client.get(
-        f"/api/v1/purchase-order-categories/{cid}", headers=_h(tech)
-    ).status_code == 200
-    assert client.post(
-        "/api/v1/purchase-order-categories", json={"name": "no"}, headers=_h(tech)
-    ).status_code == 403
-    assert client.patch(
-        f"/api/v1/purchase-order-categories/{cid}", json={"name": "no"}, headers=_h(tech)
-    ).status_code == 403
-    assert client.delete(
-        f"/api/v1/purchase-order-categories/{cid}", headers=_h(tech)
-    ).status_code == 403
+    assert (
+        client.get(f"/api/v1/purchase-order-categories/{cid}", headers=_h(tech)).status_code == 200
+    )
+    assert (
+        client.post(
+            "/api/v1/purchase-order-categories", json={"name": "no"}, headers=_h(tech)
+        ).status_code
+        == 403
+    )
+    assert (
+        client.patch(
+            f"/api/v1/purchase-order-categories/{cid}", json={"name": "no"}, headers=_h(tech)
+        ).status_code
+        == 403
+    )
+    assert (
+        client.delete(f"/api/v1/purchase-order-categories/{cid}", headers=_h(tech)).status_code
+        == 403
+    )
 
 
 def test_po_create_with_category(client):
@@ -167,12 +163,8 @@ def test_po_update_category(client):
         json={"vendor_id": v, "category_id": c1},
         headers=_h(t),
     ).json()["id"]
-    upd = client.patch(
-        f"/api/v1/purchase-orders/{pid}", json={"category_id": c2}, headers=_h(t)
-    )
+    upd = client.patch(f"/api/v1/purchase-orders/{pid}", json={"category_id": c2}, headers=_h(t))
     assert upd.status_code == 200 and upd.json()["category_id"] == c2
     # 清空
-    clr = client.patch(
-        f"/api/v1/purchase-orders/{pid}", json={"category_id": None}, headers=_h(t)
-    )
+    clr = client.patch(f"/api/v1/purchase-orders/{pid}", json={"category_id": None}, headers=_h(t))
     assert clr.status_code == 200 and clr.json()["category_id"] is None

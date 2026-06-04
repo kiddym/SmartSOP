@@ -81,7 +81,9 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair
 
 
 @router.post("/forgot-password", status_code=200)
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)) -> dict[str, str]:
+def forgot_password(
+    payload: ForgotPasswordRequest, db: Session = Depends(get_db)
+) -> dict[str, str]:
     password_reset_service.request_reset(db, email=payload.email, company_slug=payload.company_slug)
     db.commit()
     return {"status": "ok"}  # 总 200，防枚举
