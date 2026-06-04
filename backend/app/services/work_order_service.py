@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.errors import bad_request, conflict, not_found
 from app.models.base import utcnow
+from app.models.part_consumption import PartConsumption
 from app.models.role import Role
 from app.models.user import User
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderRelation, WorkOrderTeam
@@ -215,6 +216,7 @@ def list_work_orders(
     location_id: str | None = None,
     assignee_id: str | None = None,
     procedure_attached: bool | None = None,
+    part_id: str | None = None,
 ) -> list[WorkOrder]:
     stmt = select(WorkOrder).where(WorkOrder.is_active.is_(True))
     if status is not None:
@@ -234,6 +236,9 @@ def list_work_orders(
         sub = select(WorkOrderAssignee.work_order_id).where(
             WorkOrderAssignee.user_id == assignee_id
         )
+        stmt = stmt.where(WorkOrder.id.in_(sub))
+    if part_id is not None:
+        sub = select(PartConsumption.work_order_id).where(PartConsumption.part_id == part_id)
         stmt = stmt.where(WorkOrder.id.in_(sub))
     return list(db.execute(stmt.order_by(WorkOrder.custom_id)).scalars().all())
 

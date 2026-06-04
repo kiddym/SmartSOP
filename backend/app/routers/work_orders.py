@@ -55,6 +55,7 @@ def list_work_orders(
     location_id: str | None = None,
     assignee_id: str | None = None,
     procedure_attached: bool | None = None,
+    part_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
 ) -> list[dict[str, object]]:
@@ -66,6 +67,7 @@ def list_work_orders(
         location_id=location_id,
         assignee_id=assignee_id,
         procedure_attached=procedure_attached,
+        part_id=part_id,
     )
     return [svc.to_read(db, w, viewer=current_user) for w in rows]
 
