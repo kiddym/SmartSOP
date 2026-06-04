@@ -66,6 +66,14 @@ class WorkOrderRead(BaseModel):
     completed_at: datetime | None = None
     category_id: str | None = None
     created_by_user_id: str | None = None
+    completed_by_user_id: str | None = None
+    feedback: str | None = None
+    urgent: bool = False
+    estimated_duration: int | None = None
+    estimated_start_date: date | None = None
+    first_responded_at: datetime | None = None
+    archived: bool = False
+    is_compliant: bool | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
 

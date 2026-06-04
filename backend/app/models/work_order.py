@@ -9,8 +9,10 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from sqlalchemy import (
+    Boolean,
     Date,
     ForeignKey,
+    Integer,
     String,
     Text,
     UniqueConstraint,
@@ -62,6 +64,20 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
     # 创建者 user id（仅记录，不建 FK）
     created_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
+    # 完成归属与反馈（2B）
+    completed_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    feedback: Mapped[str | None] = mapped_column(Text, default=None)
+    # 紧急旗标（与 priority 正交）
+    urgent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # 估时（分钟）与预计开始日
+    estimated_duration: Mapped[int | None] = mapped_column(Integer, default=None)
+    estimated_start_date: Mapped[date | None] = mapped_column(Date, default=None)
+    # 首次离开 OPEN 的时刻（MTTA 原料，只记一次）
+    first_responded_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
+    # 归档维度（与 is_active 软删正交）
+    archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # 完成时自动判定的合规快照；未完成为 None
+    is_compliant: Mapped[bool | None] = mapped_column(Boolean, default=None)
 
 
 class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):
