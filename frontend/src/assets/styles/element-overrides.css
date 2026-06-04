@@ -27,10 +27,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- 输入焦点光环 ---- */
+/* ---- 输入 / 选择 焦点光环 ---- */
+/* 不用 !important / #app：保持低权重(0,2,0)，靠加载顺序压过 EP 基础聚焦态；
+   EP 的 .is-error 校验规则权重更高(≥0,3,0)，出错时红环自然优先，无需特殊处理。 */
 .el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset;
+}
 .el-textarea__inner:focus {
-  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset !important;
+  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset;
 }
 
 /* ---- 按钮字体（display 字，略加字距，呼应源项目） ---- */
