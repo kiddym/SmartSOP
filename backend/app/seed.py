@@ -89,11 +89,10 @@ def seed_tenant_sop(db: Session) -> None:
     """为当前 tenant 上下文播种 SOP 系统数据（不 commit）。
 
     系统文件夹与默认设置在 tenant 上下文下由 app/tenant_isolation.py 事件自动按
-    company_id 过滤判重并盖值，故天然每公司幂等。供 register() 在已设上下文时调用。
+    company_id 过滤判重并盖值，故天然每公司幂等。供 create_company() 在已设上下文时调用。
 
-    示例自定义字段（seed_sample_field）不在此播种：其 key 是全局唯一约束
-    （uq_tb_procedure_field_key，不含 company_id），无法每公司各播一份；该字段本是
-    可选可删除的示例，故每公司仅播必需的系统文件夹与默认设置。
+    示例自定义字段（seed_sample_field）不在此播种：该字段本是可选可删除的示例，
+    每公司仅播必需的系统文件夹与默认设置即可，无需为每公司各塞一份示例字段。
     """
     seed_system_folders(db)
     seed_settings(db)

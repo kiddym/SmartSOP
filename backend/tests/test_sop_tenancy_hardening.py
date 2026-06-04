@@ -14,6 +14,10 @@ from app import tenant
 from app.models.asset import ProcedureAsset
 from app.models.company import Company
 from app.models.field import ProcedureField
+from app.models.folder import Folder
+from app.models.settings import ProcedureSettings
+from app.schemas.auth import RegisterRequest
+from app.services import auth_service
 
 
 def _make_company(db: Session, slug: str) -> str:
@@ -86,3 +90,41 @@ def test_two_tenants_same_asset_sha256_both_succeed(
     with tenant.bypass_tenant_scope():
         rows = db.query(ProcedureAsset).filter(ProcedureAsset.sha256 == sha).all()
     assert {r.company_id for r in rows} == {co_a, co_b}
+
+
+# --------------------------------------------------------------------------- #
+# create_company 工厂：建公司即播 SOP seed（#4 不变量）
+# --------------------------------------------------------------------------- #
+def test_create_company_seeds_sop_system_data(db: Session) -> None:
+    """create_company 为唯一建公司工厂：建后该公司必有系统文件夹 + 设置单例。"""
+    user = auth_service.create_company(
+        db,
+        RegisterRequest(
+            company_name="Acme", email="a@acme.com", password="secret123", name="Admin"
+        ),
+    )
+    tok = tenant.set_current_company_id(user.company_id)
+    try:
+        folders = db.query(Folder).filter(Folder.system.is_(True)).all()
+        settings_rows = db.query(ProcedureSettings).all()
+    finally:
+        tenant.reset_current_company_id(tok)
+    assert {f.name for f in folders} >= {"废止", "归档"}
+    assert len(settings_rows) == 1
+    assert settings_rows[0].company_id == user.company_id
+
+
+def test_register_delegates_to_create_company(db: Session) -> None:
+    """register() 经 create_company 实现：注册的公司同样带齐 SOP seed。"""
+    user = auth_service.register(
+        db,
+        RegisterRequest(
+            company_name="Beta", email="b@beta.com", password="secret123", name="Admin"
+        ),
+    )
+    tok = tenant.set_current_company_id(user.company_id)
+    try:
+        folders = db.query(Folder).filter(Folder.system.is_(True)).all()
+    finally:
+        tenant.reset_current_company_id(tok)
+    assert {f.name for f in folders} >= {"废止", "归档"}
