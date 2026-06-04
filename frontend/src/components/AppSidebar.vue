@@ -1,18 +1,37 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMenu, ElMenuItem } from 'element-plus'
+import { ElIcon, ElMenu, ElMenuItem } from 'element-plus'
+import { Lock } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
+import { useBillingStore } from '@/store/billing'
 
 defineProps<{ collapsed: boolean }>()
 const route = useRoute()
 const auth = useAuthStore()
+const billing = useBillingStore()
+
+// 套餐对比页路径（锁定项点击引导至此，而非进入会满屏 402 的模块）。
+const PLANS_PATH = '/billing/plans'
 
 interface NavItem {
   label: string
   path?: string
   soon?: boolean
   requiredPermission?: string
+  // 已挂 feature gate 的高级模块对应功能码；未解锁时菜单项显示锁标。
+  feature?: string
+}
+
+// 菜单项是否因套餐未解锁而锁定。
+function isLocked(it: NavItem): boolean {
+  return it.feature ? !billing.hasFeature(it.feature) : false
+}
+
+// 锁定项的导航目标改为套餐页；其余照常。
+function menuIndex(it: NavItem): string {
+  if (isLocked(it)) return PLANS_PATH
+  return it.path ?? `soon:${it.label}`
 }
 interface NavGroup {
   label: string
@@ -38,7 +57,12 @@ const platformItems = computed<NavItem[]>(() => {
 const insightItems = computed<NavItem[]>(() => {
   const items: NavItem[] = []
   if (auth.hasPermission('analytics.view')) {
-    items.push({ label: '分析仪表盘', path: '/analytics', requiredPermission: 'analytics.view' })
+    items.push({
+      label: '分析仪表盘',
+      path: '/analytics',
+      requiredPermission: 'analytics.view',
+      feature: 'analytics',
+    })
   }
   items.push({ label: '通知中心', soon: true })
   return items
@@ -61,15 +85,19 @@ const groups = computed<NavGroup[]>(() => [
       { label: '资产', path: '/maindata/assets' },
       { label: '位置', path: '/maindata/locations' },
       { label: '请求', path: '/maintenance/requests' },
-      { label: '预防性维护', path: '/maintenance/preventive-maintenances' },
-      { label: '计量', path: '/maintenance/meters' },
+      {
+        label: '预防性维护',
+        path: '/maintenance/preventive-maintenances',
+        feature: 'preventive_maintenance',
+      },
+      { label: '计量', path: '/maintenance/meters', feature: 'meters' },
     ],
   },
   {
     label: '供应',
     items: [
       { label: '备件库存', path: '/inventory/parts' },
-      { label: '采购单', path: '/inventory/purchase-orders' },
+      { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing' },
       { label: '供应商', path: '/inventory/vendors' },
       { label: '客户', path: '/inventory/customers' },
     ],
@@ -117,11 +145,12 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
         <el-menu-item
           v-for="it in g.items"
           :key="it.label"
-          :index="it.path ?? `soon:${it.label}`"
+          :index="menuIndex(it)"
           :disabled="it.soon"
         >
           <template #title>
             {{ it.label }}<span v-if="it.soon" class="soon-tag">即将上线</span>
+            <el-icon v-else-if="isLocked(it)" class="lock-icon"><Lock /></el-icon>
           </template>
         </el-menu-item>
       </template>
@@ -158,5 +187,11 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
   margin-left: 6px;
   font-size: 10px;
   color: #bbb;
+}
+.lock-icon {
+  margin-left: 6px;
+  font-size: 12px;
+  color: #bbb;
+  vertical-align: middle;
 }
 </style>
