@@ -11,9 +11,15 @@ FOLDER = "/api/v1/folders"
 
 
 def _auth(client: TestClient) -> dict[str, str]:
-    tok = client.post("/api/v1/auth/register", json={
-        "company_name": "Acme", "email": "a@acme.com", "password": "secret123", "name": "A",
-    }).json()["access_token"]
+    tok = client.post(
+        "/api/v1/auth/register",
+        json={
+            "company_name": "Acme",
+            "email": "a@acme.com",
+            "password": "secret123",
+            "name": "A",
+        },
+    ).json()["access_token"]
     return {"Authorization": f"Bearer {tok}"}
 
 

@@ -85,10 +85,7 @@ def personnel_dashboard(
 
     uids = set(created) | set(completed) | set(assigned) | set(hours) | set(cost)
     names = (
-        {
-            u.id: u.name
-            for u in db.execute(select(User).where(User.id.in_(uids))).scalars()
-        }
+        {u.id: u.name for u in db.execute(select(User).where(User.id.in_(uids))).scalars()}
         if uids
         else {}
     )

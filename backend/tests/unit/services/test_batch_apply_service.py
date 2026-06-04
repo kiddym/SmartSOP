@@ -130,8 +130,11 @@ def test_apply_item_skips_content_hash_duplicate(db: Session, storage_tmp, facto
     item.content_hash = "DUPHASH"
     # 同租户、同 hash 的既有已落库条目
     sibling = BatchImportItem(
-        job_id=item.job_id, filename="prior.docx", status="applied",
-        content_hash="DUPHASH", created_procedure_id="p-prior",
+        job_id=item.job_id,
+        filename="prior.docx",
+        status="applied",
+        content_hash="DUPHASH",
+        created_procedure_id="p-prior",
     )
     db.add(sibling)
     db.commit()

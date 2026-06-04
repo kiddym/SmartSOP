@@ -37,9 +37,7 @@ def test_time_category_crud(client):
     cid = r.json()["id"]
     assert float(r.json()["hourly_rate"]) == 80.0
     assert client.get("/api/v1/time-categories", headers=_h(t)).status_code == 200
-    upd = client.patch(
-        f"/api/v1/time-categories/{cid}", json={"hourly_rate": "120"}, headers=_h(t)
-    )
+    upd = client.patch(f"/api/v1/time-categories/{cid}", json={"hourly_rate": "120"}, headers=_h(t))
     assert float(upd.json()["hourly_rate"]) == 120.0
     assert client.delete(f"/api/v1/time-categories/{cid}", headers=_h(t)).status_code == 204
     # 软删后不在列表
@@ -55,9 +53,7 @@ def test_time_category_default_rate_zero(client):
 
 def test_time_category_tenant_isolation(client):
     a = _admin(client)
-    cid = client.post(
-        "/api/v1/time-categories", json={"name": "X"}, headers=_h(a)
-    ).json()["id"]
+    cid = client.post("/api/v1/time-categories", json={"name": "X"}, headers=_h(a)).json()["id"]
     b = _admin(client, company="Beta", email="admin@beta.com")
     assert client.get(f"/api/v1/time-categories/{cid}", headers=_h(b)).status_code == 404
 

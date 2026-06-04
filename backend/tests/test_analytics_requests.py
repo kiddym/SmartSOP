@@ -18,8 +18,7 @@ def _h(token):
 def _admin(client, *, company="Acme", email="a@acme.com"):
     return client.post(
         "/api/v1/auth/register",
-        json={"company_name": company, "email": email, "password": "secret123",
-              "name": "Admin"},
+        json={"company_name": company, "email": email, "password": "secret123", "name": "Admin"},
     ).json()["access_token"]
 
 
@@ -31,11 +30,22 @@ def test_request_analytics_shape(client, db):
     t = _admin(client)
     co = _company_id(db, "acme")
     now = datetime.utcnow()
-    db.add(Request(custom_id="RQ1", title="r1", status=RequestStatus.APPROVED,
-                   created_at=now - timedelta(hours=2), resolved_at=now,
-                   work_order_id="WO-x", company_id=co))
-    db.add(Request(custom_id="RQ2", title="r2", status=RequestStatus.PENDING,
-                   created_at=now, company_id=co))
+    db.add(
+        Request(
+            custom_id="RQ1",
+            title="r1",
+            status=RequestStatus.APPROVED,
+            created_at=now - timedelta(hours=2),
+            resolved_at=now,
+            work_order_id="WO-x",
+            company_id=co,
+        )
+    )
+    db.add(
+        Request(
+            custom_id="RQ2", title="r2", status=RequestStatus.PENDING, created_at=now, company_id=co
+        )
+    )
     db.commit()
     body = client.get("/api/v1/analytics/requests", headers=_h(t)).json()
     assert body["total"] == 2
@@ -53,12 +63,33 @@ def test_request_analytics_tenant_isolation(client, db):
     tb = _admin(client, company="Beta", email="b@beta.com")
     co_b = _company_id(db, "beta")
     now = datetime.utcnow()
-    db.add(Request(custom_id="RA1", title="ra", status=RequestStatus.PENDING,
-                   created_at=now, company_id=co_a))
-    db.add(Request(custom_id="RB1", title="rb", status=RequestStatus.PENDING,
-                   created_at=now, company_id=co_b))
-    db.add(Request(custom_id="RB2", title="rb2", status=RequestStatus.PENDING,
-                   created_at=now, company_id=co_b))
+    db.add(
+        Request(
+            custom_id="RA1",
+            title="ra",
+            status=RequestStatus.PENDING,
+            created_at=now,
+            company_id=co_a,
+        )
+    )
+    db.add(
+        Request(
+            custom_id="RB1",
+            title="rb",
+            status=RequestStatus.PENDING,
+            created_at=now,
+            company_id=co_b,
+        )
+    )
+    db.add(
+        Request(
+            custom_id="RB2",
+            title="rb2",
+            status=RequestStatus.PENDING,
+            created_at=now,
+            company_id=co_b,
+        )
+    )
     db.commit()
     body_a = client.get("/api/v1/analytics/requests", headers=_h(ta)).json()
     assert body_a["total"] == 1

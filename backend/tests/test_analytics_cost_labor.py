@@ -31,15 +31,22 @@ def _company_id(db, slug):
 def test_costs_includes_labor_and_additional(client, db):
     t = _admin(client)
     co = _company_id(db, "acme")
-    wo = WorkOrder(custom_id="WO1", title="t", created_at=datetime.utcnow(), company_id=co,
-                   asset_id="asset-1")
+    wo = WorkOrder(
+        custom_id="WO1", title="t", created_at=datetime.utcnow(), company_id=co, asset_id="asset-1"
+    )
     db.add(wo)
     db.flush()
     # 1 小时 @ 60 = 60.00 labor；additional 40.00
-    db.add(WorkOrderLabor(work_order_id=wo.id, duration_seconds=3600,
-                          hourly_rate=Decimal("60"), company_id=co))
-    db.add(WorkOrderAdditionalCost(work_order_id=wo.id, title="耗材",
-                                   amount=Decimal("40"), company_id=co))
+    db.add(
+        WorkOrderLabor(
+            work_order_id=wo.id, duration_seconds=3600, hourly_rate=Decimal("60"), company_id=co
+        )
+    )
+    db.add(
+        WorkOrderAdditionalCost(
+            work_order_id=wo.id, title="耗材", amount=Decimal("40"), company_id=co
+        )
+    )
     db.commit()
     body = client.get("/api/v1/analytics/costs", headers=_h(t)).json()
     assert body["labor_cost"] == "60.00"
@@ -56,9 +63,15 @@ def test_running_timer_costs_zero(client, db):
     wo = WorkOrder(custom_id="WO1", title="t", created_at=datetime.utcnow(), company_id=co)
     db.add(wo)
     db.flush()
-    db.add(WorkOrderLabor(work_order_id=wo.id, duration_seconds=0,
-                          hourly_rate=Decimal("60"), started_at=datetime.utcnow(),
-                          company_id=co))
+    db.add(
+        WorkOrderLabor(
+            work_order_id=wo.id,
+            duration_seconds=0,
+            hourly_rate=Decimal("60"),
+            started_at=datetime.utcnow(),
+            company_id=co,
+        )
+    )
     db.commit()
     body = client.get("/api/v1/analytics/costs", headers=_h(t)).json()
     assert body["labor_cost"] == "0.00"

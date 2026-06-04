@@ -52,11 +52,7 @@ def _ensure_labor(
     company_id: str,
 ) -> WorkOrderLabor:
     row = db.get(WorkOrderLabor, labor_id)
-    if (
-        row is None
-        or row.work_order_id != work_order_id
-        or row.company_id != company_id
-    ):
+    if row is None or row.work_order_id != work_order_id or row.company_id != company_id:
         raise not_found("LABOR_NOT_FOUND", "工时记录不存在")
     return row
 
@@ -146,11 +142,7 @@ def _ensure_cost(
     company_id: str,
 ) -> WorkOrderAdditionalCost:
     row = db.get(WorkOrderAdditionalCost, cost_id)
-    if (
-        row is None
-        or row.work_order_id != work_order_id
-        or row.company_id != company_id
-    ):
+    if row is None or row.work_order_id != work_order_id or row.company_id != company_id:
         raise not_found("ADDITIONAL_COST_NOT_FOUND", "额外成本不存在")
     return row
 

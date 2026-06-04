@@ -129,7 +129,12 @@ def test_recompute_counts_terminal_with_some_success_marks_completed(db: Session
     assert fresh is not None
     assert fresh.status == "completed"
     assert fresh.counts == {
-        "total": 2, "parsed": 1, "review": 0, "applied": 1, "failed": 1, "skipped": 0,
+        "total": 2,
+        "parsed": 1,
+        "review": 0,
+        "applied": 1,
+        "failed": 1,
+        "skipped": 0,
     }
 
 

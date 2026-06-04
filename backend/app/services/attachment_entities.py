@@ -38,19 +38,18 @@ ENTITY_REGISTRY: dict[str, EntitySpec] = {
     "work_order": EntitySpec(
         WorkOrder, permissions.WORK_ORDER_VIEW, permissions.WORK_ORDER_EDIT, scoped=True
     ),
-    "asset": EntitySpec(
-        Asset, permissions.ASSET_VIEW, permissions.ASSET_EDIT, scoped=True
-    ),
+    "asset": EntitySpec(Asset, permissions.ASSET_VIEW, permissions.ASSET_EDIT, scoped=True),
     "location": EntitySpec(
         Location, permissions.LOCATION_VIEW, permissions.LOCATION_EDIT, scoped=True
     ),
-    "part": EntitySpec(
-        Part, permissions.PART_VIEW, permissions.PART_EDIT, scoped=True
-    ),
+    "part": EntitySpec(Part, permissions.PART_VIEW, permissions.PART_EDIT, scoped=True),
     "request": EntitySpec(
         # request 无专属 .edit 权码（permissions.py 的 request 仅 view/create/cancel/delete/approve）；
         # 附件写权限沿用 REQUEST_CREATE 系既定决策，勿误改为不存在的 REQUEST_EDIT。
-        Request, permissions.REQUEST_VIEW, permissions.REQUEST_CREATE, scoped=True
+        Request,
+        permissions.REQUEST_VIEW,
+        permissions.REQUEST_CREATE,
+        scoped=True,
     ),
 }
 
@@ -78,7 +77,11 @@ def _lookup_host(db: Session, spec: EntitySpec, entity_id: str) -> Any:
 
 
 def resolve_and_authorize(
-    db: Session, user: User | None, entity_type: str, entity_id: str, action: Literal["read", "write"]
+    db: Session,
+    user: User | None,
+    entity_type: str,
+    entity_id: str,
+    action: Literal["read", "write"],
 ) -> Any:
     """校验 entity_type（未知→400）→查宿主（不存在/跨租户→404）→授权（不足→403）→write_guard（write 时自动校验）。返回宿主。"""
     spec = get_spec(entity_type)

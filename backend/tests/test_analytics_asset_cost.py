@@ -20,8 +20,12 @@ def _h(token):
 def _admin(client):
     return client.post(
         "/api/v1/auth/register",
-        json={"company_name": "Acme", "email": "a@acme.com", "password": "secret123",
-              "name": "Admin"},
+        json={
+            "company_name": "Acme",
+            "email": "a@acme.com",
+            "password": "secret123",
+            "name": "Admin",
+        },
     ).json()["access_token"]
 
 
@@ -35,12 +39,16 @@ def test_asset_maintenance_cost_and_ratio(client, db):
     a = Asset(custom_id="AS-1", name="泵", acquisition_cost=Decimal("1000"), company_id=co)
     db.add(a)
     db.flush()
-    wo = WorkOrder(custom_id="WO1", title="t", created_at=datetime.utcnow(), company_id=co,
-                   asset_id=a.id)
+    wo = WorkOrder(
+        custom_id="WO1", title="t", created_at=datetime.utcnow(), company_id=co, asset_id=a.id
+    )
     db.add(wo)
     db.flush()
-    db.add(WorkOrderAdditionalCost(work_order_id=wo.id, title="耗材",
-                                   amount=Decimal("250"), company_id=co))
+    db.add(
+        WorkOrderAdditionalCost(
+            work_order_id=wo.id, title="耗材", amount=Decimal("250"), company_id=co
+        )
+    )
     db.commit()
     body = client.get("/api/v1/analytics/asset-reliability", headers=_h(t)).json()
     row = next(r for r in body["assets"] if r["asset_id"] == a.id)

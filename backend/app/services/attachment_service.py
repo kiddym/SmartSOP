@@ -80,18 +80,14 @@ def _bytes_or_404(att: Attachment) -> bytes:
 def get_or_404(db: Session, attachment_id: str) -> Attachment:
     with tenant.bypass_tenant_scope():
         att = db.execute(
-            select(Attachment).where(
-                Attachment.id == attachment_id, Attachment.is_active.is_(True)
-            )
+            select(Attachment).where(Attachment.id == attachment_id, Attachment.is_active.is_(True))
         ).scalar_one_or_none()
     if att is None:
         raise not_found("NOT_FOUND", "附件不存在")
     return att
 
 
-def list_for(
-    db: Session, user: User | None, entity_type: str, entity_id: str
-) -> list[Attachment]:
+def list_for(db: Session, user: User | None, entity_type: str, entity_id: str) -> list[Attachment]:
     entities.resolve_and_authorize(db, user, entity_type, entity_id, "read")
     return _active_rows(db, entity_type, entity_id)
 
@@ -193,9 +189,7 @@ def update_for(
     return att
 
 
-def delete_for(
-    db: Session, user: User | None, attachment_id: str, *, meta: RequestMeta
-) -> None:
+def delete_for(db: Session, user: User | None, attachment_id: str, *, meta: RequestMeta) -> None:
     """软删 + 钩子。"""
     att = get_or_404(db, attachment_id)
     host = entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "write")
@@ -243,9 +237,7 @@ def soft_delete_orphaned_by_host(db: Session) -> int:
     """扫各 entity_type 的 active 附件，宿主不存在 → 软删附件。返回软删条数。bypass 跨租户。"""
     soft_deleted = 0
     with tenant.bypass_tenant_scope():
-        rows = list(
-            db.execute(select(Attachment).where(Attachment.is_active.is_(True))).scalars()
-        )
+        rows = list(db.execute(select(Attachment).where(Attachment.is_active.is_(True))).scalars())
         existing: dict[tuple[str, str], bool] = {}
         for att in rows:
             spec = entities.ENTITY_REGISTRY.get(att.entity_type)

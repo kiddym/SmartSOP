@@ -34,7 +34,10 @@ def _upload(db: Session, proc_id: str, data: bytes = b"hello", name: str = "a.tx
 def test_upload_success(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
     att = attachment_service.upload_for(
-        db, None, "procedure", proc.id,
+        db,
+        None,
+        "procedure",
+        proc.id,
         b"hello",
         "报告.pdf",
         content_type="application/pdf",
@@ -124,7 +127,15 @@ def test_download_works_on_published(db: Session, factory: Factory, storage_tmp:
 def test_preview_whitelist_and_415(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
     img = attachment_service.upload_for(
-        db, None, "procedure", proc.id, b"x", "p.png", content_type="image/png", description="", meta=META
+        db,
+        None,
+        "procedure",
+        proc.id,
+        b"x",
+        "p.png",
+        content_type="image/png",
+        description="",
+        meta=META,
     )
     _data, mime = attachment_service.preview_for(db, None, img.id)
     assert mime == "image/png"
@@ -139,7 +150,9 @@ def test_preview_whitelist_and_415(db: Session, factory: Factory, storage_tmp: P
 def test_update_metadata(db: Session, factory: Factory, storage_tmp: Path) -> None:
     proc = _proc(factory)
     att = _upload(db, proc.id)
-    updated = attachment_service.update_for(db, None, att.id, description="新说明", sort_order=5, meta=META)
+    updated = attachment_service.update_for(
+        db, None, att.id, description="新说明", sort_order=5, meta=META
+    )
     assert updated.description == "新说明"
     assert updated.sort_order == 5
 
@@ -199,10 +212,7 @@ def test_orphan_cleanup_deletes_after_retention(
     )
     assert removed == 1
     assert not path.exists()
-    assert (
-        db.execute(select(Attachment).where(Attachment.id == att.id)).first()
-        is None
-    )
+    assert db.execute(select(Attachment).where(Attachment.id == att.id)).first() is None
 
 
 def test_orphan_cleanup_keeps_referenced_path(

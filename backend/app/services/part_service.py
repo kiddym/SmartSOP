@@ -65,9 +65,7 @@ def location_ids(db: Session, part_id: str) -> list[str]:
 
 def pm_ids(db: Session, part_id: str) -> list[str]:
     return list(
-        db.execute(
-            select(PartPM.pm_id).where(PartPM.part_id == part_id).order_by(PartPM.pm_id)
-        )
+        db.execute(select(PartPM.pm_id).where(PartPM.part_id == part_id).order_by(PartPM.pm_id))
         .scalars()
         .all()
     )

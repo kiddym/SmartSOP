@@ -63,9 +63,7 @@ def update_category(
     return svc.update_category(db, c, payload)
 
 
-@router.delete(
-    "/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
-)
+@router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_category(
     category_id: str,
     db: Session = Depends(get_db),

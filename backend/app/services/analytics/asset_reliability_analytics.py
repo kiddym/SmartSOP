@@ -99,9 +99,7 @@ def asset_reliability_dashboard(
                     acq.quantize(cent, rounding=ROUND_HALF_UP) if acq is not None else None
                 ),
                 "cost_to_value_ratio": (
-                    round(float(tmc / acq), 4)
-                    if acq is not None and acq > 0
-                    else None
+                    round(float(tmc / acq), 4) if acq is not None and acq > 0 else None
                 ),
             }
         )

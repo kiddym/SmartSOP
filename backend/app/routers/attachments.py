@@ -35,9 +35,7 @@ def list_attachments_generic(
     return [AttachmentOut.model_validate(r) for r in rows]
 
 
-@router.post(
-    "/attachments", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED
-)
+@router.post("/attachments", response_model=AttachmentOut, status_code=status.HTTP_201_CREATED)
 async def upload_attachment_generic(
     entity_type: str = Form(...),
     entity_id: str = Form(...),
@@ -49,8 +47,15 @@ async def upload_attachment_generic(
 ) -> AttachmentOut:
     data = await file.read()
     att = attachment_service.upload_for(
-        db, user, entity_type, entity_id, data, file.filename or "",
-        content_type=file.content_type, description=description, meta=meta,
+        db,
+        user,
+        entity_type,
+        entity_id,
+        data,
+        file.filename or "",
+        content_type=file.content_type,
+        description=description,
+        meta=meta,
     )
     db.commit()
     return AttachmentOut.model_validate(att)
@@ -64,7 +69,8 @@ def download_attachment(
 ) -> Response:
     data, mime, file_name = attachment_service.download_for(db, user, attachment_id)
     return Response(
-        content=data, media_type=mime,
+        content=data,
+        media_type=mime,
         headers={"Content-Disposition": _content_disposition("attachment", file_name)},
     )
 
@@ -88,8 +94,12 @@ def update_attachment(
     meta: RequestMeta = Depends(get_request_meta),
 ) -> AttachmentOut:
     att = attachment_service.update_for(
-        db, user, attachment_id,
-        description=payload.description, sort_order=payload.sort_order, meta=meta,
+        db,
+        user,
+        attachment_id,
+        description=payload.description,
+        sort_order=payload.sort_order,
+        meta=meta,
     )
     db.commit()
     return AttachmentOut.model_validate(att)
@@ -134,8 +144,15 @@ async def upload_procedure_attachments(
     for f in files:
         data = await f.read()
         att = attachment_service.upload_for(
-            db, None, "procedure", procedure_id, data, f.filename or "",
-            content_type=f.content_type, description=description, meta=meta,
+            db,
+            None,
+            "procedure",
+            procedure_id,
+            data,
+            f.filename or "",
+            content_type=f.content_type,
+            description=description,
+            meta=meta,
         )
         created.append(att)
     db.commit()

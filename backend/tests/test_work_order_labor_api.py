@@ -18,9 +18,7 @@ def _admin(client, *, company: str = "Acme", email: str = "admin@acme.com") -> s
 
 
 def _wo_id(client, t: str) -> str:
-    return client.post(
-        "/api/v1/work-orders", json={"title": "检修"}, headers=_h(t)
-    ).json()["id"]
+    return client.post("/api/v1/work-orders", json={"title": "检修"}, headers=_h(t)).json()["id"]
 
 
 def _viewer_token(client, admin: str) -> str:
@@ -135,15 +133,15 @@ def test_labor_patch_cross_tenant_time_category_404(client) -> None:
         json={"duration_seconds": 60, "hourly_rate": "10"},
         headers=_h(a),
     ).json()["id"]
-    cat_a = client.post(
-        "/api/v1/time-categories", json={"name": "A类工时"}, headers=_h(a)
-    ).json()["id"]
+    cat_a = client.post("/api/v1/time-categories", json={"name": "A类工时"}, headers=_h(a)).json()[
+        "id"
+    ]
 
     # B 租户
     b = _admin(client, company="Beta", email="admin@beta.com")
-    cat_b = client.post(
-        "/api/v1/time-categories", json={"name": "B类工时"}, headers=_h(b)
-    ).json()["id"]
+    cat_b = client.post("/api/v1/time-categories", json={"name": "B类工时"}, headers=_h(b)).json()[
+        "id"
+    ]
 
     # A 租户对自己的 labor PATCH，引用 B 租户的 time_category → 404
     r = client.patch(
