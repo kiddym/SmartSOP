@@ -1,0 +1,40 @@
+/* Element Plus 全局质感覆盖。配色全部走现有令牌；遵守 design-system.md：
+   表格只用行线不用斑马纹、浅表头、hover 行底色；不引入卡片阴影上浮。 */
+
+/* ---- 表格 ---- */
+.el-table {
+  --el-table-border-color: var(--bg-elevated);
+  --el-table-row-hover-bg-color: var(--bg-hover);
+  font-size: 13px;
+}
+.el-table th.el-table__cell {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* 确认无斑马纹（即便某处开了 stripe 也压平） */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: transparent;
+}
+/* 选中行赤陶浅染 */
+.el-table__body tr.current-row > td.el-table__cell {
+  background-color: var(--el-color-primary-light-9);
+}
+/* 数据感单元格可按需走等宽：给需要 mono 的列加 class="mono-cell"（cell-class-name） */
+.el-table .mono-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 输入焦点光环 ---- */
+.el-input__wrapper.is-focus,
+.el-textarea__inner:focus {
+  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset !important;
+}
+
+/* ---- 按钮字体（display 字，略加字距，呼应源项目） ---- */
+.el-button {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
