@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app import permissions
-from app.deps import get_db, require_permission
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature, require_permission
 from app.errors import not_found
 from app.models.meter import Meter
 from app.models.meter_reading import MeterReading
@@ -26,7 +27,11 @@ from app.schemas.meter import (
 from app.services import meter_service as svc
 from app.services import meter_trigger_service as ts
 
-router = APIRouter(prefix="/api/v1/meters", tags=["meters"])
+router = APIRouter(
+    prefix="/api/v1/meters",
+    tags=["meters"],
+    dependencies=[Depends(require_feature(Feature.meters))],
+)
 
 
 def _ensure_meter(m: Meter | None, company_id: str) -> Meter:

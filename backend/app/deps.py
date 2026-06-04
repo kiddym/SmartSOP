@@ -14,9 +14,11 @@ from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 
 from app import security, tenant
+from app.billing.catalog import Feature, effective_features
 from app.config import settings
 from app.db import get_db
-from app.errors import forbidden, unauthorized
+from app.errors import forbidden, payment_required, unauthorized
+from app.models.company import Company
 from app.models.role import Role
 from app.models.user import User, UserStatus
 from app.permissions import effective_codes
@@ -90,12 +92,34 @@ def require_permission(code: str) -> Callable[[User, Session], User]:
     return checker
 
 
+def require_feature(feature: Feature) -> Callable[..., User]:
+    """Return a dependency enforcing the company's plan includes the feature.
+
+    与 require_permission 正交：super_admin 通配权限但不绕此闸门。
+    订阅失效时 effective_features 已降级到 free，故自动锁高级模块。
+    """
+
+    def checker(
+        current_user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        company = db.get(Company, current_user.company_id)
+        plan = company.plan if company else None
+        status_ = company.subscription_status if company else None
+        if feature not in effective_features(plan, status_):
+            raise payment_required("FEATURE_LOCKED", "当前套餐未包含此功能，请升级订阅")
+        return current_user
+
+    return checker
+
+
 __all__ = [
     "RequestMeta",
     "get_current_user",
     "get_db",
     "get_request_meta",
     "oauth2_scheme",
+    "require_feature",
     "require_permission",
     "user_permission_codes",
 ]
