@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from app.models.settings import ProcedureSettings
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 SETTINGS = "/api/v1/settings"
 SETTINGS_CURRENT = "/api/v1/settings/current"
@@ -36,11 +37,12 @@ _DEFAULT_PAYLOAD = {
 
 
 @pytest.fixture
-def seeded_client(engine: Engine, client: TestClient) -> TestClient:
-    """在测试库中插入一条 settings 单例后返回 client。"""
-    with Session(engine) as db:
-        db.add(ProcedureSettings(is_active=True))
-        db.commit()
+def seeded_client(client: TestClient) -> TestClient:
+    """_sop_auth 注册时已为本公司播种 settings 单例（seed_tenant_sop），直接复用 client。
+
+    不再手动插入单例：那会与每公司播种的行重复，且在租户上下文下被自动盖上同一
+    company_id，导致同公司两条 settings 行让 get_singleton 的 .first() 结果不稳定。
+    """
     return client
 
 
@@ -69,8 +71,15 @@ def test_get_settings_200(seeded_client: TestClient) -> None:
     assert data["revision"] == 0
 
 
-def test_get_settings_404_when_no_seed(client: TestClient) -> None:
-    """未 seed 时应返回 404。"""
+def test_get_settings_404_when_missing(client: TestClient, db: Session) -> None:
+    """删除本公司已播种的 settings 单例后，GET 应返回 404（防御分支）。
+
+    每公司注册即播种 settings，故「未初始化」只能通过显式删除复现。db 在 _sop_auth
+    设的租户上下文下，查询只命中本公司的行。
+    """
+    for s in db.query(ProcedureSettings).all():
+        db.delete(s)
+    db.commit()
     resp = client.get(SETTINGS)
     assert resp.status_code == 404
     assert resp.json()["detail"]["code"] == "SETTINGS_NOT_FOUND"

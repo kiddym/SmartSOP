@@ -19,7 +19,8 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Response, status
 from sqlalchemy.orm import Session
 
-from app.deps import get_db
+from app.billing.catalog import Feature
+from app.deps import get_db, require_feature
 from app.schemas.common import BatchDeleteResult
 from app.schemas.field import (
     FieldBatchDeleteIn,
@@ -33,7 +34,11 @@ from app.schemas.field import (
 )
 from app.services import field_service
 
-router = APIRouter(prefix="/api/v1", tags=["fields"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["fields"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 # --------------------------------------------------------------------------- #

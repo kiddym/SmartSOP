@@ -62,6 +62,8 @@ _LOCKED_ENDPOINTS = [
     "/api/v1/analytics/work-orders",
     "/api/v1/procedures",
     "/api/v1/folders",
+    "/api/v1/procedure-fields",
+    "/api/v1/settings",
 ]
 
 

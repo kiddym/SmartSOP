@@ -11,12 +11,17 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from app.deps import RequestMeta, get_db, get_request_meta
+from app.billing.catalog import Feature
+from app.deps import RequestMeta, get_db, get_request_meta, require_feature
 from app.schemas.settings import SettingsOut, SettingsUpdate
 from app.services import settings_service
 from app.services.optimistic_lock import ensure_if_match, verify_revision
 
-router = APIRouter(prefix="/api/v1", tags=["settings"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["settings"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 @router.get("/settings", response_model=SettingsOut)
