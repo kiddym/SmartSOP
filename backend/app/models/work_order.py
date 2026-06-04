@@ -23,7 +23,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import DATETIME6, Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
-from app.models.work_order_status import WorkOrderPriority, WorkOrderStatus
+from app.models.work_order_status import WorkOrderPriority, WorkOrderRelationType, WorkOrderStatus
 
 
 class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
@@ -102,3 +102,26 @@ class WorkOrderTeam(Base, UUIDMixin, TimestampMixin, TenantMixin):
     team_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("tb_team.id", ondelete="CASCADE"), index=True
     )
+
+
+class WorkOrderRelation(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    __tablename__ = "tb_work_order_relation"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_work_order_id",
+            "target_work_order_id",
+            "relation_type",
+            name="uq_work_order_relation",
+        ),
+    )
+
+    source_work_order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_work_order.id", ondelete="CASCADE"), index=True
+    )
+    target_work_order_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_work_order.id", ondelete="CASCADE"), index=True
+    )
+    relation_type: Mapped[WorkOrderRelationType] = mapped_column(
+        SAEnum(WorkOrderRelationType), nullable=False
+    )
+    created_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)

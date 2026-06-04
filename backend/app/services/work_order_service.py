@@ -10,14 +10,19 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request, not_found
+from app.errors import bad_request, conflict, not_found
 from app.models.base import utcnow
 from app.models.role import Role
 from app.models.user import User
-from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
+from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderRelation, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_category import WorkOrderCategory
-from app.models.work_order_status import WorkOrderStatus, can_transition
+from app.models.work_order_status import (
+    SYMMETRIC_RELATION_TYPES,
+    WorkOrderRelationType,
+    WorkOrderStatus,
+    can_transition,
+)
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
 from app.services import notification_service as _notif
 from app.services import sequence_service
@@ -329,3 +334,84 @@ def list_activities(db: Session, work_order_id: str) -> list[WorkOrderActivity]:
         .scalars()
         .all()
     )
+
+
+def create_relation(
+    db: Session,
+    wo: WorkOrder,
+    target_id: str,
+    relation_type: WorkOrderRelationType,
+    company_id: str,
+    actor_user_id: str | None,
+) -> WorkOrderRelation:
+    if target_id == wo.id:
+        raise bad_request("WORKORDER_RELATION_SELF", "不能关联自身")
+    target = get_work_order(db, target_id)
+    if target is None or target.company_id != company_id:
+        raise not_found("WORKORDER_NOT_FOUND", "目标工单不存在")
+    dup = db.execute(
+        select(WorkOrderRelation).where(
+            WorkOrderRelation.source_work_order_id == wo.id,
+            WorkOrderRelation.target_work_order_id == target_id,
+            WorkOrderRelation.relation_type == relation_type,
+        )
+    ).scalar_one_or_none()
+    if dup is not None:
+        raise conflict("WORKORDER_RELATION_DUPLICATE", "关联已存在")
+    rel = WorkOrderRelation(
+        source_work_order_id=wo.id,
+        target_work_order_id=target_id,
+        relation_type=relation_type,
+        created_by_user_id=actor_user_id,
+        company_id=company_id,
+    )
+    db.add(rel)
+    db.commit()
+    db.refresh(rel)
+    return rel
+
+
+def list_relations(db: Session, wo: WorkOrder) -> list[dict[str, object]]:
+    rels = (
+        db.execute(
+            select(WorkOrderRelation).where(
+                (WorkOrderRelation.source_work_order_id == wo.id)
+                | (WorkOrderRelation.target_work_order_id == wo.id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    out: list[dict[str, object]] = []
+    for r in rels:
+        is_source = r.source_work_order_id == wo.id
+        other_id = r.target_work_order_id if is_source else r.source_work_order_id
+        if r.relation_type in SYMMETRIC_RELATION_TYPES:
+            direction = "symmetric"
+        else:
+            direction = "outgoing" if is_source else "incoming"
+        other = db.get(WorkOrder, other_id)
+        out.append(
+            {
+                "id": r.id,
+                "relation_type": r.relation_type,
+                "direction": direction,
+                "related_work_order_id": other_id,
+                "related_custom_id": other.custom_id if other else None,
+                "related_title": other.title if other else None,
+                "related_status": other.status if other else None,
+            }
+        )
+    return out
+
+
+def delete_relation(db: Session, wo: WorkOrder, relation_id: str, company_id: str) -> None:
+    rel = db.get(WorkOrderRelation, relation_id)
+    if (
+        rel is None
+        or rel.company_id != company_id
+        or wo.id not in {rel.source_work_order_id, rel.target_work_order_id}
+    ):
+        raise not_found("WORKORDER_RELATION_NOT_FOUND", "关联不存在")
+    db.delete(rel)
+    db.commit()

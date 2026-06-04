@@ -22,6 +22,8 @@ from app.schemas.work_order import (
     TeamsSet,
     WorkOrderCreate,
     WorkOrderRead,
+    WorkOrderRelationCreate,
+    WorkOrderRelationRead,
     WorkOrderTransition,
     WorkOrderUpdate,
 )
@@ -203,6 +205,49 @@ def update_step(
     sr = _ensure_step(exe.get_step_result(db, result_id), work_order_id, current_user.company_id)
     exe.update_step(db, wo, sr, payload, current_user.company_id, actor_user_id=current_user.id)
     return exe.execution_view(db, wo)
+
+
+@router.get("/{work_order_id}/relations", response_model=list[WorkOrderRelationRead])
+def list_relations(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> list[dict[str, object]]:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    return svc.list_relations(db, wo)
+
+
+@router.post("/{work_order_id}/relations", response_model=WorkOrderRelationRead, status_code=201)
+def create_relation(
+    work_order_id: str,
+    payload: WorkOrderRelationCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> dict[str, object]:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    rel = svc.create_relation(
+        db,
+        wo,
+        payload.target_work_order_id,
+        payload.relation_type,
+        current_user.company_id,
+        actor_user_id=current_user.id,
+    )
+    for item in svc.list_relations(db, wo):
+        if item["id"] == rel.id:
+            return item
+    raise not_found("WORKORDER_RELATION_NOT_FOUND", "关联不存在")
+
+
+@router.delete("/{work_order_id}/relations/{relation_id}", status_code=204, response_model=None)
+def delete_relation(
+    work_order_id: str,
+    relation_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_EDIT)),
+) -> None:
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    svc.delete_relation(db, wo, relation_id, current_user.company_id)
 
 
 @router.get("/{work_order_id}/activities", response_model=list[ActivityRead])

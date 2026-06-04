@@ -7,7 +7,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.models.work_order_status import WorkOrderPriority, WorkOrderStatus
+from app.models.work_order_status import WorkOrderPriority, WorkOrderRelationType, WorkOrderStatus
 
 
 class WorkOrderCreate(BaseModel):
@@ -139,3 +139,18 @@ class ActivityRead(BaseModel):
     to_status: str | None = None
     comment: str
     created_at: datetime
+
+
+class WorkOrderRelationCreate(BaseModel):
+    target_work_order_id: str
+    relation_type: WorkOrderRelationType
+
+
+class WorkOrderRelationRead(BaseModel):
+    id: str
+    relation_type: WorkOrderRelationType
+    direction: str  # "symmetric" | "outgoing" | "incoming"
+    related_work_order_id: str
+    related_custom_id: str | None = None
+    related_title: str | None = None
+    related_status: WorkOrderStatus | None = None
