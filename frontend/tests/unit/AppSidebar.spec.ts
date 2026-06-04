@@ -4,6 +4,7 @@ import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useAuthStore } from '@/store/auth'
+import { useBillingStore } from '@/store/billing'
 import type { CurrentUser } from '@/types/auth'
 
 function makeRouter(initialPath: string): Router {
@@ -215,5 +216,28 @@ describe('AppSidebar', () => {
   it('在 /maintenance/work-orders/abc 时 activeMenu 为 /maintenance/work-orders', async () => {
     const w = await mountSidebar('/maintenance/work-orders/abc')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/maintenance/work-orders')
+  })
+
+  const findItem = (w: Awaited<ReturnType<typeof mountSidebar>>, label: string) =>
+    w.findAll('.el-menu-item').find((i) => i.text().includes(label))!
+
+  it('订阅未知（加载失败 subscription=null）时 SOP 项不显示锁标（后端 402 兜底，勿误锁付费用户）', async () => {
+    // 默认 billing.subscription = null（模拟一次拉取失败/未加载）
+    const w = await mountSidebar('/procedures/library')
+    expect(findItem(w, '程序库').find('.lock-icon').exists()).toBe(false)
+  })
+
+  it('订阅已知为 free 时 SOP 项显示锁标', async () => {
+    const billing = useBillingStore()
+    billing.subscription = {
+      plan: 'free',
+      subscription_status: 'active',
+      seat_used: 1,
+      seat_limit: 3,
+      features: [],
+      catalog: [],
+    }
+    const w = await mountSidebar('/procedures/library')
+    expect(findItem(w, '程序库').find('.lock-icon').exists()).toBe(true)
   })
 })

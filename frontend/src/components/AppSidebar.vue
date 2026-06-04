@@ -25,7 +25,12 @@ interface NavItem {
 
 // 菜单项是否因套餐未解锁而锁定。
 function isLocked(it: NavItem): boolean {
-  return it.feature ? !billing.hasFeature(it.feature) : false
+  if (!it.feature) return false
+  // 订阅未知（未加载/拉取失败 → subscription=null）时不显示锁：/billing/subscription 是
+  // 自查端点，free 也会返回对象，故 null 只代表"未知"。后端 402 仍是真闸门，避免一次拉取
+  // 失败把已付费用户的整张菜单锁死。仅在订阅已知且不含该 feature 时锁。
+  if (!billing.subscription) return false
+  return !billing.hasFeature(it.feature)
 }
 
 // 锁定项的导航目标改为套餐页；其余照常。
