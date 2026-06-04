@@ -26,9 +26,24 @@ const klass = computed(() => `status-${props.status.toLowerCase()}`)
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
   /* 状态枚举属于数据字段，走等宽（docs/design-system.md §2.2）。 */
   font-family: var(--font-mono);
+}
+/* 胶囊底色：各状态色 12% 浅染（不新增配色令牌，用现有 st-*） */
+.status-draft {
+  background: color-mix(in srgb, var(--st-draft) 12%, transparent);
+  color: var(--st-draft);
+}
+.status-published {
+  background: color-mix(in srgb, var(--st-published) 14%, transparent);
+  color: var(--st-published);
+}
+.status-archived {
+  background: color-mix(in srgb, var(--st-archived) 14%, transparent);
+  color: var(--st-archived);
 }
 .dot {
   width: 8px;
