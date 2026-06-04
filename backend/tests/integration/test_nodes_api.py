@@ -6,7 +6,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from tests.conftest import Factory
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 
 def _proc(factory: Factory):

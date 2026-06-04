@@ -4,23 +4,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 PROC = "/api/v1/procedures"
 FOLDER = "/api/v1/folders"
-
-
-def _auth(client: TestClient) -> dict[str, str]:
-    tok = client.post(
-        "/api/v1/auth/register",
-        json={
-            "company_name": "Acme",
-            "email": "a@acme.com",
-            "password": "secret123",
-            "name": "A",
-        },
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {tok}"}
 
 
 def _make_procedure(client: TestClient) -> str:
@@ -58,8 +48,7 @@ def test_download_forces_attachment(client: TestClient, storage_tmp: Path) -> No
         f"{PROC}/{pid}/attachments",
         files=[("files", ("数据.bin", b"\x00\x01\x02", "application/octet-stream"))],
     ).json()[0]
-    h = _auth(client)
-    resp = client.get(f"/api/v1/attachments/{att['id']}/download", headers=h)
+    resp = client.get(f"/api/v1/attachments/{att['id']}/download")
     assert resp.status_code == 200
     assert resp.content == b"\x00\x01\x02"
     assert resp.headers["content-disposition"].startswith("attachment")
@@ -71,8 +60,7 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
         f"{PROC}/{pid}/attachments",
         files=[("files", ("p.png", b"img", "image/png"))],
     ).json()[0]
-    h = _auth(client)
-    ok = client.get(f"/api/v1/attachments/{png['id']}/preview", headers=h)
+    ok = client.get(f"/api/v1/attachments/{png['id']}/preview")
     assert ok.status_code == 200
     assert ok.headers["content-disposition"] == "inline"
 
@@ -80,7 +68,7 @@ def test_preview_whitelist_and_415(client: TestClient, storage_tmp: Path) -> Non
         f"{PROC}/{pid}/attachments",
         files=[("files", ("n.txt", b"hi", "text/plain"))],
     ).json()[0]
-    blocked = client.get(f"/api/v1/attachments/{txt['id']}/preview", headers=h)
+    blocked = client.get(f"/api/v1/attachments/{txt['id']}/preview")
     assert blocked.status_code == 415
     assert blocked.json()["detail"]["code"] == "ATTACHMENT_NOT_PREVIEWABLE"
 
@@ -92,12 +80,11 @@ def test_update_and_delete(client: TestClient, storage_tmp: Path) -> None:
         files=[("files", ("a.txt", b"hi", "text/plain"))],
     ).json()[0]
 
-    h = _auth(client)
-    upd = client.put(f"/api/v1/attachments/{att['id']}", json={"description": "改了"}, headers=h)
+    upd = client.put(f"/api/v1/attachments/{att['id']}", json={"description": "改了"})
     assert upd.status_code == 200
     assert upd.json()["description"] == "改了"
 
-    dele = client.delete(f"/api/v1/attachments/{att['id']}", headers=h)
+    dele = client.delete(f"/api/v1/attachments/{att['id']}")
     assert dele.status_code == 204
     assert client.get(f"{PROC}/{pid}/attachments").json() == []
 

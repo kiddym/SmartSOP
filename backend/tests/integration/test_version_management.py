@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.seed import run_seed
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 PROC = "/api/v1/procedures"
 GROUPS = "/api/v1/procedure-groups"

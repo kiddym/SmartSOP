@@ -1,8 +1,11 @@
 """程序元数据 PUT（meta-only）集成测试（B4a）。结构改动走 /nodes 颗粒度端点。"""
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import Factory
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 
 def test_put_procedure_updates_meta_only(client: TestClient, factory: Factory) -> None:

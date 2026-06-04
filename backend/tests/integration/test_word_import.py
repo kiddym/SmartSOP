@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.unit.parser._docx_builder import (
@@ -13,6 +14,8 @@ from tests.unit.parser._docx_builder import (
     tiny_png,
     unstyled_numbered_sop,
 )
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 UPLOADS = "/api/v1/uploads"
 PARSE = "/api/v1/parse"
