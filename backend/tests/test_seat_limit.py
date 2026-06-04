@@ -43,6 +43,28 @@ def test_pro_allows_more_seats(client, db):
         assert _invite(client, t, f"u{i}@acme.com").status_code == 201
 
 
+def test_expired_pending_invite_does_not_occupy_seat(client, db):
+    # free 上限 3：注册占 1 席 + 2 待处理 = 满；第三邀被拒。让一封邀请过期后应释放该席。
+    from datetime import timedelta
+
+    from app.models.base import utcnow
+    from app.models.user_invitation import UserInvitation
+
+    t = _admin(client)
+    assert _invite(client, t, "u1@acme.com").status_code == 201
+    assert _invite(client, t, "u2@acme.com").status_code == 201
+    assert _invite(client, t, "u3@acme.com").status_code == 402
+
+    inv = db.execute(
+        select(UserInvitation).where(UserInvitation.email == "u1@acme.com")
+    ).scalar_one()
+    inv.expires_at = utcnow() - timedelta(days=1)
+    db.commit()
+
+    # 过期邀请不可被接受、亦不应继续占席 → 可再邀
+    assert _invite(client, t, "u3@acme.com").status_code == 201, "过期邀请不应占用席位"
+
+
 def test_downgrade_keeps_existing_blocks_new(client, db):
     # pro 下邀满 4 人（1 在职 + 4 待处理 = 5 席），再降回 free（上限3），存量保留但新邀被拒
     t = _admin(client)

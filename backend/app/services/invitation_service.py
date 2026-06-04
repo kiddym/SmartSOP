@@ -41,12 +41,15 @@ def invite(
             .select_from(User)
             .where(User.company_id == company_id, User.status == UserStatus.active)
         ).scalar_one()
+        # 仅「未过期」的待处理邀请占席：过期邀请无法被 accept（见 accept() 的 expires_at
+        # 过滤），不应继续占用席位，否则一旦失效便永久锁死一席。
         pending_invites = db.execute(
             select(func.count())
             .select_from(UserInvitation)
             .where(
                 UserInvitation.company_id == company_id,
                 UserInvitation.status == "pending",
+                UserInvitation.expires_at > utcnow(),
             )
         ).scalar_one()
         if active_users + pending_invites >= limit:
