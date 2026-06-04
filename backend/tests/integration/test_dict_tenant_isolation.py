@@ -105,6 +105,7 @@ def _register(client, *, company, email):
     ).json()["access_token"]
 
 
+@pytest.mark.usefixtures("_enterprise_default")
 def test_api_list_isolated_per_tenant(client) -> None:
     # A 公司经 API 建规则
     ta = _register(client, company="AcmeDict", email="admin@acmedict.com")
