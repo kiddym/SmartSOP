@@ -72,9 +72,9 @@ const groups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
     items: [
-      { label: '程序库', path: '/procedures/library' },
-      { label: '草稿箱', path: '/procedures/drafts' },
-      { label: '文件夹', path: '/folders' },
+      { label: '程序库', path: '/procedures/library', feature: 'sop' },
+      { label: '草稿箱', path: '/procedures/drafts', feature: 'sop' },
+      { label: '文件夹', path: '/folders', feature: 'sop' },
       { label: '审计日志', path: '/audit-logs' },
     ],
   },
