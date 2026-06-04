@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
@@ -22,7 +22,7 @@ class AssetDowntime(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     started_at: Mapped[datetime] = mapped_column(DATETIME6, nullable=False)
     ended_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
-    reason: Mapped[str] = mapped_column(Text, default="", server_default="")
+    reason: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     downtime_type: Mapped[str] = mapped_column(
         String(20), default="manual", server_default="manual"
     )

@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from sqlalchemy import Date, ForeignKey, String, Text
+from sqlalchemy import Date, ForeignKey, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -29,7 +29,7 @@ class Request(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
     custom_id: Mapped[str] = mapped_column(String(20), nullable=False)
     title: Mapped[str] = mapped_column(String(300), nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     priority: Mapped[WorkOrderPriority] = mapped_column(
         SAEnum(WorkOrderPriority), nullable=False, default=WorkOrderPriority.NONE
     )
@@ -45,6 +45,6 @@ class Request(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
     # 审批结果（弱引用，无 FK）
     work_order_id: Mapped[str | None] = mapped_column(String(36), default=None, index=True)
-    resolution_note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    resolution_note: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)

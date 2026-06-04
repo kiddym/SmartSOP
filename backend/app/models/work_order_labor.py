@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import ForeignKey, Integer, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
@@ -33,4 +33,4 @@ class WorkOrderLabor(Base, UUIDMixin, TimestampMixin, TenantMixin):
         Integer, nullable=False, default=0, server_default="0"
     )
     hourly_rate: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
-    notes: Mapped[str] = mapped_column(Text, default="", server_default="")
+    notes: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))

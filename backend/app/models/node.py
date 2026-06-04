@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, ForeignKey, Index, Integer, String
+from sqlalchemy import JSON, ForeignKey, Index, Integer, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
@@ -42,7 +42,7 @@ class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
     # 'node'=无表单(章节或正文);'step'=带表单。
     kind: Mapped[str] = mapped_column(String(20), default="node", server_default="node")
     # rich HTML。heading 的"标题"= body 第一个块级元素文本(派生,见 spec §2.3)。
-    body: Mapped[str] = mapped_column(LONGTEXT, default="", server_default="")
+    body: Mapped[str] = mapped_column(LONGTEXT, default="", server_default=text("('')"))
     code: Mapped[str] = mapped_column(String(50), default="", server_default="")
     skip_numbering: Mapped[bool] = mapped_column(default=False, server_default="0")
     # 仅 kind='step' 非空。

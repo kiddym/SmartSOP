@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
@@ -13,7 +13,7 @@ class Team(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     __table_args__ = (UniqueConstraint("company_id", "name", name="uq_team_company_name"),)
 
     name: Mapped[str] = mapped_column(String(128), nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
 
 
 class TeamUser(Base, UUIDMixin, TimestampMixin, TenantMixin):

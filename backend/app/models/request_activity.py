@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
@@ -19,4 +19,4 @@ class RequestActivity(Base, UUIDMixin, TimestampMixin, TenantMixin):
     actor_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     from_status: Mapped[str | None] = mapped_column(String(20), default=None)
     to_status: Mapped[str | None] = mapped_column(String(20), default=None)
-    comment: Mapped[str] = mapped_column(Text, default="", server_default="")
+    comment: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))

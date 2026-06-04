@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -19,7 +19,7 @@ class MultiPart(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
     custom_id: Mapped[str] = mapped_column(String(20), nullable=False)
     name: Mapped[str] = mapped_column(String(300), nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
 
 
 class MultiPartItem(Base, UUIDMixin, TimestampMixin, TenantMixin):
