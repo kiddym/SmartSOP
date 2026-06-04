@@ -11,7 +11,8 @@ import math
 from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
-from app.deps import RequestMeta, get_db, get_request_meta
+from app.billing.catalog import Feature
+from app.deps import RequestMeta, get_db, get_request_meta, require_feature
 from app.schemas.common import Page
 from app.schemas.folder import (
     BatchDeleteIn,
@@ -25,7 +26,11 @@ from app.schemas.folder import (
 )
 from app.services import folder_service
 
-router = APIRouter(prefix="/api/v1/folders", tags=["folders"])
+router = APIRouter(
+    prefix="/api/v1/folders",
+    tags=["folders"],
+    dependencies=[Depends(require_feature(Feature.sop))],
+)
 
 
 @router.get("", response_model=Page[FolderOut])

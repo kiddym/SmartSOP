@@ -54,13 +54,14 @@ def test_pro_but_inactive_status_downgrades(client, db):
 
 # 代表性 GET 端点（仅含已挂闸的「有鉴权」高级模块）。
 # 说明：sop 功能对应的 procedures/procedure_groups/nodes/parse/heading_rules/folders/
-# batch_imports 这些 router 尚未与认证/多租户整合（无 get_current_user），挂 feature
-# gate 会让既有无 token 测试变 401 而非 402，故本轮推迟 sop 挂闸；Feature.sop 仍保留
-# 在 catalog 中，待「SOP 接入认证/多租户」后续轮次再挂闸。
+# batch_imports 这些 router 已接入认证/多租户并挂 require_feature(Feature.sop)，故 free
+# 档访问返回 402（见「SOP 接入认证/多租户」轮次）。
 _LOCKED_ENDPOINTS = [
     "/api/v1/preventive-maintenances",
     "/api/v1/purchase-orders",
     "/api/v1/analytics/work-orders",
+    "/api/v1/procedures",
+    "/api/v1/folders",
 ]
 
 

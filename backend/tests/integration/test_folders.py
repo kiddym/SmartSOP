@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.conftest import Factory
+
+pytestmark = pytest.mark.usefixtures("_sop_auth")
 
 BASE = "/api/v1/folders"
 
@@ -42,14 +45,15 @@ def test_duplicate_name_returns_409(client: TestClient) -> None:
 
 
 def test_list_pagination_shape(client: TestClient) -> None:
+    # 每公司注册即自带 2 个系统文件夹（废止/归档），故总数 = 3 创建 + 2 系统 = 5。
     for i in range(3):
         client.post(BASE, json={"name": f"f{i}"})
     resp = client.get(BASE, params={"page": 1, "page_size": 2})
     body = resp.json()
-    assert body["total"] == 3
+    assert body["total"] == 5
     assert body["page"] == 1
     assert body["page_size"] == 2
-    assert body["total_pages"] == 2
+    assert body["total_pages"] == 3
     assert len(body["items"]) == 2
 
 
