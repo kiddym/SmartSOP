@@ -19,15 +19,15 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         'tb_procedure_step',
-        sa.Column('note_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'),
+        sa.Column('note_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')),
     )
     op.add_column(
         'tb_procedure_step',
-        sa.Column('caution_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'),
+        sa.Column('caution_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')),
     )
     op.add_column(
         'tb_procedure_step',
-        sa.Column('warning_schema', sa.JSON(), nullable=False, server_default='{"type": "COMMON"}'),
+        sa.Column('warning_schema', sa.JSON(), nullable=False, server_default=sa.text('(\'{"type": "COMMON"}\')')),
     )
 
 

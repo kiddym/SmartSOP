@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 
-from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Date, ForeignKey, Integer, Numeric, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,7 +37,7 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
     status: Mapped[PurchaseOrderStatus] = mapped_column(
         SAEnum(PurchaseOrderStatus), nullable=False, default=PurchaseOrderStatus.DRAFT
     )
-    notes: Mapped[str] = mapped_column(Text, default="", server_default="")
+    notes: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     category_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_purchase_order_category.id", ondelete="SET NULL"), index=True
     )
@@ -46,7 +46,7 @@ class PurchaseOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixi
     shipping_method: Mapped[str] = mapped_column(String(120), default="", server_default="")
     terms_of_payment: Mapped[str] = mapped_column(String(200), default="", server_default="")
     expected_delivery_date: Mapped[date | None] = mapped_column(Date, default=None)
-    resolution_note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    resolution_note: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
 
@@ -78,4 +78,4 @@ class PurchaseOrderActivity(Base, UUIDMixin, TimestampMixin, TenantMixin):
     actor_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     from_status: Mapped[str | None] = mapped_column(String(40), default=None)
     to_status: Mapped[str | None] = mapped_column(String(40), default=None)
-    comment: Mapped[str] = mapped_column(Text, default="", server_default="")
+    comment: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))

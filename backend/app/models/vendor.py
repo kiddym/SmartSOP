@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import ForeignKey, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -21,7 +21,7 @@ class Vendor(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
 
     name: Mapped[str] = mapped_column(String(300), nullable=False)
     vendor_type: Mapped[str] = mapped_column(String(120), default="", server_default="")
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     rate: Mapped[Decimal] = mapped_column(
         Numeric(18, 4), nullable=False, default=Decimal("0"), server_default="0"
     )

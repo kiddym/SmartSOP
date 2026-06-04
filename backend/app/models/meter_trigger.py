@@ -16,6 +16,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy import (
     Enum as SAEnum,
@@ -53,7 +54,7 @@ class MeterTrigger(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin
         SAEnum(WorkOrderPriority), nullable=False, default=WorkOrderPriority.NONE
     )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     primary_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_user.id", ondelete="SET NULL"), index=True
     )

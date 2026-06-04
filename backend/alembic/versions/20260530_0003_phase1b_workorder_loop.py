@@ -50,7 +50,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("custom_id", sa.String(20), nullable=False),
         sa.Column("title", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("status",
                   sa.Enum("OPEN", "IN_PROGRESS", "ON_HOLD", "COMPLETE", "CANCELED",
                           name="workorderstatus"),
@@ -121,7 +121,7 @@ def upgrade() -> None:
         sa.Column("is_done", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("done_by_user_id", sa.String(36), nullable=True),
         sa.Column("done_at", DATETIME6, nullable=True),
-        sa.Column("notes", sa.Text(), nullable=False, server_default=""),
+        sa.Column("notes", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(),
         sa.UniqueConstraint("work_order_id", "node_id", name="uq_work_order_step_result_node"),
     )
@@ -139,7 +139,7 @@ def upgrade() -> None:
         sa.Column("actor_user_id", sa.String(36), nullable=True),
         sa.Column("from_status", sa.String(20), nullable=True),
         sa.Column("to_status", sa.String(20), nullable=True),
-        sa.Column("comment", sa.Text(), nullable=False, server_default=""),
+        sa.Column("comment", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(),
     )
     op.create_index("ix_tb_work_order_activity_company_id", "tb_work_order_activity", ["company_id"])

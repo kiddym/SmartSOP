@@ -50,7 +50,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("custom_id", sa.String(20), nullable=False),
         sa.Column("title", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("priority",
                   sa.Enum("NONE", "LOW", "MEDIUM", "HIGH", name="workorderpriority"),
                   nullable=False),
@@ -63,7 +63,7 @@ def upgrade() -> None:
                   sa.Enum("PENDING", "APPROVED", "REJECTED", "CANCELED", name="requeststatus"),
                   nullable=False),
         sa.Column("work_order_id", sa.String(36), nullable=True),
-        sa.Column("resolution_note", sa.Text(), nullable=False, server_default=""),
+        sa.Column("resolution_note", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("resolved_by_user_id", sa.String(36), nullable=True),
         sa.Column("resolved_at", DATETIME6, nullable=True),
         *_ts(), *_soft(),
@@ -83,7 +83,7 @@ def upgrade() -> None:
         sa.Column("actor_user_id", sa.String(36), nullable=True),
         sa.Column("from_status", sa.String(20), nullable=True),
         sa.Column("to_status", sa.String(20), nullable=True),
-        sa.Column("comment", sa.Text(), nullable=False, server_default=""),
+        sa.Column("comment", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(),
     )
     op.create_index("ix_tb_request_activity_company_id", "tb_request_activity", ["company_id"])
@@ -94,13 +94,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # work_order.request_id 为弱引用（无 FK），其索引普通、删列无碍，两方言一致。
     op.drop_index("ix_tb_work_order_request_id", table_name="tb_work_order")
     op.drop_column("tb_work_order", "request_id")
-    op.drop_index("ix_tb_request_activity_request_id", table_name="tb_request_activity")
-    op.drop_index("ix_tb_request_activity_company_id", table_name="tb_request_activity")
+    # tb_request(_activity) 的 company_id/request_id 等列索引被 FK 占用（MySQL 1553），
+    # DROP TABLE 连带清理，故仅 SQLite 显式删索引（保持其既有验证行为）。
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    if is_sqlite:
+        op.drop_index("ix_tb_request_activity_request_id", table_name="tb_request_activity")
+        op.drop_index("ix_tb_request_activity_company_id", table_name="tb_request_activity")
     op.drop_table("tb_request_activity")
-    op.drop_index("ix_tb_request_work_order_id", table_name="tb_request")
-    op.drop_index("ix_tb_request_location_id", table_name="tb_request")
-    op.drop_index("ix_tb_request_asset_id", table_name="tb_request")
-    op.drop_index("ix_tb_request_company_id", table_name="tb_request")
+    if is_sqlite:
+        op.drop_index("ix_tb_request_work_order_id", table_name="tb_request")
+        op.drop_index("ix_tb_request_location_id", table_name="tb_request")
+        op.drop_index("ix_tb_request_asset_id", table_name="tb_request")
+        op.drop_index("ix_tb_request_company_id", table_name="tb_request")
     op.drop_table("tb_request")

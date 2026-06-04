@@ -38,7 +38,7 @@ def upgrade() -> None:
     op.create_table(
         "tb_work_order_category",
         sa.Column("name", sa.String(length=300), nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
         sa.Column("updated_at", DATETIME6, nullable=False),

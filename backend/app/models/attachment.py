@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, Index, Integer, String, Text
+from sqlalchemy import BigInteger, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -25,7 +25,7 @@ class Attachment(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     storage_path: Mapped[str] = mapped_column(String(500))
     mime_type: Mapped[str] = mapped_column(String(100))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
-    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
     __table_args__ = (

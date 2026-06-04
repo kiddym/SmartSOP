@@ -54,8 +54,8 @@ def upgrade() -> None:
         sa.Column("status", sa.Enum(
             "DRAFT", "SUBMITTED", "APPROVED", "REJECTED", "CANCELED",
             name="purchaseorderstatus"), nullable=False),
-        sa.Column("notes", sa.Text(), nullable=False, server_default=""),
-        sa.Column("resolution_note", sa.Text(), nullable=False, server_default=""),
+        sa.Column("notes", sa.Text(), nullable=False, server_default=sa.text("('')")),
+        sa.Column("resolution_note", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("resolved_by_user_id", sa.String(36), nullable=True),
         sa.Column("resolved_at", DATETIME6, nullable=True),
         *_ts(), *_soft(),
@@ -89,7 +89,7 @@ def upgrade() -> None:
         sa.Column("actor_user_id", sa.String(36), nullable=True),
         sa.Column("from_status", sa.String(40), nullable=True),
         sa.Column("to_status", sa.String(40), nullable=True),
-        sa.Column("comment", sa.Text(), nullable=False, server_default=""),
+        sa.Column("comment", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(),
     )
     op.create_index("ix_tb_purchase_order_activity_company_id", "tb_purchase_order_activity", ["company_id"])
@@ -97,13 +97,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_purchase_order_activity_purchase_order_id", table_name="tb_purchase_order_activity")
-    op.drop_index("ix_tb_purchase_order_activity_company_id", table_name="tb_purchase_order_activity")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_purchase_order_activity_purchase_order_id", table_name="tb_purchase_order_activity")
+        op.drop_index("ix_tb_purchase_order_activity_company_id", table_name="tb_purchase_order_activity")
     op.drop_table("tb_purchase_order_activity")
-    op.drop_index("ix_tb_purchase_order_line_part_id", table_name="tb_purchase_order_line")
-    op.drop_index("ix_tb_purchase_order_line_purchase_order_id", table_name="tb_purchase_order_line")
-    op.drop_index("ix_tb_purchase_order_line_company_id", table_name="tb_purchase_order_line")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_purchase_order_line_part_id", table_name="tb_purchase_order_line")
+        op.drop_index("ix_tb_purchase_order_line_purchase_order_id", table_name="tb_purchase_order_line")
+        op.drop_index("ix_tb_purchase_order_line_company_id", table_name="tb_purchase_order_line")
     op.drop_table("tb_purchase_order_line")
-    op.drop_index("ix_tb_purchase_order_vendor_id", table_name="tb_purchase_order")
-    op.drop_index("ix_tb_purchase_order_company_id", table_name="tb_purchase_order")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_purchase_order_vendor_id", table_name="tb_purchase_order")
+        op.drop_index("ix_tb_purchase_order_company_id", table_name="tb_purchase_order")
     op.drop_table("tb_purchase_order")

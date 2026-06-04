@@ -109,17 +109,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_batch_import_item_created_at", table_name="tb_batch_import_item")
-    op.drop_index("ix_tb_batch_import_item_is_active", table_name="tb_batch_import_item")
-    op.drop_index("ix_tb_batch_import_item_status", table_name="tb_batch_import_item")
-    op.drop_index("ix_tb_batch_import_item_content_hash", table_name="tb_batch_import_item")
-    op.drop_index("ix_tb_batch_import_item_job_id", table_name="tb_batch_import_item")
-    op.drop_index("ix_tb_batch_import_item_company_id", table_name="tb_batch_import_item")
+    # MySQL：job_id/company_id 列索引被 FK 占用（1553），DROP TABLE 连带清理，故仅
+    # SQLite 显式删索引（保持其既有验证行为）。
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    if is_sqlite:
+        op.drop_index("ix_tb_batch_import_item_created_at", table_name="tb_batch_import_item")
+        op.drop_index("ix_tb_batch_import_item_is_active", table_name="tb_batch_import_item")
+        op.drop_index("ix_tb_batch_import_item_status", table_name="tb_batch_import_item")
+        op.drop_index(
+            "ix_tb_batch_import_item_content_hash", table_name="tb_batch_import_item"
+        )
+        op.drop_index("ix_tb_batch_import_item_job_id", table_name="tb_batch_import_item")
+        op.drop_index("ix_tb_batch_import_item_company_id", table_name="tb_batch_import_item")
     op.drop_table("tb_batch_import_item")
 
-    op.drop_index("ix_tb_batch_import_job_created_at", table_name="tb_batch_import_job")
-    op.drop_index("ix_tb_batch_import_job_is_active", table_name="tb_batch_import_job")
-    op.drop_index("ix_tb_batch_import_job_status", table_name="tb_batch_import_job")
-    op.drop_index("ix_tb_batch_import_job_folder_id", table_name="tb_batch_import_job")
-    op.drop_index("ix_tb_batch_import_job_company_id", table_name="tb_batch_import_job")
+    if is_sqlite:
+        op.drop_index("ix_tb_batch_import_job_created_at", table_name="tb_batch_import_job")
+        op.drop_index("ix_tb_batch_import_job_is_active", table_name="tb_batch_import_job")
+        op.drop_index("ix_tb_batch_import_job_status", table_name="tb_batch_import_job")
+        op.drop_index("ix_tb_batch_import_job_folder_id", table_name="tb_batch_import_job")
+        op.drop_index("ix_tb_batch_import_job_company_id", table_name="tb_batch_import_job")
     op.drop_table("tb_batch_import_job")

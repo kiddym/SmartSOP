@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import Boolean, Index, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Index, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -29,7 +29,7 @@ class Notification(Base, UUIDMixin, TimestampMixin, TenantMixin):
     type: Mapped[str] = mapped_column(String(40))
     entity_type: Mapped[str | None] = mapped_column(String(40), default=None)
     entity_id: Mapped[str | None] = mapped_column(String(36), default=None)
-    params: Mapped[str] = mapped_column(Text, default="{}", server_default="{}")
+    params: Mapped[str] = mapped_column(Text, default="{}", server_default=text("('{}')"))
     actor_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", index=True)
     read_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)

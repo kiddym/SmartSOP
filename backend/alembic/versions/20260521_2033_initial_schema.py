@@ -26,7 +26,7 @@ def upgrade() -> None:
     sa.Column('prefix', sa.String(length=20), server_default='', nullable=False),
     sa.Column('parent_id', sa.String(length=36), nullable=True),
     sa.Column('system', sa.Boolean(), server_default='0', nullable=False),
-    sa.Column('full_path', sa.Text(), server_default='', nullable=False),
+    sa.Column('full_path', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('created_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=False),
     sa.Column('updated_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=False),
@@ -44,7 +44,7 @@ def upgrade() -> None:
     sa.Column('action', sa.String(length=30), nullable=False),
     sa.Column('old_value', sa.JSON(), nullable=False),
     sa.Column('new_value', sa.JSON(), nullable=False),
-    sa.Column('reason', sa.Text(), server_default='', nullable=False),
+    sa.Column('reason', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('ip_address', sa.String(length=45), server_default='', nullable=False),
     sa.Column('user_agent', sa.String(length=500), server_default='', nullable=False),
     sa.Column('created_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=False),
@@ -79,7 +79,7 @@ def upgrade() -> None:
     sa.Column('action', sa.String(length=30), nullable=False),
     sa.Column('old_value', sa.JSON(), nullable=False),
     sa.Column('new_value', sa.JSON(), nullable=False),
-    sa.Column('reason', sa.Text(), server_default='', nullable=False),
+    sa.Column('reason', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('ip_address', sa.String(length=45), server_default='', nullable=False),
     sa.Column('user_agent', sa.String(length=500), server_default='', nullable=False),
     sa.Column('created_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=False),
@@ -95,7 +95,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=100), nullable=False),
     sa.Column('key', sa.String(length=100), nullable=False),
     sa.Column('field_type', sa.String(length=20), nullable=False),
-    sa.Column('description', sa.Text(), server_default='', nullable=False),
+    sa.Column('description', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('required', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('default_value', sa.JSON(), nullable=True),
     sa.Column('options', sa.JSON(), nullable=False),
@@ -155,7 +155,7 @@ def upgrade() -> None:
     sa.Column('name', sa.String(length=200), nullable=False),
     sa.Column('version', sa.Integer(), server_default='1', nullable=False),
     sa.Column('version_change_log', sa.JSON(), nullable=False),
-    sa.Column('description', sa.Text(), server_default='', nullable=False),
+    sa.Column('description', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('status', sa.String(length=20), server_default='DRAFT', nullable=False),
     sa.Column('is_read', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('read_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=True),
@@ -164,7 +164,7 @@ def upgrade() -> None:
     sa.Column('quality_level', sa.Integer(), server_default='1', nullable=False),
     sa.Column('level_of_use', sa.String(length=20), nullable=False),
     sa.Column('revision', sa.Integer(), server_default='0', nullable=False),
-    sa.Column('version_update_notes', sa.Text(), server_default='', nullable=False),
+    sa.Column('version_update_notes', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('deprecated_from_folder_id', sa.String(length=36), nullable=True),
     sa.Column('deprecated_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=True),
     sa.Column('deprecated_by', sa.String(length=128), nullable=True),
@@ -201,7 +201,7 @@ def upgrade() -> None:
     sa.Column('storage_path', sa.String(length=500), nullable=False),
     sa.Column('mime_type', sa.String(length=100), nullable=False),
     sa.Column('size_bytes', sa.BigInteger(), nullable=False),
-    sa.Column('description', sa.Text(), server_default='', nullable=False),
+    sa.Column('description', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False),
     sa.Column('id', sa.String(length=36), nullable=False),
     sa.Column('created_at', sa.DateTime().with_variant(mysql.DATETIME(fsp=6), 'mysql'), nullable=False),
@@ -221,7 +221,7 @@ def upgrade() -> None:
     sa.Column('title', sa.String(length=500), nullable=False),
     sa.Column('code', sa.String(length=50), server_default='', nullable=False),
     sa.Column('content_type', sa.String(length=20), server_default='chapter', nullable=False),
-    sa.Column('rich_content', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default='', nullable=False),
+    sa.Column('rich_content', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default=sa.text("('')"), nullable=False),
     sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False),
     sa.Column('level', sa.Integer(), server_default='1', nullable=False),
     sa.Column('mark_status', sa.String(length=20), server_default='unmarked', nullable=False),
@@ -247,14 +247,14 @@ def upgrade() -> None:
     sa.Column('chapter_id', sa.String(length=36), nullable=True),
     sa.Column('title', sa.String(length=500), server_default='', nullable=False),
     sa.Column('code', sa.String(length=50), server_default='', nullable=False),
-    sa.Column('content', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default='', nullable=False),
+    sa.Column('content', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default=sa.text("('')"), nullable=False),
     sa.Column('sort_order', sa.Integer(), server_default='0', nullable=False),
     sa.Column('skip_numbering', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('input_schema', sa.JSON(), nullable=False),
-    sa.Column('note', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default='', nullable=False),
-    sa.Column('caution', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default='', nullable=False),
-    sa.Column('warning', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default='', nullable=False),
-    sa.Column('expected_output', sa.Text(), server_default='', nullable=False),
+    sa.Column('note', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default=sa.text("('')"), nullable=False),
+    sa.Column('caution', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default=sa.text("('')"), nullable=False),
+    sa.Column('warning', sa.Text().with_variant(mysql.LONGTEXT(), 'mysql'), server_default=sa.text("('')"), nullable=False),
+    sa.Column('expected_output', sa.Text(), server_default=sa.text("('')"), nullable=False),
     sa.Column('attachment_marks', sa.JSON(), nullable=False),
     sa.Column('require_confirmation', sa.Boolean(), server_default='0', nullable=False),
     sa.Column('id', sa.String(length=36), nullable=False),
@@ -320,61 +320,73 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     # ### commands auto generated by Alembic - please adjust! ###
-    op.drop_index('ix_tb_procedure_step_procedure_id_sort_order', table_name='tb_procedure_step')
-    op.drop_index(op.f('ix_tb_procedure_step_is_active'), table_name='tb_procedure_step')
-    op.drop_index(op.f('ix_tb_procedure_step_created_at'), table_name='tb_procedure_step')
-    op.drop_index('ix_tb_procedure_step_chapter_id', table_name='tb_procedure_step')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('ix_tb_procedure_step_procedure_id_sort_order', table_name='tb_procedure_step')
+        op.drop_index(op.f('ix_tb_procedure_step_is_active'), table_name='tb_procedure_step')
+        op.drop_index(op.f('ix_tb_procedure_step_created_at'), table_name='tb_procedure_step')
+        op.drop_index('ix_tb_procedure_step_chapter_id', table_name='tb_procedure_step')
     op.drop_table('tb_procedure_step')
-    op.drop_index('ix_tb_procedure_chapter_procedure_id_sort_order', table_name='tb_procedure_chapter')
-    op.drop_index('ix_tb_procedure_chapter_parent_id', table_name='tb_procedure_chapter')
-    op.drop_index('ix_tb_procedure_chapter_mark_status', table_name='tb_procedure_chapter')
-    op.drop_index(op.f('ix_tb_procedure_chapter_is_active'), table_name='tb_procedure_chapter')
-    op.drop_index(op.f('ix_tb_procedure_chapter_created_at'), table_name='tb_procedure_chapter')
-    op.drop_index('ix_tb_procedure_chapter_content_type', table_name='tb_procedure_chapter')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('ix_tb_procedure_chapter_procedure_id_sort_order', table_name='tb_procedure_chapter')
+        op.drop_index('ix_tb_procedure_chapter_parent_id', table_name='tb_procedure_chapter')
+        op.drop_index('ix_tb_procedure_chapter_mark_status', table_name='tb_procedure_chapter')
+        op.drop_index(op.f('ix_tb_procedure_chapter_is_active'), table_name='tb_procedure_chapter')
+        op.drop_index(op.f('ix_tb_procedure_chapter_created_at'), table_name='tb_procedure_chapter')
+        op.drop_index('ix_tb_procedure_chapter_content_type', table_name='tb_procedure_chapter')
     op.drop_table('tb_procedure_chapter')
-    op.drop_index('ix_tb_procedure_attachment_storage_path', table_name='tb_procedure_attachment')
-    op.drop_index('ix_tb_procedure_attachment_procedure_id', table_name='tb_procedure_attachment')
-    op.drop_index(op.f('ix_tb_procedure_attachment_is_active'), table_name='tb_procedure_attachment')
-    op.drop_index(op.f('ix_tb_procedure_attachment_created_at'), table_name='tb_procedure_attachment')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('ix_tb_procedure_attachment_storage_path', table_name='tb_procedure_attachment')
+        op.drop_index('ix_tb_procedure_attachment_procedure_id', table_name='tb_procedure_attachment')
+        op.drop_index(op.f('ix_tb_procedure_attachment_is_active'), table_name='tb_procedure_attachment')
+        op.drop_index(op.f('ix_tb_procedure_attachment_created_at'), table_name='tb_procedure_attachment')
     op.drop_table('tb_procedure_attachment')
-    op.drop_index('uq_tb_procedure_asset_reference_asset_id_procedure_id', table_name='tb_procedure_asset_reference')
-    op.drop_index('ix_tb_procedure_asset_reference_procedure_id', table_name='tb_procedure_asset_reference')
-    op.drop_index('ix_tb_procedure_asset_reference_asset_id', table_name='tb_procedure_asset_reference')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('uq_tb_procedure_asset_reference_asset_id_procedure_id', table_name='tb_procedure_asset_reference')
+        op.drop_index('ix_tb_procedure_asset_reference_procedure_id', table_name='tb_procedure_asset_reference')
+        op.drop_index('ix_tb_procedure_asset_reference_asset_id', table_name='tb_procedure_asset_reference')
     op.drop_table('tb_procedure_asset_reference')
-    op.drop_index(op.f('ix_tb_procedure_status'), table_name='tb_procedure')
-    op.drop_index(op.f('ix_tb_procedure_procedure_group_id'), table_name='tb_procedure')
-    op.drop_index(op.f('ix_tb_procedure_is_current'), table_name='tb_procedure')
-    op.drop_index(op.f('ix_tb_procedure_is_active'), table_name='tb_procedure')
-    op.drop_index(op.f('ix_tb_procedure_folder_id'), table_name='tb_procedure')
-    op.drop_index(op.f('ix_tb_procedure_created_at'), table_name='tb_procedure')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_procedure_status'), table_name='tb_procedure')
+        op.drop_index(op.f('ix_tb_procedure_procedure_group_id'), table_name='tb_procedure')
+        op.drop_index(op.f('ix_tb_procedure_is_current'), table_name='tb_procedure')
+        op.drop_index(op.f('ix_tb_procedure_is_active'), table_name='tb_procedure')
+        op.drop_index(op.f('ix_tb_procedure_folder_id'), table_name='tb_procedure')
+        op.drop_index(op.f('ix_tb_procedure_created_at'), table_name='tb_procedure')
     op.drop_table('tb_procedure')
-    op.drop_index(op.f('ix_tb_folder_sequence_is_active'), table_name='tb_folder_sequence')
-    op.drop_index(op.f('ix_tb_folder_sequence_folder_id'), table_name='tb_folder_sequence')
-    op.drop_index(op.f('ix_tb_folder_sequence_created_at'), table_name='tb_folder_sequence')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_folder_sequence_is_active'), table_name='tb_folder_sequence')
+        op.drop_index(op.f('ix_tb_folder_sequence_folder_id'), table_name='tb_folder_sequence')
+        op.drop_index(op.f('ix_tb_folder_sequence_created_at'), table_name='tb_folder_sequence')
     op.drop_table('tb_folder_sequence')
-    op.drop_index(op.f('ix_tb_procedure_settings_is_active'), table_name='tb_procedure_settings')
-    op.drop_index(op.f('ix_tb_procedure_settings_created_at'), table_name='tb_procedure_settings')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_procedure_settings_is_active'), table_name='tb_procedure_settings')
+        op.drop_index(op.f('ix_tb_procedure_settings_created_at'), table_name='tb_procedure_settings')
     op.drop_table('tb_procedure_settings')
-    op.drop_index(op.f('ix_tb_procedure_field_is_active'), table_name='tb_procedure_field')
-    op.drop_index(op.f('ix_tb_procedure_field_created_at'), table_name='tb_procedure_field')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_procedure_field_is_active'), table_name='tb_procedure_field')
+        op.drop_index(op.f('ix_tb_procedure_field_created_at'), table_name='tb_procedure_field')
     op.drop_table('tb_procedure_field')
-    op.drop_index('ix_tb_procedure_audit_log_target_id_created_at', table_name='tb_procedure_audit_log')
-    op.drop_index(op.f('ix_tb_procedure_audit_log_target_id'), table_name='tb_procedure_audit_log')
-    op.drop_index(op.f('ix_tb_procedure_audit_log_procedure_group_id'), table_name='tb_procedure_audit_log')
-    op.drop_index('ix_tb_procedure_audit_log_group_id_created_at', table_name='tb_procedure_audit_log')
-    op.drop_index('ix_tb_procedure_audit_log_created_at', table_name='tb_procedure_audit_log')
-    op.drop_index('ix_tb_procedure_audit_log_action_created_at', table_name='tb_procedure_audit_log')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('ix_tb_procedure_audit_log_target_id_created_at', table_name='tb_procedure_audit_log')
+        op.drop_index(op.f('ix_tb_procedure_audit_log_target_id'), table_name='tb_procedure_audit_log')
+        op.drop_index(op.f('ix_tb_procedure_audit_log_procedure_group_id'), table_name='tb_procedure_audit_log')
+        op.drop_index('ix_tb_procedure_audit_log_group_id_created_at', table_name='tb_procedure_audit_log')
+        op.drop_index('ix_tb_procedure_audit_log_created_at', table_name='tb_procedure_audit_log')
+        op.drop_index('ix_tb_procedure_audit_log_action_created_at', table_name='tb_procedure_audit_log')
     op.drop_table('tb_procedure_audit_log')
-    op.drop_index(op.f('ix_tb_procedure_asset_is_active'), table_name='tb_procedure_asset')
-    op.drop_index(op.f('ix_tb_procedure_asset_created_at'), table_name='tb_procedure_asset')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_procedure_asset_is_active'), table_name='tb_procedure_asset')
+        op.drop_index(op.f('ix_tb_procedure_asset_created_at'), table_name='tb_procedure_asset')
     op.drop_table('tb_procedure_asset')
-    op.drop_index('ix_tb_folder_audit_log_target_id_created_at', table_name='tb_folder_audit_log')
-    op.drop_index(op.f('ix_tb_folder_audit_log_target_id'), table_name='tb_folder_audit_log')
-    op.drop_index('ix_tb_folder_audit_log_created_at', table_name='tb_folder_audit_log')
-    op.drop_index('ix_tb_folder_audit_log_action_created_at', table_name='tb_folder_audit_log')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index('ix_tb_folder_audit_log_target_id_created_at', table_name='tb_folder_audit_log')
+        op.drop_index(op.f('ix_tb_folder_audit_log_target_id'), table_name='tb_folder_audit_log')
+        op.drop_index('ix_tb_folder_audit_log_created_at', table_name='tb_folder_audit_log')
+        op.drop_index('ix_tb_folder_audit_log_action_created_at', table_name='tb_folder_audit_log')
     op.drop_table('tb_folder_audit_log')
-    op.drop_index(op.f('ix_tb_folder_parent_id'), table_name='tb_folder')
-    op.drop_index(op.f('ix_tb_folder_is_active'), table_name='tb_folder')
-    op.drop_index(op.f('ix_tb_folder_created_at'), table_name='tb_folder')
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(op.f('ix_tb_folder_parent_id'), table_name='tb_folder')
+        op.drop_index(op.f('ix_tb_folder_is_active'), table_name='tb_folder')
+        op.drop_index(op.f('ix_tb_folder_created_at'), table_name='tb_folder')
     op.drop_table('tb_folder')
     # ### end Alembic commands ###

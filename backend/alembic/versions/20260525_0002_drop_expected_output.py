@@ -22,4 +22,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     with op.batch_alter_table('tb_procedure_step') as batch:
-        batch.add_column(sa.Column('expected_output', sa.Text(), nullable=False, server_default=''))
+        batch.add_column(sa.Column('expected_output', sa.Text(), nullable=False, server_default=sa.text("('')")))

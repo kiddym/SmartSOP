@@ -46,7 +46,7 @@ def upgrade() -> None:
         sa.Column("type", sa.String(40), nullable=False),
         sa.Column("entity_type", sa.String(40), nullable=True),
         sa.Column("entity_id", sa.String(36), nullable=True),
-        sa.Column("params", sa.Text(), nullable=False, server_default="{}"),
+        sa.Column("params", sa.Text(), nullable=False, server_default=sa.text("('{}')")),
         sa.Column("actor_user_id", sa.String(36), nullable=True),
         sa.Column("is_read", sa.Boolean(), nullable=False, server_default="0"),
         sa.Column("read_at", DATETIME6, nullable=True),
@@ -74,13 +74,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_notification_arm_created_at", table_name="tb_notification_arm")
-    op.drop_index("ix_tb_notification_arm_company_id", table_name="tb_notification_arm")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_notification_arm_created_at", table_name="tb_notification_arm")
+        op.drop_index("ix_tb_notification_arm_company_id", table_name="tb_notification_arm")
     op.drop_table("tb_notification_arm")
-    op.drop_index("ix_tb_notification_dedup", table_name="tb_notification")
-    op.drop_index("ix_tb_notification_recipient_read", table_name="tb_notification")
-    op.drop_index("ix_tb_notification_is_read", table_name="tb_notification")
-    op.drop_index("ix_tb_notification_recipient_user_id", table_name="tb_notification")
-    op.drop_index("ix_tb_notification_created_at", table_name="tb_notification")
-    op.drop_index("ix_tb_notification_company_id", table_name="tb_notification")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_notification_dedup", table_name="tb_notification")
+        op.drop_index("ix_tb_notification_recipient_read", table_name="tb_notification")
+        op.drop_index("ix_tb_notification_is_read", table_name="tb_notification")
+        op.drop_index("ix_tb_notification_recipient_user_id", table_name="tb_notification")
+        op.drop_index("ix_tb_notification_created_at", table_name="tb_notification")
+        op.drop_index("ix_tb_notification_company_id", table_name="tb_notification")
     op.drop_table("tb_notification")

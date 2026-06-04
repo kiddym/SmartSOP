@@ -27,7 +27,7 @@ def upgrade() -> None:
             "body",
             sa.Text().with_variant(mysql.LONGTEXT(), "mysql"),
             nullable=False,
-            server_default="",
+            server_default=sa.text("('')"),
         ),
         sa.Column("code", sa.String(length=50), nullable=False, server_default=""),
         sa.Column("skip_numbering", sa.Boolean(), nullable=False, server_default="0"),
@@ -57,10 +57,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_procedure_node_created_at", table_name="tb_procedure_node")
-    op.drop_index("ix_tb_procedure_node_is_active", table_name="tb_procedure_node")
-    op.drop_index("ix_tb_procedure_node_mark_status", table_name="tb_procedure_node")
-    op.drop_index(
-        "ix_tb_procedure_node_procedure_id_sort_order", table_name="tb_procedure_node"
-    )
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_procedure_node_created_at", table_name="tb_procedure_node")
+        op.drop_index("ix_tb_procedure_node_is_active", table_name="tb_procedure_node")
+        op.drop_index("ix_tb_procedure_node_mark_status", table_name="tb_procedure_node")
+        op.drop_index(
+            "ix_tb_procedure_node_procedure_id_sort_order", table_name="tb_procedure_node"
+        )
     op.drop_table("tb_procedure_node")

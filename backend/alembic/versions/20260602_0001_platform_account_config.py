@@ -160,28 +160,37 @@ def downgrade() -> None:
             nullable=False,
         )
 
-    op.drop_index("ix_tb_currency_created_at", table_name="tb_currency")
-    op.drop_index("ix_tb_currency_code", table_name="tb_currency")
+    # MySQL：company_id/user_id 列索引被 FK 占用（1553），DROP TABLE 连带清理，故仅
+    # SQLite 显式删索引（保持其既有验证行为）。
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
+    if is_sqlite:
+        op.drop_index("ix_tb_currency_created_at", table_name="tb_currency")
+        op.drop_index("ix_tb_currency_code", table_name="tb_currency")
     op.drop_table("tb_currency")
 
-    op.drop_index("ix_tb_company_settings_created_at", table_name="tb_company_settings")
-    op.drop_index("ix_tb_company_settings_company_id", table_name="tb_company_settings")
+    if is_sqlite:
+        op.drop_index("ix_tb_company_settings_created_at", table_name="tb_company_settings")
+        op.drop_index("ix_tb_company_settings_company_id", table_name="tb_company_settings")
     op.drop_table("tb_company_settings")
 
-    op.drop_index("ix_tb_user_invitation_created_at", table_name="tb_user_invitation")
-    op.drop_index("ix_tb_user_invitation_token_hash", table_name="tb_user_invitation")
-    op.drop_index("ix_tb_user_invitation_email", table_name="tb_user_invitation")
-    op.drop_index("ix_tb_user_invitation_company_id", table_name="tb_user_invitation")
+    if is_sqlite:
+        op.drop_index("ix_tb_user_invitation_created_at", table_name="tb_user_invitation")
+        op.drop_index("ix_tb_user_invitation_token_hash", table_name="tb_user_invitation")
+        op.drop_index("ix_tb_user_invitation_email", table_name="tb_user_invitation")
+        op.drop_index("ix_tb_user_invitation_company_id", table_name="tb_user_invitation")
     op.drop_table("tb_user_invitation")
 
-    op.drop_index(
-        "ix_tb_password_reset_token_created_at", table_name="tb_password_reset_token"
-    )
-    op.drop_index(
-        "ix_tb_password_reset_token_token_hash", table_name="tb_password_reset_token"
-    )
-    op.drop_index("ix_tb_password_reset_token_user_id", table_name="tb_password_reset_token")
-    op.drop_index(
-        "ix_tb_password_reset_token_company_id", table_name="tb_password_reset_token"
-    )
+    if is_sqlite:
+        op.drop_index(
+            "ix_tb_password_reset_token_created_at", table_name="tb_password_reset_token"
+        )
+        op.drop_index(
+            "ix_tb_password_reset_token_token_hash", table_name="tb_password_reset_token"
+        )
+        op.drop_index(
+            "ix_tb_password_reset_token_user_id", table_name="tb_password_reset_token"
+        )
+        op.drop_index(
+            "ix_tb_password_reset_token_company_id", table_name="tb_password_reset_token"
+        )
     op.drop_table("tb_password_reset_token")

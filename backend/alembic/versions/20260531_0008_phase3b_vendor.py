@@ -50,7 +50,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("name", sa.String(300), nullable=False),
         sa.Column("vendor_type", sa.String(120), nullable=False, server_default=""),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("rate", sa.Numeric(18, 4), nullable=False, server_default="0"),
         sa.Column("address", sa.String(500), nullable=False, server_default=""),
         sa.Column("phone", sa.String(60), nullable=False, server_default=""),
@@ -66,7 +66,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("name", sa.String(300), nullable=False),
         sa.Column("customer_type", sa.String(120), nullable=False, server_default=""),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("rate", sa.Numeric(18, 4), nullable=False, server_default="0"),
         sa.Column("billing_currency", sa.String(8), nullable=False, server_default=""),
         sa.Column("address", sa.String(500), nullable=False, server_default=""),
@@ -82,7 +82,7 @@ def upgrade() -> None:
         sa.Column("id", sa.String(36), primary_key=True),
         _company_fk(),
         sa.Column("name", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(), *_soft(),
         sa.UniqueConstraint("company_id", "name", name="uq_cost_category_company_name"),
     )
@@ -120,17 +120,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_customer_part_part_id", table_name="tb_customer_part")
-    op.drop_index("ix_tb_customer_part_customer_id", table_name="tb_customer_part")
-    op.drop_index("ix_tb_customer_part_company_id", table_name="tb_customer_part")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_customer_part_part_id", table_name="tb_customer_part")
+        op.drop_index("ix_tb_customer_part_customer_id", table_name="tb_customer_part")
+        op.drop_index("ix_tb_customer_part_company_id", table_name="tb_customer_part")
     op.drop_table("tb_customer_part")
-    op.drop_index("ix_tb_vendor_part_part_id", table_name="tb_vendor_part")
-    op.drop_index("ix_tb_vendor_part_vendor_id", table_name="tb_vendor_part")
-    op.drop_index("ix_tb_vendor_part_company_id", table_name="tb_vendor_part")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_vendor_part_part_id", table_name="tb_vendor_part")
+        op.drop_index("ix_tb_vendor_part_vendor_id", table_name="tb_vendor_part")
+        op.drop_index("ix_tb_vendor_part_company_id", table_name="tb_vendor_part")
     op.drop_table("tb_vendor_part")
-    op.drop_index("ix_tb_cost_category_company_id", table_name="tb_cost_category")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_cost_category_company_id", table_name="tb_cost_category")
     op.drop_table("tb_cost_category")
-    op.drop_index("ix_tb_customer_company_id", table_name="tb_customer")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_customer_company_id", table_name="tb_customer")
     op.drop_table("tb_customer")
-    op.drop_index("ix_tb_vendor_company_id", table_name="tb_vendor")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_vendor_company_id", table_name="tb_vendor")
     op.drop_table("tb_vendor")

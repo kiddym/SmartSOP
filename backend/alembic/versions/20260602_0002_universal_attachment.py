@@ -49,7 +49,7 @@ def upgrade() -> None:
         sa.Column("storage_path", sa.String(length=500), nullable=False),
         sa.Column("mime_type", sa.String(length=100), nullable=False),
         sa.Column("size_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
@@ -97,26 +97,30 @@ def upgrade() -> None:
     )
 
     # --- drop the legacy procedure-only table ---------------------------------
-    op.drop_index(
-        "ix_tb_procedure_attachment_company_id",
-        table_name="tb_procedure_attachment",
-    )
-    op.drop_index(
-        op.f("ix_tb_procedure_attachment_created_at"),
-        table_name="tb_procedure_attachment",
-    )
-    op.drop_index(
-        op.f("ix_tb_procedure_attachment_is_active"),
-        table_name="tb_procedure_attachment",
-    )
-    op.drop_index(
-        "ix_tb_procedure_attachment_procedure_id",
-        table_name="tb_procedure_attachment",
-    )
-    op.drop_index(
-        "ix_tb_procedure_attachment_storage_path",
-        table_name="tb_procedure_attachment",
-    )
+    # MySQL 拒绝先删 company_id/procedure_id 的索引（被 FK 占用 → 1553）；DROP TABLE
+    # 本就会连带删除索引与 FK，故仅 SQLite 显式删索引（保持其既有验证行为），MySQL
+    # 直接 DROP TABLE 清理。
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(
+            "ix_tb_procedure_attachment_company_id",
+            table_name="tb_procedure_attachment",
+        )
+        op.drop_index(
+            op.f("ix_tb_procedure_attachment_created_at"),
+            table_name="tb_procedure_attachment",
+        )
+        op.drop_index(
+            op.f("ix_tb_procedure_attachment_is_active"),
+            table_name="tb_procedure_attachment",
+        )
+        op.drop_index(
+            "ix_tb_procedure_attachment_procedure_id",
+            table_name="tb_procedure_attachment",
+        )
+        op.drop_index(
+            "ix_tb_procedure_attachment_storage_path",
+            table_name="tb_procedure_attachment",
+        )
     op.drop_table("tb_procedure_attachment")
 
 
@@ -129,7 +133,7 @@ def downgrade() -> None:
         sa.Column("storage_path", sa.String(length=500), nullable=False),
         sa.Column("mime_type", sa.String(length=100), nullable=False),
         sa.Column("size_bytes", sa.BigInteger(), nullable=False),
-        sa.Column("description", sa.Text(), server_default="", nullable=False),
+        sa.Column("description", sa.Text(), server_default=sa.text("('')"), nullable=False),
         sa.Column("sort_order", sa.Integer(), server_default="0", nullable=False),
         sa.Column("id", sa.String(length=36), nullable=False),
         sa.Column("created_at", DATETIME6, nullable=False),
@@ -203,9 +207,11 @@ def downgrade() -> None:
         "FROM tb_attachment WHERE entity_type = 'procedure'"
     )
 
-    op.drop_index("ix_tb_attachment_storage_path", table_name="tb_attachment")
-    op.drop_index(op.f("ix_tb_attachment_is_active"), table_name="tb_attachment")
-    op.drop_index("ix_tb_attachment_entity", table_name="tb_attachment")
-    op.drop_index(op.f("ix_tb_attachment_created_at"), table_name="tb_attachment")
-    op.drop_index(op.f("ix_tb_attachment_company_id"), table_name="tb_attachment")
+    # MySQL：company_id 索引被 FK 占用，DROP TABLE 连带清理，故仅 SQLite 显式删索引。
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_attachment_storage_path", table_name="tb_attachment")
+        op.drop_index(op.f("ix_tb_attachment_is_active"), table_name="tb_attachment")
+        op.drop_index("ix_tb_attachment_entity", table_name="tb_attachment")
+        op.drop_index(op.f("ix_tb_attachment_created_at"), table_name="tb_attachment")
+        op.drop_index(op.f("ix_tb_attachment_company_id"), table_name="tb_attachment")
     op.drop_table("tb_attachment")

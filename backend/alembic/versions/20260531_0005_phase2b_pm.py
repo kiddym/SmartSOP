@@ -50,7 +50,7 @@ def upgrade() -> None:
         _company_fk(),
         sa.Column("custom_id", sa.String(20), nullable=False),
         sa.Column("title", sa.String(300), nullable=False),
-        sa.Column("description", sa.Text(), nullable=False, server_default=""),
+        sa.Column("description", sa.Text(), nullable=False, server_default=sa.text("('')")),
         sa.Column("priority",
                   sa.Enum("NONE", "LOW", "MEDIUM", "HIGH", name="workorderpriority"),
                   nullable=False),
@@ -119,7 +119,7 @@ def upgrade() -> None:
                   nullable=False),
         sa.Column("activity_type", sa.String(20), nullable=False),
         sa.Column("actor_user_id", sa.String(36), nullable=True),
-        sa.Column("comment", sa.Text(), nullable=False, server_default=""),
+        sa.Column("comment", sa.Text(), nullable=False, server_default=sa.text("('')")),
         *_ts(),
     )
     op.create_index("ix_tb_pm_activity_company_id", "tb_pm_activity", ["company_id"])
@@ -127,20 +127,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_tb_pm_activity_pm_id", table_name="tb_pm_activity")
-    op.drop_index("ix_tb_pm_activity_company_id", table_name="tb_pm_activity")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_pm_activity_pm_id", table_name="tb_pm_activity")
+        op.drop_index("ix_tb_pm_activity_company_id", table_name="tb_pm_activity")
     op.drop_table("tb_pm_activity")
-    op.drop_index("ix_tb_pm_team_team_id", table_name="tb_pm_team")
-    op.drop_index("ix_tb_pm_team_pm_id", table_name="tb_pm_team")
-    op.drop_index("ix_tb_pm_team_company_id", table_name="tb_pm_team")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_pm_team_team_id", table_name="tb_pm_team")
+        op.drop_index("ix_tb_pm_team_pm_id", table_name="tb_pm_team")
+        op.drop_index("ix_tb_pm_team_company_id", table_name="tb_pm_team")
     op.drop_table("tb_pm_team")
-    op.drop_index("ix_tb_pm_assignee_user_id", table_name="tb_pm_assignee")
-    op.drop_index("ix_tb_pm_assignee_pm_id", table_name="tb_pm_assignee")
-    op.drop_index("ix_tb_pm_assignee_company_id", table_name="tb_pm_assignee")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_pm_assignee_user_id", table_name="tb_pm_assignee")
+        op.drop_index("ix_tb_pm_assignee_pm_id", table_name="tb_pm_assignee")
+        op.drop_index("ix_tb_pm_assignee_company_id", table_name="tb_pm_assignee")
     op.drop_table("tb_pm_assignee")
-    op.drop_index("ix_tb_pm_procedure_id", table_name="tb_preventive_maintenance")
-    op.drop_index("ix_tb_pm_primary_user_id", table_name="tb_preventive_maintenance")
-    op.drop_index("ix_tb_pm_location_id", table_name="tb_preventive_maintenance")
-    op.drop_index("ix_tb_pm_asset_id", table_name="tb_preventive_maintenance")
-    op.drop_index("ix_tb_pm_company_id", table_name="tb_preventive_maintenance")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_pm_procedure_id", table_name="tb_preventive_maintenance")
+        op.drop_index("ix_tb_pm_primary_user_id", table_name="tb_preventive_maintenance")
+        op.drop_index("ix_tb_pm_location_id", table_name="tb_preventive_maintenance")
+        op.drop_index("ix_tb_pm_asset_id", table_name="tb_preventive_maintenance")
+        op.drop_index("ix_tb_pm_company_id", table_name="tb_preventive_maintenance")
     op.drop_table("tb_preventive_maintenance")

@@ -96,16 +96,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_tb_work_order_relation_target_work_order_id", table_name="tb_work_order_relation"
-    )
-    op.drop_index(
-        "ix_tb_work_order_relation_source_work_order_id", table_name="tb_work_order_relation"
-    )
-    op.drop_index(
-        "ix_tb_work_order_relation_created_at", table_name="tb_work_order_relation"
-    )
-    op.drop_index("ix_tb_work_order_relation_company_id", table_name="tb_work_order_relation")
+    # MySQL 拒绝先删被 FK 占用的索引（1553）；DROP TABLE 连带删索引与 FK，故仅 SQLite
+    # 显式删索引（保持其既有验证行为），MySQL 直接 DROP TABLE。
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index(
+            "ix_tb_work_order_relation_target_work_order_id",
+            table_name="tb_work_order_relation",
+        )
+        op.drop_index(
+            "ix_tb_work_order_relation_source_work_order_id",
+            table_name="tb_work_order_relation",
+        )
+        op.drop_index(
+            "ix_tb_work_order_relation_created_at", table_name="tb_work_order_relation"
+        )
+        op.drop_index(
+            "ix_tb_work_order_relation_company_id", table_name="tb_work_order_relation"
+        )
     op.drop_table("tb_work_order_relation")
 
     with op.batch_alter_table("tb_work_order") as batch_op:

@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import JSON, BigInteger, Index, Integer, String, Text
+from sqlalchemy import JSON, BigInteger, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import DATETIME6, Base, TenantMixin, utcnow
@@ -25,7 +25,7 @@ class _AuditLogColumns:
     action: Mapped[str] = mapped_column(String(30))
     old_value: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     new_value: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    reason: Mapped[str] = mapped_column(Text, default="", server_default="")
+    reason: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     ip_address: Mapped[str] = mapped_column(String(45), default="", server_default="")
     user_agent: Mapped[str] = mapped_column(String(500), default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(DATETIME6, default=utcnow)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, Integer, String, Text
+from sqlalchemy import ForeignKey, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import (
@@ -30,7 +30,7 @@ class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
     # 系统文件夹（「废止」）禁止删除 / 改名
     system: Mapped[bool] = mapped_column(default=False, server_default="0")
-    full_path: Mapped[str] = mapped_column(Text, default="", server_default="")
+    full_path: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
 
     parent: Mapped[Folder | None] = relationship(remote_side="Folder.id", back_populates="children")
     children: Mapped[list[Folder]] = relationship(back_populates="parent")

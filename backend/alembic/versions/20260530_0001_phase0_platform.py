@@ -134,16 +134,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    # MySQL（prod）的 company_id 带 FK→tb_company，其索引被 FK 占用，须先删 FK（1553），
+    # 再删索引/列（删列会连带删索引）。SQLite 加列时无 FK，直接删索引/列即可。
+    is_sqlite = op.get_bind().dialect.name == "sqlite"
     for table in _SOP_TABLES:
+        if not is_sqlite:
+            op.drop_constraint(f"fk_{table}_company_id", table, type_="foreignkey")
         op.drop_index(f"ix_{table}_company_id", table_name=table)
         op.drop_column(table, "company_id")
 
-    op.drop_index("ix_tb_user_email", table_name="tb_user")
-    op.drop_index("ix_tb_user_company_id", table_name="tb_user")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_user_email", table_name="tb_user")
+        op.drop_index("ix_tb_user_company_id", table_name="tb_user")
     op.drop_table("tb_user")
 
-    op.drop_index("ix_tb_role_company_id", table_name="tb_role")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_role_company_id", table_name="tb_role")
     op.drop_table("tb_role")
 
-    op.drop_index("ix_tb_company_slug", table_name="tb_company")
+    if op.get_bind().dialect.name == "sqlite":
+        op.drop_index("ix_tb_company_slug", table_name="tb_company")
     op.drop_table("tb_company")
