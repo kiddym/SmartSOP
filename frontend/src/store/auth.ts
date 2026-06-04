@@ -52,6 +52,14 @@ export const useAuthStore = defineStore('auth', {
 
     async loadMe(): Promise<void> {
       this.user = await authApi.fetchMe()
+      // 加载公司订阅供 feature 门控（失败不阻塞登录）。
+      // 动态 import 避免 store 间循环依赖。
+      try {
+        const { useBillingStore } = await import('./billing')
+        await useBillingStore().loadSubscription()
+      } catch {
+        // 订阅加载失败不阻断主流程
+      }
     },
 
     logout(): void {

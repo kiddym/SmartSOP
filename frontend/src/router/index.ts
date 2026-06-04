@@ -195,6 +195,18 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/analytics/AnalyticsView.vue'),
     meta: { title: '分析仪表盘', requiresAuth: true, requiredPermission: 'analytics.view' },
   },
+  {
+    path: '/billing/settings',
+    name: 'billing-settings',
+    component: () => import('@/views/billing/SettingsView.vue'),
+    meta: { title: '订阅设置', requiresAuth: true },
+  },
+  {
+    path: '/billing/plans',
+    name: 'billing-plans',
+    component: () => import('@/views/billing/PlansView.vue'),
+    meta: { title: '订阅套餐', requiresAuth: true },
+  },
 ]
 
 const router = createRouter({
