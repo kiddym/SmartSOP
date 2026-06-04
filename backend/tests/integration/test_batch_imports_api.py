@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
-from app import tenant
+from app import security, tenant
 from app.deps import get_current_user
 from app.main import app
 from app.models.company import Company
@@ -42,9 +42,18 @@ def auth_client(client: TestClient, db: Session):
     db.commit()
     fake = User(id="u-1", email="t@e.com", name="测试", password_hash="x", company_id="co-1")
     app.dependency_overrides[get_current_user] = lambda: fake
-    tenant.set_current_company_id("co-1")
-    yield client
-    app.dependency_overrides.pop(get_current_user, None)
+    # 真实 access token 让 TenantContextMiddleware 在请求期把上下文设为 co-1（SOP 表收
+    # NOT NULL 后，请求内创建租户行须有上下文；仅 set_current_company_id 在测试线程设值会被
+    # 中间件按 token 重置覆盖）。
+    token = security.create_access_token(user_id="u-1", company_id="co-1", role_code="super_admin")
+    client.headers.update({"Authorization": f"Bearer {token}"})
+    ctx = tenant.set_current_company_id("co-1")
+    try:
+        yield client
+    finally:
+        tenant.reset_current_company_id(ctx)
+        client.headers.pop("Authorization", None)
+        app.dependency_overrides.pop(get_current_user, None)
 
 
 def test_create_then_parse_then_review(

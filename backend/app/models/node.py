@@ -17,8 +17,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import (
     LONGTEXT,
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from app.models.procedure import Procedure
 
 
-class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class ProcedureNode(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """统一节点(章节 / 正文 / 步骤同表)。"""
 
     __tablename__ = "tb_procedure_node"

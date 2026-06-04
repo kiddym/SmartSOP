@@ -10,14 +10,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import (
     DATETIME6,
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """文件夹（树形，max_depth=5）。容器 xor 叶子（Q247）。"""
 
     __tablename__ = "tb_folder"
@@ -37,7 +37,7 @@ class Folder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMix
     sequence: Mapped[FolderSequence | None] = relationship(back_populates="folder", uselist=False)
 
 
-class FolderSequence(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class FolderSequence(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """叶子文件夹的编号序列生成器（1:1）。仅叶子有此记录（Q247）。"""
 
     __tablename__ = "tb_folder_sequence"

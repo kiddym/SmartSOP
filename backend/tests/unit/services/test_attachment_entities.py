@@ -11,6 +11,8 @@ from app.models.maintenance_asset import Asset
 from app.models.user import User, UserStatus
 from app.services import attachment_entities as ae
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def _company_user(db: Session, company_id: str) -> User:
     """构造一个带 super_admin 角色的 user。"""

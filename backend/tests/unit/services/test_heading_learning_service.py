@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -10,6 +11,8 @@ from app.models.node import ProcedureNode
 from app.schemas.heading_rule import HeadingRuleCreate
 from app.services import heading_learning_service as svc
 from app.services import heading_rule_service, node_service
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def _mk(

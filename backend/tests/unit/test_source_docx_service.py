@@ -13,6 +13,8 @@ from app.models import Base
 from app.services import source_docx_service, upload_service
 from tests.unit.parser._docx_builder import styled_sop
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_source_docx_path_under_group(storage_tmp: Path) -> None:
     p = storage.source_docx_path("grp-1")

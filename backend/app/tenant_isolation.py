@@ -16,18 +16,29 @@ from app.models.base import Base, TenantScoped
 
 
 def _before_flush(session: Any, flush_context: Any, instances: Any) -> None:
-    """Auto-stamp company_id on new tenant-scoped rows that lack one."""
+    """Auto-stamp company_id on new tenant-scoped rows; fail-closed if no context.
+
+    With a tenant context set: stamp any new TenantScoped row that lacks a
+    company_id. With no context (and not bypassed): a new TenantScoped row that
+    still lacks company_id is a missing-context bug → raise TenantContextMissingError
+    rather than let it flush a NULL row / hit an opaque NOT NULL IntegrityError.
+    """
     if tenant.is_bypassed():
         return
     company_id = tenant.get_current_company_id()
-    if company_id is None:
-        return
     for obj in session.new:
         # TenantScoped 覆盖 TenantMixin（NOT NULL）+ NullableTenantMixin（SOP/字典表）；
-        # 两者都定义 company_id 列，故对整个 TenantScoped 家族自动补值。setattr 规避
-        # mypy 在 marker 基类（无 company_id 列）上的 attr-defined。
-        if isinstance(obj, TenantScoped) and getattr(obj, "company_id", None) is None:
-            obj.company_id = company_id  # type: ignore[attr-defined]  # 子类均有 company_id 列
+        # 两者都定义 company_id 列，故对整个 TenantScoped 家族自动补值。getattr/setattr
+        # 规避 mypy 在 marker 基类（无 company_id 列）上的 attr-defined。
+        if not isinstance(obj, TenantScoped) or getattr(obj, "company_id", None) is not None:
+            continue
+        if company_id is None:
+            raise tenant.TenantContextMissingError(
+                f"无 tenant 上下文写入租户行 {type(obj).__name__}；"
+                "应经请求认证 / create_company / set_current_company_id 设置上下文，"
+                "或显式落 company_id（如附件随宿主）。"
+            )
+        obj.company_id = company_id  # type: ignore[attr-defined]  # 子类均有 company_id 列
 
 
 def _tenant_scoped_mappers() -> list[Any]:

@@ -8,6 +8,8 @@ from fastapi import HTTPException
 from app.services import version_service
 from tests.conftest import Factory
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_record_create_appends_single_create_entry(db, factory: Factory) -> None:
     """create 时 version_change_log 含 1 条 change_type=create。"""

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import pytest
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.attachment import Attachment
+
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
 
 
 def test_attachment_persists_entity_type_and_id(db: Session) -> None:

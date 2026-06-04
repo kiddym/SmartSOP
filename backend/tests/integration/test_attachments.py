@@ -50,18 +50,23 @@ def test_upload_list_and_detail(client: TestClient, storage_tmp: Path) -> None:
 def test_uploaded_attachment_derives_company_from_host_not_ambient(
     client: TestClient, db: Session, storage_tmp: Path, _sop_auth: str
 ) -> None:
-    """附件 company_id 须显式取自宿主，而非依赖 ambient tenant 上下文自动盖值。
+    """附件 company_id 须显式取自宿主，而非依赖 ambient tenant 上下文。
 
-    procedure 宿主解析走 bypass；若内部写路径无 tenant 上下文（context=None），
-    自动盖值不生效，company_id 会落 None（收 NOT NULL 后即 500）。显式从宿主取值
-    可保证附件归属随宿主——即便 ambient 上下文缺失。
+    procedure 宿主解析走 bypass。即便 ambient 上下文是另一家公司，附件归属也应随
+    宿主（_sop_auth 公司）——验证 upload_for 显式落宿主 company_id 而非靠自动盖值。
     """
     from app.deps import RequestMeta
+    from app.models.company import Company
     from app.services import attachment_service
 
-    pid = _make_procedure(client)
+    pid = _make_procedure(client)  # 宿主 procedure 属 _sop_auth 公司
+    with tenant.bypass_tenant_scope():
+        other = Company(name="OtherCo", slug="other-co")
+        db.add(other)
+        db.commit()
+
     meta = RequestMeta(ip_address="", user_agent="", request_id="-")
-    token = tenant.set_current_company_id(None)  # 模拟无 tenant 上下文的内部写路径
+    token = tenant.set_current_company_id(other.id)  # ambient = 另一家公司
     try:
         att = attachment_service.upload_for(
             db,
@@ -80,7 +85,7 @@ def test_uploaded_attachment_derives_company_from_host_not_ambient(
         tenant.reset_current_company_id(token)
     with tenant.bypass_tenant_scope():
         row = db.execute(select(Attachment).where(Attachment.id == att_id)).scalar_one()
-    assert row.company_id == _sop_auth
+    assert row.company_id == _sop_auth  # 随宿主，而非 ambient(other)
 
 
 def test_download_forces_attachment(client: TestClient, storage_tmp: Path) -> None:

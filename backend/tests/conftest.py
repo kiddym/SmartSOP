@@ -249,6 +249,29 @@ def _sop_auth(_enterprise_default, client, db):
         client.headers.pop("Authorization", None)
 
 
+@pytest.fixture
+def _tenant_ctx(db: Session) -> Generator[str, None, None]:
+    """轻量 tenant 上下文：建一家 Company 并设上下文，供无认证的单测/service 测试用。
+
+    SOP 表 company_id 收 NOT NULL 后，直接 `db.add`/factory 造行须在某公司上下文下
+    才能落值（否则 fail-closed）。本 fixture 不经 register/seed，仅提供一个最小可用
+    的租户上下文；测试体不变，文件级 `pytestmark = pytest.mark.usefixtures("_tenant_ctx")`
+    引用即可。
+    """
+    from app import tenant
+    from app.models.company import Company
+
+    with tenant.bypass_tenant_scope():
+        co = Company(name="UnitCo", slug=f"unit-{uuid.uuid4().hex[:8]}")
+        db.add(co)
+        db.commit()
+    token = tenant.set_current_company_id(co.id)
+    try:
+        yield co.id
+    finally:
+        tenant.reset_current_company_id(token)
+
+
 @pytest.fixture(autouse=True)
 def _clear_tenant_context():
     """Each test starts/ends with no tenant scope (prevents leakage)."""

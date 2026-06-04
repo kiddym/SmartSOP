@@ -8,6 +8,8 @@ from fastapi import HTTPException
 from app.schemas.numbering_profile import NumberingProfileCreate, NumberingProfileUpdate
 from app.services import numbering_profile_service as svc
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
 
 def test_create_and_active_overrides(db) -> None:
     p = svc.create(db, NumberingProfileCreate(pattern_key="第X条", kind="heading", level=3))

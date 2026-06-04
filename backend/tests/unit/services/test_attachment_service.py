@@ -19,6 +19,9 @@ from tests.conftest import Factory
 META = RequestMeta(ip_address="1.2.3.4", user_agent="ua", request_id="r")
 
 
+pytestmark = pytest.mark.usefixtures("_tenant_ctx")
+
+
 def _proc(factory: Factory, **kw: object) -> object:
     leaf = factory.folder(name="叶子", prefix="QC", full_path="叶子")
     factory.sequence(leaf.id)

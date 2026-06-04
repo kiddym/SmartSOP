@@ -9,14 +9,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class ProcedureField(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """自定义字段定义。key 创建后不可改（Q254），按公司唯一。"""
 
     __tablename__ = "tb_procedure_field"

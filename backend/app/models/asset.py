@@ -11,8 +11,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.models.base import (
     DATETIME6,
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
     utcnow,
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     pass
 
 
-class ProcedureAsset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class ProcedureAsset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """图片二进制资源（本公司内 sha256 去重）。Word 导入抽图入库（§25.2）。"""
 
     __tablename__ = "tb_procedure_asset"
@@ -43,7 +43,7 @@ class ProcedureAsset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableT
     )
 
 
-class ProcedureAssetReference(Base, UUIDMixin, NullableTenantMixin):
+class ProcedureAssetReference(Base, UUIDMixin, TenantMixin):
     """资源引用关联表（asset_id, procedure_id）。仅追加 created_at（§3.11）。"""
 
     __tablename__ = "tb_procedure_asset_reference"

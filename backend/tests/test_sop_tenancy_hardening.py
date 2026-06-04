@@ -18,6 +18,7 @@ from app.models.folder import Folder
 from app.models.settings import ProcedureSettings
 from app.schemas.auth import RegisterRequest
 from app.services import auth_service
+from app.tenant import TenantContextMissingError
 
 
 def _make_company(db: Session, slug: str) -> str:
@@ -128,3 +129,13 @@ def test_register_delegates_to_create_company(db: Session) -> None:
     finally:
         tenant.reset_current_company_id(tok)
     assert {f.name for f in folders} >= {"废止", "归档"}
+
+
+# --------------------------------------------------------------------------- #
+# NOT NULL fail-closed：无 tenant 上下文的 SOP 写入须被拒
+# --------------------------------------------------------------------------- #
+def test_sop_write_without_tenant_context_fails_closed(db: Session) -> None:
+    """无 tenant 上下文（context=None）写 SOP 行 → fail-closed，不落 NULL 行。"""
+    db.add(Folder(name="孤儿", prefix="", full_path="孤儿"))
+    with pytest.raises(TenantContextMissingError):
+        db.flush()

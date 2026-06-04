@@ -14,6 +14,15 @@ _company_id: ContextVar[str | None] = ContextVar("company_id", default=None)
 _bypass: ContextVar[bool] = ContextVar("tenant_bypass", default=False)
 
 
+class TenantContextMissingError(RuntimeError):
+    """Raised when a tenant-scoped row is flushed with no tenant context set.
+
+    Fail-closed diagnostic: surfaces the missing-context bug at flush time with a
+    clear message instead of letting the NOT NULL constraint reject it as an
+    opaque IntegrityError. Bypass and explicit company_id writes are unaffected.
+    """
+
+
 def get_current_company_id() -> str | None:
     return _company_id.get()
 

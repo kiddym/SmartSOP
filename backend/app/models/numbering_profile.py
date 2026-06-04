@@ -17,14 +17,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class NumberingProfile(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """编号 pattern_key → (kind, level) 的体例覆盖（按租户隔离，(company_id, pattern_key) 唯一）。"""
 
     __tablename__ = "tb_numbering_profile"

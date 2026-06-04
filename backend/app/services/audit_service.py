@@ -14,6 +14,7 @@ from typing import Any, Protocol
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import tenant
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 
 logger = logging.getLogger(__name__)
@@ -60,6 +61,9 @@ def log_folder_action(
 ) -> FolderAuditLog:
     """写一条文件夹审计日志（不 commit，由调用方提交）。"""
     entry = FolderAuditLog(
+        # 显式落当前租户：审计行常处 pending，可能被后续 bypass SELECT 的 autoflush
+        # 提前 flush（bypass 抑制自动盖值），故创建即从上下文取 company_id。
+        company_id=tenant.get_current_company_id(),
         target_id=target_id,
         action=action,
         old_value=old_value or {},
@@ -86,6 +90,9 @@ def log_procedure_action(
 ) -> ProcedureAuditLog:
     """写一条程序审计日志（冗存 procedure_group_id，Q127）。不 commit。"""
     entry = ProcedureAuditLog(
+        # 显式落当前租户（理由同 log_folder_action）：审计行 pending 期间可能被
+        # 后续 bypass SELECT 的 autoflush 提前 flush，bypass 下不会自动盖值。
+        company_id=tenant.get_current_company_id(),
         target_id=target_id,
         procedure_group_id=procedure_group_id,
         action=action,

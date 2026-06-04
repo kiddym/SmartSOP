@@ -17,14 +17,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class HeadingStyleRule(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class HeadingStyleRule(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """样式名 → 层级 的动态规则（按租户隔离，(company_id, 样式名) 唯一）。"""
 
     __tablename__ = "tb_heading_style_rule"

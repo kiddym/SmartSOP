@@ -11,14 +11,14 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.models.base import (
     DATETIME6,
     Base,
-    NullableTenantMixin,
     SoftDeleteMixin,
+    TenantMixin,
     TimestampMixin,
     UUIDMixin,
 )
 
 
-class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, NullableTenantMixin):
+class Procedure(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     """程序（SOP）。同一逻辑程序的多个版本共享 procedure_group_id。"""
 
     __tablename__ = "tb_procedure"

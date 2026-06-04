@@ -9,10 +9,10 @@ from __future__ import annotations
 from sqlalchemy import BigInteger, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import Base, NullableTenantMixin, TimestampMixin, UUIDMixin
+from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class ProcedureSourceDocx(Base, UUIDMixin, TimestampMixin, NullableTenantMixin):
+class ProcedureSourceDocx(Base, UUIDMixin, TimestampMixin, TenantMixin):
     """导入程序的原始 .docx（按 procedure_group 归属，本公司内唯一）。"""
 
     __tablename__ = "tb_procedure_source_docx"
