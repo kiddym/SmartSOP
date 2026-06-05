@@ -30,3 +30,10 @@ class Company(Base, UUIDMixin, TimestampMixin):
     # Billing (Phase 6): default free/active; platform admin 手动改档。
     plan: Mapped[str] = mapped_column(String(32), nullable=False, default="free")
     subscription_status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    # Stripe 计费关联（Phase 6）：customer 一对一、当前活跃 subscription
+    stripe_customer_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, unique=True, default=None
+    )
+    stripe_subscription_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, default=None
+    )

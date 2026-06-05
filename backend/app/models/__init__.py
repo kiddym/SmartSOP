@@ -12,6 +12,7 @@ from app.models.attachment import Attachment
 from app.models.audit import FolderAuditLog, ProcedureAuditLog
 from app.models.base import Base
 from app.models.batch import BatchImportItem, BatchImportJob
+from app.models.billing_event import BillingEvent
 from app.models.company import Company
 from app.models.company_settings import CompanySettings
 from app.models.cost_category import CostCategory
@@ -73,6 +74,7 @@ __all__ = [
     "Base",
     "BatchImportItem",
     "BatchImportJob",
+    "BillingEvent",
     "Company",
     "CompanySettings",
     "CostCategory",
