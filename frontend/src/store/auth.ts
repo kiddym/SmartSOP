@@ -66,6 +66,11 @@ export const useAuthStore = defineStore('auth', {
       authStorage.clearTokens()
       this.user = null
       this._bootstrapPromise = null
+      void import('./notifications').then(({ useNotificationStore }) => {
+        const n = useNotificationStore()
+        n.stopPolling()
+        n.$reset()
+      })
     },
 
     bootstrap(): Promise<void> {

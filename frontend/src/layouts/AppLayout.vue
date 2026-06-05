@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { watch } from 'vue'
+import { watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppTopBar from '@/components/AppTopBar.vue'
 import AppSidebar from '@/components/AppSidebar.vue'
 import { useSidebar } from '@/composables/useSidebar'
 import { decideAutoCollapse } from '@/utils/sidebarAutoCollapse'
+import { useNotificationStore } from '@/store/notifications'
 
 const { collapsed, toggle } = useSidebar()
 const route = useRoute()
+
+const notif = useNotificationStore()
+onMounted(() => notif.startPolling())
+onUnmounted(() => notif.stopPolling())
 
 // 自动折叠 / 用户接管追踪：
 // - preEnterCollapsed 记入 library 之前的折叠态，用于离开时恢复

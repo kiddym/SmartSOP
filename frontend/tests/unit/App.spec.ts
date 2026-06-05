@@ -1,10 +1,20 @@
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import i18n from '@/i18n'
 import App from '@/App.vue'
+
+// 防止 AppLayout.onMounted startPolling() 发起真实网络请求
+vi.mock('@/api/notifications', () => ({
+  getUnreadCount: vi.fn().mockResolvedValue({ count: 0 }),
+  listNotifications: vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 10, total_pages: 0 }),
+  markRead: vi.fn(),
+  markAllRead: vi.fn(),
+  getPreference: vi.fn(),
+  putPreference: vi.fn(),
+}))
 
 function makeRouter(): Router {
   return createRouter({
