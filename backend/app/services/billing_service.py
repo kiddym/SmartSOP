@@ -31,9 +31,17 @@ _SUBSCRIPTION_EVENTS = frozenset(
     }
 )
 # Stripe subscription.status → 我们的 subscription_status
+# 设计原则：fail-closed —— 不在映射中的状态一律降级为 "canceled"（无访问权限）。
+#
+# 未列出的典型状态及原因：
+#   incomplete      — 首次付款挂起（瞬态），Stripe 付款成功后会推送 .updated→active；
+#                     在此之前不开通访问，等事件自然到达即可。
+#   paused          — Stripe 暂停收费（Beta 功能），暂不开通访问，视同 canceled。
+#
+# 未知/新增状态 → canceled（fail-closed：未知 = 无访问权限）。
 _STATUS_MAP = {
     "active": "active",
-    "trialing": "active",
+    "trialing": "active",  # 试用期：享有 pro 访问权限
     "past_due": "past_due",
     "unpaid": "past_due",
     "canceled": "canceled",
@@ -48,6 +56,7 @@ def start_checkout(db: Session, company: Company, user: User) -> str:
     )
     if company.stripe_customer_id != customer_id:
         company.stripe_customer_id = customer_id
+        # 立即持久化 customer id：若 create_checkout_session 抛错，id 已存，下次 ensure_customer 复用（不泄漏 Stripe customer）。
         db.commit()
     return stripe_gateway.create_checkout_session(
         customer_id=customer_id,
@@ -60,7 +69,7 @@ def start_checkout(db: Session, company: Company, user: User) -> str:
 def open_portal(db: Session, company: Company) -> str:
     """打开客户门户；未订阅过（无 customer）→ 400。"""
     if not company.stripe_customer_id:
-        raise bad_request("NO_SUBSCRIPTION", "尚无订阅，无法打开管理门户")
+        raise bad_request("NO_SUBSCRIPTION", "尚未绑定 Stripe 账户，请先发起订阅")
     return stripe_gateway.create_portal_session(
         customer_id=company.stripe_customer_id, return_url=settings.billing_portal_return_url
     )
@@ -87,7 +96,15 @@ def _sync_subscription(db: Session, sub: dict[str, Any], *, deleted: bool) -> No
     if company is None:
         logger.warning("webhook 订阅事件未匹配到公司 customer=%s", customer_id)
         return
-    status = "canceled" if deleted else _STATUS_MAP.get(sub.get("status", ""), "canceled")
+    raw_status = sub.get("status", "")
+    mapped = _STATUS_MAP.get(raw_status)
+    if mapped is None and not deleted:
+        logger.warning(
+            "webhook 未知 subscription.status=%s sub=%s — 降级为 canceled",
+            raw_status,
+            sub.get("id"),
+        )
+    status = "canceled" if (deleted or mapped is None) else mapped
     if status == "canceled":
         company.plan = Plan.free.value
         company.subscription_status = "canceled"

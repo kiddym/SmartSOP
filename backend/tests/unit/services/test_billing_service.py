@@ -104,6 +104,26 @@ def test_unknown_customer_tolerated(client, db, monkeypatch):
     assert db.get(BillingEvent, "evt_g") is not None
 
 
+def test_trialing_maps_active(client, db, monkeypatch):
+    co = _company(client, db)
+    co.stripe_customer_id = "cus_1"
+    db.commit()
+    monkeypatch.setattr(
+        stripe_gateway,
+        "construct_event",
+        lambda p, s: _event(
+            "customer.subscription.updated",
+            customer="cus_1",
+            status="trialing",
+            event_id="evt_trial",
+        ),
+    )
+    billing_service.handle_event(db, b"{}", "sig")
+    db.refresh(co)
+    assert co.subscription_status == "active"
+    assert co.plan == "pro"
+
+
 def test_open_portal_without_customer_400(client, db):
     co = _company(client, db)
     with pytest.raises(Exception) as exc:
