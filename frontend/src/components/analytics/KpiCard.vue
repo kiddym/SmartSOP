@@ -21,6 +21,8 @@ defineProps<{ label: string; value: string | number; unit?: string; hint?: strin
   font-size: 24px;
   font-weight: 600;
   margin-top: 4px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
 }
 .kpi-unit {
   font-size: 13px;

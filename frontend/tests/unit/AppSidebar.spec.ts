@@ -18,6 +18,8 @@ function makeRouter(initialPath: string): Router {
       { path: '/folders', component: { template: '<div/>' } },
       { path: '/audit-logs', component: { template: '<div/>' } },
       { path: '/settings', component: { template: '<div/>' } },
+      { path: '/settings/fields', component: { template: '<div/>' } },
+      { path: '/settings/heading-rules', component: { template: '<div/>' } },
       { path: '/platform/users', component: { template: '<div/>' } },
       { path: '/platform/roles', component: { template: '<div/>' } },
       { path: '/platform/teams', component: { template: '<div/>' } },
@@ -64,12 +66,12 @@ async function mountSidebar(initialPath: string, collapsed = false) {
 
 describe('AppSidebar', () => {
   beforeEach(() => setActivePinia(createPinia()))
-  it('collapsed=false：5 个 group-label（SOP/维护/供应/洞察/平台）+ SOP 项目可见', async () => {
+  it('collapsed=false：6 个 group-label（SOP/维护/供应/洞察/平台/设置）+ SOP 项目可见', async () => {
     const w = await mountSidebar('/procedures/library')
     const labels = w.findAll('.menu-group-label')
-    expect(labels.length).toBe(5)
+    expect(labels.length).toBe(6)
     const labelText = labels.map((l) => l.text())
-    expect(labelText).toEqual(['SOP', '维护', '供应', '洞察', '平台'])
+    expect(labelText).toEqual(['SOP', '维护', '供应', '洞察', '平台', '设置'])
     // SOP 域可用项
     expect(w.text()).toContain('程序库')
     expect(w.text()).toContain('草稿箱')
@@ -129,9 +131,19 @@ describe('AppSidebar', () => {
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/audit-logs')
   })
 
-  it('在 /settings 时 activeMenu 为空字符串（⚙ 页面不在侧栏高亮）', async () => {
+  it('在 /settings 时 activeMenu 为 /settings（设置组已并入侧栏并高亮）', async () => {
     const w = await mountSidebar('/settings')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings')
+  })
+
+  it('在 /settings/fields 时 activeMenu 为 /settings/fields（子路径不被 /settings 抢占）', async () => {
+    const w = await mountSidebar('/settings/fields')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings/fields')
+  })
+
+  it('在 /settings/heading-rules 时 activeMenu 为 /settings/heading-rules', async () => {
+    const w = await mountSidebar('/settings/heading-rules')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings/heading-rules')
   })
 
   it('维护组：资产/位置/请求/预防性维护/计量/工单 均可点（无 is-disabled、不渲染「即将上线」）', async () => {
@@ -239,5 +251,16 @@ describe('AppSidebar', () => {
     }
     const w = await mountSidebar('/procedures/library')
     expect(findItem(w, '程序库').find('.lock-icon').exists()).toBe(true)
+  })
+
+  it('每个导航项都配了图标（折叠态只显示图标，漏配会变空白不可辨认）', async () => {
+    setUser('super_admin')
+    const w = await mountSidebar('/procedures/library')
+    const items = w.findAll('.el-menu-item')
+    expect(items.length).toBeGreaterThan(0)
+    // 默认 slot 的 .nav-icon 在折叠态仍渲染；每个菜单项都必须有，含 soon 占位项。
+    for (const it of items) {
+      expect(it.find('.nav-icon').exists()).toBe(true)
+    }
   })
 })

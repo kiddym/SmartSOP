@@ -33,8 +33,10 @@
   --diff-mod-bg: #f7eddb; /* 修改行底 */
   --review-bg: #fbf1ee; /* 树节点评审 / 选中暖底 */
 
-  /* 字体 */
-  --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
+  /* 字体（西文 webfont 见 fonts.css；中文自动回退系统字体）。
+     权威定义见 docs/design-system.md §2.2。 */
+  --font-display: 'Space Grotesk', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  --font-body: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
   /* 等宽数据字体：编号 / 版本 / 日期 / 测量值 / 状态枚举 走 mono，强化工业风性格。
      首选 JetBrains Mono（需自备 webfont，未引入时回落到系统 mono 上仍可读）；
      中文回退 Sarasa Mono SC（更纱黑体），系统兜底 ui-monospace（macOS=SF Mono / Win=Cascadia）。
@@ -45,6 +47,15 @@
 
   /* 顶栏高度（AppTopBar 单一来源）。design-system.md §3.1 规定 48px。 */
   --topbar-height: 48px;
+
+  /* 动效（design-system.md §2.4：ease-out 无弹跳）。质感移植后路由/入场略放宽到 ~0.2s。 */
+  --ease-standard: cubic-bezier(0, 0, 0.2, 1);
+  --dur-route: 0.2s;
+  --dur-enter: 0.28s;
+
+  /* 交互杂项 */
+  --bg-hover: rgba(0, 0, 0, 0.04);      /* 表格/菜单 hover 底色（中性，不引入新彩色） */
+  --ring-focus: 0 0 0 3px rgba(217, 119, 87, 0.18);  /* 焦点光环 = 赤陶 accent 18% */
 
   /* 阴影：纸面孤岛（PDF 预览、文档画布）"桌上一张文件"的投影。
      与 design-system.md §3.8「亮纸孤岛」 + §2.4 阴影规范 保持一致；
@@ -61,6 +72,8 @@
   --el-color-primary-light-8: #f7e4dd;
   --el-color-primary-light-9: #fbf1ee;
   --el-color-primary-dark-2: #ae5f46;
+  /* EP 默认字体跟随设计字体栈 */
+  --el-font-family: var(--font-body);
 }
 
 /* —— 暗色（产品本色，design-system.md §1/§2.1）—— 默认主题。

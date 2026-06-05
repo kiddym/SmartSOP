@@ -1,8 +1,40 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElIcon, ElMenu, ElMenuItem } from 'element-plus'
-import { Lock } from '@element-plus/icons-vue'
+import {
+  Lock,
+  // SOP
+  Document,
+  EditPen,
+  Folder,
+  List,
+  // 维护
+  Tickets,
+  Box,
+  Location,
+  ChatDotRound,
+  Timer,
+  Odometer,
+  // 供应
+  Goods,
+  ShoppingCart,
+  Shop,
+  Avatar,
+  // 洞察
+  DataAnalysis,
+  Bell,
+  // 平台
+  User,
+  UserFilled,
+  Connection,
+  OfficeBuilding,
+  Coin,
+  // 设置
+  Setting,
+  Grid,
+  Collection,
+} from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
 
@@ -21,6 +53,8 @@ interface NavItem {
   requiredPermission?: string
   // 已挂 feature gate 的高级模块对应功能码；未解锁时菜单项显示锁标。
   feature?: string
+  // 折叠态侧栏只显示图标（el-menu 折叠时隐藏 #title 文字），每项必须配一个。
+  icon?: Component
 }
 
 // 菜单项是否因套餐未解锁而锁定。
@@ -46,11 +80,11 @@ interface NavGroup {
 // 货币管理仅 super_admin 可见；其余平台项不受限。
 const platformItems = computed<NavItem[]>(() => {
   const items: NavItem[] = [
-    { label: '用户', path: '/platform/users' },
-    { label: '角色', path: '/platform/roles' },
-    { label: '团队', path: '/platform/teams' },
-    { label: '公司设置', path: '/platform/settings' },
-    { label: '货币', path: '/platform/currencies' },
+    { label: '用户', path: '/platform/users', icon: User },
+    { label: '角色', path: '/platform/roles', icon: UserFilled },
+    { label: '团队', path: '/platform/teams', icon: Connection },
+    { label: '公司设置', path: '/platform/settings', icon: OfficeBuilding },
+    { label: '货币', path: '/platform/currencies', icon: Coin },
   ]
   if (auth.user?.role_code !== 'super_admin') {
     return items.filter((it) => it.path !== '/platform/currencies')
@@ -67,9 +101,10 @@ const insightItems = computed<NavItem[]>(() => {
       path: '/analytics',
       requiredPermission: 'analytics.view',
       feature: 'analytics',
+      icon: DataAnalysis,
     })
   }
-  items.push({ label: '通知中心', soon: true })
+  items.push({ label: '通知中心', soon: true, icon: Bell })
   return items
 })
 
@@ -77,34 +112,35 @@ const groups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
     items: [
-      { label: '程序库', path: '/procedures/library', feature: 'sop' },
-      { label: '草稿箱', path: '/procedures/drafts', feature: 'sop' },
-      { label: '文件夹', path: '/folders', feature: 'sop' },
-      { label: '审计日志', path: '/audit-logs' },
+      { label: '程序库', path: '/procedures/library', feature: 'sop', icon: Document },
+      { label: '草稿箱', path: '/procedures/drafts', feature: 'sop', icon: EditPen },
+      { label: '文件夹', path: '/folders', feature: 'sop', icon: Folder },
+      { label: '审计日志', path: '/audit-logs', icon: List },
     ],
   },
   {
     label: '维护',
     items: [
-      { label: '工单', path: '/maintenance/work-orders' },
-      { label: '资产', path: '/maindata/assets' },
-      { label: '位置', path: '/maindata/locations' },
-      { label: '请求', path: '/maintenance/requests' },
+      { label: '工单', path: '/maintenance/work-orders', icon: Tickets },
+      { label: '资产', path: '/maindata/assets', icon: Box },
+      { label: '位置', path: '/maindata/locations', icon: Location },
+      { label: '请求', path: '/maintenance/requests', icon: ChatDotRound },
       {
         label: '预防性维护',
         path: '/maintenance/preventive-maintenances',
         feature: 'preventive_maintenance',
+        icon: Timer,
       },
-      { label: '计量', path: '/maintenance/meters', feature: 'meters' },
+      { label: '计量', path: '/maintenance/meters', feature: 'meters', icon: Odometer },
     ],
   },
   {
     label: '供应',
     items: [
-      { label: '备件库存', path: '/inventory/parts' },
-      { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing' },
-      { label: '供应商', path: '/inventory/vendors' },
-      { label: '客户', path: '/inventory/customers' },
+      { label: '备件库存', path: '/inventory/parts', icon: Goods },
+      { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing', icon: ShoppingCart },
+      { label: '供应商', path: '/inventory/vendors', icon: Shop },
+      { label: '客户', path: '/inventory/customers', icon: Avatar },
     ],
   },
   {
@@ -114,6 +150,14 @@ const groups = computed<NavGroup[]>(() => [
   {
     label: '平台',
     items: platformItems.value,
+  },
+  {
+    label: '设置',
+    items: [
+      { label: '系统设置', path: '/settings', icon: Setting },
+      { label: '字段管理', path: '/settings/fields', icon: Grid },
+      { label: '标题字典', path: '/settings/heading-rules', icon: Collection },
+    ],
   },
 ])
 
@@ -128,6 +172,9 @@ const activeMenu = computed<string>(() => {
   if (route.path.startsWith('/procedures')) return '/procedures/library'
   if (route.path.startsWith('/folders')) return '/folders'
   if (route.path.startsWith('/audit-logs')) return '/audit-logs'
+  if (route.path.startsWith('/settings/fields')) return '/settings/fields'
+  if (route.path.startsWith('/settings/heading-rules')) return '/settings/heading-rules'
+  if (route.path.startsWith('/settings')) return '/settings'
   return ''
 })
 
@@ -153,6 +200,8 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
           :index="menuIndex(it)"
           :disabled="it.soon"
         >
+          <!-- 默认 slot 的图标在折叠态仍显示（#title 文字此时被 el-menu 隐藏）。 -->
+          <el-icon v-if="it.icon" class="nav-icon"><component :is="it.icon" /></el-icon>
           <template #title>
             {{ it.label }}<span v-if="it.soon" class="soon-tag">即将上线</span>
             <el-icon v-else-if="isLocked(it)" class="lock-icon"><Lock /></el-icon>
@@ -180,6 +229,9 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
   border-right: none;
   background: transparent;
   flex: 1;
+  /* 菜单项超出可视高度时纵向滚动，横向裁切避免折叠动画溢出 */
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .menu-group-label {
   padding: 14px 16px 4px;

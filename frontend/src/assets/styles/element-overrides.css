@@ -1,7 +1,11 @@
-/* Element Plus 暗模式变量重映射 → 本设计令牌（集中通道，权威见 docs/design-system.md §4.3）。
-   仅在 html.dark 下生效；浅色态走 tokens.css :root 的 --el-color-primary* + EP 默认浅样式。
-   加载顺序必须在 element-plus/theme-chalk/dark/css-vars.css 之后（main.ts 已保证），
-   才能覆盖 EP 暗模式默认的冷灰，换成我们的暖炭黑。 */
+/* Element Plus 全局覆盖（集中通道，权威见 docs/design-system.md §4.3）。两部分：
+   ① 暗模式变量重映射（html.dark）：把 EP 暗默认的冷灰换成我们的暖炭黑 + 陶土橙令牌；
+      仅 html.dark 下生效，浅色态走 tokens.css :root 的 --el-color-primary* + EP 默认浅样式。
+      须在 element-plus/theme-chalk/dark/css-vars.css 之后加载（main.ts 已保证）。
+   ② 质感层（表格/输入/按钮，方案A 移植）：配色全部走现有令牌、与暗/浅色态正交，
+      只调排版/行线/焦点环/字体，不引入卡片阴影上浮。 */
+
+/* ===== ① 暗模式变量重映射 ===== */
 html.dark {
   /* 背景 / 填充 */
   --el-bg-color: var(--bg-base);
@@ -45,4 +49,56 @@ html.dark {
   --el-color-danger: var(--st-deprecated);
   --el-color-error: var(--st-deprecated);
   --el-color-warning: #d9a14e;
+}
+
+/* ===== ② 质感层（配色全部走现有令牌；表格只用行线不用斑马纹、浅表头、hover 行底色） ===== */
+
+/* ---- 表格 ---- */
+.el-table {
+  --el-table-border-color: var(--bg-elevated);
+  --el-table-row-hover-bg-color: var(--bg-hover);
+  font-size: 13px;
+}
+.el-table th.el-table__cell {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+}
+/* 确认无斑马纹（即便某处开了 stripe 也压平） */
+.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: transparent;
+}
+/* 选中行赤陶浅染 */
+.el-table__body tr.current-row > td.el-table__cell {
+  background-color: var(--el-color-primary-light-9);
+}
+/* 数据感单元格可按需走等宽：给需要 mono 的列加 class="mono-cell"（cell-class-name） */
+.el-table .mono-cell {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* EP 输入内层元素自身可聚焦，会被全局 :focus-visible 命中而生出内环；
+   焦点环统一交给下方 wrapper 级规则，这里清掉内层环避免双环。 */
+.el-input__inner:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+/* ---- 输入 / 选择 焦点光环 ---- */
+/* 不用 !important / #app：保持低权重(0,2,0)，靠加载顺序压过 EP 基础聚焦态；
+   EP 的 .is-error 校验规则权重更高(≥0,4,0)，出错时红环自然优先，无需特殊处理。 */
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused {
+  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset;
+}
+.el-textarea__inner:focus {
+  box-shadow: var(--ring-focus), 0 0 0 1px var(--el-color-primary) inset;
+}
+
+/* ---- 按钮字体（display 字，略加字距，呼应源项目） ---- */
+.el-button {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
 }
