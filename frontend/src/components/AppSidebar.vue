@@ -104,7 +104,7 @@ const insightItems = computed<NavItem[]>(() => {
       icon: DataAnalysis,
     })
   }
-  items.push({ label: '通知中心', soon: true, icon: Bell })
+  items.push({ label: '通知中心', path: '/notifications', icon: Bell })
   return items
 })
 

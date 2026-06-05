@@ -72,6 +72,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '审计日志', requiresAuth: true },
   },
   {
+    path: '/notifications',
+    name: 'notification-center',
+    component: () => import('@/views/notifications/NotificationCenterView.vue'),
+    meta: { title: '通知中心', requiresAuth: true },
+  },
+  {
     path: '/settings',
     name: 'global-settings',
     component: () => import('@/views/settings/SettingsView.vue'),

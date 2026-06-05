@@ -77,8 +77,8 @@ describe('AppSidebar', () => {
     expect(w.text()).toContain('草稿箱')
     expect(w.text()).toContain('文件夹')
     expect(w.text()).toContain('审计日志')
-    // 占位模块标记
-    expect(w.text()).toContain('即将上线')
+    // 通知中心已接线 path，不再显示「即将上线」
+    expect(w.text()).not.toContain('即将上线')
   })
 
   it('super_admin：平台组含 5 项且均无「即将上线」标记', async () => {
@@ -194,9 +194,10 @@ describe('AppSidebar', () => {
     expect(dash).toBeTruthy()
     expect(dash.path).toBe('/analytics')
     expect(dash.soon).toBeFalsy()
-    // 通知中心仍 soon
+    // 通知中心已接线 path，去 soon 占位
     const notif = items.find((i) => i.label === '通知中心')!
-    expect(notif.soon).toBe(true)
+    expect(notif.path).toBe('/notifications')
+    expect(notif.soon).toBeFalsy()
   })
 
   it('洞察组：无 analytics.view 时隐藏「分析仪表盘」', async () => {
