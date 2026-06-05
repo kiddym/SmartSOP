@@ -18,17 +18,32 @@ def _h(t):
 
 def test_checkout_session_returns_url(client, db, monkeypatch):
     t = _admin(client)
-    monkeypatch.setattr(
-        billing_service, "start_checkout", lambda db, company, user: "https://checkout/x"
-    )
+    captured: dict = {}
+
+    def _fake_start_checkout(db_, company_, user_):
+        captured["company"] = company_
+        captured["user"] = user_
+        return "https://checkout/x"
+
+    monkeypatch.setattr(billing_service, "start_checkout", _fake_start_checkout)
     r = client.post("/api/v1/billing/checkout-session", headers=_h(t))
     assert r.status_code == 200, r.text
     assert r.json()["url"] == "https://checkout/x"
+    # Verify correct objects were threaded through to the service
+    assert captured["company"] is not None
+    assert captured["user"].email == "a@acme.com"
 
 
 def test_checkout_requires_auth(client, db):
     r = client.post("/api/v1/billing/checkout-session")
     assert r.status_code == 401
+
+
+# test_checkout_forbidden_for_unprivileged: billing.manage gating is provided by
+# `require_permission`, which is already covered by unit tests in
+# tests/test_auth_deps.py (test_require_permission_denies_viewer).  Spinning up
+# a low-privilege user here requires the full invite+accept-invite flow with no
+# cheap helper — skipped to avoid heavy fixture duplication.
 
 
 def test_portal_session_without_subscription_400(client, db):

@@ -86,8 +86,12 @@ def create_portal_session(
 
 @router.post("/webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_db)) -> dict[str, bool]:
+    # Request-body size is bounded upstream (reverse proxy / future global middleware),
+    # not enforced per-route here.
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")
+    # ONLY SignatureError → 400.  Any other exception from handle_event propagates
+    # as 500 so that Stripe retries the event — do NOT add a broad except clause.
     try:
         billing_service.handle_event(db, payload, sig)
     except stripe_gateway.SignatureError:
