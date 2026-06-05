@@ -34,13 +34,15 @@ html.dark {
   --el-border-radius-base: 4px;
   --el-border-radius-small: 4px;
 
-  /* primary 阶梯 → 陶土橙（暗模式向底色混的 9 档；§4.3 示意硬值，验证阶段微调闷态） */
+  /* primary 阶梯 → 陶土橙。light-3..9 = accent(#d97757) 向 --bg-base(#1a1714) 按 N×10% sRGB
+     线性混合精算（替换此前手调示意值——其 G 通道偏暗，hover/背景态发闷）；
+     dark-2 = active 态，保留手调暖值（向黑混太深会在暗底上失焦）。§4.3。 */
   --el-color-primary: var(--accent);
-  --el-color-primary-light-3: #a85e45;
-  --el-color-primary-light-5: #7a4634;
-  --el-color-primary-light-7: #4d2e22;
-  --el-color-primary-light-8: #3a241b;
-  --el-color-primary-light-9: #261913;
+  --el-color-primary-light-3: #a07143;
+  --el-color-primary-light-5: #7a5736;
+  --el-color-primary-light-7: #533d28;
+  --el-color-primary-light-8: #403121;
+  --el-color-primary-light-9: #2d241b;
   --el-color-primary-dark-2: #c56546;
 
   /* 语义色 → 状态暖盘（el-message / el-alert / el-tag 天然上盘） */
