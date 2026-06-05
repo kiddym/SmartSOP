@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 
-const api = vi.hoisted(() => ({ getSubscription: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getSubscription: vi.fn(),
+  createCheckoutSession: vi.fn(),
+  createPortalSession: vi.fn(),
+}))
 vi.mock('@/api/billing', () => api)
 
 import { useBillingStore } from '@/store/billing'
@@ -52,5 +56,33 @@ describe('useBillingStore', () => {
   it('未加载时 hasFeature 返回 false（安全默认）', () => {
     const store = useBillingStore()
     expect(store.hasFeature('meters')).toBe(false)
+  })
+
+  it('startCheckout 跳转到返回的 url', async () => {
+    api.createCheckoutSession.mockResolvedValue({ url: 'https://checkout/x' })
+    const assign = vi.fn()
+    vi.stubGlobal('window', { ...window, location: { assign } })
+    const store = useBillingStore()
+    await store.startCheckout()
+    expect(assign).toHaveBeenCalledWith('https://checkout/x')
+  })
+
+  it('pollUntilPlanChange 在 plan 翻新后停止', async () => {
+    let plan = 'free'
+    api.getSubscription.mockImplementation(async () => ({
+      plan,
+      subscription_status: 'active',
+      seat_used: 1,
+      seat_limit: 3,
+      features: [],
+      catalog: [],
+    }))
+    const store = useBillingStore()
+    await store.loadSubscription()
+    setTimeout(() => {
+      plan = 'pro'
+    }, 0)
+    await store.pollUntilPlanChange('free', 5, 1)
+    expect(store.subscription?.plan).toBe('pro')
   })
 })
