@@ -17,6 +17,7 @@ USER_DELETE = "user.delete"
 ROLE_VIEW = "role.view"
 ROLE_MANAGE = "role.manage"
 COMPANY_SETTINGS = "company.settings"
+BILLING_MANAGE = "billing.manage"
 CURRENCY_MANAGE = "currency.manage"
 
 # --- 维护基础域（Phase 1A）---
@@ -112,6 +113,7 @@ _PLATFORM = [
     ROLE_VIEW,
     ROLE_MANAGE,
     COMPANY_SETTINGS,
+    BILLING_MANAGE,
     CURRENCY_MANAGE,
 ]
 _BASE_DOMAIN = [

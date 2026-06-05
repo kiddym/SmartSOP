@@ -33,6 +33,9 @@ jobs:
       - name: Mypy
         run: mypy app
 
+      - name: Endpoint authz gate (每个写端点须有 RBAC 或登记豁免)
+        run: python scripts/check_endpoint_authz.py
+
       - name: Pytest
         run: pytest --cov=app --cov-report=term-missing --cov-fail-under=80
 

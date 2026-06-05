@@ -29,9 +29,8 @@ def _alembic_cfg() -> Config:
     return cfg
 
 
-def test_single_head_is_sop_tenancy_hardening() -> None:
-    heads = ScriptDirectory.from_config(_alembic_cfg()).get_heads()
-    assert heads == ["sop_tenancy_hardening"]
+def test_single_head_is_p6_stripe_billing() -> None:
+    assert set(ScriptDirectory.from_config(_alembic_cfg()).get_heads()) == {"p6_stripe_billing"}
 
 
 def test_migration_module_importable_with_revisions() -> None:

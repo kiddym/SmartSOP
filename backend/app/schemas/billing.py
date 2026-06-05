@@ -39,3 +39,11 @@ class SubscriptionRead(BaseModel):
     seat_limit: int | None
     features: list[str]
     catalog: list[PlanCatalogEntry]
+
+
+class CheckoutSessionOut(BaseModel):
+    url: str
+
+
+class PortalSessionOut(BaseModel):
+    url: str

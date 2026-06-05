@@ -2,8 +2,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { mount } from '@vue/test-utils'
 
-const api = vi.hoisted(() => ({ getSubscription: vi.fn() }))
+const api = vi.hoisted(() => ({
+  getSubscription: vi.fn(),
+  createPortalSession: vi.fn(),
+  createCheckoutSession: vi.fn(),
+}))
 vi.mock('@/api/billing', () => api)
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: vi.fn() }),
+}))
+vi.mock('@/composables/usePermission', () => ({
+  usePermission: () => ({ hasPermission: () => false }),
+}))
 
 import SettingsView from '@/views/billing/SettingsView.vue'
 

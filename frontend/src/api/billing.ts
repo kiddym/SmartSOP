@@ -17,3 +17,13 @@ export interface Subscription {
 
 export const getSubscription = () =>
   http.get<Subscription>('/billing/subscription').then((r) => r.data)
+
+export interface SessionUrl {
+  url: string
+}
+
+export const createCheckoutSession = () =>
+  http.post<SessionUrl>('/billing/checkout-session').then((r) => r.data)
+
+export const createPortalSession = () =>
+  http.post<SessionUrl>('/billing/portal-session').then((r) => r.data)

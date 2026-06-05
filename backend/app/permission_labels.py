@@ -36,6 +36,7 @@ PERMISSION_LABELS: dict[str, str] = {
     perms.ROLE_MANAGE: "角色-管理",
     perms.COMPANY_SETTINGS: "公司设置",
     perms.CURRENCY_MANAGE: "货币-管理",
+    perms.BILLING_MANAGE: "计费-管理",
     # 主数据
     perms.LOCATION_VIEW: "位置-查看",
     perms.LOCATION_CREATE: "位置-创建",

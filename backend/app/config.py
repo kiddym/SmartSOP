@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     smtp_password: str = ""
     smtp_use_tls: bool = True
 
+    # --- Stripe 计费（Phase 6，test-mode） ---
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_price_pro: str = ""
+    billing_checkout_success_url: str = "http://localhost:5173/billing/settings?checkout=success"
+    billing_checkout_cancel_url: str = "http://localhost:5173/billing/plans?checkout=cancel"
+    billing_portal_return_url: str = "http://localhost:5173/billing/settings"
     # 文件存储后端（Phase 5B）
     storage_backend: str = "local"  # local | s3
     s3_bucket: str = ""
