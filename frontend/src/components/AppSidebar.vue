@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, type Component } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElIcon, ElMenu, ElMenuItem } from 'element-plus'
+import { ElIcon, ElMenu, ElMenuItem, ElSubMenu } from 'element-plus'
 import {
   Lock,
   // SOP
@@ -11,26 +11,27 @@ import {
   List,
   // 维护
   Tickets,
-  Box,
-  Location,
   ChatDotRound,
   Timer,
   Odometer,
-  // 供应
+  Avatar,
+  // 资产
+  Box,
+  Location,
+  // 库存采购
   Goods,
   ShoppingCart,
   Shop,
-  Avatar,
-  // 洞察
+  // 分析
   DataAnalysis,
-  Bell,
-  // 平台
+  // 管理：人员与权限
   User,
   UserFilled,
   Connection,
+  // 管理：组织配置
   OfficeBuilding,
   Coin,
-  // 设置
+  // 管理：系统配置
   Setting,
   Grid,
   Collection,
@@ -49,12 +50,25 @@ const PLANS_PATH = '/billing/plans'
 interface NavItem {
   label: string
   path?: string
-  soon?: boolean
   requiredPermission?: string
   // 已挂 feature gate 的高级模块对应功能码；未解锁时菜单项显示锁标。
   feature?: string
   // 折叠态侧栏只显示图标（el-menu 折叠时隐藏 #title 文字），每项必须配一个。
   icon?: Component
+}
+interface NavSubGroup {
+  label: string
+  icon?: Component
+  items: NavItem[]
+}
+type NavEntry = NavItem | NavSubGroup
+interface NavGroup {
+  label: string
+  entries: NavEntry[]
+}
+
+function isSubGroup(e: NavEntry): e is NavSubGroup {
+  return (e as NavSubGroup).items !== undefined
 }
 
 // 菜单项是否因套餐未解锁而锁定。
@@ -72,58 +86,45 @@ function menuIndex(it: NavItem): string {
   if (isLocked(it)) return PLANS_PATH
   return it.path ?? `soon:${it.label}`
 }
-interface NavGroup {
-  label: string
-  items: NavItem[]
-}
 
-// 货币管理仅 super_admin 可见；其余平台项不受限。
-const platformItems = computed<NavItem[]>(() => {
-  const items: NavItem[] = [
-    { label: '用户', path: '/platform/users', icon: User },
-    { label: '角色', path: '/platform/roles', icon: UserFilled },
-    { label: '团队', path: '/platform/teams', icon: Connection },
-    { label: '公司设置', path: '/platform/settings', icon: OfficeBuilding },
-    { label: '货币', path: '/platform/currencies', icon: Coin },
-  ]
-  if (auth.user?.role_code !== 'super_admin') {
-    return items.filter((it) => it.path !== '/platform/currencies')
+// 货币管理仅 super_admin 可见；其余组织配置项不受限。
+const orgConfigItems = computed<NavItem[]>(() => {
+  const items: NavItem[] = [{ label: '公司设置', path: '/admin/company', icon: OfficeBuilding }]
+  if (auth.user?.role_code === 'super_admin') {
+    items.push({ label: '货币', path: '/admin/currencies', icon: Coin })
   }
   return items
 })
 
-// 「分析仪表盘」按 analytics.view 门控：有权限才显示并可点；无权限则隐藏。
-const insightItems = computed<NavItem[]>(() => {
-  const items: NavItem[] = []
+// 「分析仪表盘」按 analytics.view 门控：有权限才显示并可点；无权限则整组隐藏。
+const analyticsItems = computed<NavItem[]>(() => {
   if (auth.hasPermission('analytics.view')) {
-    items.push({
-      label: '分析仪表盘',
-      path: '/analytics',
-      requiredPermission: 'analytics.view',
-      feature: 'analytics',
-      icon: DataAnalysis,
-    })
+    return [
+      {
+        label: '分析仪表盘',
+        path: '/analytics',
+        requiredPermission: 'analytics.view',
+        feature: 'analytics',
+        icon: DataAnalysis,
+      },
+    ]
   }
-  items.push({ label: '通知中心', path: '/notifications', icon: Bell })
-  return items
+  return []
 })
 
 const groups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
-    items: [
+    entries: [
       { label: '程序库', path: '/procedures/library', feature: 'sop', icon: Document },
       { label: '草稿箱', path: '/procedures/drafts', feature: 'sop', icon: EditPen },
-      { label: '文件夹', path: '/folders', feature: 'sop', icon: Folder },
-      { label: '审计日志', path: '/audit-logs', icon: List },
+      { label: '文件夹', path: '/procedures/folders', feature: 'sop', icon: Folder },
     ],
   },
   {
     label: '维护',
-    items: [
+    entries: [
       { label: '工单', path: '/maintenance/work-orders', icon: Tickets },
-      { label: '资产', path: '/maindata/assets', icon: Box },
-      { label: '位置', path: '/maindata/locations', icon: Location },
       { label: '请求', path: '/maintenance/requests', icon: ChatDotRound },
       {
         label: '预防性维护',
@@ -132,54 +133,81 @@ const groups = computed<NavGroup[]>(() => [
         icon: Timer,
       },
       { label: '计量', path: '/maintenance/meters', feature: 'meters', icon: Odometer },
+      { label: '客户', path: '/maintenance/customers', icon: Avatar },
     ],
   },
   {
-    label: '供应',
-    items: [
+    label: '资产',
+    entries: [
+      { label: '资产', path: '/assets', icon: Box },
+      { label: '位置', path: '/assets/locations', icon: Location },
+    ],
+  },
+  {
+    label: '库存采购',
+    entries: [
       { label: '备件库存', path: '/inventory/parts', icon: Goods },
-      { label: '多备件套件', path: '/inventory/multi-parts', icon: Goods },
-      { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing', icon: ShoppingCart },
+      {
+        label: '采购单',
+        path: '/inventory/purchase-orders',
+        feature: 'purchasing',
+        icon: ShoppingCart,
+      },
       { label: '供应商', path: '/inventory/vendors', icon: Shop },
-      { label: '客户', path: '/inventory/customers', icon: Avatar },
     ],
   },
   {
-    label: '洞察',
-    items: insightItems.value,
+    label: '分析',
+    entries: analyticsItems.value,
   },
   {
-    label: '平台',
-    items: platformItems.value,
-  },
-  {
-    label: '设置',
-    items: [
-      { label: '系统设置', path: '/settings', icon: Setting },
-      { label: '字段管理', path: '/settings/fields', icon: Grid },
-      { label: '标题字典', path: '/settings/heading-rules', icon: Collection },
+    label: '管理',
+    entries: [
+      {
+        label: '人员与权限',
+        icon: User,
+        items: [
+          { label: '用户', path: '/admin/users', icon: User },
+          { label: '角色', path: '/admin/roles', icon: UserFilled },
+          { label: '团队', path: '/admin/teams', icon: Connection },
+        ],
+      },
+      { label: '组织配置', icon: OfficeBuilding, items: orgConfigItems.value },
+      {
+        label: '系统配置',
+        icon: Setting,
+        items: [
+          { label: '系统设置', path: '/admin/settings', icon: Setting },
+          { label: '字段管理', path: '/admin/fields', icon: Grid },
+          { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
+        ],
+      },
+      {
+        label: '审计',
+        icon: List,
+        items: [{ label: '审计日志', path: '/admin/audit-logs', icon: List }],
+      },
     ],
   },
 ])
 
 const activeMenu = computed<string>(() => {
-  if (route.path.startsWith('/platform/')) return route.path
-  if (route.path.startsWith('/maindata/')) return route.path
-  if (route.path.startsWith('/inventory/')) return route.path
-  if (route.path.startsWith('/maintenance/work-orders')) return '/maintenance/work-orders'
-  if (route.path.startsWith('/maintenance/')) return route.path
-  if (route.path.startsWith('/analytics')) return route.path
-  if (route.path.startsWith('/procedures/drafts')) return '/procedures/drafts'
-  if (route.path.startsWith('/procedures')) return '/procedures/library'
-  if (route.path.startsWith('/folders')) return '/folders'
-  if (route.path.startsWith('/audit-logs')) return '/audit-logs'
-  if (route.path.startsWith('/settings/fields')) return '/settings/fields'
-  if (route.path.startsWith('/settings/heading-rules')) return '/settings/heading-rules'
-  if (route.path.startsWith('/settings')) return '/settings'
+  const p = route.path
+  if (p.startsWith('/admin/')) return p
+  if (p.startsWith('/assets/locations')) return '/assets/locations'
+  if (p.startsWith('/assets')) return '/assets'
+  if (p.startsWith('/inventory/parts')) return '/inventory/parts'
+  if (p.startsWith('/inventory/')) return p
+  if (p.startsWith('/maintenance/work-orders')) return '/maintenance/work-orders'
+  if (p.startsWith('/maintenance/')) return p
+  if (p.startsWith('/analytics')) return '/analytics'
+  if (p.startsWith('/procedures/drafts')) return '/procedures/drafts'
+  if (p.startsWith('/procedures/folders')) return '/procedures/folders'
+  if (p.startsWith('/procedures')) return '/procedures/library'
   return ''
 })
 
-defineExpose({ activeMenu, platformItems, insightItems, groups })
+defineExpose({ activeMenu, groups })
 </script>
 
 <template>
@@ -194,20 +222,30 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
       :style="{ '--el-menu-active-color': 'var(--accent)' }"
     >
       <template v-for="g in groups" :key="g.label">
-        <div v-if="!collapsed" class="menu-group-label">{{ g.label }}</div>
-        <el-menu-item
-          v-for="it in g.items"
-          :key="it.label"
-          :index="menuIndex(it)"
-          :disabled="it.soon"
-        >
-          <!-- 默认 slot 的图标在折叠态仍显示（#title 文字此时被 el-menu 隐藏）。 -->
-          <el-icon v-if="it.icon" class="nav-icon"><component :is="it.icon" /></el-icon>
-          <template #title>
-            {{ it.label }}<span v-if="it.soon" class="soon-tag">即将上线</span>
-            <el-icon v-else-if="isLocked(it)" class="lock-icon"><Lock /></el-icon>
-          </template>
-        </el-menu-item>
+        <div v-if="!collapsed && g.entries.length" class="menu-group-label">{{ g.label }}</div>
+        <template v-for="entry in g.entries" :key="entry.label">
+          <el-sub-menu v-if="isSubGroup(entry)" :index="`grp:${entry.label}`">
+            <template #title>
+              <el-icon v-if="entry.icon" class="nav-icon"><component :is="entry.icon" /></el-icon>
+              <span>{{ entry.label }}</span>
+            </template>
+            <el-menu-item v-for="it in entry.items" :key="it.label" :index="menuIndex(it)">
+              <el-icon v-if="it.icon" class="nav-icon"><component :is="it.icon" /></el-icon>
+              <template #title>
+                {{ it.label }}
+                <el-icon v-if="isLocked(it)" class="lock-icon"><Lock /></el-icon>
+              </template>
+            </el-menu-item>
+          </el-sub-menu>
+          <el-menu-item v-else :index="menuIndex(entry)">
+            <!-- 默认 slot 的图标在折叠态仍显示（#title 文字此时被 el-menu 隐藏）。 -->
+            <el-icon v-if="entry.icon" class="nav-icon"><component :is="entry.icon" /></el-icon>
+            <template #title>
+              {{ entry.label }}
+              <el-icon v-if="isLocked(entry)" class="lock-icon"><Lock /></el-icon>
+            </template>
+          </el-menu-item>
+        </template>
       </template>
     </el-menu>
   </aside>
@@ -241,11 +279,6 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
-.soon-tag {
-  margin-left: 6px;
-  font-size: 10px;
-  color: var(--text-disabled);
-}
 .lock-icon {
   margin-left: 6px;
   font-size: 12px;
@@ -254,7 +287,8 @@ defineExpose({ activeMenu, platformItems, insightItems, groups })
 }
 
 /* 选中态：左 3px 陶土橙竖条 + accent-bg 底（design-system.md §3.2）。
-   EP 默认仅给激活项换文字色，这里补足竖条与底色，强化层级辨识。 */
+   EP 默认仅给激活项换文字色，这里补足竖条与底色，强化层级辨识。
+   :deep 选择器同样覆盖 el-sub-menu 内嵌的激活叶子项。 */
 .app-aside :deep(.el-menu-item.is-active) {
   position: relative;
   background: var(--accent-bg);

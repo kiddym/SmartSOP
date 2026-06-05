@@ -13,24 +13,25 @@ function makeRouter(initialPath: string): Router {
     routes: [
       { path: '/procedures/library', component: { template: '<div/>' } },
       { path: '/procedures/drafts', component: { template: '<div/>' } },
+      { path: '/procedures/folders', component: { template: '<div/>' } },
       { path: '/procedures/:id', component: { template: '<div/>' } },
       { path: '/procedures/:id/edit', component: { template: '<div/>' } },
-      { path: '/folders', component: { template: '<div/>' } },
-      { path: '/audit-logs', component: { template: '<div/>' } },
-      { path: '/settings', component: { template: '<div/>' } },
-      { path: '/settings/fields', component: { template: '<div/>' } },
-      { path: '/settings/heading-rules', component: { template: '<div/>' } },
-      { path: '/platform/users', component: { template: '<div/>' } },
-      { path: '/platform/roles', component: { template: '<div/>' } },
-      { path: '/platform/teams', component: { template: '<div/>' } },
-      { path: '/platform/settings', component: { template: '<div/>' } },
-      { path: '/platform/currencies', component: { template: '<div/>' } },
-      { path: '/maindata/locations', component: { template: '<div/>' } },
-      { path: '/maindata/assets', component: { template: '<div/>' } },
+      { path: '/admin/audit-logs', component: { template: '<div/>' } },
+      { path: '/admin/settings', component: { template: '<div/>' } },
+      { path: '/admin/fields', component: { template: '<div/>' } },
+      { path: '/admin/heading-rules', component: { template: '<div/>' } },
+      { path: '/admin/users', component: { template: '<div/>' } },
+      { path: '/admin/roles', component: { template: '<div/>' } },
+      { path: '/admin/teams', component: { template: '<div/>' } },
+      { path: '/admin/company', component: { template: '<div/>' } },
+      { path: '/admin/currencies', component: { template: '<div/>' } },
+      { path: '/assets', component: { template: '<div/>' } },
+      { path: '/assets/locations', component: { template: '<div/>' } },
       { path: '/inventory/parts', component: { template: '<div/>' } },
+      { path: '/inventory/parts/kits', component: { template: '<div/>' } },
       { path: '/inventory/purchase-orders', component: { template: '<div/>' } },
       { path: '/inventory/vendors', component: { template: '<div/>' } },
-      { path: '/inventory/customers', component: { template: '<div/>' } },
+      { path: '/maintenance/customers', component: { template: '<div/>' } },
       { path: '/maintenance/requests', component: { template: '<div/>' } },
       { path: '/maintenance/preventive-maintenances', component: { template: '<div/>' } },
       { path: '/maintenance/meters', component: { template: '<div/>' } },
@@ -64,51 +65,93 @@ async function mountSidebar(initialPath: string, collapsed = false) {
   })
 }
 
+interface ExposedGroup {
+  label: string
+  entries: Array<{ label: string; path?: string; items?: { label: string }[] }>
+}
+
 describe('AppSidebar', () => {
   beforeEach(() => setActivePinia(createPinia()))
-  it('collapsed=false：6 个 group-label（SOP/维护/供应/洞察/平台/设置）+ SOP 项目可见', async () => {
+
+  it('collapsed=false：6 个 group-label（SOP/维护/资产/库存采购/分析/管理）', async () => {
+    setUser('super_admin')
     const w = await mountSidebar('/procedures/library')
     const labels = w.findAll('.menu-group-label')
-    expect(labels.length).toBe(6)
-    const labelText = labels.map((l) => l.text())
-    expect(labelText).toEqual(['SOP', '维护', '供应', '洞察', '平台', '设置'])
-    // SOP 域可用项
+    expect(labels.map((l) => l.text())).toEqual(['SOP', '维护', '资产', '库存采购', '分析', '管理'])
+  })
+
+  it('SOP 组含 程序库/草稿箱/文件夹（不再含审计日志）', async () => {
+    const w = await mountSidebar('/procedures/library')
     expect(w.text()).toContain('程序库')
     expect(w.text()).toContain('草稿箱')
     expect(w.text()).toContain('文件夹')
-    expect(w.text()).toContain('审计日志')
-    // 通知中心已接线 path，不再显示「即将上线」
-    expect(w.text()).not.toContain('即将上线')
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const sop = groups.find((g) => g.label === 'SOP')!
+    expect(sop.entries.map((e) => e.label)).toEqual(['程序库', '草稿箱', '文件夹'])
   })
 
-  it('super_admin：平台组含 5 项且均无「即将上线」标记', async () => {
+  it('通知中心已从侧栏移除（顶栏铃铛为唯一入口）', async () => {
+    setUser('manager', ['analytics.view'])
+    const w = await mountSidebar('/analytics')
+    expect(w.text()).not.toContain('通知中心')
+  })
+
+  it('客户归入维护组', async () => {
+    const w = await mountSidebar('/procedures/library')
+    const items = w.findAll('.el-menu-item')
+    expect(items.some((i) => i.text().includes('客户'))).toBe(true)
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const maintenance = groups.find((g) => g.label === '维护')!
+    expect(maintenance.entries.some((e) => e.label === '客户')).toBe(true)
+  })
+
+  it('管理组：super_admin 见货币，非 super_admin 不见', async () => {
     setUser('super_admin')
-    const w = await mountSidebar('/platform/users')
-    const items = (w.vm as unknown as { platformItems: { label: string; soon?: boolean }[] })
-      .platformItems
-    expect(items.map((i) => i.label)).toEqual(['用户', '角色', '团队', '公司设置', '货币'])
-    expect(items.every((i) => !i.soon)).toBe(true)
-    expect(w.text()).toContain('用户')
-    expect(w.text()).toContain('货币')
-  })
-
-  it('非 super_admin：平台组隐藏「货币」项，剩 4 项', async () => {
+    const w1 = await mountSidebar('/admin/users')
+    expect(w1.text()).toContain('货币')
+    setActivePinia(createPinia())
     setUser('manager')
-    const w = await mountSidebar('/platform/users')
-    const items = (w.vm as unknown as { platformItems: { label: string }[] }).platformItems
-    expect(items.map((i) => i.label)).toEqual(['用户', '角色', '团队', '公司设置'])
-    expect(w.text()).not.toContain('货币')
+    const w2 = await mountSidebar('/admin/users')
+    expect(w2.text()).not.toContain('货币')
   })
 
-  it('在 /platform/* 时 activeMenu 为该路径', async () => {
+  it('管理组：4 个折叠子分组（人员与权限/组织配置/系统配置/审计）', async () => {
     setUser('super_admin')
-    const w = await mountSidebar('/platform/currencies')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/platform/currencies')
+    const w = await mountSidebar('/admin/users')
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const admin = groups.find((g) => g.label === '管理')!
+    expect(admin.entries.map((e) => e.label)).toEqual([
+      '人员与权限',
+      '组织配置',
+      '系统配置',
+      '审计',
+    ])
+    // 每个子分组都带 items（NavSubGroup）
+    expect(admin.entries.every((e) => Array.isArray(e.items))).toBe(true)
+    const subMenus = w.findAll('.el-sub-menu')
+    expect(subMenus.length).toBe(4)
   })
 
   it('collapsed=true：group-label 不渲染', async () => {
+    setUser('super_admin')
     const w = await mountSidebar('/procedures/library', true)
     expect(w.findAll('.menu-group-label').length).toBe(0)
+  })
+
+  it.each([
+    ['/assets', '/assets'],
+    ['/assets/locations', '/assets/locations'],
+    ['/admin/users', '/admin/users'],
+    ['/admin/settings', '/admin/settings'],
+    ['/admin/fields', '/admin/fields'],
+    ['/admin/audit-logs', '/admin/audit-logs'],
+    ['/maintenance/customers', '/maintenance/customers'],
+    ['/inventory/parts/kits', '/inventory/parts'],
+    ['/procedures/folders', '/procedures/folders'],
+  ])('在 %s 时 activeMenu 为 %s', async (path, active) => {
+    setUser('super_admin')
+    const w = await mountSidebar(path)
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe(active)
   })
 
   it('在 /procedures/drafts 时 activeMenu 为 /procedures/drafts', async () => {
@@ -121,90 +164,72 @@ describe('AppSidebar', () => {
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/procedures/library')
   })
 
-  it('在 /folders 时 activeMenu 为 /folders', async () => {
-    const w = await mountSidebar('/folders')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/folders')
+  it('在 /admin/heading-rules 时 activeMenu 为 /admin/heading-rules', async () => {
+    setUser('super_admin')
+    const w = await mountSidebar('/admin/heading-rules')
+    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/admin/heading-rules')
   })
 
-  it('在 /audit-logs 时 activeMenu 为 /audit-logs', async () => {
-    const w = await mountSidebar('/audit-logs')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/audit-logs')
-  })
-
-  it('在 /settings 时 activeMenu 为 /settings（设置组已并入侧栏并高亮）', async () => {
-    const w = await mountSidebar('/settings')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings')
-  })
-
-  it('在 /settings/fields 时 activeMenu 为 /settings/fields（子路径不被 /settings 抢占）', async () => {
-    const w = await mountSidebar('/settings/fields')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings/fields')
-  })
-
-  it('在 /settings/heading-rules 时 activeMenu 为 /settings/heading-rules', async () => {
-    const w = await mountSidebar('/settings/heading-rules')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/settings/heading-rules')
-  })
-
-  it('维护组：资产/位置/请求/预防性维护/计量/工单 均可点（无 is-disabled、不渲染「即将上线」）', async () => {
+  it('维护组：资产不再属维护；工单/请求/预防性维护/计量/客户 均可点（无 is-disabled）', async () => {
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     const find = (label: string) => items.find((i) => i.text().includes(label))!
-
-    for (const label of ['资产', '位置', '请求', '预防性维护', '计量', '工单']) {
+    for (const label of ['工单', '请求', '预防性维护', '计量', '客户']) {
       const it = find(label)
       expect(it.classes()).not.toContain('is-disabled')
-      expect(it.text()).not.toContain('即将上线')
     }
   })
 
-  it('在 /maintenance/* 时 activeMenu 为该路径', async () => {
+  it('在 /maintenance/requests 时 activeMenu 为该路径', async () => {
     const w = await mountSidebar('/maintenance/requests')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/maintenance/requests')
   })
 
-  it('在 /maindata/assets 时 activeMenu 为该路径', async () => {
-    const w = await mountSidebar('/maindata/assets')
-    expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/maindata/assets')
-  })
-
-  it('供应组：备件库存/采购单/供应商/客户 均可点（无 is-disabled、不渲染「即将上线」）', async () => {
+  it('资产组：资产/位置 均可点', async () => {
+    setUser('super_admin')
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     const find = (label: string) => items.find((i) => i.text().includes(label))!
-    for (const label of ['备件库存', '采购单', '供应商', '客户']) {
-      const it = find(label)
-      expect(it.classes()).not.toContain('is-disabled')
-      expect(it.text()).not.toContain('即将上线')
+    for (const label of ['资产', '位置']) {
+      expect(find(label).classes()).not.toContain('is-disabled')
     }
   })
 
-  it('在 /inventory/* 时 activeMenu 为该路径', async () => {
+  it('库存采购组：备件库存/采购单/供应商 均可点（多备件套件已下沉为 Tab）', async () => {
+    const w = await mountSidebar('/procedures/library')
+    const items = w.findAll('.el-menu-item')
+    const find = (label: string) => items.find((i) => i.text().includes(label))!
+    for (const label of ['备件库存', '采购单', '供应商']) {
+      expect(find(label).classes()).not.toContain('is-disabled')
+    }
+    // 多备件套件不再作为侧栏一级项
+    expect(items.some((i) => i.text().includes('多备件套件'))).toBe(false)
+  })
+
+  it('在 /inventory/parts 时 activeMenu 为该路径', async () => {
     const w = await mountSidebar('/inventory/parts')
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/inventory/parts')
   })
 
-  it('洞察组：有 analytics.view 时「分析仪表盘」带 path、无 soon', async () => {
+  it('分析组：有 analytics.view 时「分析仪表盘」带 path /analytics', async () => {
     setUser('manager', ['analytics.view'])
     const w = await mountSidebar('/analytics')
-    const items = (
-      w.vm as unknown as { insightItems: { label: string; path?: string; soon?: boolean }[] }
-    ).insightItems
-    const dash = items.find((i) => i.label === '分析仪表盘')!
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const analytics = groups.find((g) => g.label === '分析')!
+    const dash = analytics.entries.find((e) => e.label === '分析仪表盘')!
     expect(dash).toBeTruthy()
     expect(dash.path).toBe('/analytics')
-    expect(dash.soon).toBeFalsy()
-    // 通知中心已接线 path，去 soon 占位
-    const notif = items.find((i) => i.label === '通知中心')!
-    expect(notif.path).toBe('/notifications')
-    expect(notif.soon).toBeFalsy()
   })
 
-  it('洞察组：无 analytics.view 时隐藏「分析仪表盘」', async () => {
+  it('分析组：无 analytics.view 时隐藏「分析仪表盘」（分析组为空）', async () => {
     setUser('manager', [])
     const w = await mountSidebar('/procedures/library')
-    const items = (w.vm as unknown as { insightItems: { label: string }[] }).insightItems
-    expect(items.map((i) => i.label)).toEqual(['通知中心'])
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const analytics = groups.find((g) => g.label === '分析')!
+    expect(analytics.entries.length).toBe(0)
+    // 空组不渲染 group-label
+    const labels = w.findAll('.menu-group-label').map((l) => l.text())
+    expect(labels).not.toContain('分析')
   })
 
   it('在 /analytics 时 activeMenu 为该路径', async () => {
@@ -213,17 +238,12 @@ describe('AppSidebar', () => {
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/analytics')
   })
 
-  it('维护组：工单有 path /maintenance/work-orders、无 soon', async () => {
+  it('维护组：工单有 path /maintenance/work-orders', async () => {
     const w = await mountSidebar('/procedures/library')
-    const groups = (
-      w.vm as unknown as {
-        groups: { label: string; items: { label: string; path?: string; soon?: boolean }[] }[]
-      }
-    ).groups
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
     const maintenance = groups.find((g) => g.label === '维护')!
-    const wo = maintenance.items.find((i) => i.label === '工单')!
+    const wo = maintenance.entries.find((e) => e.label === '工单')!
     expect(wo.path).toBe('/maintenance/work-orders')
-    expect(wo.soon).toBeFalsy()
   })
 
   it('在 /maintenance/work-orders/abc 时 activeMenu 为 /maintenance/work-orders', async () => {
@@ -235,7 +255,6 @@ describe('AppSidebar', () => {
     w.findAll('.el-menu-item').find((i) => i.text().includes(label))!
 
   it('订阅未知（加载失败 subscription=null）时 SOP 项不显示锁标（后端 402 兜底，勿误锁付费用户）', async () => {
-    // 默认 billing.subscription = null（模拟一次拉取失败/未加载）
     const w = await mountSidebar('/procedures/library')
     expect(findItem(w, '程序库').find('.lock-icon').exists()).toBe(false)
   })
@@ -254,12 +273,11 @@ describe('AppSidebar', () => {
     expect(findItem(w, '程序库').find('.lock-icon').exists()).toBe(true)
   })
 
-  it('每个导航项都配了图标（折叠态只显示图标，漏配会变空白不可辨认）', async () => {
+  it('每个叶子导航项都配了图标（折叠态只显示图标，漏配会变空白不可辨认）', async () => {
     setUser('super_admin')
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     expect(items.length).toBeGreaterThan(0)
-    // 默认 slot 的 .nav-icon 在折叠态仍渲染；每个菜单项都必须有，含 soon 占位项。
     for (const it of items) {
       expect(it.find('.nav-icon').exists()).toBe(true)
     }
