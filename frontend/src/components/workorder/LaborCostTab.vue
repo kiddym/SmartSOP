@@ -15,6 +15,8 @@ import { listCostCategories } from '@/api/costCategories'
 import { useAuthStore } from '@/store/auth'
 import LaborDialog from '@/components/workorder/LaborDialog.vue'
 import AdditionalCostDialog from '@/components/workorder/AdditionalCostDialog.vue'
+import TimeCategoryManageDialog from '@/components/workorder/TimeCategoryManageDialog.vue'
+import CostCategoryManageDialog from '@/components/workorder/CostCategoryManageDialog.vue'
 import KpiCard from '@/components/analytics/KpiCard.vue'
 import type {
   LaborRead,
@@ -40,6 +42,8 @@ const laborDialogVisible = ref(false)
 const editingLabor = ref<LaborRead | null>(null)
 const costDialogVisible = ref(false)
 const editingCost = ref<AdditionalCostRead | null>(null)
+const timeCategoryDialogVisible = ref(false)
+const costCategoryDialogVisible = ref(false)
 
 // ── helpers ────────────────────────────────────────────────
 function userName(id: string | null): string {
@@ -61,6 +65,10 @@ function durationText(sec: number): string {
 }
 
 // ── data loading ───────────────────────────────────────────
+async function reloadCostCategories() {
+  costCategories.value = await listCostCategories()
+}
+
 async function reloadAll() {
   const p = props.workOrderId
   const [l, c, s] = await Promise.all([listLabor(p), listAdditionalCosts(p), getCostSummary(p)])
@@ -178,6 +186,13 @@ defineExpose({ removeLabor, removeCost, reloadAll, handleStartTimer, handleStopT
           >
             开始计时
           </el-button>
+          <el-button
+            v-if="auth.hasPermission('time_category.view')"
+            size="small"
+            @click="timeCategoryDialogVisible = true"
+          >
+            管理分类
+          </el-button>
         </div>
       </div>
       <el-table :data="labor" border style="width: 100%; margin-top: 8px">
@@ -241,6 +256,13 @@ defineExpose({ removeLabor, removeCost, reloadAll, handleStartTimer, handleStopT
           >
             新增成本
           </el-button>
+          <el-button
+            v-if="auth.hasPermission('cost_category.view')"
+            size="small"
+            @click="costCategoryDialogVisible = true"
+          >
+            管理分类
+          </el-button>
         </div>
       </div>
       <el-table :data="costs" border style="width: 100%; margin-top: 8px">
@@ -287,6 +309,11 @@ defineExpose({ removeLabor, removeCost, reloadAll, handleStartTimer, handleStopT
       :work-order-id="workOrderId"
       :editing="editingCost"
       @saved="reloadAll"
+    />
+    <TimeCategoryManageDialog v-model:visible="timeCategoryDialogVisible" />
+    <CostCategoryManageDialog
+      v-model:visible="costCategoryDialogVisible"
+      @changed="reloadCostCategories"
     />
   </div>
 </template>

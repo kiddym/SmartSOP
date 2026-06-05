@@ -28,8 +28,34 @@ vi.mock('@/api/workOrders', () => ({
 vi.mock('@/api/users', () => ({
   listUsers: vi.fn().mockResolvedValue([{ id: 'u1', name: '张三' }]),
 }))
-vi.mock('@/api/timeCategories', () => ({ listTimeCategories: vi.fn().mockResolvedValue([]) }))
-vi.mock('@/api/costCategories', () => ({ listCostCategories: vi.fn().mockResolvedValue([]) }))
+vi.mock('@/api/timeCategories', () => ({
+  listTimeCategories: vi.fn().mockResolvedValue([]),
+  createTimeCategory: vi.fn(),
+  updateTimeCategory: vi.fn(),
+  deleteTimeCategory: vi.fn(),
+}))
+vi.mock('@/api/costCategories', () => ({
+  listCostCategories: vi.fn().mockResolvedValue([]),
+  createCostCategory: vi.fn(),
+  updateCostCategory: vi.fn(),
+  deleteCostCategory: vi.fn(),
+}))
+vi.mock('@/components/workorder/TimeCategoryManageDialog.vue', () => ({
+  default: {
+    name: 'TimeCategoryManageDialog',
+    props: ['visible'],
+    emits: ['update:visible', 'changed'],
+    template: '<div class="time-category-dialog-stub" />',
+  },
+}))
+vi.mock('@/components/workorder/CostCategoryManageDialog.vue', () => ({
+  default: {
+    name: 'CostCategoryManageDialog',
+    props: ['visible'],
+    emits: ['update:visible', 'changed'],
+    template: '<div class="cost-category-dialog-stub" />',
+  },
+}))
 vi.mock('@/components/workorder/LaborDialog.vue', () => ({
   default: {
     name: 'LaborDialog',
