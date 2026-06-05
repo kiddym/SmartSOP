@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
@@ -77,26 +77,9 @@ describe('AppTopBar', () => {
     expect(badge.find('.badge').text()).toBe('3')
   })
 
-  it('exposes MENU_COMMANDS 命令契约：5 项，路径与现行路由一致', () => {
+  it('齿轮设置入口已移除（配置/历史项整合进侧边栏「设置」组）', () => {
     const w = mountTopBar()
-    const commands = (w.vm as unknown as { MENU_COMMANDS: ReadonlyArray<{ group: string; label: string; path: string }> }).MENU_COMMANDS
-    expect(commands).toHaveLength(5)
-    expect(commands[0]).toEqual({ group: '配置', label: '文件夹配置', path: '/folders' })
-    expect(commands[1]).toEqual({ group: '配置', label: '系统设置', path: '/settings' })
-    expect(commands[2]).toEqual({ group: '配置', label: '字段管理', path: '/settings/fields' })
-    expect(commands[3]).toEqual({ group: '配置', label: '标题字典', path: '/settings/heading-rules' })
-    expect(commands[4]).toEqual({ group: '历史', label: '审计日志', path: '/audit-logs' })
-  })
-
-  it('onCommand 派发 router.push（mock router 验证路径）', async () => {
-    const router = makeRouter()
-    const push = vi.spyOn(router, 'push')
-    const w = mount(AppTopBar, {
-      props: { collapsed: false },
-      global: { plugins: [router, i18n] },
-    })
-    const onCommand = (w.vm as unknown as { onCommand: (p: string) => void }).onCommand
-    onCommand('/folders')
-    expect(push).toHaveBeenCalledWith('/folders')
+    expect(w.find('.topbar-cog').exists()).toBe(false)
+    expect(w.find('[aria-label="设置菜单"]').exists()).toBe(false)
   })
 })
