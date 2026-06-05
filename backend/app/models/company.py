@@ -34,6 +34,8 @@ class Company(Base, UUIDMixin, TimestampMixin):
     stripe_customer_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, unique=True, default=None
     )
+    # Intentionally NOT unique: informational/current-sub pointer only;
+    # stripe_customer_id is the unique natural key for the Stripe relationship.
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(255), nullable=True, default=None
     )

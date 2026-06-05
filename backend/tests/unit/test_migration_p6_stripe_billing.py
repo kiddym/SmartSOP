@@ -20,7 +20,7 @@ def _cfg() -> Config:
 
 
 def test_single_head_is_p6_stripe_billing() -> None:
-    assert ScriptDirectory.from_config(_cfg()).get_heads() == ["p6_stripe_billing"]
+    assert set(ScriptDirectory.from_config(_cfg()).get_heads()) == {"p6_stripe_billing"}
 
 
 def test_sqlite_upgrade_downgrade_roundtrip(
@@ -39,4 +39,20 @@ def test_sqlite_upgrade_downgrade_roundtrip(
     finally:
         conn.close()
     command.downgrade(cfg, "-1")
+    # Verify downgrade actually reverted: stripe columns gone, tb_billing_event dropped.
+    conn2 = sqlite3.connect(db_path)
+    try:
+        company_cols_after = {r[1] for r in conn2.execute("PRAGMA table_info(tb_company)")}
+        assert "stripe_customer_id" not in company_cols_after, (
+            "stripe_customer_id should be absent after downgrade"
+        )
+        assert "stripe_subscription_id" not in company_cols_after, (
+            "stripe_subscription_id should be absent after downgrade"
+        )
+        event_table = conn2.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='tb_billing_event'"
+        ).fetchall()
+        assert event_table == [], "tb_billing_event should not exist after downgrade"
+    finally:
+        conn2.close()
     command.upgrade(cfg, "head")
