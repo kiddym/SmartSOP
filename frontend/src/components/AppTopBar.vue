@@ -31,11 +31,11 @@ interface MenuCommand {
 // 暴露给测试做契约断言（避开 el-dropdown 在 jsdom 不渲染 menu 的坑）。
 // 顺序 / label / path 任何修改请同步 AppTopBar.spec.ts。
 const MENU_COMMANDS: readonly MenuCommand[] = [
-  { group: '配置', label: '文件夹配置', path: '/folders' },
-  { group: '配置', label: '系统设置', path: '/settings' },
-  { group: '配置', label: '字段管理', path: '/settings/fields' },
-  { group: '配置', label: '标题字典', path: '/settings/heading-rules' },
-  { group: '历史', label: '审计日志', path: '/audit-logs' },
+  { group: '配置', label: '文件夹配置', path: '/procedures/folders' },
+  { group: '配置', label: '系统设置', path: '/admin/settings' },
+  { group: '配置', label: '字段管理', path: '/admin/fields' },
+  { group: '配置', label: '标题字典', path: '/admin/heading-rules' },
+  { group: '历史', label: '审计日志', path: '/admin/audit-logs' },
 ]
 
 const configCommands = computed(() => MENU_COMMANDS.filter((c) => c.group === '配置'))
