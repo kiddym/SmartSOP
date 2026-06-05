@@ -75,12 +75,12 @@ def test_mysql_upgrade_head_full_chain(monkeypatch: pytest.MonkeyPatch) -> None:
 
     # 单 head 守护：脚本目录仍单 head，且库已推进到该 head。
     heads = ScriptDirectory.from_config(cfg).get_heads()
-    assert heads == ["sop_tenancy_hardening"]
+    assert heads == ["p6_stripe_billing"]
 
     engine = create_engine(_MYSQL_URL)
     try:
         with engine.connect() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        assert version == "sop_tenancy_hardening"
+        assert version == "p6_stripe_billing"
     finally:
         engine.dispose()
