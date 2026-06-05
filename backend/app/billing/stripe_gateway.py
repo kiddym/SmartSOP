@@ -17,13 +17,13 @@ class SignatureError(Exception):
     """Webhook 验签失败。"""
 
 
-def _api_key() -> None:
+def _set_api_key() -> None:
     stripe.api_key = settings.stripe_secret_key
 
 
 def ensure_customer(*, company_id: str, email: str, existing_id: str | None) -> str:
     """已有则复用，否则建 Customer（metadata 带 company_id）。返回 customer id。"""
-    _api_key()
+    _set_api_key()
     if existing_id:
         return existing_id
     customer = stripe.Customer.create(email=email, metadata={"company_id": company_id})
@@ -34,7 +34,7 @@ def create_checkout_session(
     *, customer_id: str, price_id: str, success_url: str, cancel_url: str
 ) -> str:
     """建 subscription 模式 Checkout Session，返回托管页 URL。"""
-    _api_key()
+    _set_api_key()
     session = stripe.checkout.Session.create(
         mode="subscription",
         customer=customer_id,
@@ -42,14 +42,20 @@ def create_checkout_session(
         success_url=success_url,
         cancel_url=cancel_url,
     )
-    return session.url or ""  # SDK types url as str | None; non-None guaranteed for valid sessions
+    url = session.url
+    if url is None:
+        raise RuntimeError("Stripe 未返回 session URL")
+    return url
 
 
 def create_portal_session(*, customer_id: str, return_url: str) -> str:
     """建客户门户 Session，返回 URL。"""
-    _api_key()
+    _set_api_key()
     session = stripe.billing_portal.Session.create(customer=customer_id, return_url=return_url)
-    return session.url or ""  # SDK types url as str | None; non-None guaranteed for valid sessions
+    url = session.url
+    if url is None:
+        raise RuntimeError("Stripe 未返回 session URL")
+    return url
 
 
 def construct_event(payload: bytes, sig_header: str) -> dict[str, Any]:

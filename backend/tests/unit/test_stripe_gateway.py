@@ -29,15 +29,34 @@ def test_ensure_customer_creates_with_metadata(monkeypatch):
 
 
 def test_create_checkout_session_returns_url(monkeypatch):
-    monkeypatch.setattr(
-        stripe_gateway.stripe.checkout.Session,
-        "create",
-        lambda **k: SimpleNamespace(url="https://checkout.stripe/x"),
-    )
+    captured: dict = {}
+
+    def _create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(url="https://checkout.stripe/x")
+
+    monkeypatch.setattr(stripe_gateway.stripe.checkout.Session, "create", _create)
     url = stripe_gateway.create_checkout_session(
         customer_id="cus_X", price_id="price_X", success_url="s", cancel_url="c"
     )
     assert url == "https://checkout.stripe/x"
+    assert captured["mode"] == "subscription"
+    assert captured["customer"] == "cus_X"
+    assert captured["line_items"] == [{"price": "price_X", "quantity": 1}]
+
+
+def test_create_portal_session_returns_url(monkeypatch):
+    captured: dict = {}
+
+    def _create(**kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(url="https://portal.stripe/y")
+
+    monkeypatch.setattr(stripe_gateway.stripe.billing_portal.Session, "create", _create)
+    url = stripe_gateway.create_portal_session(customer_id="cus_X", return_url="https://app/back")
+    assert url == "https://portal.stripe/y"
+    assert captured["customer"] == "cus_X"
+    assert captured["return_url"] == "https://app/back"
 
 
 def test_construct_event_translates_signature_error(monkeypatch):
