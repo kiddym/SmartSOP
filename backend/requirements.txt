@@ -35,3 +35,6 @@ email-validator>=2.1,<3.0
 
 # 对象存储（Phase 5B：S3 / S3 兼容后端）
 boto3>=1.34,<2.0
+
+# 计费（Phase 6：Stripe）
+stripe>=11,<13
