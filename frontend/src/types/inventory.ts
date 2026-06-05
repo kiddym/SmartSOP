@@ -41,6 +41,21 @@ export interface PartMini {
   custom_id: string
 }
 
+// 多备件套件
+export interface MultiPartRead {
+  id: string
+  custom_id: string
+  name: string
+  description: string
+  part_ids: string[]
+}
+export interface MultiPartCreate {
+  name: string
+  description?: string
+  part_ids: string[]
+}
+export type MultiPartUpdate = Partial<MultiPartCreate>
+
 export interface PartCategoryRead {
   id: string
   name: string
