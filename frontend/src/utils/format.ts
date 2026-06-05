@@ -31,3 +31,18 @@ export const LEVEL_OF_USE_LABELS: Record<string, string> = {
   continuous: '连续使用',
   information: '信息',
 }
+
+/** 相对时间(自定义中文,无需 dayjs locale 配置;超 30 天显日期)。 */
+export function relativeTime(value: string | null | undefined): string {
+  if (!value) return ''
+  const then = toLocal(value)
+  const diffSec = dayjs().diff(then, 'second')
+  if (diffSec < 60) return '刚刚'
+  const diffMin = Math.floor(diffSec / 60)
+  if (diffMin < 60) return `${diffMin} 分钟前`
+  const diffHour = Math.floor(diffMin / 60)
+  if (diffHour < 24) return `${diffHour} 小时前`
+  const diffDay = Math.floor(diffHour / 24)
+  if (diffDay < 30) return `${diffDay} 天前`
+  return formatDate(value)
+}
