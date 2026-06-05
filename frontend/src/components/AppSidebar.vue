@@ -138,6 +138,7 @@ const groups = computed<NavGroup[]>(() => [
     label: '供应',
     items: [
       { label: '备件库存', path: '/inventory/parts', icon: Goods },
+      { label: '多备件套件', path: '/inventory/multi-parts', icon: Goods },
       { label: '采购单', path: '/inventory/purchase-orders', feature: 'purchasing', icon: ShoppingCart },
       { label: '供应商', path: '/inventory/vendors', icon: Shop },
       { label: '客户', path: '/inventory/customers', icon: Avatar },

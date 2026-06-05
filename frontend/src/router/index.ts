@@ -144,6 +144,12 @@ const routes: RouteRecordRaw[] = [
     meta: { title: '备件库存', requiresAuth: true, requiredPermission: 'part.view' },
   },
   {
+    path: '/inventory/multi-parts',
+    name: 'inventory-multi-parts',
+    component: () => import('@/views/inventory/MultiPartsView.vue'),
+    meta: { title: '多备件套件', requiresAuth: true, requiredPermission: 'part.view' },
+  },
+  {
     path: '/inventory/purchase-orders',
     name: 'inventory-purchase-orders',
     component: () => import('@/views/inventory/PurchaseOrdersView.vue'),
