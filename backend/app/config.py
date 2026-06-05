@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     billing_checkout_success_url: str = "http://localhost:5173/billing/settings?checkout=success"
     billing_checkout_cancel_url: str = "http://localhost:5173/billing/plans?checkout=cancel"
     billing_portal_return_url: str = "http://localhost:5173/billing/settings"
-    sales_contact_email: str = ""
+    sales_contact_email: str = ""  # enterprise「联系销售」mailto 目标；留空则前端降级为纯文案
 
     # 文件存储后端（Phase 5B）
     storage_backend: str = "local"  # local | s3
