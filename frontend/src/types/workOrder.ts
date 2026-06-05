@@ -74,11 +74,23 @@ export interface TimeCategoryRead {
   hourly_rate: string
   description: string
 }
+export interface TimeCategoryCreate {
+  name: string
+  hourly_rate: string
+  description?: string
+}
+export type TimeCategoryUpdate = Partial<TimeCategoryCreate>
+
 export interface CostCategoryRead {
   id: string
   name: string
   description: string
 }
+export interface CostCategoryCreate {
+  name: string
+  description?: string
+}
+export type CostCategoryUpdate = Partial<CostCategoryCreate>
 
 export interface LaborRead {
   id: string
