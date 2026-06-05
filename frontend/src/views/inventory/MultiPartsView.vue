@@ -18,6 +18,8 @@ import { useAuthStore } from '@/store/auth'
 
 const auth = useAuthStore()
 
+defineProps<{ embedded?: boolean }>()
+
 const loading = ref(false)
 const multiParts = ref<MultiPartRead[]>([])
 const partsMini = ref<PartMini[]>([])
@@ -137,8 +139,8 @@ defineExpose({ memberLabel, form })
 </script>
 
 <template>
-  <div class="page">
-    <h2 class="page-title">多备件套件</h2>
+  <div :class="embedded ? '' : 'page'">
+    <h2 v-if="!embedded" class="page-title">多备件套件</h2>
 
     <div class="toolbar">
       <el-button v-if="auth.hasPermission('part.create')" type="primary" @click="openCreate">

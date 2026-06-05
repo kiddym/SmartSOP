@@ -151,13 +151,13 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/inventory/parts',
     name: 'inventory-parts',
-    component: () => import('@/views/inventory/PartsView.vue'),
+    component: () => import('@/views/inventory/PartsHubView.vue'),
     meta: { title: '备件库存', requiresAuth: true, requiredPermission: 'part.view' },
   },
   {
     path: '/inventory/parts/kits',
     name: 'inventory-multi-parts',
-    component: () => import('@/views/inventory/MultiPartsView.vue'),
+    component: () => import('@/views/inventory/PartsHubView.vue'),
     meta: { title: '多备件套件', requiresAuth: true, requiredPermission: 'part.view' },
   },
   { path: '/inventory/multi-parts', redirect: '/inventory/parts/kits' },

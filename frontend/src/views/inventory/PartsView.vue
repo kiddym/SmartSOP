@@ -15,6 +15,8 @@ import { useAuthStore } from '@/store/auth'
 
 const auth = useAuthStore()
 
+defineProps<{ embedded?: boolean }>()
+
 // ── state ──────────────────────────────────────────────────
 const loading = ref(false)
 const parts = ref<PartRead[]>([])
@@ -220,8 +222,8 @@ async function handleDelete(row: PartRead) {
 </script>
 
 <template>
-  <div class="page">
-    <h2 class="page-title">备件库存</h2>
+  <div :class="embedded ? '' : 'page'">
+    <h2 v-if="!embedded" class="page-title">备件库存</h2>
 
     <!-- toolbar -->
     <div class="toolbar">
