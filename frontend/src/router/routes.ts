@@ -123,6 +123,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '请求表单字段', requiresAuth: true },
   },
   {
+    path: '/admin/work-order-fields',
+    name: 'work-order-fields',
+    component: () => import('@/views/settings/WorkOrderFieldsView.vue'),
+    meta: { title: '工单表单字段', requiresAuth: true },
+  },
+  {
     path: '/admin/heading-rules',
     name: 'heading-rules',
     component: () => import('@/views/settings/HeadingRulesView.vue'),

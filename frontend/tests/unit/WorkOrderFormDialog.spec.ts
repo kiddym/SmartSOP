@@ -23,6 +23,10 @@ vi.mock('@/api/procedures', () => ({
 vi.mock('@/api/workOrderCategories', () => ({
   listWorkOrderCategories: vi.fn().mockResolvedValue([{ id: 'c1', name: '常规' }]),
 }))
+vi.mock('@/api/fieldConfigurations', () => ({
+  getFieldConfig: vi.fn().mockResolvedValue([]),
+  putFieldConfig: vi.fn(),
+}))
 
 import WorkOrderFormDialog from '@/components/workorder/WorkOrderFormDialog.vue'
 import type { WorkOrderRead } from '@/types/workOrder'
