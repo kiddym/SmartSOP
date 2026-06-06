@@ -16,7 +16,7 @@ from app.models.request_status import RequestStatus, can_transition
 from app.models.work_order import WorkOrder
 from app.schemas.request import RequestApprove, RequestCreate, RequestUpdate
 from app.schemas.work_order import WorkOrderCreate
-from app.services import sequence_service
+from app.services import custom_field_service, sequence_service
 
 
 def _log(
@@ -45,6 +45,7 @@ def _log(
 def create_request(
     db: Session, payload: RequestCreate, company_id: str, actor_user_id: str | None
 ) -> Request:
+    custom_field_service.validate_values(db, "request", payload.custom_values)
     seq = sequence_service.next_value(db, "request", company_id)
     r = Request(
         custom_id=sequence_service.format_custom_id("RQ", seq),
@@ -54,6 +55,7 @@ def create_request(
         due_date=payload.due_date,
         asset_id=payload.asset_id,
         location_id=payload.location_id,
+        custom_values=payload.custom_values,
         company_id=company_id,
     )
     db.add(r)
@@ -100,8 +102,14 @@ def _assert_pending(r: Request) -> None:
 
 def update_request(db: Session, r: Request, payload: RequestUpdate) -> Request:
     _assert_pending(r)
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    # custom_values 不能走通用 setattr 循环（会整体覆盖且绕过校验），单独处理
+    custom_values = data.pop("custom_values", None)
+    for k, v in data.items():
         setattr(r, k, v)
+    if custom_values is not None:
+        custom_field_service.validate_values(db, "request", custom_values)
+        r.custom_values = {**(r.custom_values or {}), **custom_values}
     db.commit()
     db.refresh(r)
     return r

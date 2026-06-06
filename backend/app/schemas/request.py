@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -18,6 +19,7 @@ class RequestCreate(BaseModel):
     due_date: date | None = None
     asset_id: str | None = None
     location_id: str | None = None
+    custom_values: dict[str, Any] = {}
 
 
 class RequestUpdate(BaseModel):
@@ -27,6 +29,7 @@ class RequestUpdate(BaseModel):
     due_date: date | None = None
     asset_id: str | None = None
     location_id: str | None = None
+    custom_values: dict[str, Any] | None = None
 
 
 class RequestApprove(BaseModel):
@@ -58,6 +61,7 @@ class RequestRead(BaseModel):
     resolution_note: str
     resolved_by_user_id: str | None = None
     resolved_at: datetime | None = None
+    custom_values: dict[str, Any] = {}
 
 
 class CommentCreate(BaseModel):
