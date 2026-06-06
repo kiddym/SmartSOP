@@ -30,3 +30,6 @@ class Meter(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     location_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_location.id", ondelete="RESTRICT"), index=True
     )
+    meter_category_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("tb_meter_category.id", ondelete="SET NULL"), index=True
+    )

@@ -39,6 +39,12 @@ vi.mock('@/api/locations', () => ({
 vi.mock('@/api/users', () => ({
   listUsers: vi.fn().mockResolvedValue([{ id: 'u1', name: '张三' }]),
 }))
+vi.mock('@/api/meterCategories', () => ({
+  listMeterCategories: vi.fn().mockResolvedValue([{ id: 'mc1', name: '温度', description: null }]),
+  createMeterCategory: vi.fn(),
+  updateMeterCategory: vi.fn(),
+  deleteMeterCategory: vi.fn(),
+}))
 vi.mock('@/api/teams', () => ({
   listTeams: vi.fn().mockResolvedValue([{ id: 't1', name: '机修组' }]),
 }))
@@ -63,6 +69,7 @@ const meter1 = {
   update_frequency_days: 30,
   asset_id: 'a1',
   location_id: 'l1',
+  meter_category_id: 'mc1',
 }
 const reading1 = {
   id: 'rd1',
@@ -192,5 +199,30 @@ describe('MetersView', () => {
     const w = mountView()
     await flushPromises()
     expect(w.findAll('.el-button').find((b) => b.text() === '新建计量')).toBeFalsy()
+  })
+
+  it('加载分类并在列表显示分类名', async () => {
+    const w = mountView()
+    await flushPromises()
+    // 分类列显示名称
+    expect(w.text()).toContain('温度')
+    // 管理分类按钮存在（meter_category.view 门控，mock 始终 true）
+    expect(w.findAll('.el-button').find((b) => b.text() === '管理分类')).toBeTruthy()
+  })
+
+  it('编辑回填分类并提交携带 meter_category_id', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openEdit(meter1)
+    await flushPromises()
+    expect(vm.metaForm.meter_category_id).toBe('mc1')
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(um).toHaveBeenCalled()
+    expect(um.mock.calls[0][1]).toMatchObject({ meter_category_id: 'mc1' })
   })
 })

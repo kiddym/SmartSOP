@@ -17,7 +17,7 @@ PERMISSION_GROUPS: list[tuple[str, list[str]]] = [
     ("工时分类", perms._TIME_CATEGORY),
     ("请求", perms._REQUEST),
     ("预防性维护", perms._PREVENTIVE_MAINTENANCE),
-    ("计量", perms._METER + perms._READING),
+    ("计量", perms._METER + perms._READING + perms._METER_CATEGORY),
     ("备件", perms._PART + perms._PART_CATEGORY),
     ("供应商客户", perms._VENDOR + perms._CUSTOMER),
     ("采购", perms._PURCHASE_ORDER + perms._PURCHASE_ORDER_CATEGORY),
@@ -80,6 +80,8 @@ PERMISSION_LABELS: dict[str, str] = {
     perms.METER_DELETE: "计量点-删除",
     perms.READING_VIEW: "读数-查看",
     perms.READING_CREATE: "读数-录入",
+    perms.METER_CATEGORY_VIEW: "计量分类-查看",
+    perms.METER_CATEGORY_MANAGE: "计量分类-管理",
     # 备件
     perms.PART_VIEW: "备件-查看",
     perms.PART_CREATE: "备件-创建",

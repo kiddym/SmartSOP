@@ -39,6 +39,7 @@ from app.routers import (
     folders,
     heading_rules,
     locations,
+    meter_categories,
     meters,
     multi_parts,
     nodes,
@@ -137,6 +138,7 @@ app.include_router(work_orders.router)
 app.include_router(requests.router)
 app.include_router(preventive_maintenances.router)
 app.include_router(meters.router)
+app.include_router(meter_categories.router)
 app.include_router(part_categories.router)
 app.include_router(parts.router)
 app.include_router(multi_parts.router)

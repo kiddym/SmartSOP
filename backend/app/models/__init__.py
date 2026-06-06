@@ -27,6 +27,7 @@ from app.models.heading_rule import HeadingStyleRule
 from app.models.location import Location, LocationTeam, LocationUser
 from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
 from app.models.meter import Meter
+from app.models.meter_category import MeterCategory
 from app.models.meter_reading import MeterReading
 from app.models.meter_trigger import MeterTrigger, MeterTriggerAssignee, MeterTriggerTeam
 from app.models.multi_part import MultiPart, MultiPartItem
@@ -88,12 +89,14 @@ __all__ = [
     "Folder",
     "FolderAuditLog",
     "FolderSequence",
+    "FormFieldConfig",
     "HeadingLearningEvent",
     "HeadingStyleRule",
     "Location",
     "LocationTeam",
     "LocationUser",
     "Meter",
+    "MeterCategory",
     "MeterReading",
     "MeterTrigger",
     "MeterTriggerAssignee",
@@ -119,7 +122,6 @@ __all__ = [
     "PreventiveMaintenance",
     "Procedure",
     "ProcedureAsset",
-    "FormFieldConfig",
     "ProcedureAssetReference",
     "ProcedureAuditLog",
     "ProcedureField",

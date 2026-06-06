@@ -17,6 +17,7 @@ class MeterCreate(BaseModel):
     update_frequency_days: int | None = Field(default=None, ge=1)
     asset_id: str | None = None
     location_id: str | None = None
+    meter_category_id: str | None = None
 
 
 class MeterUpdate(BaseModel):
@@ -25,6 +26,7 @@ class MeterUpdate(BaseModel):
     update_frequency_days: int | None = Field(default=None, ge=1)
     asset_id: str | None = None
     location_id: str | None = None
+    meter_category_id: str | None = None
 
 
 class MeterRead(BaseModel):
@@ -36,6 +38,7 @@ class MeterRead(BaseModel):
     update_frequency_days: int | None = None
     asset_id: str | None = None
     location_id: str | None = None
+    meter_category_id: str | None = None
 
 
 class MeterReadingCreate(BaseModel):

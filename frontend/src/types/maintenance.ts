@@ -102,6 +102,7 @@ export interface MeterRead {
   update_frequency_days: number | null
   asset_id: string | null
   location_id: string | null
+  meter_category_id: string | null
 }
 export interface MeterCreate {
   name: string
@@ -109,8 +110,23 @@ export interface MeterCreate {
   update_frequency_days?: number | null
   asset_id?: string | null
   location_id?: string | null
+  meter_category_id?: string | null
 }
 export type MeterUpdate = Partial<MeterCreate>
+
+export interface MeterCategoryRead {
+  id: string
+  name: string
+  description: string | null
+}
+export interface MeterCategoryCreate {
+  name: string
+  description?: string | null
+}
+export interface MeterCategoryUpdate {
+  name?: string
+  description?: string | null
+}
 
 export interface MeterReadingRead {
   id: string

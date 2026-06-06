@@ -30,6 +30,7 @@ def create_meter(
         update_frequency_days=payload.update_frequency_days,
         asset_id=payload.asset_id,
         location_id=payload.location_id,
+        meter_category_id=payload.meter_category_id,
         company_id=company_id,
     )
     db.add(m)
