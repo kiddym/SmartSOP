@@ -40,6 +40,15 @@ class CompanySettingsOut(BaseModel):
     timezone: str
     default_currency_code: str
     auto_assign: bool
+    language: str
+    business_type: str | None = None
+    wo_update_for_requesters: bool
+    disable_closed_wo_notification: bool
+    ask_feedback_on_wo_closed: bool
+    labor_cost_in_total_cost: bool
+    simplified_work_order: bool
+    days_before_pm_notification: int
+    auto_assign_requests: bool
 
 
 class CompanySettingsUpdate(BaseModel):
@@ -47,3 +56,12 @@ class CompanySettingsUpdate(BaseModel):
     timezone: str | None = Field(default=None, max_length=64)
     default_currency_code: str | None = Field(default=None, max_length=8)
     auto_assign: bool | None = None
+    language: str | None = Field(default=None, max_length=16)
+    business_type: str | None = Field(default=None, max_length=64)
+    wo_update_for_requesters: bool | None = None
+    disable_closed_wo_notification: bool | None = None
+    ask_feedback_on_wo_closed: bool | None = None
+    labor_cost_in_total_cost: bool | None = None
+    simplified_work_order: bool | None = None
+    days_before_pm_notification: int | None = Field(default=None, ge=0)
+    auto_assign_requests: bool | None = None

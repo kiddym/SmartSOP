@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import enum
 
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, Integer, String
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,6 +25,16 @@ class Company(Base, UUIDMixin, TimestampMixin):
         SAEnum(CompanyStatus), nullable=False, default=CompanyStatus.active
     )
     locale: Mapped[str] = mapped_column(String(16), nullable=False, default="zh-CN")
+    # Company profile (optional, informational).
+    address: Mapped[str | None] = mapped_column(String(255), default=None)
+    city: Mapped[str | None] = mapped_column(String(128), default=None)
+    state: Mapped[str | None] = mapped_column(String(128), default=None)
+    zip_code: Mapped[str | None] = mapped_column(String(32), default=None)
+    phone: Mapped[str | None] = mapped_column(String(40), default=None)
+    email: Mapped[str | None] = mapped_column(String(255), default=None)
+    website: Mapped[str | None] = mapped_column(String(255), default=None)
+    employees_count: Mapped[int | None] = mapped_column(Integer, default=None)
+    logo_url: Mapped[str | None] = mapped_column(String(512), default=None)
     # Reserved: platform-operator org (Phase 0: always False, no UI).
     is_platform_admin_org: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Billing (Phase 6): default free/active; platform admin 手动改档。

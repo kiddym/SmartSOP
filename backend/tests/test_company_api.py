@@ -31,3 +31,31 @@ def test_update_company(client):
 
 def test_company_me_requires_auth(client):
     assert client.get("/api/v1/companies/me").status_code == 401
+
+
+def test_update_company_profile_fields(client):
+    t = _admin(client)
+    r = client.patch(
+        "/api/v1/companies/me",
+        headers=_h(t),
+        json={
+            "address": "1 Market St",
+            "phone": "+1-555-0199",
+            "website": "https://acme.example",
+            "email": "ops@acme.example",
+            "employees_count": 120,
+            "logo_url": "https://cdn.example/logo.png",
+            "city": "Metropolis",
+            "state": "CA",
+            "zip_code": "90001",
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["address"] == "1 Market St"
+    assert body["employees_count"] == 120
+    assert body["city"] == "Metropolis"
+    # 持久化
+    fetched = client.get("/api/v1/companies/me", headers=_h(t)).json()
+    assert fetched["website"] == "https://acme.example"
+    assert fetched["zip_code"] == "90001"
