@@ -9,8 +9,12 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'w1' } }),
 }))
 
-const { gw, tr } = vi.hoisted(() => ({ gw: vi.fn(), tr: vi.fn() }))
-vi.mock('@/api/workOrders', () => ({ getWorkOrder: gw, transitionWorkOrder: tr }))
+const { gw, tr, dwr } = vi.hoisted(() => ({ gw: vi.fn(), tr: vi.fn(), dwr: vi.fn() }))
+vi.mock('@/api/workOrders', () => ({
+  getWorkOrder: gw,
+  transitionWorkOrder: tr,
+  downloadWorkOrderReport: dwr,
+}))
 // 各 tab stub，隔离详情壳测试
 vi.mock('@/components/workorder/OverviewTab.vue', () => ({
   default: {
@@ -87,6 +91,7 @@ beforeEach(() => {
   push.mockReset()
   gw.mockReset().mockResolvedValue(wo)
   tr.mockReset().mockResolvedValue({ ...wo, status: 'IN_PROGRESS' })
+  dwr.mockReset().mockResolvedValue(undefined)
 })
 afterEach(() => {
   document.body.innerHTML = ''
@@ -120,5 +125,22 @@ describe('WorkOrderDetailView', () => {
     const w = mountView()
     await flushPromises()
     expect(w.findAll('.el-button').find((b) => b.text() === '开始')).toBeFalsy()
+  })
+
+  it('点「生成 PDF 报告」调 downloadWorkOrderReport(id, custom_id)', async () => {
+    const w = mountView()
+    await flushPromises()
+    const btn = w.findAll('.el-button').find((b) => b.text().includes('生成 PDF 报告'))
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(dwr).toHaveBeenCalledWith('w1', 'WO-001')
+  })
+
+  it('无 view 权限时不显示 PDF 报告按钮', async () => {
+    authState.can = false
+    const w = mountView()
+    await flushPromises()
+    expect(w.findAll('.el-button').find((b) => b.text().includes('生成 PDF 报告'))).toBeFalsy()
   })
 })

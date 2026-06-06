@@ -85,3 +85,16 @@ export const deleteAdditionalCost = (id: string, costId: string) =>
   http.delete(`/work-orders/${id}/additional-costs/${costId}`).then(() => undefined)
 export const getCostSummary = (id: string) =>
   http.get<CostSummaryRead>(`/work-orders/${id}/cost-summary`).then((r) => r.data)
+
+/** 拉取工单 PDF 报告（blob，带 Bearer 鉴权）并在浏览器触发下载。 */
+export const downloadWorkOrderReport = async (id: string, customId: string) => {
+  const res = await http.get(`/work-orders/${id}/report`, { responseType: 'blob' })
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `WO-${customId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

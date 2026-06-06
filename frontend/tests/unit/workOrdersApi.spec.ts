@@ -35,6 +35,7 @@ import {
   updateAdditionalCost,
   deleteAdditionalCost,
   getCostSummary,
+  downloadWorkOrderReport,
 } from '@/api/workOrders'
 import {
   listWorkOrderCategories,
@@ -163,6 +164,15 @@ describe('work orders api', () => {
   it('getCostSummary GET /cost-summary', async () => {
     await getCostSummary('w1')
     expect(get).toHaveBeenCalledWith('/work-orders/w1/cost-summary')
+  })
+  it('downloadWorkOrderReport GET /report as blob and triggers download', async () => {
+    get.mockResolvedValue({ data: new Blob(['%PDF'], { type: 'application/pdf' }) })
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:x') as unknown as typeof URL.createObjectURL
+    URL.revokeObjectURL = vi.fn() as unknown as typeof URL.revokeObjectURL
+    await downloadWorkOrderReport('w1', 'WO000001')
+    expect(get).toHaveBeenCalledWith('/work-orders/w1/report', { responseType: 'blob' })
+    expect(URL.createObjectURL).toHaveBeenCalled()
+    expect(URL.revokeObjectURL).toHaveBeenCalled()
   })
 
   it('listWorkOrderCategories GET /work-order-categories', async () => {

@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getWorkOrder, transitionWorkOrder } from '@/api/workOrders'
+import { getWorkOrder, transitionWorkOrder, downloadWorkOrderReport } from '@/api/workOrders'
 import { WO_STATUS_LABELS, WO_STATUS_TAG } from '@/utils/workOrder'
 import { useAuthStore } from '@/store/auth'
 import OverviewTab from '@/components/workorder/OverviewTab.vue'
@@ -78,7 +78,21 @@ async function doTransition(t: { to: WorkOrderStatus; label: string }) {
   }
 }
 
-defineExpose({ doTransition, load, wo })
+// ── PDF 报告 ───────────────────────────────────────────────
+const reportLoading = ref(false)
+async function downloadReport() {
+  if (!wo.value) return
+  reportLoading.value = true
+  try {
+    await downloadWorkOrderReport(wo.value.id, wo.value.custom_id)
+  } catch {
+    ElMessage.error('生成 PDF 报告失败，请重试')
+  } finally {
+    reportLoading.value = false
+  }
+}
+
+defineExpose({ doTransition, load, wo, downloadReport })
 </script>
 
 <template>
@@ -92,11 +106,20 @@ defineExpose({ doTransition, load, wo })
           {{ WO_STATUS_LABELS[wo.status] }}
         </el-tag>
       </div>
-      <div v-if="auth.hasPermission('work_order.edit')" class="header-actions">
-        <el-button v-for="t in transitions" :key="t.to" type="primary" @click="doTransition(t)">
-          {{ t.label }}
+      <div class="header-actions">
+        <el-button
+          v-if="auth.hasPermission('work_order.view')"
+          :loading="reportLoading"
+          @click="downloadReport"
+        >
+          生成 PDF 报告
         </el-button>
-        <el-button @click="editVisible = true">编辑</el-button>
+        <template v-if="auth.hasPermission('work_order.edit')">
+          <el-button v-for="t in transitions" :key="t.to" type="primary" @click="doTransition(t)">
+            {{ t.label }}
+          </el-button>
+          <el-button @click="editVisible = true">编辑</el-button>
+        </template>
       </div>
     </div>
 
