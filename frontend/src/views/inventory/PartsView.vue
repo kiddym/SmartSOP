@@ -22,6 +22,7 @@ import type {
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
+import { exportParts } from '@/api/exports'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -282,6 +283,9 @@ async function handleDelete(row: PartRead) {
         @click="categoryDialogVisible = true"
       >
         管理分类
+      </el-button>
+      <el-button v-if="auth.hasPermission('part.view')" @click="exportParts">
+        导出 CSV
       </el-button>
       <span class="switch-label">仅看低库存</span>
       <el-switch v-model="lowStockOnly" @change="fetchParts" />

@@ -10,6 +10,7 @@ import { listUsers } from '@/api/users'
 import WorkOrderFormDialog from '@/components/workorder/WorkOrderFormDialog.vue'
 import WorkOrderCategoryManageDialog from '@/components/maintenance/WorkOrderCategoryManageDialog.vue'
 import { useAuthStore } from '@/store/auth'
+import { exportWorkOrders } from '@/api/exports'
 import { formatDate } from '@/utils/format'
 import { WO_STATUS_LABELS, WO_STATUS_TAG } from '@/utils/workOrder'
 import type { WorkOrderRead, WorkOrderStatus, WorkOrderPriority } from '@/types/workOrder'
@@ -158,6 +159,9 @@ defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus
         @click="categoryDialogVisible = true"
       >
         管理分类
+      </el-button>
+      <el-button v-if="auth.hasPermission('work_order.view')" @click="exportWorkOrders">
+        导出 CSV
       </el-button>
       <el-select
         v-model="filterStatus"

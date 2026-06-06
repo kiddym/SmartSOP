@@ -11,6 +11,7 @@ import type { LocationRead, LocationCreate, LocationUpdate } from '@/types/maind
 import type { UserRead, TeamRead } from '@/types/platform'
 import type { VendorMini, CustomerMini } from '@/types/inventory'
 import { useAuthStore } from '@/store/auth'
+import { exportLocations } from '@/api/exports'
 import { buildTree, collectDescendantIds } from '@/utils/tree'
 
 const auth = useAuthStore()
@@ -220,6 +221,9 @@ async function handleDelete(row: LocationRead) {
     <div class="toolbar">
       <el-button v-if="auth.hasPermission('location.create')" type="primary" @click="openCreate">
         新建位置
+      </el-button>
+      <el-button v-if="auth.hasPermission('location.view')" @click="exportLocations">
+        导出 CSV
       </el-button>
     </div>
 

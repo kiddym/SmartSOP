@@ -24,6 +24,7 @@ import { useAuthStore } from '@/store/auth'
 import { buildTree, collectDescendantIds } from '@/utils/tree'
 import AssetCategoryManageDialog from '@/components/maindata/AssetCategoryManageDialog.vue'
 import AssetDowntimeDialog from '@/components/maindata/AssetDowntimeDialog.vue'
+import { exportAssets } from '@/api/exports'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -366,6 +367,9 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
         @click="categoryDialogVisible = true"
       >
         管理分类
+      </el-button>
+      <el-button v-if="auth.hasPermission('asset.view')" @click="exportAssets">
+        导出 CSV
       </el-button>
     </div>
 

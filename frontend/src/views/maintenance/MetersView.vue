@@ -32,6 +32,7 @@ import type {
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
+import { exportMeters } from '@/api/exports'
 import { formatDateTime } from '@/utils/format'
 
 const auth = useAuthStore()
@@ -357,6 +358,9 @@ defineExpose({
         @click="categoryDialogVisible = true"
       >
         管理分类
+      </el-button>
+      <el-button v-if="auth.hasPermission('meter.view')" @click="exportMeters">
+        导出 CSV
       </el-button>
       <el-select
         v-model="filterAsset"

@@ -60,7 +60,7 @@ describe('maindata api', () => {
 
   it('listAssets GET /assets', async () => {
     await listAssets()
-    expect(get).toHaveBeenCalledWith('/assets')
+    expect(get).toHaveBeenCalledWith('/assets', { params: {} })
   })
   it('listAssetsMini GET /assets/mini', async () => {
     await listAssetsMini()
