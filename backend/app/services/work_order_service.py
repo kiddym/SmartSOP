@@ -27,8 +27,8 @@ from app.models.work_order_status import (
     can_transition,
 )
 from app.schemas.work_order import WorkOrderCreate, WorkOrderTransition, WorkOrderUpdate
+from app.services import custom_field_service, sequence_service
 from app.services import notification_service as _notif
-from app.services import sequence_service
 
 
 def _validate_category(db: Session, category_id: str | None, company_id: str) -> None:
@@ -105,6 +105,7 @@ def to_read(db: Session, wo: WorkOrder, viewer: User | None = None) -> dict[str,
         "assignee_ids": assignee_ids(db, wo.id),
         "team_ids": team_ids(db, wo.id),
         "can_be_edited": can_edit_work_order(db, viewer, wo) if viewer is not None else False,
+        "custom_values": wo.custom_values or {},
     }
 
 
@@ -185,6 +186,7 @@ def create_work_order(
 ) -> WorkOrder:
     # spec §3.4 当前未定义 CREATE 活动类型，建单不写时间线；
     # actor_user_id 用于落 created_by_user_id（创建者归属，供分析归集）。
+    custom_field_service.validate_values(db, "work_order", payload.custom_values)
     _validate_category(db, payload.category_id, company_id)
     seq = sequence_service.next_value(db, "work_order", company_id)
     wo = WorkOrder(
@@ -200,6 +202,7 @@ def create_work_order(
         required_signature=payload.required_signature,
         created_by_user_id=actor_user_id,
         company_id=company_id,
+        custom_values=payload.custom_values,
     )
     db.add(wo)
     db.flush()
@@ -344,10 +347,15 @@ def update_work_order(
     db: Session, wo: WorkOrder, payload: WorkOrderUpdate, company_id: str
 ) -> WorkOrder:
     data = payload.model_dump(exclude_unset=True)
+    # custom_values 不能走通用 setattr 循环（会整体覆盖且绕过校验），单独处理
+    custom_values = data.pop("custom_values", None)
     if "category_id" in data:
         _validate_category(db, data["category_id"], company_id)
     for k, v in data.items():
         setattr(wo, k, v)
+    if custom_values is not None:
+        custom_field_service.validate_values(db, "work_order", custom_values)
+        wo.custom_values = {**(wo.custom_values or {}), **custom_values}
     db.commit()
     db.refresh(wo)
     return wo

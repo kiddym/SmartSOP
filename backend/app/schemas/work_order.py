@@ -25,6 +25,7 @@ class WorkOrderCreate(BaseModel):
     procedure_id: str | None = None
     # 完成是否强制签名
     required_signature: bool = False
+    custom_values: dict[str, Any] = {}
 
 
 class WorkOrderUpdate(BaseModel):
@@ -37,6 +38,7 @@ class WorkOrderUpdate(BaseModel):
     primary_user_id: str | None = None
     category_id: str | None = None
     required_signature: bool | None = None
+    custom_values: dict[str, Any] | None = None
 
 
 class WorkOrderTransition(BaseModel):
@@ -84,6 +86,7 @@ class WorkOrderRead(BaseModel):
     assignee_ids: list[str] = []
     team_ids: list[str] = []
     can_be_edited: bool = False
+    custom_values: dict[str, Any] = {}
 
 
 class CalendarEvent(BaseModel):

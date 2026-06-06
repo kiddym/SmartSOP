@@ -1,0 +1,81 @@
+"""WorkOrder custom_values 接入集成测试。
+
+本文件为 Tasks 6–9（asset/request/location/part）逐实体追加的起点。
+每个测试覆盖三要素：① 写前校验（未知 key / 必填缺失各 422）；
+② roundtrip（建单含值 → GET 取回）；③ update 走 key 级合并（保留归档字段值）。
+"""
+
+
+def _admin(client):
+    return client.post(
+        "/api/v1/auth/register",
+        json={"company_name": "Acme", "email": "a@acme.com", "password": "secret123", "name": "A"},
+    ).json()["access_token"]
+
+
+def _h(t):
+    return {"Authorization": f"Bearer {t}"}
+
+
+def _def(client, h, entity_type, key="note", field_type="text", required=False, options=None):
+    return client.post(
+        "/api/v1/custom-fields",
+        headers=h,
+        json={
+            "entity_type": entity_type,
+            "key": key,
+            "name": key,
+            "field_type": field_type,
+            "required": required,
+            "options": options or [],
+        },
+    ).json()
+
+
+# ---------------------------------------------------------------------------
+# WorkOrder
+# ---------------------------------------------------------------------------
+
+
+def test_work_order_custom_values_roundtrip(client):
+    h = _h(_admin(client))
+    _def(client, h, "work_order", key="note", field_type="text")
+    wo = client.post(
+        "/api/v1/work-orders", headers=h, json={"title": "T", "custom_values": {"note": "hello"}}
+    )
+    assert wo.status_code == 201, wo.text
+    wid = wo.json()["id"]
+    assert wo.json()["custom_values"] == {"note": "hello"}
+    got = client.get(f"/api/v1/work-orders/{wid}", headers=h).json()
+    assert got["custom_values"]["note"] == "hello"
+
+
+def test_work_order_unknown_key_422(client):
+    h = _h(_admin(client))
+    r = client.post(
+        "/api/v1/work-orders", headers=h, json={"title": "T", "custom_values": {"ghost": 1}}
+    )
+    assert r.status_code == 422
+
+
+def test_work_order_required_missing_422(client):
+    h = _h(_admin(client))
+    _def(client, h, "work_order", key="req", field_type="text", required=True)
+    r = client.post("/api/v1/work-orders", headers=h, json={"title": "T", "custom_values": {}})
+    assert r.status_code == 422
+
+
+def test_work_order_update_merges_preserving_archived(client):
+    h = _h(_admin(client))
+    _def(client, h, "work_order", key="a", field_type="text")
+    d2 = _def(client, h, "work_order", key="b", field_type="text")
+    wid = client.post(
+        "/api/v1/work-orders",
+        headers=h,
+        json={"title": "T", "custom_values": {"a": "1", "b": "2"}},
+    ).json()["id"]
+    client.patch(f"/api/v1/custom-fields/{d2['id']}/archive", headers=h)
+    # 表单只提交 active 字段 a；归档字段 b 的值应保留
+    client.patch(f"/api/v1/work-orders/{wid}", headers=h, json={"custom_values": {"a": "9"}})
+    got = client.get(f"/api/v1/work-orders/{wid}", headers=h).json()["custom_values"]
+    assert got == {"a": "9", "b": "2"}
