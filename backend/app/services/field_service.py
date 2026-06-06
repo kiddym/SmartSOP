@@ -19,7 +19,7 @@ from app.errors import bad_request, conflict, not_found, unprocessable
 from app.models.base import utcnow
 from app.models.field import ProcedureField
 from app.schemas.common import BatchDeleteFailure, BatchDeleteResult
-from app.schemas.field import FieldCreate, FieldOption, FieldUpdate, FieldValidation
+from app.schemas.field import FieldCreate, FieldUpdate, FieldValidation
 from app.services import field_validation as fv
 
 KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 小写字母开头 + 字母/数字/下划线（Q254）
@@ -138,7 +138,7 @@ def create(db: Session, payload: FieldCreate) -> ProcedureField:
     return field
 
 
-def _merge_options(old: list[dict[str, Any]], new: list[FieldOption]) -> list[dict[str, Any]]:
+def merge_options(old: list[dict[str, Any]], new: list[Any]) -> list[dict[str, Any]]:
     """options 删除软代理（Q255）：new 中不再出现的旧选项以 archived=True 保留。"""
     new_dicts = [o.model_dump() for o in new]
     new_values = {o["value"] for o in new_dicts}
@@ -161,7 +161,7 @@ def update(db: Session, field_id: str, payload: FieldUpdate) -> ProcedureField:
     field.description = payload.description
     field.required = payload.required
     field.default_value = payload.default_value
-    field.options = _merge_options(field.options, payload.options)
+    field.options = merge_options(field.options, payload.options)
     field.validation_rules = compile_form_to_schema(field.field_type, payload.validation)
     field.sort_order = payload.sort_order
     field.show_on_cover = payload.show_on_cover
