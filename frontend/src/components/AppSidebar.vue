@@ -36,6 +36,7 @@ import {
   Grid,
   Collection,
   Upload,
+  Operation,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
@@ -223,6 +224,12 @@ const rawGroups = computed<NavGroup[]>(() => [
         items: [
           { label: '系统设置', path: '/admin/settings', icon: Setting },
           { label: '字段管理', path: '/admin/fields', icon: Grid },
+          {
+            label: '工作流',
+            path: '/admin/workflows',
+            requiredPermission: 'workflow.view',
+            icon: Operation,
+          },
           { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
           { label: '数据导入', path: '/admin/imports', icon: Upload },
         ],

@@ -107,6 +107,10 @@ PURCHASE_ORDER_CATEGORY_MANAGE = "purchase_order_category.manage"
 # --- 分析与报表（Phase 4）---
 ANALYTICS_VIEW = "analytics.view"
 
+# --- 工作流引擎 ---
+WORKFLOW_VIEW = "workflow.view"
+WORKFLOW_MANAGE = "workflow.manage"
+
 _PLATFORM = [
     USER_CREATE,
     USER_VIEW,
@@ -171,6 +175,7 @@ _PURCHASE_ORDER = [
 ]
 _PURCHASE_ORDER_CATEGORY = [PURCHASE_ORDER_CATEGORY_VIEW, PURCHASE_ORDER_CATEGORY_MANAGE]
 _ANALYTICS = [ANALYTICS_VIEW]
+_WORKFLOW = [WORKFLOW_VIEW, WORKFLOW_MANAGE]
 
 ALL_PERMISSIONS: list[str] = (
     _PLATFORM
@@ -191,6 +196,7 @@ ALL_PERMISSIONS: list[str] = (
     + _PURCHASE_ORDER
     + _PURCHASE_ORDER_CATEGORY
     + _ANALYTICS
+    + _WORKFLOW
 )
 
 BUILTIN_ROLES: list[dict[str, Any]] = [

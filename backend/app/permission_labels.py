@@ -23,6 +23,7 @@ PERMISSION_GROUPS: list[tuple[str, list[str]]] = [
     ("采购", perms._PURCHASE_ORDER + perms._PURCHASE_ORDER_CATEGORY),
     ("成本分类", perms._COST_CATEGORY),
     ("分析", perms._ANALYTICS),
+    ("工作流", perms._WORKFLOW),
 ]
 
 # 每个 code → 中文 label（「<实体>-<动作>」）。
@@ -112,6 +113,9 @@ PERMISSION_LABELS: dict[str, str] = {
     perms.COST_CATEGORY_MANAGE: "成本分类-管理",
     # 分析
     perms.ANALYTICS_VIEW: "分析-查看",
+    # 工作流
+    perms.WORKFLOW_VIEW: "工作流-查看",
+    perms.WORKFLOW_MANAGE: "工作流-管理",
 }
 
 # 自检：分组并集 == ALL_PERMISSIONS，且 label 全覆盖（防止 permissions.py 漂移）。

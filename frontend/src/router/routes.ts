@@ -142,6 +142,12 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/settings/heading-rules', redirect: '/admin/heading-rules' },
   {
+    path: '/admin/workflows',
+    name: 'admin-workflows',
+    component: () => import('@/views/settings/WorkflowsView.vue'),
+    meta: { title: '工作流', requiresAuth: true, requiredPermission: 'workflow.view' },
+  },
+  {
     path: '/admin/imports',
     name: 'admin-imports',
     component: () => import('@/views/admin/ImportView.vue'),

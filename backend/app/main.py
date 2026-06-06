@@ -68,6 +68,7 @@ from app.routers import (
     work_order_categories,
     work_order_costs,
     work_orders,
+    workflows,
 )
 from app.routers import permissions as permissions_router
 from app.routers import settings as settings_router
@@ -183,6 +184,7 @@ app.include_router(users.router)
 app.include_router(currencies.router)
 app.include_router(platform.router)
 app.include_router(billing.router)
+app.include_router(workflows.router)
 
 
 @app.get("/healthz", tags=["health"])

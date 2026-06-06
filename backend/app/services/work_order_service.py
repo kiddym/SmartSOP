@@ -204,6 +204,10 @@ def create_work_order(
         db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=uid, company_id=company_id))
     for tid in dict.fromkeys(payload.team_ids):
         db.add(WorkOrderTeam(work_order_id=wo.id, team_id=tid, company_id=company_id))
+    # 工作流引擎：WORK_ORDER_CREATED（同事务、commit 前；引擎仅改字段不递归）
+    from app.services import workflow_engine
+
+    workflow_engine.run_for_work_order(db, wo, workflow_engine.WORK_ORDER_CREATED, company_id)
     db.commit()
     db.refresh(wo)
     return wo
@@ -384,6 +388,13 @@ def transition(
     )
     _notif.on_wo_status_changed(
         db, wo, from_status=src.value, to_status=dst.value, actor_user_id=actor_user_id
+    )
+    # 工作流引擎：WORK_ORDER_STATUS_CHANGED（针对转移后的新状态评估）。
+    # 引擎内 set_status 直改字段、不回调 transition，故不会再触发本工作流（无递归）。
+    from app.services import workflow_engine
+
+    workflow_engine.run_for_work_order(
+        db, wo, workflow_engine.WORK_ORDER_STATUS_CHANGED, company_id
     )
     db.commit()
     db.refresh(wo)

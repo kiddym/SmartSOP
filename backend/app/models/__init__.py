@@ -67,6 +67,7 @@ from app.models.work_order_additional_cost import WorkOrderAdditionalCost
 from app.models.work_order_category import WorkOrderCategory
 from app.models.work_order_labor import WorkOrderLabor
 from app.models.work_order_step_result import WorkOrderStepResult
+from app.models.workflow import Workflow
 
 __all__ = [
     "Asset",
@@ -158,4 +159,5 @@ __all__ = [
     "WorkOrderLabor",
     "WorkOrderStepResult",
     "WorkOrderTeam",
+    "Workflow",
 ]
