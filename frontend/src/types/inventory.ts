@@ -21,6 +21,7 @@ export interface PartRead {
   pm_ids: string[]
   vendor_ids: string[]
   customer_ids: string[]
+  custom_values: Record<string, unknown>
 }
 export interface PartCreate {
   name: string
@@ -41,6 +42,7 @@ export interface PartCreate {
   pm_ids?: string[]
   vendor_ids?: string[]
   customer_ids?: string[]
+  custom_values?: Record<string, unknown>
 }
 export type PartUpdate = Partial<PartCreate>
 export interface PartMini {
