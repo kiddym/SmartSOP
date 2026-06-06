@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app import security
 from app.models.user import User, UserStatus
-from app.schemas.user import UserCreate, UserUpdate
+from app.schemas.user import SelfProfileUpdate, UserCreate, UserUpdate
 
 
 def create_user(db: Session, payload: UserCreate, company_id: str | None = None) -> User:
@@ -48,6 +48,17 @@ def update_user(db: Session, user_id: str, payload: UserUpdate) -> User | None:
     data = payload.model_dump(exclude_unset=True)
     if "password" in data:
         user.password_hash = security.hash_password(data.pop("password"))
+    for k, v in data.items():
+        setattr(user, k, v)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def update_self(db: Session, user: User, payload: SelfProfileUpdate) -> User:
+    # Self-service edit: only the whitelisted profile fields on the schema are
+    # applied. role_id/status/rate are not declared there and cannot be set.
+    data = payload.model_dump(exclude_unset=True)
     for k, v in data.items():
         setattr(user, k, v)
     db.commit()

@@ -40,6 +40,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '接受邀请' },
   },
   {
+    path: '/account/profile',
+    name: 'account-profile',
+    component: () => import('@/views/account/ProfileView.vue'),
+    meta: { title: '个人资料', requiresAuth: true },
+  },
+  {
     path: '/account/change-password',
     name: 'change-password',
     component: () => import('@/views/auth/ChangePasswordView.vue'),

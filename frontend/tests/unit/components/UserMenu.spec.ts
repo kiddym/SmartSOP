@@ -13,6 +13,7 @@ function makeRouter(): Router {
     routes: [
       { path: '/', name: 'home', component: { template: '<div/>' } },
       { path: '/login', name: 'login', component: { template: '<div/>' } },
+      { path: '/account/profile', name: 'account-profile', component: { template: '<div/>' } },
     ],
   })
 }
@@ -55,5 +56,20 @@ describe('UserMenu', () => {
     await flushPromises()
     expect(logoutSpy).toHaveBeenCalled()
     expect(push).toHaveBeenCalledWith({ name: 'login' })
+  })
+
+  // el-dropdown teleports its menu to document.body (popper not attached in jsdom),
+  // so we drive the exposed goProfile() directly instead of clicking the item.
+  it('goProfile 跳转个人资料页', async () => {
+    const router = makeRouter()
+    await router.push('/')
+    await router.isReady()
+    const s = useAuthStore()
+    s.user = { id: '1', email: 'a@b.c', name: 'Neo', company_id: 'c', role_code: 'admin', permissions: [] }
+    const push = vi.spyOn(router, 'push')
+    const w = mount(UserMenu, { global: { plugins: [ElementPlus, i18n, router] } })
+    await (w.vm as unknown as { goProfile: () => Promise<void> }).goProfile()
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith({ name: 'account-profile' })
   })
 })

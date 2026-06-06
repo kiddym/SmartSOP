@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app import permissions
-from app.deps import get_db, require_permission
+from app.deps import get_current_user, get_db, require_permission
 from app.errors import bad_request, not_found
 from app.models.user import User, UserStatus
 from app.schemas.platform import InviteResult, InviteUserRequest
-from app.schemas.user import UserCreate, UserRead, UserUpdate
+from app.schemas.user import SelfProfileUpdate, UserCreate, UserRead, UserUpdate
 from app.services import invitation_service, user_service
 
 router = APIRouter(prefix="/api/v1/users", tags=["users"])
@@ -57,6 +57,23 @@ def list_users(
     current_user: User = Depends(require_permission(permissions.USER_VIEW)),
 ) -> list[User]:
     return user_service.list_users(db)
+
+
+# NOTE: /me must be registered before /{user_id} so "me" is not parsed as an id.
+@router.get("/me", response_model=UserRead)
+def get_my_profile(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return current_user
+
+
+@router.patch("/me", response_model=UserRead)
+def update_my_profile(
+    payload: SelfProfileUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> User:
+    return user_service.update_self(db, current_user, payload)
 
 
 @router.get("/{user_id}", response_model=UserRead)

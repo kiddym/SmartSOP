@@ -9,8 +9,21 @@ export interface UserRead {
   status: UserStatus
   role_id: string | null
   locale: string
+  phone: string | null
+  job_title: string | null
+  rate: string | null
+  avatar_url: string | null
   last_login_at: string | null
   created_at: string
+}
+
+// 自助资料编辑（仅白名单字段，对齐后端 SelfProfileUpdate）。
+export interface SelfProfileUpdate {
+  name?: string
+  phone?: string | null
+  job_title?: string | null
+  avatar_url?: string | null
+  locale?: string
 }
 
 export interface UserCreate {

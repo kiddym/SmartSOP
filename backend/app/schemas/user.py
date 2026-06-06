@@ -32,6 +32,17 @@ class UserUpdate(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=512)
 
 
+class SelfProfileUpdate(BaseModel):
+    """Self-service profile edit. Excludes role_id/status/rate (admin-only)."""
+
+    model_config = ConfigDict(extra="ignore")
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    phone: str | None = Field(default=None, max_length=40)
+    job_title: str | None = Field(default=None, max_length=128)
+    avatar_url: str | None = Field(default=None, max_length=512)
+    locale: str | None = Field(default=None, max_length=16)
+
+
 class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
