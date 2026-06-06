@@ -75,6 +75,7 @@ const pendingReq = {
   resolution_note: '',
   resolved_by_user_id: null,
   resolved_at: null,
+  custom_values: {},
 }
 const approvedReq = {
   ...pendingReq,
