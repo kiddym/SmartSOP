@@ -70,6 +70,8 @@ const pm1 = {
   start_date: '2026-06-01',
   frequency_unit: 'MONTH',
   frequency_value: 1,
+  due_date_delay: 3,
+  ends_on: '2026-12-31',
   next_due_date: '2026-07-01',
   is_enabled: true,
   last_generated_at: null,
@@ -120,6 +122,8 @@ describe('PreventiveMaintenancesView', () => {
     vm.form.start_date = '2026-06-10'
     vm.form.frequency_unit = 'WEEK'
     vm.form.frequency_value = 2
+    vm.form.due_date_delay = 7
+    vm.form.ends_on = '2027-01-01'
     await flushPromises()
     const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
       (b) => b.textContent?.trim() === '保存',
@@ -132,7 +136,28 @@ describe('PreventiveMaintenancesView', () => {
       start_date: '2026-06-10',
       frequency_unit: 'WEEK',
       frequency_value: 2,
+      due_date_delay: 7,
+      ends_on: '2027-01-01',
     })
+  })
+
+  it('编辑回填排程字段 due_date_delay/ends_on', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openEdit(pm1)
+    await flushPromises()
+    expect(vm.form.due_date_delay).toBe(3)
+    expect(vm.form.ends_on).toBe('2026-12-31')
+    vm.form.due_date_delay = 0
+    vm.form.ends_on = null
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(up).toHaveBeenCalled()
+    expect(up.mock.calls[0][1]).toMatchObject({ due_date_delay: 0, ends_on: null })
   })
 
   it('手动生成经确认调 generatePM', async () => {

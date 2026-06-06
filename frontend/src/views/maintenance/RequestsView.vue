@@ -18,6 +18,7 @@ import { listLocationsMini } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import { listTeams } from '@/api/teams'
 import { listProceduresMini } from '@/api/procedures'
+import { getFieldConfig } from '@/api/fieldConfigurations'
 import type {
   RequestRead,
   RequestStatus,
@@ -25,10 +26,11 @@ import type {
   ActivityRead,
   ProcedureMini,
 } from '@/types/maintenance'
-import type { AssetMini, LocationMini } from '@/types/maindata'
+import type { AssetMini, LocationMini, AssetStatus } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
 import { formatDateTime } from '@/utils/format'
+import EntityAttachments from '@/components/EntityAttachments.vue'
 
 const auth = useAuthStore()
 
@@ -55,6 +57,20 @@ const STATUS_OPTIONS = (Object.keys(STATUS_LABELS) as RequestStatus[]).map((v) =
   value: v,
   label: STATUS_LABELS[v],
 }))
+// 资产状态（审批联动用）。中文同资产模块一致。
+const ASSET_STATUS_LABELS: Record<AssetStatus, string> = {
+  OPERATIONAL: '运行中',
+  STANDBY: '待机',
+  MODERNIZATION: '改造中',
+  INSPECTION_SCHEDULED: '待巡检',
+  COMMISSIONING: '调试中',
+  EMERGENCY_SHUTDOWN: '紧急停机',
+  DOWN: '停机',
+}
+const ASSET_STATUS_OPTIONS = (Object.keys(ASSET_STATUS_LABELS) as AssetStatus[]).map((v) => ({
+  value: v,
+  label: ASSET_STATUS_LABELS[v],
+}))
 const PRIORITY_OPTIONS = (Object.keys(PRIORITY_LABELS) as WorkOrderPriority[]).map((v) => ({
   value: v,
   label: PRIORITY_LABELS[v],
@@ -77,6 +93,40 @@ const locationsMini = ref<LocationMini[]>([])
 const users = ref<UserRead[]>([])
 const teams = ref<TeamRead[]>([])
 const procedures = ref<ProcedureMini[]>([])
+
+// ── 请求表单字段配置（FieldConfiguration，form_key=REQUEST）──
+// 默认：全部字段可见、按原有规则（仅 title 必填）。加载失败时降级保持此默认，不阻断建单。
+const REQUEST_FIELDS = ['description', 'priority', 'due_date', 'asset', 'location'] as const
+type RequestField = (typeof REQUEST_FIELDS)[number]
+const fieldVisible = reactive<Record<RequestField, boolean>>({
+  description: true,
+  priority: true,
+  due_date: true,
+  asset: true,
+  location: true,
+})
+const fieldRequired = reactive<Record<RequestField, boolean>>({
+  description: false,
+  priority: false,
+  due_date: false,
+  asset: false,
+  location: false,
+})
+
+async function fetchFieldConfig() {
+  try {
+    const cfg = await getFieldConfig('REQUEST')
+    for (const item of cfg) {
+      if ((REQUEST_FIELDS as readonly string[]).includes(item.field_name)) {
+        const key = item.field_name as RequestField
+        fieldVisible[key] = item.visible
+        fieldRequired[key] = item.required
+      }
+    }
+  } catch {
+    // 降级：保持全部可见、仅 title 必填的默认配置；不打断页面加载与建单。
+  }
+}
 
 const filterStatus = ref<RequestStatus | ''>('')
 const filterPriority = ref<WorkOrderPriority | ''>('')
@@ -138,6 +188,7 @@ onMounted(async () => {
     fetchUsers(),
     fetchTeams(),
     fetchProcedures(),
+    fetchFieldConfig(),
   ])
 })
 
@@ -197,9 +248,23 @@ function openEdit(row: RequestRead) {
   dialogVisible.value = true
 }
 
+// 按配置校验可见且必填的字段（title 不受配置影响，始终必填）。
+function validateRequiredFields(): string | null {
+  if (!form.title.trim()) return '标题'
+  if (fieldVisible.description && fieldRequired.description && !form.description.trim())
+    return '描述'
+  if (fieldVisible.priority && fieldRequired.priority && (!form.priority || form.priority === 'NONE'))
+    return '优先级'
+  if (fieldVisible.due_date && fieldRequired.due_date && !form.due_date) return '截止日期'
+  if (fieldVisible.asset && fieldRequired.asset && !form.asset_id) return '资产'
+  if (fieldVisible.location && fieldRequired.location && !form.location_id) return '位置'
+  return null
+}
+
 async function submitForm() {
-  if (!form.title.trim()) {
-    ElMessage.warning('请填写标题')
+  const missing = validateRequiredFields()
+  if (missing) {
+    ElMessage.warning(`请填写${missing}`)
     return
   }
   const payload = {
@@ -238,6 +303,7 @@ interface ApproveFormState {
   team_ids: string[]
   procedure_id: string | null
   note: string
+  asset_status: AssetStatus | null
 }
 const approveForm = reactive<ApproveFormState>({
   primary_user_id: null,
@@ -245,7 +311,10 @@ const approveForm = reactive<ApproveFormState>({
   team_ids: [],
   procedure_id: null,
   note: '',
+  asset_status: null,
 })
+// 当前审批请求关联的资产 id（决定是否显示资产状态选择）。
+const approvingAssetId = ref<string | null>(null)
 
 function openApprove(row: RequestRead) {
   approveForm.primary_user_id = null
@@ -253,7 +322,9 @@ function openApprove(row: RequestRead) {
   approveForm.team_ids = []
   approveForm.procedure_id = null
   approveForm.note = ''
+  approveForm.asset_status = null
   approvingId.value = row.id
+  approvingAssetId.value = row.asset_id
   approveVisible.value = true
 }
 
@@ -264,6 +335,9 @@ async function submitApprove() {
     assignee_ids: approveForm.assignee_ids,
     team_ids: approveForm.team_ids,
     procedure_id: approveForm.procedure_id || null,
+    // 仅当请求关联了资产且选择了状态时附带，避免空值误传。
+    asset_status:
+      approvingAssetId.value && approveForm.asset_status ? approveForm.asset_status : null,
   }
   try {
     approveSubmitting.value = true
@@ -331,6 +405,15 @@ async function submitComment() {
   }
 }
 
+// ── attachments ────────────────────────────────────────────
+const attachmentsVisible = ref(false)
+const attachmentReqId = ref('')
+
+function openAttachments(row: RequestRead) {
+  attachmentReqId.value = row.id
+  attachmentsVisible.value = true
+}
+
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: RequestRead) {
   try {
@@ -356,6 +439,10 @@ defineExpose({
   handleReject,
   handleCancel,
   openActivities,
+  openAttachments,
+  approvingAssetId,
+  fieldVisible,
+  fieldRequired,
 })
 </script>
 
@@ -475,6 +562,7 @@ defineExpose({
             取消
           </el-button>
           <el-button link type="primary" @click="openActivities(row)">活动</el-button>
+          <el-button link type="primary" @click="openAttachments(row)">附件</el-button>
           <el-button
             v-if="auth.hasPermission('request.delete')"
             link
@@ -498,10 +586,10 @@ defineExpose({
         <el-form-item label="标题" required>
           <el-input v-model="form.title" placeholder="请输入标题" />
         </el-form-item>
-        <el-form-item label="描述">
+        <el-form-item v-if="fieldVisible.description" label="描述" :required="fieldRequired.description">
           <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
         </el-form-item>
-        <el-form-item label="优先级">
+        <el-form-item v-if="fieldVisible.priority" label="优先级" :required="fieldRequired.priority">
           <el-select v-model="form.priority" style="width: 100%">
             <el-option
               v-for="p in PRIORITY_OPTIONS"
@@ -511,7 +599,7 @@ defineExpose({
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="到期日">
+        <el-form-item v-if="fieldVisible.due_date" label="到期日" :required="fieldRequired.due_date">
           <el-date-picker
             v-model="form.due_date"
             type="date"
@@ -520,7 +608,7 @@ defineExpose({
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="资产">
+        <el-form-item v-if="fieldVisible.asset" label="资产" :required="fieldRequired.asset">
           <el-select
             v-model="form.asset_id"
             placeholder="请选择资产"
@@ -531,7 +619,7 @@ defineExpose({
             <el-option v-for="a in assetsMini" :key="a.id" :label="a.name" :value="a.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="位置">
+        <el-form-item v-if="fieldVisible.location" label="位置" :required="fieldRequired.location">
           <el-select
             v-model="form.location_id"
             placeholder="请选择位置"
@@ -600,6 +688,21 @@ defineExpose({
             <el-option v-for="pr in procedures" :key="pr.id" :label="pr.name" :value="pr.id" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="approvingAssetId" label="资产状态">
+          <el-select
+            v-model="approveForm.asset_status"
+            placeholder="可选：审批后同步资产状态"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in ASSET_STATUS_OPTIONS"
+              :key="s.value"
+              :label="s.label"
+              :value="s.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="approveForm.note" type="textarea" placeholder="请输入备注" />
         </el-form-item>
@@ -635,6 +738,16 @@ defineExpose({
           发表评论
         </el-button>
       </div>
+    </el-dialog>
+
+    <!-- attachments dialog -->
+    <el-dialog v-model="attachmentsVisible" title="请求附件" width="700px">
+      <EntityAttachments
+        v-if="attachmentsVisible"
+        entity-type="request"
+        :entity-id="attachmentReqId"
+        :editable="auth.hasPermission('request.create')"
+      />
     </el-dialog>
   </div>
 </template>

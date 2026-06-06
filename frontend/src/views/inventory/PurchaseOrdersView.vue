@@ -122,6 +122,14 @@ interface FormState {
   shipping_method: string
   terms_of_payment: string
   expected_delivery_date: string | null
+  shipping_to_name: string
+  shipping_company_name: string
+  shipping_city: string
+  shipping_state: string
+  shipping_zip_code: string
+  shipping_phone: string
+  shipping_fax: string
+  requisitioned_by_name: string
   notes: string
   lines: LineForm[]
 }
@@ -133,6 +141,14 @@ const form = reactive<FormState>({
   shipping_method: '',
   terms_of_payment: '',
   expected_delivery_date: null,
+  shipping_to_name: '',
+  shipping_company_name: '',
+  shipping_city: '',
+  shipping_state: '',
+  shipping_zip_code: '',
+  shipping_phone: '',
+  shipping_fax: '',
+  requisitioned_by_name: '',
   notes: '',
   lines: [],
 })
@@ -161,6 +177,14 @@ function resetForm() {
   form.shipping_method = ''
   form.terms_of_payment = ''
   form.expected_delivery_date = null
+  form.shipping_to_name = ''
+  form.shipping_company_name = ''
+  form.shipping_city = ''
+  form.shipping_state = ''
+  form.shipping_zip_code = ''
+  form.shipping_phone = ''
+  form.shipping_fax = ''
+  form.requisitioned_by_name = ''
   form.notes = ''
   form.lines = []
 }
@@ -188,6 +212,14 @@ async function openEdit(row: PurchaseOrderRead) {
       shipping_method: full.shipping_method,
       terms_of_payment: full.terms_of_payment,
       expected_delivery_date: full.expected_delivery_date,
+      shipping_to_name: full.shipping_to_name ?? '',
+      shipping_company_name: full.shipping_company_name ?? '',
+      shipping_city: full.shipping_city ?? '',
+      shipping_state: full.shipping_state ?? '',
+      shipping_zip_code: full.shipping_zip_code ?? '',
+      shipping_phone: full.shipping_phone ?? '',
+      shipping_fax: full.shipping_fax ?? '',
+      requisitioned_by_name: full.requisitioned_by_name ?? '',
       notes: full.notes,
       lines: full.lines.map((l) => ({
         part_id: l.part_id,
@@ -218,6 +250,14 @@ async function submitForm() {
       shipping_method: form.shipping_method,
       terms_of_payment: form.terms_of_payment,
       expected_delivery_date: form.expected_delivery_date || null,
+      shipping_to_name: form.shipping_to_name || null,
+      shipping_company_name: form.shipping_company_name || null,
+      shipping_city: form.shipping_city || null,
+      shipping_state: form.shipping_state || null,
+      shipping_zip_code: form.shipping_zip_code || null,
+      shipping_phone: form.shipping_phone || null,
+      shipping_fax: form.shipping_fax || null,
+      requisitioned_by_name: form.requisitioned_by_name || null,
       lines: form.lines.map((l) => ({
         part_id: l.part_id,
         quantity: l.quantity,
@@ -411,20 +451,6 @@ defineExpose({ form, addLine, removeLine, openEdit, openCreate })
             <el-option v-for="v in vendorsMini" :key="v.id" :label="v.name" :value="v.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="运输地址">
-          <el-input
-            v-model="form.shipping_address"
-            placeholder="请输入运输地址"
-            :disabled="readonly"
-          />
-        </el-form-item>
-        <el-form-item label="运输方式">
-          <el-input
-            v-model="form.shipping_method"
-            placeholder="请输入运输方式"
-            :disabled="readonly"
-          />
-        </el-form-item>
         <el-form-item label="付款条款">
           <el-input
             v-model="form.terms_of_payment"
@@ -442,6 +468,70 @@ defineExpose({ form, addLine, removeLine, openEdit, openCreate })
             style="width: 100%"
           />
         </el-form-item>
+        <el-divider content-position="left">收货信息</el-divider>
+        <el-form-item label="运输地址">
+          <el-input
+            v-model="form.shipping_address"
+            placeholder="请输入运输地址"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="运输方式">
+          <el-input
+            v-model="form.shipping_method"
+            placeholder="请输入运输方式"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="收件人">
+          <el-input
+            v-model="form.shipping_to_name"
+            placeholder="请输入收件人"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="收货公司">
+          <el-input
+            v-model="form.shipping_company_name"
+            placeholder="请输入收货公司"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="城市">
+          <el-input v-model="form.shipping_city" placeholder="请输入城市" :disabled="readonly" />
+        </el-form-item>
+        <el-form-item label="州/省">
+          <el-input
+            v-model="form.shipping_state"
+            placeholder="请输入州/省"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="邮编">
+          <el-input
+            v-model="form.shipping_zip_code"
+            placeholder="请输入邮编"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="电话">
+          <el-input
+            v-model="form.shipping_phone"
+            placeholder="请输入电话"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-form-item label="传真">
+          <el-input v-model="form.shipping_fax" placeholder="请输入传真" :disabled="readonly" />
+        </el-form-item>
+        <el-form-item label="申购人">
+          <el-input
+            v-model="form.requisitioned_by_name"
+            placeholder="请输入申购人"
+            :disabled="readonly"
+          />
+        </el-form-item>
+        <el-divider content-position="left">其他</el-divider>
         <el-form-item label="备注">
           <el-input
             v-model="form.notes"

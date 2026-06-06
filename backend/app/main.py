@@ -34,10 +34,16 @@ from app.routers import (
     cost_categories,
     currencies,
     customers,
+    deprecations,
+    exports,
+    field_configurations,
     fields,
+    floor_plans,
     folders,
     heading_rules,
+    imports,
     locations,
+    meter_categories,
     meters,
     multi_parts,
     nodes,
@@ -62,6 +68,7 @@ from app.routers import (
     work_order_categories,
     work_order_costs,
     work_orders,
+    workflows,
 )
 from app.routers import permissions as permissions_router
 from app.routers import settings as settings_router
@@ -136,6 +143,7 @@ app.include_router(work_orders.router)
 app.include_router(requests.router)
 app.include_router(preventive_maintenances.router)
 app.include_router(meters.router)
+app.include_router(meter_categories.router)
 app.include_router(part_categories.router)
 app.include_router(parts.router)
 app.include_router(multi_parts.router)
@@ -149,9 +157,13 @@ app.include_router(customers.router)
 app.include_router(purchase_order_categories.router)
 app.include_router(purchase_orders.router)
 app.include_router(analytics.router)
+app.include_router(exports.router)
+app.include_router(imports.router)
 app.include_router(notifications.router)
 app.include_router(notification_preferences.router)
 app.include_router(asset_categories.router)
+app.include_router(deprecations.router)
+app.include_router(floor_plans.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
 app.include_router(procedures.router)
@@ -161,6 +173,7 @@ app.include_router(batch_imports.router)
 app.include_router(heading_rules.router)
 app.include_router(attachments.router)
 app.include_router(fields.router)
+app.include_router(field_configurations.router)
 app.include_router(settings_router.router)
 app.include_router(nodes.router)
 app.include_router(company.router)
@@ -171,6 +184,7 @@ app.include_router(users.router)
 app.include_router(currencies.router)
 app.include_router(platform.router)
 app.include_router(billing.router)
+app.include_router(workflows.router)
 
 
 @app.get("/healthz", tags=["health"])

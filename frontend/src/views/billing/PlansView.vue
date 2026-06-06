@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 
 import { usePermission } from '@/composables/usePermission'
 import { useBillingStore } from '@/store/billing'
+import { featureLabel, planLabel } from '@/constants/billing'
 
 const billing = useBillingStore()
 const { hasPermission } = usePermission()
@@ -39,10 +40,10 @@ async function subscribe(): Promise<void> {
         :key="entry.plan"
         :class="{ current: entry.plan === currentPlan }"
       >
-        <h3>{{ entry.plan }}</h3>
+        <h3>{{ planLabel(entry.plan) }}</h3>
         <p>{{ seatLabel(entry.seat_limit) }}</p>
         <ul>
-          <li v-for="f in entry.features" :key="f">{{ f }}</li>
+          <li v-for="f in entry.features" :key="f">{{ featureLabel(f) }}</li>
         </ul>
         <el-tag v-if="entry.plan === currentPlan" type="success">当前套餐</el-tag>
         <template v-else>

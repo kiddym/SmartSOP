@@ -3,12 +3,14 @@ import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 
-const { lu, cu, iu, uu, du, lr } = vi.hoisted(() => ({
+const { lu, cu, iu, uu, du, disu, enu, lr } = vi.hoisted(() => ({
   lu: vi.fn(),
   cu: vi.fn(),
   iu: vi.fn(),
   uu: vi.fn(),
   du: vi.fn(),
+  disu: vi.fn(),
+  enu: vi.fn(),
   lr: vi.fn(),
 }))
 vi.mock('@/api/users', () => ({
@@ -17,6 +19,8 @@ vi.mock('@/api/users', () => ({
   inviteUser: iu,
   updateUser: uu,
   deleteUser: du,
+  disableUser: disu,
+  enableUser: enu,
 }))
 vi.mock('@/api/roles', () => ({ listRoles: lr }))
 vi.mock('@/store/auth', () => ({
@@ -48,6 +52,8 @@ beforeEach(() => {
   iu.mockReset().mockResolvedValue({ id: 'x', email: 'new@b.com', status: 'invited' })
   uu.mockReset().mockResolvedValue({})
   du.mockReset().mockResolvedValue(undefined)
+  disu.mockReset().mockResolvedValue({})
+  enu.mockReset().mockResolvedValue({})
   lr.mockReset().mockResolvedValue([
     { id: 'r1', code: 'admin', name: '管理员', is_builtin: true, permissions: [] },
   ])
@@ -96,6 +102,40 @@ describe('UsersView', () => {
     const arg = iu.mock.calls[0][0]
     expect(arg).not.toHaveProperty('name')
     expect(arg).not.toHaveProperty('password')
+  })
+
+  it('对 active 用户点「禁用」确认后调用 disableUser', async () => {
+    vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm' as never)
+    const w = mountView()
+    await flushPromises()
+    const btn = w.findAll('.el-button').find((b) => b.text() === '禁用')
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(disu).toHaveBeenCalledWith('u1')
+    expect(lu).toHaveBeenCalledTimes(2) // initial + refresh
+  })
+
+  it('对 disabled 用户点「启用」直接调用 enableUser（无需确认）', async () => {
+    lu.mockResolvedValue([
+      {
+        id: 'u1',
+        email: 'a@b.com',
+        name: '张三',
+        status: 'disabled',
+        role_id: 'r1',
+        locale: 'zh',
+        last_login_at: null,
+        created_at: '2026-06-01T00:00:00Z',
+      },
+    ])
+    const w = mountView()
+    await flushPromises()
+    const btn = w.findAll('.el-button').find((b) => b.text() === '启用')
+    expect(btn).toBeTruthy()
+    await btn!.trigger('click')
+    await flushPromises()
+    expect(enu).toHaveBeenCalledWith('u1')
   })
 
   it('确认删除后调用 deleteUser', async () => {

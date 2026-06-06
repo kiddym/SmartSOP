@@ -17,12 +17,13 @@ PERMISSION_GROUPS: list[tuple[str, list[str]]] = [
     ("工时分类", perms._TIME_CATEGORY),
     ("请求", perms._REQUEST),
     ("预防性维护", perms._PREVENTIVE_MAINTENANCE),
-    ("计量", perms._METER + perms._READING),
+    ("计量", perms._METER + perms._READING + perms._METER_CATEGORY),
     ("备件", perms._PART + perms._PART_CATEGORY),
     ("供应商客户", perms._VENDOR + perms._CUSTOMER),
     ("采购", perms._PURCHASE_ORDER + perms._PURCHASE_ORDER_CATEGORY),
     ("成本分类", perms._COST_CATEGORY),
     ("分析", perms._ANALYTICS),
+    ("工作流", perms._WORKFLOW),
 ]
 
 # 每个 code → 中文 label（「<实体>-<动作>」）。
@@ -80,6 +81,8 @@ PERMISSION_LABELS: dict[str, str] = {
     perms.METER_DELETE: "计量点-删除",
     perms.READING_VIEW: "读数-查看",
     perms.READING_CREATE: "读数-录入",
+    perms.METER_CATEGORY_VIEW: "计量分类-查看",
+    perms.METER_CATEGORY_MANAGE: "计量分类-管理",
     # 备件
     perms.PART_VIEW: "备件-查看",
     perms.PART_CREATE: "备件-创建",
@@ -110,6 +113,9 @@ PERMISSION_LABELS: dict[str, str] = {
     perms.COST_CATEGORY_MANAGE: "成本分类-管理",
     # 分析
     perms.ANALYTICS_VIEW: "分析-查看",
+    # 工作流
+    perms.WORKFLOW_VIEW: "工作流-查看",
+    perms.WORKFLOW_MANAGE: "工作流-管理",
 }
 
 # 自检：分组并集 == ALL_PERMISSIONS，且 label 全覆盖（防止 permissions.py 漂移）。

@@ -24,12 +24,14 @@ interface FormState {
   amount: string
   cost_category_id: string | null
   description: string
+  include_to_total: boolean
 }
 const form = reactive<FormState>({
   title: '',
   amount: '',
   cost_category_id: null,
   description: '',
+  include_to_total: true,
 })
 
 async function fetchOptions() {
@@ -46,12 +48,14 @@ function resetOrFill() {
     form.amount = ''
     form.cost_category_id = null
     form.description = ''
+    form.include_to_total = true
     return
   }
   form.title = props.editing.title
   form.amount = props.editing.amount
   form.cost_category_id = props.editing.cost_category_id
   form.description = props.editing.description
+  form.include_to_total = props.editing.include_to_total
 }
 
 watch(
@@ -79,6 +83,7 @@ async function submitForm() {
     amount: form.amount,
     cost_category_id: form.cost_category_id || null,
     description: form.description,
+    include_to_total: form.include_to_total,
   }
   submitting.value = true
   try {
@@ -128,6 +133,9 @@ defineExpose({ form, submitForm })
       </el-form-item>
       <el-form-item label="描述">
         <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
+      </el-form-item>
+      <el-form-item label="计入总计">
+        <el-switch v-model="form.include_to_total" />
       </el-form-item>
     </el-form>
     <template #footer>

@@ -83,6 +83,13 @@ def _active_subset(
     return out
 
 
+def active_recipient_subset(
+    db: Session, company_id: str, ids: set[str], exclude_actor_id: str | None
+) -> set[str]:
+    """公开包装：过滤出活跃用户子集（供调度任务等模块外部复用）。"""
+    return _active_subset(db, company_id, ids, exclude_actor_id)
+
+
 def resolve_team_members(db: Session, company_id: str, team_ids: set[str]) -> set[str]:
     if not team_ids:
         return set()

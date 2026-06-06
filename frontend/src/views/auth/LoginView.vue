@@ -51,6 +51,9 @@ async function submit(): Promise<void> {
         {{ t('auth.noAccount') }}
         <router-link :to="{ name: 'register' }">{{ t('auth.register') }}</router-link>
       </div>
+      <div class="auth-foot">
+        <router-link :to="{ name: 'forgot-password' }">{{ t('auth.forgotPassword') }}</router-link>
+      </div>
     </el-form>
   </AuthLayout>
 </template>

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from sqlalchemy import ForeignKey, Numeric, String, Text, text
+from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
@@ -23,3 +23,7 @@ class WorkOrderAdditionalCost(Base, UUIDMixin, TimestampMixin, TenantMixin):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
     description: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     created_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    # 是否计入工单总成本汇总（False 时该行从 additional 小计排除）
+    include_to_total: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default=text("1")
+    )

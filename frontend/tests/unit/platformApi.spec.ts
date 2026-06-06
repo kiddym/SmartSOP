@@ -9,7 +9,7 @@ const { get, post, put, patch, del } = vi.hoisted(() => ({
 }))
 vi.mock('@/api/http', () => ({ http: { get, post, put, patch, delete: del } }))
 
-import { listUsers, inviteUser, updateUser } from '@/api/users'
+import { listUsers, inviteUser, updateUser, disableUser, enableUser } from '@/api/users'
 import { listRoles } from '@/api/roles'
 import { setTeamMembers } from '@/api/teams'
 import { getCompanySettings, updateCompanySettings } from '@/api/companySettings'
@@ -29,8 +29,16 @@ describe('platform api', () => {
     expect(post).toHaveBeenCalledWith('/users/invite', { email: 'x@y.com', role_id: 'r1' })
   })
   it('updateUser PATCH /users/{id}', async () => {
-    await updateUser('u1', { status: 'inactive' })
-    expect(patch).toHaveBeenCalledWith('/users/u1', { status: 'inactive' })
+    await updateUser('u1', { status: 'disabled' })
+    expect(patch).toHaveBeenCalledWith('/users/u1', { status: 'disabled' })
+  })
+  it('disableUser PATCH /users/{id}/disable', async () => {
+    await disableUser('u1')
+    expect(patch).toHaveBeenCalledWith('/users/u1/disable')
+  })
+  it('enableUser PATCH /users/{id}/enable', async () => {
+    await enableUser('u1')
+    expect(patch).toHaveBeenCalledWith('/users/u1/enable')
   })
   it('listRoles GET /roles', async () => {
     await listRoles()

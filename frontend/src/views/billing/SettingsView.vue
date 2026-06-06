@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 
 import { usePermission } from '@/composables/usePermission'
 import { useBillingStore } from '@/store/billing'
+import { featureLabel, planLabel, subscriptionStatusLabel } from '@/constants/billing'
 
 const billing = useBillingStore()
 const route = useRoute()
@@ -48,15 +49,15 @@ async function manage(): Promise<void> {
     <h2>订阅设置</h2>
     <el-card>
       <p>
-        当前套餐：<el-tag>{{ sub.plan }}</el-tag>
+        当前套餐：<el-tag>{{ planLabel(sub.plan) }}</el-tag>
       </p>
-      <p>订阅状态：{{ sub.subscription_status }}</p>
+      <p>订阅状态：{{ subscriptionStatusLabel(sub.subscription_status) }}</p>
       <p>席位用量：{{ seatText }}</p>
       <el-progress
         v-if="sub.seat_limit !== null"
         :percentage="Math.min(100, Math.round((sub.seat_used / sub.seat_limit) * 100))"
       />
-      <p>已解锁功能：{{ sub.features.join('、') || '无' }}</p>
+      <p>已解锁功能：{{ sub.features.map(featureLabel).join('、') || '无' }}</p>
       <router-link to="/billing/plans">查看套餐对比</router-link>
       <el-button
         v-if="billing.planName === 'pro' && hasPermission('billing.manage')"

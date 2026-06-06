@@ -11,6 +11,7 @@ import type {
   WorkOrderActivityRead,
   WorkOrderCommentCreate,
   ExecutionView,
+  StepResultUpdate,
   LaborRead,
   LaborCreate,
   LaborTimerStart,
@@ -19,6 +20,7 @@ import type {
   AdditionalCostCreate,
   AdditionalCostUpdate,
   CostSummaryRead,
+  CalendarEvent,
 } from '@/types/workOrder'
 
 export interface ListWorkOrdersParams {
@@ -34,6 +36,8 @@ export const listWorkOrders = (params: ListWorkOrdersParams = {}) =>
   http.get<WorkOrderRead[]>('/work-orders', { params }).then((r) => r.data)
 export const getWorkOrder = (id: string) =>
   http.get<WorkOrderRead>(`/work-orders/${id}`).then((r) => r.data)
+export const listWorkOrderEvents = (start: string, end: string) =>
+  http.get<CalendarEvent[]>('/work-orders/events', { params: { start, end } }).then((r) => r.data)
 export const createWorkOrder = (p: WorkOrderCreate) =>
   http.post<WorkOrderRead>('/work-orders', p).then((r) => r.data)
 export const updateWorkOrder = (id: string, p: WorkOrderUpdate) =>
@@ -56,6 +60,9 @@ export const addWorkOrderComment = (id: string, p: WorkOrderCommentCreate) =>
   http.post<WorkOrderActivityRead>(`/work-orders/${id}/activities`, p).then((r) => r.data)
 export const getExecution = (id: string) =>
   http.get<ExecutionView>(`/work-orders/${id}/execution`).then((r) => r.data)
+/** 写入单个执行步骤（response/is_done/notes），返回刷新后的整张执行视图。 */
+export const patchStepResult = (id: string, resultId: string, p: StepResultUpdate) =>
+  http.patch<ExecutionView>(`/work-orders/${id}/steps/${resultId}`, p).then((r) => r.data)
 
 export const listLabor = (id: string) =>
   http.get<LaborRead[]>(`/work-orders/${id}/labor`).then((r) => r.data)
@@ -82,3 +89,16 @@ export const deleteAdditionalCost = (id: string, costId: string) =>
   http.delete(`/work-orders/${id}/additional-costs/${costId}`).then(() => undefined)
 export const getCostSummary = (id: string) =>
   http.get<CostSummaryRead>(`/work-orders/${id}/cost-summary`).then((r) => r.data)
+
+/** 拉取工单 PDF 报告（blob，带 Bearer 鉴权）并在浏览器触发下载。 */
+export const downloadWorkOrderReport = async (id: string, customId: string) => {
+  const res = await http.get(`/work-orders/${id}/report`, { responseType: 'blob' })
+  const url = URL.createObjectURL(res.data as Blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `WO-${customId}.pdf`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}

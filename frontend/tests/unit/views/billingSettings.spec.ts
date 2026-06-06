@@ -48,7 +48,9 @@ describe('SettingsView', () => {
     })
     await vi.waitFor(() => expect(api.getSubscription).toHaveBeenCalled())
     await wrapper.vm.$nextTick()
-    expect(wrapper.text()).toContain('pro')
+    // 套餐 / 功能码已中文化展示（pro → 专业版，feature key → 中文名）。
+    expect(wrapper.text()).toContain('专业版')
+    expect(wrapper.text()).toContain('计量')
     expect(wrapper.text()).toContain('4')
     expect(wrapper.text()).toContain('15')
   })

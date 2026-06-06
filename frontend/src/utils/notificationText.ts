@@ -2,7 +2,7 @@ import type { RouteLocationRaw } from 'vue-router'
 import type { Notification } from '@/types/notification'
 
 /** 通知类型清单(code + 中文 label)。偏好开关、类型过滤共用。
- *  与 backend app/services/notification_service.py 的 type 全集一致(6 个)。 */
+ *  与 backend 的 type 全集一致。 */
 export const NOTIFICATION_TYPES: { code: string; label: string }[] = [
   { code: 'WO_ASSIGNED', label: '工单指派' },
   { code: 'WO_STATUS_CHANGED', label: '工单状态变更' },
@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES: { code: string; label: string }[] = [
   { code: 'REQUEST_SUBMITTED', label: '新请求提交' },
   { code: 'PO_SUBMITTED', label: '采购单提交' },
   { code: 'PO_APPROVED', label: '采购单审批' },
+  { code: 'PM_DUE_SOON', label: '预防性维护即将到期' },
 ]
 
 function p(n: Notification, key: string): string {
@@ -30,6 +31,8 @@ export function formatNotification(n: Notification): string {
       return `自动生成工单 ${cid}「${title}」`
     case 'REQUEST_SUBMITTED':
       return `新请求 ${cid}「${title}」`
+    case 'PM_DUE_SOON':
+      return `预防性维护 ${cid}「${title}」将于 ${p(n, 'next_due_date')} 到期`
     default:
       if (n.type.startsWith('PO_')) return `采购单 ${cid} 有更新`
       return cid ? `通知 ${cid}` : '你有一条新通知'

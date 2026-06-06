@@ -12,11 +12,15 @@ export interface PartRead {
   non_stock: boolean
   is_low_stock: boolean
   category_id: string | null
+  area: string | null
+  additional_infos: string | null
   assignee_ids: string[]
   team_ids: string[]
   asset_ids: string[]
   location_ids: string[]
   pm_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
 }
 export interface PartCreate {
   name: string
@@ -28,17 +32,38 @@ export interface PartCreate {
   barcode?: string | null
   non_stock?: boolean
   category_id?: string | null
+  area?: string | null
+  additional_infos?: string | null
   assignee_ids?: string[]
   team_ids?: string[]
   asset_ids?: string[]
   location_ids?: string[]
   pm_ids?: string[]
+  vendor_ids?: string[]
+  customer_ids?: string[]
 }
 export type PartUpdate = Partial<PartCreate>
 export interface PartMini {
   id: string
   name: string
   custom_id: string
+}
+
+// 工单备件消耗
+export interface PartConsumptionRead {
+  id: string
+  part_id: string
+  work_order_id: string
+  quantity: string
+  unit_cost: string
+  total_cost: string
+  consumed_by_user_id: string | null
+  consumed_at: string
+}
+
+export interface PartConsumptionCreate {
+  part_id: string
+  quantity: string
 }
 
 // 多备件套件
@@ -94,6 +119,14 @@ export interface PurchaseOrderRead {
   shipping_method: string
   terms_of_payment: string
   expected_delivery_date: string | null
+  shipping_to_name: string | null
+  shipping_company_name: string | null
+  shipping_city: string | null
+  shipping_state: string | null
+  shipping_zip_code: string | null
+  shipping_phone: string | null
+  shipping_fax: string | null
+  requisitioned_by_name: string | null
   resolution_note: string
   resolved_by_user_id: string | null
   resolved_at: string | null
@@ -108,6 +141,14 @@ export interface PurchaseOrderCreate {
   shipping_method?: string
   terms_of_payment?: string
   expected_delivery_date?: string | null
+  shipping_to_name?: string | null
+  shipping_company_name?: string | null
+  shipping_city?: string | null
+  shipping_state?: string | null
+  shipping_zip_code?: string | null
+  shipping_phone?: string | null
+  shipping_fax?: string | null
+  requisitioned_by_name?: string | null
   lines?: POLineCreate[]
 }
 export type PurchaseOrderUpdate = Partial<PurchaseOrderCreate>
@@ -184,6 +225,9 @@ export interface CustomerRead {
   description: string
   rate: string
   billing_currency: string
+  billing_name: string | null
+  billing_address: string | null
+  billing_address2: string | null
   address: string
   phone: string
   email: string
@@ -198,6 +242,9 @@ export interface CustomerCreate {
   description?: string
   rate?: string
   billing_currency?: string
+  billing_name?: string | null
+  billing_address?: string | null
+  billing_address2?: string | null
   address?: string
   phone?: string
   email?: string

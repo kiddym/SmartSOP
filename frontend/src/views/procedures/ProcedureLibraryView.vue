@@ -64,6 +64,10 @@ function open(id: string): void {
   void router.push(`/procedures/${id}`)
 }
 
+function goPlans(): void {
+  void router.push('/billing/plans')
+}
+
 function onCreated(proc: ProcedureMeta): void {
   void router.push(`/procedures/${proc.id}/edit`)
 }
@@ -110,16 +114,30 @@ function onImported(id: string): void {
         <el-button @click="onSearch">查询</el-button>
       </div>
 
-      <ProcedureTable :rows="store.rows" :loading="store.loading" @open="open" />
+      <el-result
+        v-if="store.featureLocked"
+        class="locked"
+        icon="warning"
+        title="SOP 程序管理未包含在当前套餐"
+        sub-title="升级到专业版 / 企业版即可创建与管理程序"
+      >
+        <template #extra>
+          <el-button type="primary" @click="goPlans">查看套餐</el-button>
+        </template>
+      </el-result>
 
-      <el-pagination
-        class="pager"
-        layout="total, prev, pager, next"
-        :total="store.total"
-        :current-page="store.page"
-        :page-size="store.pageSize"
-        @current-change="onPage"
-      />
+      <template v-else>
+        <ProcedureTable :rows="store.rows" :loading="store.loading" @open="open" />
+
+        <el-pagination
+          class="pager"
+          layout="total, prev, pager, next"
+          :total="store.total"
+          :current-page="store.page"
+          :page-size="store.pageSize"
+          @current-change="onPage"
+        />
+      </template>
 
       <CreateProcedureDialog v-model="createVisible" @created="onCreated" />
       <CreateFromWordDialog v-model="wordVisible" @imported="onImported" />

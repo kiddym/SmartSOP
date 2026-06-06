@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listParts, createPart, updatePart, deletePart } from '@/api/parts'
 import { listPartCategories } from '@/api/partCategories'
@@ -7,15 +8,30 @@ import { listAssetsMini } from '@/api/assets'
 import { listLocationsMini } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import { listTeams } from '@/api/teams'
+import { listVendorsMini } from '@/api/vendors'
+import { listCustomersMini } from '@/api/customers'
 import PartCategoryManageDialog from '@/components/inventory/PartCategoryManageDialog.vue'
-import type { PartRead, PartCreate, PartUpdate, PartCategoryRead } from '@/types/inventory'
+import type {
+  PartRead,
+  PartCreate,
+  PartUpdate,
+  PartCategoryRead,
+  VendorMini,
+  CustomerMini,
+} from '@/types/inventory'
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
+import { exportParts } from '@/api/exports'
 
 const auth = useAuthStore()
+const router = useRouter()
 
 defineProps<{ embedded?: boolean }>()
+
+function openDetail(row: PartRead) {
+  router.push(`/inventory/parts/${row.id}`)
+}
 
 // ── state ──────────────────────────────────────────────────
 const loading = ref(false)
@@ -25,6 +41,8 @@ const assetsMini = ref<AssetMini[]>([])
 const locationsMini = ref<LocationMini[]>([])
 const users = ref<UserRead[]>([])
 const teams = ref<TeamRead[]>([])
+const vendorsMini = ref<VendorMini[]>([])
+const customersMini = ref<CustomerMini[]>([])
 const lowStockOnly = ref(false)
 
 const categoryDialogVisible = ref(false)
@@ -59,6 +77,14 @@ async function fetchTeams() {
   teams.value = await listTeams()
 }
 
+async function fetchVendorsMini() {
+  vendorsMini.value = await listVendorsMini()
+}
+
+async function fetchCustomersMini() {
+  customersMini.value = await listCustomersMini()
+}
+
 onMounted(async () => {
   await Promise.all([
     fetchParts(),
@@ -67,6 +93,8 @@ onMounted(async () => {
     fetchLocationsMini(),
     fetchUsers(),
     fetchTeams(),
+    fetchVendorsMini(),
+    fetchCustomersMini(),
   ])
 })
 
@@ -95,10 +123,14 @@ interface FormState {
   barcode: string
   non_stock: boolean
   category_id: string | null
+  area: string
+  additional_infos: string
   assignee_ids: string[]
   team_ids: string[]
   asset_ids: string[]
   location_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
 }
 
 const form = reactive<FormState>({
@@ -111,10 +143,14 @@ const form = reactive<FormState>({
   barcode: '',
   non_stock: false,
   category_id: null,
+  area: '',
+  additional_infos: '',
   assignee_ids: [],
   team_ids: [],
   asset_ids: [],
   location_ids: [],
+  vendor_ids: [],
+  customer_ids: [],
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建备件' : '编辑备件'))
@@ -129,10 +165,14 @@ function resetForm() {
   form.barcode = ''
   form.non_stock = false
   form.category_id = null
+  form.area = ''
+  form.additional_infos = ''
   form.assignee_ids = []
   form.team_ids = []
   form.asset_ids = []
   form.location_ids = []
+  form.vendor_ids = []
+  form.customer_ids = []
 }
 
 function openCreate() {
@@ -154,10 +194,14 @@ function openEdit(row: PartRead) {
     barcode: row.barcode ?? '',
     non_stock: row.non_stock,
     category_id: row.category_id,
+    area: row.area ?? '',
+    additional_infos: row.additional_infos ?? '',
     assignee_ids: [...row.assignee_ids],
     team_ids: [...row.team_ids],
     asset_ids: [...row.asset_ids],
     location_ids: [...row.location_ids],
+    vendor_ids: [...row.vendor_ids],
+    customer_ids: [...row.customer_ids],
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -182,10 +226,14 @@ async function submitForm() {
       barcode: form.barcode || null,
       non_stock: form.non_stock,
       category_id: form.category_id,
+      area: form.area || null,
+      additional_infos: form.additional_infos || null,
       assignee_ids: form.assignee_ids,
       team_ids: form.team_ids,
       asset_ids: form.asset_ids,
       location_ids: form.location_ids,
+      vendor_ids: form.vendor_ids,
+      customer_ids: form.customer_ids,
     }
     if (dialogMode.value === 'create') {
       await createPart(payload as PartCreate)
@@ -236,6 +284,9 @@ async function handleDelete(row: PartRead) {
       >
         管理分类
       </el-button>
+      <el-button v-if="auth.hasPermission('part.view')" @click="exportParts">
+        导出 CSV
+      </el-button>
       <span class="switch-label">仅看低库存</span>
       <el-switch v-model="lowStockOnly" @change="fetchParts" />
     </div>
@@ -261,8 +312,9 @@ async function handleDelete(row: PartRead) {
           <el-tag v-if="row.is_low_stock" type="danger">低库存</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center" fixed="right">
+      <el-table-column label="操作" width="220" align="center" fixed="right">
         <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row)"> 详情 </el-button>
           <el-button
             v-if="auth.hasPermission('part.edit')"
             link
@@ -307,6 +359,16 @@ async function handleDelete(row: PartRead) {
           >
             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="库区/货位">
+          <el-input v-model="form.area" placeholder="请输入库区/货位" />
+        </el-form-item>
+        <el-form-item label="附加信息">
+          <el-input
+            v-model="form.additional_infos"
+            type="textarea"
+            placeholder="请输入附加信息"
+          />
         </el-form-item>
 
         <el-divider content-position="left">库存</el-divider>
@@ -367,6 +429,28 @@ async function handleDelete(row: PartRead) {
             style="width: 100%"
           >
             <el-option v-for="l in locationsMini" :key="l.id" :label="l.name" :value="l.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="供应商">
+          <el-select
+            v-model="form.vendor_ids"
+            multiple
+            filterable
+            placeholder="请选择供应商"
+            style="width: 100%"
+          >
+            <el-option v-for="v in vendorsMini" :key="v.id" :label="v.name" :value="v.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="客户">
+          <el-select
+            v-model="form.customer_ids"
+            multiple
+            filterable
+            placeholder="请选择客户"
+            style="width: 100%"
+          >
+            <el-option v-for="c in customersMini" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
       </el-form>

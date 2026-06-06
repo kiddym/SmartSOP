@@ -46,6 +46,7 @@ def create_additional_cost(
         title=payload.title,
         amount=payload.amount,
         description=payload.description,
+        include_to_total=payload.include_to_total,
         created_by_user_id=actor_user_id,
         company_id=company_id,
     )

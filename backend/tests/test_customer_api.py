@@ -50,6 +50,47 @@ def test_customer_crud_and_currency(client):
     assert client.delete(f"/api/v1/customers/{cid}", headers=_h(t)).status_code == 204
 
 
+def test_customer_billing_fields_create_update_readback(client):
+    t = _admin(client)
+    r = client.post(
+        "/api/v1/customers",
+        json={
+            "name": "账单客户",
+            "billing_currency": "CNY",
+            "billing_name": "结算抬头",
+            "billing_address": "上海市浦东新区某路 1 号",
+            "billing_address2": "B 座 18 楼",
+        },
+        headers=_h(t),
+    )
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    assert r.json()["billing_name"] == "结算抬头"
+    assert r.json()["billing_address"] == "上海市浦东新区某路 1 号"
+    assert r.json()["billing_address2"] == "B 座 18 楼"
+    upd = client.patch(
+        f"/api/v1/customers/{cid}",
+        json={"billing_name": "新抬头", "billing_address2": "C 座 9 楼"},
+        headers=_h(t),
+    )
+    assert upd.status_code == 200, upd.text
+    assert upd.json()["billing_name"] == "新抬头"
+    assert upd.json()["billing_address"] == "上海市浦东新区某路 1 号"
+    assert upd.json()["billing_address2"] == "C 座 9 楼"
+    got = client.get(f"/api/v1/customers/{cid}", headers=_h(t)).json()
+    assert got["billing_name"] == "新抬头"
+
+
+def test_customer_billing_fields_null_when_omitted(client):
+    t = _admin(client)
+    r = client.post("/api/v1/customers", json={"name": "无账单客户"}, headers=_h(t))
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["billing_name"] is None
+    assert body["billing_address"] is None
+    assert body["billing_address2"] is None
+
+
 def test_customer_filter_by_part(client):
     t = _admin(client)
     p1, p2 = _part_id(client, t, "A"), _part_id(client, t, "B")

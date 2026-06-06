@@ -43,8 +43,11 @@ def cost_summary(db: Session, work_order_id: str) -> dict[str, Decimal]:
         .all()
     )
 
-    labor_total = sum((labor.compute_cost(r) for r in labor_rows), Decimal("0"))
-    additional_total = sum((r.amount for r in add_rows), Decimal("0"))
+    # 仅累计 include_to_total=True 的 labor / additional 行；parts 不受此开关影响。
+    labor_total = sum(
+        (labor.compute_cost(r) for r in labor_rows if r.include_to_total), Decimal("0")
+    )
+    additional_total = sum((r.amount for r in add_rows if r.include_to_total), Decimal("0"))
     parts_total = sum((r.quantity * r.unit_cost for r in part_rows), Decimal("0"))
 
     lt, at, pt = _q(labor_total), _q(additional_total), _q(parts_total)

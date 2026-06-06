@@ -50,8 +50,28 @@ describe('LaborDialog', () => {
       duration_seconds: 1800,
       user_id: 'u1',
       time_category_id: 'tc1',
+      include_to_total: true,
     })
     expect(w.emitted('saved')).toBeTruthy()
+  })
+
+  it('include_to_total 关闭后随 payload 发送 false', async () => {
+    const w = mount(LaborDialog, {
+      props: { visible: true, workOrderId: 'w1', editing: null },
+      global: { plugins: [ElementPlus] },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    const vm = w.vm as any
+    vm.form.minutes = 10
+    vm.form.include_to_total = false
+    await flushPromises()
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(cl.mock.calls[0][1]).toMatchObject({ include_to_total: false })
   })
 
   it('edit 回填 duration_seconds 并调 updateLabor', async () => {
@@ -65,6 +85,7 @@ describe('LaborDialog', () => {
       duration_seconds: 1800,
       hourly_rate: '50.00',
       notes: '测试备注',
+      include_to_total: true,
       running: false,
       cost: '25.00',
       running_elapsed_seconds: null,

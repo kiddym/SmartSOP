@@ -23,6 +23,8 @@ class PMCreate(BaseModel):
     start_date: date
     frequency_unit: PMFrequencyUnit
     frequency_value: int = Field(ge=1)
+    due_date_delay: int = Field(default=0, ge=0)
+    ends_on: date | None = None
 
 
 class PMUpdate(BaseModel):
@@ -38,6 +40,8 @@ class PMUpdate(BaseModel):
     start_date: date | None = None
     frequency_unit: PMFrequencyUnit | None = None
     frequency_value: int | None = Field(default=None, ge=1)
+    due_date_delay: int | None = Field(default=None, ge=0)
+    ends_on: date | None = None
 
 
 class PMRead(BaseModel):
@@ -56,6 +60,8 @@ class PMRead(BaseModel):
     start_date: date
     frequency_unit: PMFrequencyUnit
     frequency_value: int
+    due_date_delay: int
+    ends_on: date | None = None
     next_due_date: date
     is_enabled: bool
     last_generated_at: datetime | None = None

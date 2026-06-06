@@ -29,8 +29,9 @@ def _alembic_cfg() -> Config:
     return cfg
 
 
-def test_single_head_is_p6_stripe_billing() -> None:
-    assert set(ScriptDirectory.from_config(_alembic_cfg()).get_heads()) == {"p6_stripe_billing"}
+def test_single_head_no_branching() -> None:
+    # 不锚定具体 revision 名（迁移会持续追加）；守护的真正不变量是「单 head 无分叉」。
+    assert len(ScriptDirectory.from_config(_alembic_cfg()).get_heads()) == 1
 
 
 def test_migration_module_importable_with_revisions() -> None:

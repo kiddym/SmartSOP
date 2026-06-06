@@ -59,11 +59,21 @@ class PreventiveMaintenance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, Te
     frequency_unit: Mapped[PMFrequencyUnit] = mapped_column(SAEnum(PMFrequencyUnit), nullable=False)
     frequency_value: Mapped[int] = mapped_column(Integer, nullable=False)
     next_due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    # 生单时工单 due_date = 生成日 + due_date_delay 天（默认 0=当日；表达"给 N 天完成"）。
+    due_date_delay: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    # 排程结束日：next_due_date 超过 ends_on 时停止再生成并自动停用（None=永不结束）。
+    ends_on: Mapped[date | None] = mapped_column(Date, default=None)
     is_enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="1"
     )
     last_generated_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     last_work_order_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    # 连续无人响应工单计数（失效自停近似信号）：达阈值自动 disabled，防僵尸刷单。
+    consecutive_unresponded: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
 
 
 class PMAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):

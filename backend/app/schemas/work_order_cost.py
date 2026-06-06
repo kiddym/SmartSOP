@@ -38,6 +38,7 @@ class LaborCreate(BaseModel):
     started_at: datetime | None = None
     stopped_at: datetime | None = None
     notes: str = ""
+    include_to_total: bool = True
 
     @model_validator(mode="after")
     def _no_running_with_manual_duration(self) -> LaborCreate:
@@ -69,6 +70,7 @@ class LaborUpdate(BaseModel):
     hourly_rate: Decimal | None = Field(default=None, ge=0)
     user_id: str | None = None
     notes: str | None = None
+    include_to_total: bool | None = None
 
 
 class LaborRead(BaseModel):
@@ -82,6 +84,7 @@ class LaborRead(BaseModel):
     duration_seconds: int
     hourly_rate: Decimal
     notes: str
+    include_to_total: bool = True
 
     @computed_field  # type: ignore[prop-decorator]  # pydantic computed_field
     @property
@@ -118,6 +121,7 @@ class AdditionalCostCreate(BaseModel):
     amount: Decimal = Field(ge=0)
     cost_category_id: str | None = None
     description: str = ""
+    include_to_total: bool = True
 
 
 class AdditionalCostUpdate(BaseModel):
@@ -125,6 +129,7 @@ class AdditionalCostUpdate(BaseModel):
     amount: Decimal | None = Field(default=None, ge=0)
     cost_category_id: str | None = None
     description: str | None = None
+    include_to_total: bool | None = None
 
 
 class AdditionalCostRead(BaseModel):
@@ -136,6 +141,7 @@ class AdditionalCostRead(BaseModel):
     amount: Decimal
     description: str
     created_by_user_id: str | None = None
+    include_to_total: bool = True
 
 
 # ---------------------------------------------------------------------------

@@ -13,6 +13,8 @@ from sqlalchemy.orm import Session
 from app.models.part import Part
 from app.models.part_category import PartCategory
 from app.models.part_consumption import PartConsumption
+from app.models.work_order import WorkOrder
+from app.models.work_order_category import WorkOrderCategory
 from app.services.analytics._common import resolve_window
 
 # ABC/Pareto 累计占比阈值：累计 ≤ A 占比 → A 类（高价值少数），≤ B 占比 → B 类，其余 C 类。
@@ -125,6 +127,74 @@ def inventory_dashboard(
             }
         )
 
+    # 切面：按"所属工单分类"聚合窗内消耗（成本/数量）。经
+    # PartConsumption→WorkOrder.category_id→WorkOrderCategory.name 左连，未挂分类的工单归
+    # 「未分类」桶（category_id=None）。软删工单一并计入（消耗台账 append-only，成本须可追溯）。
+    wo_cat_stmt = (
+        select(
+            WorkOrder.category_id,
+            WorkOrderCategory.name,
+            PartConsumption.quantity,
+            PartConsumption.unit_cost,
+        )
+        .join(WorkOrder, PartConsumption.work_order_id == WorkOrder.id)
+        .join(WorkOrderCategory, WorkOrder.category_id == WorkOrderCategory.id, isouter=True)
+        .where(PartConsumption.consumed_at >= start, PartConsumption.consumed_at < end_excl)
+    )
+    if category_id is not None:
+        wo_cat_stmt = wo_cat_stmt.join(Part, PartConsumption.part_id == Part.id).where(
+            Part.category_id == category_id
+        )
+    wo_cat_acc: dict[str | None, dict[str, Any]] = {}
+    for cat_id, cat_name, qty, unit_cost in db.execute(wo_cat_stmt).all():
+        slot = wo_cat_acc.setdefault(
+            cat_id,
+            {
+                "category_id": cat_id,
+                "name": cat_name,
+                "cost": Decimal("0"),
+                "qty": Decimal("0"),
+            },
+        )
+        slot["cost"] += qty * unit_cost
+        slot["qty"] += qty
+    consumption_by_wo_category = sorted(
+        (
+            {
+                "category_id": r["category_id"],
+                "name": r["name"],
+                "cost": cast(Decimal, r["cost"]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+                "qty": cast(Decimal, r["qty"]),
+            }
+            for r in wo_cat_acc.values()
+        ),
+        # 成本降序；并列以分类名（未分类排末）兜底，保证稳定序。
+        key=lambda r: (-cast(Decimal, r["cost"]), cast(str, r["name"] or "￿")),
+    )
+
+    # 切面：按月（consumed_at 月份）分桶的消耗成本时间序列。月键用方言无关的 Python 端聚合
+    # （避免 SQL date_trunc/strftime 跨方言差异）。桶按月份升序，缺月不补零（前端连点即可）。
+    m_stmt = select(
+        PartConsumption.consumed_at,
+        PartConsumption.quantity,
+        PartConsumption.unit_cost,
+    ).where(PartConsumption.consumed_at >= start, PartConsumption.consumed_at < end_excl)
+    if category_id is not None:
+        m_stmt = m_stmt.join(Part, PartConsumption.part_id == Part.id).where(
+            Part.category_id == category_id
+        )
+    month_acc: dict[str, Decimal] = defaultdict(lambda: Decimal("0"))
+    for consumed_at, qty, unit_cost in db.execute(m_stmt).all():
+        month_key = f"{consumed_at.year:04d}-{consumed_at.month:02d}"
+        month_acc[month_key] += qty * unit_cost
+    consumption_monthly_trend = [
+        {
+            "month": k,
+            "cost": v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+        }
+        for k, v in sorted(month_acc.items())
+    ]
+
     return {
         "total_inventory_value": total_value,
         "inventory_value_by_category": inventory_value_by_category,
@@ -133,4 +203,6 @@ def inventory_dashboard(
         "top_consumed_parts": top_consumed,
         "abc_classification": abc_classification,
         "abc_summary": abc_summary,
+        "consumption_by_wo_category": consumption_by_wo_category,
+        "consumption_monthly_trend": consumption_monthly_trend,
     }

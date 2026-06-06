@@ -15,13 +15,16 @@ import {
   deleteTrigger,
 } from '@/api/meters'
 import type { ListMetersParams } from '@/api/meters'
+import { listMeterCategories } from '@/api/meterCategories'
 import { listAssetsMini } from '@/api/assets'
 import { listLocationsMini } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import MeterTriggerDialog from '@/components/maintenance/MeterTriggerDialog.vue'
+import MeterCategoryManageDialog from '@/components/maintenance/MeterCategoryManageDialog.vue'
 import type {
   MeterRead,
   MeterReadingRead,
+  MeterCategoryRead,
   TriggerRead,
   MeterComparator,
   WorkOrderPriority,
@@ -29,6 +32,7 @@ import type {
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
+import { exportMeters } from '@/api/exports'
 import { formatDateTime } from '@/utils/format'
 
 const auth = useAuthStore()
@@ -57,8 +61,10 @@ const meters = ref<MeterRead[]>([])
 const assetsMini = ref<AssetMini[]>([])
 const locationsMini = ref<LocationMini[]>([])
 const users = ref<UserRead[]>([])
+const categories = ref<MeterCategoryRead[]>([])
 const filterAsset = ref('')
 const filterLocation = ref('')
+const categoryDialogVisible = ref(false)
 
 // ── mapping helpers ────────────────────────────────────────
 function assetName(id: string | null): string {
@@ -75,6 +81,11 @@ function userName(id: string | null): string {
   if (!id) return '—'
   const u = users.value.find((x) => x.id === id)
   return u ? u.name : '—'
+}
+function categoryName(id: string | null): string {
+  if (!id) return '—'
+  const c = categories.value.find((x) => x.id === id)
+  return c ? c.name : '—'
 }
 
 // ── fetch ──────────────────────────────────────────────────
@@ -98,9 +109,19 @@ async function fetchLocationsMini() {
 async function fetchUsers() {
   users.value = await listUsers()
 }
+async function fetchCategories() {
+  if (!auth.hasPermission('meter_category.view')) return
+  categories.value = await listMeterCategories()
+}
 
 onMounted(async () => {
-  await Promise.all([fetchMeters(), fetchAssetsMini(), fetchLocationsMini(), fetchUsers()])
+  await Promise.all([
+    fetchMeters(),
+    fetchAssetsMini(),
+    fetchLocationsMini(),
+    fetchUsers(),
+    fetchCategories(),
+  ])
 })
 
 // ── create / edit dialog (basic info) ──────────────────────
@@ -117,6 +138,9 @@ interface MetaFormState {
   update_frequency_days: number | null
   asset_id: string | null
   location_id: string | null
+  meter_category_id: string | null
+  image_url: string
+  user_ids: string[]
 }
 const metaForm = reactive<MetaFormState>({
   name: '',
@@ -124,6 +148,9 @@ const metaForm = reactive<MetaFormState>({
   update_frequency_days: null,
   asset_id: null,
   location_id: null,
+  meter_category_id: null,
+  image_url: '',
+  user_ids: [],
 })
 
 function resetMetaForm() {
@@ -132,6 +159,9 @@ function resetMetaForm() {
   metaForm.update_frequency_days = null
   metaForm.asset_id = null
   metaForm.location_id = null
+  metaForm.meter_category_id = null
+  metaForm.image_url = ''
+  metaForm.user_ids = []
 }
 
 function openCreate() {
@@ -148,6 +178,9 @@ function openEdit(row: MeterRead) {
   metaForm.update_frequency_days = row.update_frequency_days
   metaForm.asset_id = row.asset_id
   metaForm.location_id = row.location_id
+  metaForm.meter_category_id = row.meter_category_id
+  metaForm.image_url = row.image_url ?? ''
+  metaForm.user_ids = [...row.user_ids]
   metaMode.value = 'edit'
   editingId.value = row.id
   metaVisible.value = true
@@ -164,6 +197,9 @@ async function submitMeta() {
     update_frequency_days: metaForm.update_frequency_days,
     asset_id: metaForm.asset_id || null,
     location_id: metaForm.location_id || null,
+    meter_category_id: metaForm.meter_category_id || null,
+    image_url: metaForm.image_url.trim() || null,
+    user_ids: metaForm.user_ids,
   }
   metaSubmitting.value = true
   try {
@@ -294,7 +330,18 @@ async function handleDelete(row: MeterRead) {
 }
 
 // expose for tests (drive detail / readings / dialogs directly)
-defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEdit })
+defineExpose({
+  openDetail,
+  handleSubmitReading,
+  readingValue,
+  openCreate,
+  openEdit,
+  submitMeta,
+  metaForm,
+  users,
+  categories,
+  categoryDialogVisible,
+})
 </script>
 
 <template>
@@ -305,6 +352,15 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
     <div class="toolbar">
       <el-button v-if="auth.hasPermission('meter.create')" type="primary" @click="openCreate">
         新建计量
+      </el-button>
+      <el-button
+        v-if="auth.hasPermission('meter_category.view')"
+        @click="categoryDialogVisible = true"
+      >
+        管理分类
+      </el-button>
+      <el-button v-if="auth.hasPermission('meter.view')" @click="exportMeters">
+        导出 CSV
       </el-button>
       <el-select
         v-model="filterAsset"
@@ -344,6 +400,9 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
       </el-table-column>
       <el-table-column label="位置" min-width="140">
         <template #default="{ row }">{{ locationName(row.location_id) }}</template>
+      </el-table-column>
+      <el-table-column label="分类" min-width="120">
+        <template #default="{ row }">{{ categoryName(row.meter_category_id) }}</template>
       </el-table-column>
       <el-table-column label="推荐频率" min-width="100" align="center">
         <template #default="{ row }">{{ row.update_frequency_days ?? '—' }}</template>
@@ -407,6 +466,32 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
             <el-option v-for="l in locationsMini" :key="l.id" :label="l.name" :value="l.id" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="auth.hasPermission('meter_category.view')" label="分类">
+          <el-select
+            v-model="metaForm.meter_category_id"
+            placeholder="请选择分类"
+            clearable
+            filterable
+            style="width: 100%"
+          >
+            <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="主图地址">
+          <el-input v-model="metaForm.image_url" placeholder="请输入主图 URL" />
+        </el-form-item>
+        <el-form-item label="关注人">
+          <el-select
+            v-model="metaForm.user_ids"
+            multiple
+            filterable
+            clearable
+            placeholder="选择通知关注人"
+            style="width: 100%"
+          >
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button type="primary" :loading="metaSubmitting" @click="submitMeta">保存</el-button>
@@ -428,8 +513,20 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
           <el-descriptions-item label="位置">
             {{ locationName(detailMeter.location_id) }}
           </el-descriptions-item>
+          <el-descriptions-item label="分类">
+            {{ categoryName(detailMeter.meter_category_id) }}
+          </el-descriptions-item>
           <el-descriptions-item label="推荐频率">
             {{ detailMeter.update_frequency_days ?? '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="主图">
+            {{ detailMeter.image_url || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="关注人">
+            <template v-if="detailMeter.user_ids.length">
+              {{ detailMeter.user_ids.map(userName).join('、') }}
+            </template>
+            <template v-else>—</template>
           </el-descriptions-item>
         </el-descriptions>
 
@@ -528,6 +625,12 @@ defineExpose({ openDetail, handleSubmitReading, readingValue, openCreate, openEd
       :meter-id="detailMeter?.id || ''"
       :editing="editingTrigger"
       @saved="onTriggerSaved"
+    />
+
+    <!-- meter category manage dialog -->
+    <MeterCategoryManageDialog
+      v-model:visible="categoryDialogVisible"
+      @changed="fetchCategories"
     />
   </div>
 </template>

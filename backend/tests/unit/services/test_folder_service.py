@@ -264,13 +264,25 @@ def test_get_tree_with_procedure_count(db: Session, factory: Factory) -> None:
     leaf = folder_service.create_folder(
         db, FolderCreate(name="leaf", parent_id=root.id, prefix="TR"), META
     )
-    factory.procedure(leaf.id, code="TR-00001")
+    # 计数口径与程序库列表一致：仅 is_current 且非 DRAFT 计入。
+    factory.procedure(leaf.id, code="TR-00001", status="PUBLISHED")  # 计入
+    factory.procedure(leaf.id, code="TR-00002", status="DRAFT")  # 草稿，不计入
 
     tree = folder_service.get_tree(db)
     root_node = next(n for n in tree if n["id"] == root.id)
     assert root_node["procedure_count"] == 0
     assert len(root_node["children"]) == 1
     assert root_node["children"][0]["procedure_count"] == 1
+
+
+def test_get_tree_procedure_count_excludes_draft(db: Session, factory: Factory) -> None:
+    leaf = folder_service.create_folder(db, FolderCreate(name="leaf", prefix="DR"), META)
+    factory.procedure(leaf.id, code="DR-00001", status="DRAFT")
+
+    tree = folder_service.get_tree(db)
+    leaf_node = next(n for n in tree if n["id"] == leaf.id)
+    # 仅有草稿的文件夹徽标计数为 0（草稿只在草稿箱可见）。
+    assert leaf_node["procedure_count"] == 0
 
 
 # --------------------------------------------------------------------------- #

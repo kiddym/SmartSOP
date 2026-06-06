@@ -84,6 +84,14 @@ def _password_reset(p: dict[str, Any]) -> tuple[str, str]:
     )
 
 
+def _email_verification(p: dict[str, Any]) -> tuple[str, str]:
+    return (
+        "[账户] 邮箱验证",
+        f"请在 {_g(p, 'deadline', '24 小时')}内点击以下链接完成邮箱验证：\n"
+        f"{_g(p, 'verify_url')}\n\n若非本人操作，请忽略本邮件。",
+    )
+
+
 def _invite_user(p: dict[str, Any]) -> tuple[str, str]:
     company = _g(p, "company_name")
     return (
@@ -108,5 +116,6 @@ _TEMPLATES = {
     "PO_APPROVED": _po_approved,
     "PART_LOW_STOCK": _part_low_stock,
     "PASSWORD_RESET": _password_reset,
+    "EMAIL_VERIFICATION": _email_verification,
     "INVITE_USER": _invite_user,
 }

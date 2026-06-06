@@ -46,4 +46,20 @@ describe('router 旧路径重定向', () => {
     expect(router.currentRoute.value.matched.length).toBeGreaterThan(0)
     expect(router.currentRoute.value.name).toBeTruthy()
   })
+
+  it('/inventory/parts/kits 不被 /inventory/parts/:id 遮蔽', async () => {
+    const router = makeRouter()
+    await router.push('/inventory/parts/kits')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('inventory-multi-parts')
+    expect(router.currentRoute.value.params.id).toBeUndefined()
+  })
+
+  it('/inventory/parts/:id 解析到备件详情路由', async () => {
+    const router = makeRouter()
+    await router.push('/inventory/parts/p1')
+    await router.isReady()
+    expect(router.currentRoute.value.name).toBe('inventory-part-detail')
+    expect(router.currentRoute.value.params.id).toBe('p1')
+  })
 })

@@ -147,6 +147,8 @@ interface FormState {
   start_date: string
   frequency_unit: PMFrequencyUnit
   frequency_value: number
+  due_date_delay: number
+  ends_on: string | null
   assignee_ids: string[]
   team_ids: string[]
 }
@@ -161,6 +163,8 @@ const form = reactive<FormState>({
   start_date: '',
   frequency_unit: 'MONTH',
   frequency_value: 1,
+  due_date_delay: 0,
+  ends_on: null,
   assignee_ids: [],
   team_ids: [],
 })
@@ -176,6 +180,8 @@ function resetForm() {
   form.start_date = ''
   form.frequency_unit = 'MONTH'
   form.frequency_value = 1
+  form.due_date_delay = 0
+  form.ends_on = null
   form.assignee_ids = []
   form.team_ids = []
 }
@@ -201,6 +207,8 @@ function openEdit(row: PMRead) {
     start_date: row.start_date,
     frequency_unit: row.frequency_unit,
     frequency_value: row.frequency_value,
+    due_date_delay: row.due_date_delay,
+    ends_on: row.ends_on,
     assignee_ids: [...row.assignee_ids],
     team_ids: [...row.team_ids],
   })
@@ -226,6 +234,8 @@ async function submitForm() {
     start_date: form.start_date,
     frequency_unit: form.frequency_unit,
     frequency_value: Number(form.frequency_value),
+    due_date_delay: Number(form.due_date_delay),
+    ends_on: form.ends_on || null,
     assignee_ids: form.assignee_ids,
     team_ids: form.team_ids,
   }
@@ -551,6 +561,19 @@ defineExpose({
         </el-form-item>
         <el-form-item label="频率值">
           <el-input-number v-model="form.frequency_value" :min="1" />
+        </el-form-item>
+        <el-form-item label="到期日延迟(天)">
+          <el-input-number v-model="form.due_date_delay" :min="0" />
+        </el-form-item>
+        <el-form-item label="结束日期">
+          <el-date-picker
+            v-model="form.ends_on"
+            type="date"
+            value-format="YYYY-MM-DD"
+            placeholder="可选：排程结束后停止生单"
+            clearable
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item v-if="dialogMode === 'edit'" label="下次到期">
           <span>{{ editingNextDue }}</span>

@@ -56,6 +56,9 @@ async function performRefresh(): Promise<string> {
 
 function redirectToLogin(): void {
   authStorage.clearTokens()
+  // 已在登录页则不再跳转：否则登录页上的 401（如通知轮询）会把当前含 redirect 的整 URL
+  // 再次 encode 拼进新的 redirect，层层自嵌套 + 逐层转义直至 431/页面崩溃（死循环）。
+  if (window.location.pathname === '/login') return
   const redirect = encodeURIComponent(window.location.pathname + window.location.search)
   window.location.assign(`/login?redirect=${redirect}`)
 }
@@ -104,4 +107,10 @@ export function isVersionConflict(err: unknown): boolean {
 /** 取后端错误信封里的 message（供调用方自管 toast 的场景使用）。 */
 export function errorMessage(err: unknown): string | undefined {
   return (err as { response?: { data?: { detail?: { message?: string } } } })?.response?.data?.detail?.message
+}
+
+/** 套餐未包含该功能（后端 402 + FEATURE_LOCKED）：供前端展示「升级订阅」引导而非误判为空数据。 */
+export function isFeatureLocked(err: unknown): boolean {
+  const r = (err as { response?: { status?: number; data?: { detail?: { code?: string } } } })?.response
+  return r?.status === 402 || r?.data?.detail?.code === 'FEATURE_LOCKED'
 }

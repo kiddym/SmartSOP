@@ -43,6 +43,8 @@ class Part(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     category_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_part_category.id", ondelete="SET NULL"), index=True
     )
+    area: Mapped[str | None] = mapped_column(String(200), default=None)
+    additional_infos: Mapped[str | None] = mapped_column(Text, default=None)
 
     @property
     def is_low_stock(self) -> bool:

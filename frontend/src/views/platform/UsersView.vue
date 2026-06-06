@@ -1,9 +1,24 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listUsers, createUser, inviteUser, updateUser, deleteUser } from '@/api/users'
+import {
+  listUsers,
+  createUser,
+  inviteUser,
+  updateUser,
+  deleteUser,
+  disableUser,
+  enableUser,
+} from '@/api/users'
 import { listRoles } from '@/api/roles'
-import type { UserRead, UserCreate, UserInvite, UserUpdate, RoleRead } from '@/types/platform'
+import type {
+  UserRead,
+  UserCreate,
+  UserInvite,
+  UserUpdate,
+  UserStatus,
+  RoleRead,
+} from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
 import { formatDateTime } from '@/utils/format'
 
@@ -50,7 +65,7 @@ interface FormState {
   password: string
   name: string
   role_id: string | null
-  status: 'active' | 'inactive'
+  status: UserStatus
 }
 
 const form = reactive<FormState>({
@@ -153,6 +168,28 @@ async function submitForm() {
   }
 }
 
+// ── disable / enable ───────────────────────────────────────
+async function toggleStatus(row: UserRead) {
+  const disabling = row.status === 'active'
+  try {
+    if (disabling) {
+      await ElMessageBox.confirm(`确认禁用用户「${row.name}」？禁用后将无法登录。`, '禁用用户', {
+        type: 'warning',
+        confirmButtonText: '禁用',
+        cancelButtonText: '取消',
+      })
+      await disableUser(row.id)
+      ElMessage.success('已禁用')
+    } else {
+      await enableUser(row.id)
+      ElMessage.success('已启用')
+    }
+    await fetchUsers()
+  } catch {
+    // cancelled or error handled by interceptor
+  }
+}
+
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: UserRead) {
   try {
@@ -203,7 +240,7 @@ async function handleDelete(row: UserRead) {
           {{ row.last_login_at ? formatDateTime(row.last_login_at) : '—' }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="160" align="center" fixed="right">
+      <el-table-column label="操作" width="220" align="center" fixed="right">
         <template #default="{ row }">
           <el-button
             v-if="auth.hasPermission('user.edit')"
@@ -212,6 +249,14 @@ async function handleDelete(row: UserRead) {
             @click="openEdit(row)"
           >
             编辑
+          </el-button>
+          <el-button
+            v-if="auth.hasPermission('user.edit') && row.id !== auth.user?.id"
+            link
+            :type="row.status === 'active' ? 'warning' : 'success'"
+            @click="toggleStatus(row)"
+          >
+            {{ row.status === 'active' ? '禁用' : '启用' }}
           </el-button>
           <el-button
             v-if="auth.hasPermission('user.delete')"
@@ -259,7 +304,7 @@ async function handleDelete(row: UserRead) {
         <el-form-item v-if="dialogMode === 'edit'" label="状态">
           <el-select v-model="form.status" style="width: 100%">
             <el-option label="启用" value="active" />
-            <el-option label="停用" value="inactive" />
+            <el-option label="停用" value="disabled" />
           </el-select>
         </el-form-item>
 

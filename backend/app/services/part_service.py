@@ -10,9 +10,11 @@ from sqlalchemy.orm import Session
 
 from app.errors import not_found
 from app.models.base import utcnow
+from app.models.customer import Customer, CustomerPart
 from app.models.location import Location
 from app.models.part import Part, PartAsset, PartAssignee, PartLocation, PartPM, PartTeam
 from app.models.preventive_maintenance import PreventiveMaintenance
+from app.models.vendor import Vendor, VendorPart
 from app.schemas.part import PartCreate, PartUpdate
 from app.services import sequence_service
 
@@ -71,6 +73,30 @@ def pm_ids(db: Session, part_id: str) -> list[str]:
     )
 
 
+def vendor_ids(db: Session, part_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(VendorPart.vendor_id)
+            .where(VendorPart.part_id == part_id)
+            .order_by(VendorPart.vendor_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def customer_ids(db: Session, part_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(CustomerPart.customer_id)
+            .where(CustomerPart.part_id == part_id)
+            .order_by(CustomerPart.customer_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
 def _validate_pm_ids(db: Session, ids: list[str], company_id: str) -> None:
     # 守红线：目标 PM 必须属当前 company（且未软删），否则跨租户引用 → 404
     for pid in dict.fromkeys(ids):
@@ -87,6 +113,22 @@ def _validate_location_ids(db: Session, ids: list[str], company_id: str) -> None
             raise not_found("LOCATION_NOT_FOUND", "位置不存在")
 
 
+def _validate_vendor_ids(db: Session, ids: list[str], company_id: str) -> None:
+    # 守红线：目标供应商必须属当前 company（且未软删），否则跨租户引用 → 404
+    for vid in dict.fromkeys(ids):
+        v = db.get(Vendor, vid)
+        if v is None or not v.is_active or v.company_id != company_id:
+            raise not_found("VENDOR_NOT_FOUND", "供应商不存在")
+
+
+def _validate_customer_ids(db: Session, ids: list[str], company_id: str) -> None:
+    # 守红线：目标客户必须属当前 company（且未软删），否则跨租户引用 → 404
+    for cid in dict.fromkeys(ids):
+        c = db.get(Customer, cid)
+        if c is None or not c.is_active or c.company_id != company_id:
+            raise not_found("CUSTOMER_NOT_FOUND", "客户不存在")
+
+
 def _set_relations(
     db: Session,
     part_id: str,
@@ -96,6 +138,8 @@ def _set_relations(
     asset_id_list: list[str],
     location_id_list: list[str],
     pm_id_list: list[str],
+    vendor_id_list: list[str],
+    customer_id_list: list[str],
 ) -> None:
     for uid in dict.fromkeys(user_ids):
         db.add(PartAssignee(part_id=part_id, user_id=uid, company_id=company_id))
@@ -107,6 +151,10 @@ def _set_relations(
         db.add(PartLocation(part_id=part_id, location_id=lid, company_id=company_id))
     for pid in dict.fromkeys(pm_id_list):
         db.add(PartPM(part_id=part_id, pm_id=pid, company_id=company_id))
+    for vid in dict.fromkeys(vendor_id_list):
+        db.add(VendorPart(part_id=part_id, vendor_id=vid, company_id=company_id))
+    for cid in dict.fromkeys(customer_id_list):
+        db.add(CustomerPart(part_id=part_id, customer_id=cid, company_id=company_id))
 
 
 def create_part(
@@ -124,12 +172,16 @@ def create_part(
         barcode=payload.barcode,
         non_stock=payload.non_stock,
         category_id=payload.category_id,
+        area=payload.area,
+        additional_infos=payload.additional_infos,
         company_id=company_id,
     )
     db.add(p)
     db.flush()
     _validate_location_ids(db, payload.location_ids, company_id)
     _validate_pm_ids(db, payload.pm_ids, company_id)
+    _validate_vendor_ids(db, payload.vendor_ids, company_id)
+    _validate_customer_ids(db, payload.customer_ids, company_id)
     _set_relations(
         db,
         p.id,
@@ -139,6 +191,8 @@ def create_part(
         payload.asset_ids,
         payload.location_ids,
         payload.pm_ids,
+        payload.vendor_ids,
+        payload.customer_ids,
     )
     db.commit()
     db.refresh(p)
@@ -180,6 +234,17 @@ def update_part(
     new_assets = data.pop("asset_ids", None)
     new_locations = data.pop("location_ids", None)
     new_pms = data.pop("pm_ids", None)
+    new_vendors = data.pop("vendor_ids", None)
+    new_customers = data.pop("customer_ids", None)
+    # 校验须在 setattr 之前，确保非法目标不会落库
+    if new_locations is not None:
+        _validate_location_ids(db, new_locations, company_id)
+    if new_pms is not None:
+        _validate_pm_ids(db, new_pms, company_id)
+    if new_vendors is not None:
+        _validate_vendor_ids(db, new_vendors, company_id)
+    if new_customers is not None:
+        _validate_customer_ids(db, new_customers, company_id)
     for k, v in data.items():
         setattr(p, k, v)
     if new_assignees is not None:
@@ -195,15 +260,21 @@ def update_part(
         for aid in dict.fromkeys(new_assets):
             db.add(PartAsset(part_id=p.id, asset_id=aid, company_id=company_id))
     if new_locations is not None:
-        _validate_location_ids(db, new_locations, company_id)
         db.execute(delete(PartLocation).where(PartLocation.part_id == p.id))
         for lid in dict.fromkeys(new_locations):
             db.add(PartLocation(part_id=p.id, location_id=lid, company_id=company_id))
     if new_pms is not None:
-        _validate_pm_ids(db, new_pms, company_id)
         db.execute(delete(PartPM).where(PartPM.part_id == p.id))
         for pid in dict.fromkeys(new_pms):
             db.add(PartPM(part_id=p.id, pm_id=pid, company_id=company_id))
+    if new_vendors is not None:
+        db.execute(delete(VendorPart).where(VendorPart.part_id == p.id))
+        for vid in dict.fromkeys(new_vendors):
+            db.add(VendorPart(part_id=p.id, vendor_id=vid, company_id=company_id))
+    if new_customers is not None:
+        db.execute(delete(CustomerPart).where(CustomerPart.part_id == p.id))
+        for cid in dict.fromkeys(new_customers):
+            db.add(CustomerPart(part_id=p.id, customer_id=cid, company_id=company_id))
     db.commit()
     db.refresh(p)
     return p

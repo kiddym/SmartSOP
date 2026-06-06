@@ -18,6 +18,8 @@ export interface WorkOrderRead {
   completed_at: string | null
   category_id: string | null
   created_by_user_id: string | null
+  signature_url: string | null
+  required_signature: boolean
   assignee_ids: string[]
   team_ids: string[]
 }
@@ -33,6 +35,7 @@ export interface WorkOrderCreate {
   team_ids?: string[]
   category_id?: string | null
   procedure_id?: string | null
+  required_signature?: boolean
 }
 export interface WorkOrderUpdate {
   title?: string
@@ -43,10 +46,12 @@ export interface WorkOrderUpdate {
   location_id?: string | null
   primary_user_id?: string | null
   category_id?: string | null
+  required_signature?: boolean
 }
 export interface WorkOrderTransition {
   to_status: WorkOrderStatus
   note?: string
+  signature_url?: string | null
 }
 export interface AssigneesSet {
   user_ids: string[]
@@ -66,6 +71,17 @@ export interface WorkOrderActivityRead {
 }
 export interface WorkOrderCommentCreate {
   comment: string
+}
+
+export type CalendarEventType = 'work_order' | 'pm'
+export interface CalendarEvent {
+  type: CalendarEventType
+  id: string
+  custom_id: string | null
+  title: string
+  date: string
+  status: WorkOrderStatus | null
+  priority: WorkOrderPriority | null
 }
 
 export interface TimeCategoryRead {
@@ -102,6 +118,7 @@ export interface LaborRead {
   duration_seconds: number
   hourly_rate: string
   notes: string
+  include_to_total: boolean
   running: boolean
   cost: string
   running_elapsed_seconds: number | null
@@ -114,6 +131,7 @@ export interface LaborCreate {
   started_at?: string | null
   stopped_at?: string | null
   notes?: string
+  include_to_total?: boolean
 }
 export interface LaborTimerStart {
   time_category_id?: string | null
@@ -127,6 +145,7 @@ export interface LaborUpdate {
   hourly_rate?: string | null
   user_id?: string | null
   notes?: string
+  include_to_total?: boolean
 }
 
 export interface AdditionalCostRead {
@@ -137,18 +156,21 @@ export interface AdditionalCostRead {
   amount: string
   description: string
   created_by_user_id: string | null
+  include_to_total: boolean
 }
 export interface AdditionalCostCreate {
   title: string
   amount: string
   cost_category_id?: string | null
   description?: string
+  include_to_total?: boolean
 }
 export interface AdditionalCostUpdate {
   title?: string
   amount?: string
   cost_category_id?: string | null
   description?: string
+  include_to_total?: boolean
 }
 
 export interface CostSummaryRead {
@@ -189,6 +211,13 @@ export interface ExecutionView {
   procedure: ProcedureRef | null
   outline: OutlineNode[]
   steps: StepResultRead[]
+}
+
+/** PATCH /work-orders/{id}/steps/{result_id} 入参；字段全可选（部分更新）。 */
+export interface StepResultUpdate {
+  response?: Record<string, unknown>
+  is_done?: boolean
+  notes?: string
 }
 
 export interface WorkOrderCategoryRead {

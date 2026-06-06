@@ -461,11 +461,18 @@ def get_tree(db: Session) -> list[dict[str, Any]]:
     folders = list(
         db.execute(select(Folder).where(Folder.is_active.is_(True)).order_by(Folder.name)).scalars()
     )
+    # 计数口径与程序库列表对齐：仅 is_current 且非 DRAFT（草稿只在草稿箱可见，
+    # 不计入文件夹「N 个程序」徽标；历史非当前版本亦不计）。普通文件夹即 PUBLISHED、
+    # 系统文件夹（归档/废止）即 ARCHIVED，均与点击文件夹后列表所见一致。
     counts = {
         fid: int(n)
         for fid, n in db.execute(
             select(Procedure.folder_id, func.count())
-            .where(Procedure.is_active.is_(True))
+            .where(
+                Procedure.is_active.is_(True),
+                Procedure.is_current.is_(True),
+                Procedure.status != "DRAFT",
+            )
             .group_by(Procedure.folder_id)
         ).all()
     }

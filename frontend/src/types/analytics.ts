@@ -130,6 +130,16 @@ export interface ABCRow {
   cumulative_pct: number
   abc_class: string
 }
+export interface WoCategoryConsumptionRow {
+  category_id: string | null
+  name: string | null
+  cost: string
+  qty: string
+}
+export interface MonthlyConsumptionRow {
+  month: string
+  cost: string
+}
 export interface InventoryAnalytics {
   total_inventory_value: string
   inventory_value_by_category: CategoryValueRow[]
@@ -138,6 +148,8 @@ export interface InventoryAnalytics {
   top_consumed_parts: TopConsumedRow[]
   abc_classification: ABCRow[]
   abc_summary: Record<string, number>
+  consumption_by_wo_category: WoCategoryConsumptionRow[]
+  consumption_monthly_trend: MonthlyConsumptionRow[]
 }
 
 export interface PersonnelRow {

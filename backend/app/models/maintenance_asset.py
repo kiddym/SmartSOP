@@ -46,6 +46,9 @@ class Asset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     primary_user_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_user.id", ondelete="SET NULL"), index=True
     )
+    area: Mapped[str | None] = mapped_column(String(200), default=None)
+    additional_infos: Mapped[str | None] = mapped_column(Text, default=None)
+    image_url: Mapped[str | None] = mapped_column(String(512), default=None)
 
 
 class AssetUser(Base, UUIDMixin, TimestampMixin, TenantMixin):

@@ -79,6 +79,11 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # 完成时自动判定的合规快照；未完成为 None
     is_compliant: Mapped[bool | None] = mapped_column(Boolean, default=None)
+    # 完成签名：required_signature=True 时完成前必须存档 signature_url（否则 422）
+    signature_url: Mapped[str | None] = mapped_column(String(512), default=None)
+    required_signature: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default=text("0")
+    )
 
 
 class WorkOrderAssignee(Base, UUIDMixin, TimestampMixin, TenantMixin):

@@ -44,6 +44,14 @@ const data = {
     },
   ],
   abc_summary: { A: 1, B: 0, C: 0 },
+  consumption_by_wo_category: [
+    { category_id: 'wc1', name: '机械维修', cost: '30000.00', qty: '15.0000' },
+    { category_id: null, name: null, cost: '12000.00', qty: '4.0000' },
+  ],
+  consumption_monthly_trend: [
+    { month: '2026-02', cost: '10000.00' },
+    { month: '2026-03', cost: '13000.00' },
+  ],
 }
 
 function mountPanel(
@@ -99,6 +107,17 @@ describe('InventoryPanel', () => {
       date_to: '2026-03-31',
       category_id: 'pc1',
     })
+  })
+
+  it('渲染按工单分类消耗明细（含未分类）+ 按月趋势切面', async () => {
+    const w = mountPanel()
+    await flushPromises()
+    expect(w.text()).toContain('按工单分类消耗成本')
+    expect(w.text()).toContain('按月消耗趋势')
+    // 明细表渲染分类名与未分类占位
+    expect(w.text()).toContain('机械维修')
+    expect(w.text()).toContain('未分类')
+    expect(w.text()).toContain('30000.00')
   })
 
   it('导出按钮调 exportAnalytics(inventory, params)', async () => {

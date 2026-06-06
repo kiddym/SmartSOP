@@ -20,6 +20,59 @@ def test_get_returns_defaults_then_update(client):
     assert client.get("/api/v1/company-settings", headers=h).json()["timezone"] == "UTC"
 
 
+def test_general_preferences_defaults_and_update(client):
+    """通用偏好开关默认值合理且可更新持久化。"""
+    h = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.get("/api/v1/company-settings", headers=h).json()
+    # 默认：工时计入总成本=True，其余开关 False，PM 提前提醒天数=0
+    assert r["labor_cost_in_total_cost"] is True
+    assert r["ask_feedback_on_wo_closed"] is False
+    assert r["auto_assign_requests"] is False
+    assert r["days_before_pm_notification"] == 0
+    assert r["language"] == "zh-CN"
+    u = client.put(
+        "/api/v1/company-settings",
+        headers=h,
+        json={
+            "business_type": "Manufacturing",
+            "ask_feedback_on_wo_closed": True,
+            "labor_cost_in_total_cost": False,
+            "days_before_pm_notification": 7,
+            "auto_assign_requests": True,
+        },
+    )
+    assert u.status_code == 200, u.text
+    body = u.json()
+    assert body["business_type"] == "Manufacturing"
+    assert body["ask_feedback_on_wo_closed"] is True
+    assert body["labor_cost_in_total_cost"] is False
+    assert body["days_before_pm_notification"] == 7
+    # 持久化
+    again = client.get("/api/v1/company-settings", headers=h).json()
+    assert again["auto_assign_requests"] is True
+
+
+def test_ui_module_visibility_defaults_and_update(client):
+    """导航模块显隐开关默认全显，可关闭并持久化。"""
+    h = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.get("/api/v1/company-settings", headers=h).json()
+    assert r["show_requests"] is True
+    assert r["show_locations"] is True
+    assert r["show_meters"] is True
+    assert r["show_vendors_customers"] is True
+    u = client.put(
+        "/api/v1/company-settings",
+        headers=h,
+        json={"show_meters": False, "show_vendors_customers": False},
+    )
+    assert u.status_code == 200, u.text
+    assert u.json()["show_meters"] is False
+    assert u.json()["show_vendors_customers"] is False
+    assert u.json()["show_requests"] is True
+    again = client.get("/api/v1/company-settings", headers=h).json()
+    assert again["show_meters"] is False
+
+
 def test_settings_isolated_per_company(client):
     """两公司各自独立的 settings。"""
     hA = {

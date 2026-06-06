@@ -7,10 +7,12 @@ transition 时按需 import）。
 
 from __future__ import annotations
 
-from sqlalchemy import delete, select
+from datetime import date
+
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request, conflict, not_found
+from app.errors import bad_request, conflict, not_found, unprocessable
 from app.models.base import utcnow
 from app.models.part_consumption import PartConsumption
 from app.models.role import Role
@@ -98,6 +100,8 @@ def to_read(db: Session, wo: WorkOrder, viewer: User | None = None) -> dict[str,
         "first_responded_at": wo.first_responded_at,
         "archived": wo.archived,
         "is_compliant": wo.is_compliant,
+        "signature_url": wo.signature_url,
+        "required_signature": wo.required_signature,
         "assignee_ids": assignee_ids(db, wo.id),
         "team_ids": team_ids(db, wo.id),
         "can_be_edited": can_edit_work_order(db, viewer, wo) if viewer is not None else False,
@@ -193,6 +197,7 @@ def create_work_order(
         location_id=payload.location_id,
         primary_user_id=payload.primary_user_id,
         category_id=payload.category_id,
+        required_signature=payload.required_signature,
         created_by_user_id=actor_user_id,
         company_id=company_id,
     )
@@ -202,6 +207,10 @@ def create_work_order(
         db.add(WorkOrderAssignee(work_order_id=wo.id, user_id=uid, company_id=company_id))
     for tid in dict.fromkeys(payload.team_ids):
         db.add(WorkOrderTeam(work_order_id=wo.id, team_id=tid, company_id=company_id))
+    # 工作流引擎：WORK_ORDER_CREATED（同事务、commit 前；引擎仅改字段不递归）
+    from app.services import workflow_engine
+
+    workflow_engine.run_for_work_order(db, wo, workflow_engine.WORK_ORDER_CREATED, company_id)
     db.commit()
     db.refresh(wo)
     return wo
@@ -247,6 +256,83 @@ def list_work_orders(
     return list(db.execute(stmt.order_by(WorkOrder.custom_id)).scalars().all())
 
 
+_OPEN_WO_STATUSES = (
+    WorkOrderStatus.OPEN,
+    WorkOrderStatus.IN_PROGRESS,
+    WorkOrderStatus.ON_HOLD,
+)
+
+
+def urgent_count(db: Session) -> int:
+    """当前租户下 urgent=True 且处于未完成/未取消（OPEN/IN_PROGRESS/ON_HOLD）的工单数。"""
+    stmt = (
+        select(func.count())
+        .select_from(WorkOrder)
+        .where(
+            WorkOrder.is_active.is_(True),
+            WorkOrder.urgent.is_(True),
+            WorkOrder.status.in_(_OPEN_WO_STATUSES),
+        )
+    )
+    return int(db.execute(stmt).scalar_one())
+
+
+def calendar_events(db: Session, *, start: date, end: date) -> list[dict[str, object]]:
+    """聚合 [start,end] 内的日历事件（当前租户）：
+
+    - 工单：due_date 落在区间的活跃工单 → type=work_order（含 status/priority）。
+    - PM：next_due_date 落在区间的活跃且启用 PM → type=pm。
+
+    在 service 层内 import PreventiveMaintenance 避免模块级循环依赖。
+    """
+    from app.models.preventive_maintenance import PreventiveMaintenance
+
+    events: list[dict[str, object]] = []
+    wo_stmt = (
+        select(WorkOrder)
+        .where(
+            WorkOrder.is_active.is_(True),
+            WorkOrder.due_date.is_not(None),
+            WorkOrder.due_date >= start,
+            WorkOrder.due_date <= end,
+        )
+        .order_by(WorkOrder.due_date, WorkOrder.custom_id)
+    )
+    for wo in db.execute(wo_stmt).scalars().all():
+        events.append(
+            {
+                "type": "work_order",
+                "id": wo.id,
+                "custom_id": wo.custom_id,
+                "title": wo.title,
+                "date": wo.due_date,
+                "status": wo.status,
+                "priority": wo.priority,
+            }
+        )
+    pm_stmt = (
+        select(PreventiveMaintenance)
+        .where(
+            PreventiveMaintenance.is_active.is_(True),
+            PreventiveMaintenance.is_enabled.is_(True),
+            PreventiveMaintenance.next_due_date >= start,
+            PreventiveMaintenance.next_due_date <= end,
+        )
+        .order_by(PreventiveMaintenance.next_due_date, PreventiveMaintenance.custom_id)
+    )
+    for pm in db.execute(pm_stmt).scalars().all():
+        events.append(
+            {
+                "type": "pm",
+                "id": pm.id,
+                "custom_id": pm.custom_id,
+                "title": pm.title,
+                "date": pm.next_due_date,
+            }
+        )
+    return events
+
+
 def get_work_order(db: Session, work_order_id: str) -> WorkOrder | None:
     wo = db.get(WorkOrder, work_order_id)
     if wo is None or not wo.is_active:
@@ -284,6 +370,12 @@ def transition(
         from app.services import work_order_execution_service as exe
 
         exe.assert_completable(db, wo)
+        # 完成签名：transition payload 可携带 signature_url 存档；
+        # required_signature=True 且最终无签名则拒绝完成。
+        if payload.signature_url is not None:
+            wo.signature_url = payload.signature_url
+        if wo.required_signature and not wo.signature_url:
+            raise unprocessable("SIGNATURE_REQUIRED", "完成该工单需要签名")
         wo.completed_at = utcnow()
         wo.completed_by_user_id = actor_user_id
         # 合规快照：无截止日视为合规；否则按完成日 <= 截止日
@@ -305,6 +397,13 @@ def transition(
     )
     _notif.on_wo_status_changed(
         db, wo, from_status=src.value, to_status=dst.value, actor_user_id=actor_user_id
+    )
+    # 工作流引擎：WORK_ORDER_STATUS_CHANGED（针对转移后的新状态评估）。
+    # 引擎内 set_status 直改字段、不回调 transition，故不会再触发本工作流（无递归）。
+    from app.services import workflow_engine
+
+    workflow_engine.run_for_work_order(
+        db, wo, workflow_engine.WORK_ORDER_STATUS_CHANGED, company_id
     )
     db.commit()
     db.refresh(wo)

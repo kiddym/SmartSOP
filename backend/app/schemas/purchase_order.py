@@ -38,6 +38,14 @@ class PurchaseOrderCreate(BaseModel):
     shipping_method: str = ""
     terms_of_payment: str = ""
     expected_delivery_date: date | None = None
+    shipping_to_name: str | None = None
+    shipping_company_name: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_zip_code: str | None = None
+    shipping_phone: str | None = None
+    shipping_fax: str | None = None
+    requisitioned_by_name: str | None = None
     lines: list[POLineCreate] = []
 
 
@@ -49,6 +57,14 @@ class PurchaseOrderUpdate(BaseModel):
     shipping_method: str | None = None
     terms_of_payment: str | None = None
     expected_delivery_date: date | None = None
+    shipping_to_name: str | None = None
+    shipping_company_name: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_zip_code: str | None = None
+    shipping_phone: str | None = None
+    shipping_fax: str | None = None
+    requisitioned_by_name: str | None = None
     lines: list[POLineCreate] | None = None
 
 
@@ -64,6 +80,14 @@ class PurchaseOrderRead(BaseModel):
     shipping_method: str = ""
     terms_of_payment: str = ""
     expected_delivery_date: date | None = None
+    shipping_to_name: str | None = None
+    shipping_company_name: str | None = None
+    shipping_city: str | None = None
+    shipping_state: str | None = None
+    shipping_zip_code: str | None = None
+    shipping_phone: str | None = None
+    shipping_fax: str | None = None
+    requisitioned_by_name: str | None = None
     resolution_note: str
     resolved_by_user_id: str | None
     resolved_at: datetime | None

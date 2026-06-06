@@ -16,8 +16,11 @@ export interface LocationRead {
   address: string
   longitude: number | null
   latitude: number | null
+  image_url: string | null
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
 }
 export interface LocationCreate {
   name: string
@@ -26,8 +29,11 @@ export interface LocationCreate {
   address?: string
   longitude?: number | null
   latitude?: number | null
+  image_url?: string | null
   assigned_user_ids?: string[]
   team_ids?: string[]
+  vendor_ids?: string[]
+  customer_ids?: string[]
 }
 export type LocationUpdate = Partial<LocationCreate>
 export interface LocationMini {
@@ -35,6 +41,20 @@ export interface LocationMini {
   name: string
   custom_id: string
 }
+
+export interface FloorPlanRead {
+  id: string
+  location_id: string
+  name: string
+  image_url: string | null
+  area: string | number | null
+}
+export interface FloorPlanCreate {
+  name: string
+  image_url?: string | null
+  area?: string | number | null
+}
+export type FloorPlanUpdate = Partial<FloorPlanCreate>
 
 export interface AssetRead {
   id: string
@@ -55,8 +75,14 @@ export interface AssetRead {
   barcode: string | null
   nfc_id: string | null
   primary_user_id: string | null
+  area: string | null
+  additional_infos: string | null
+  image_url: string | null
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
+  part_ids: string[]
 }
 export interface AssetCreate {
   name: string
@@ -75,8 +101,14 @@ export interface AssetCreate {
   barcode?: string | null
   nfc_id?: string | null
   primary_user_id?: string | null
+  area?: string | null
+  additional_infos?: string | null
+  image_url?: string | null
   assigned_user_ids?: string[]
   team_ids?: string[]
+  vendor_ids?: string[]
+  customer_ids?: string[]
+  part_ids?: string[]
 }
 export type AssetUpdate = Partial<AssetCreate>
 export interface AssetMini {

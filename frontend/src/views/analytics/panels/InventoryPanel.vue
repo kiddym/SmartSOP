@@ -79,10 +79,10 @@ const categoryPieOption = computed<EChartsOption>(() => {
     series: [
       {
         type: 'pie',
-        data: d.inventory_value_by_category.map((r) => ({
-          name: r.name ?? '未分类',
-          value: Number(r.value),
-        })),
+        // 过滤 0 值切片：避免 0 值分类标签堆叠重叠、不可读。
+        data: d.inventory_value_by_category
+          .map((r) => ({ name: r.name ?? '未分类', value: Number(r.value) }))
+          .filter((p) => p.value > 0),
       },
     ],
   }
@@ -97,6 +97,32 @@ const topConsumedOption = computed<EChartsOption>(() => {
     xAxis: { type: 'category', data: rows.map((r) => r.name) },
     yAxis: { type: 'value' },
     series: [{ type: 'bar', data: rows.map((r) => Number(r.qty)) }],
+  }
+})
+
+const woCategoryOption = computed<EChartsOption>(() => {
+  const d = data.value
+  if (!d) return { series: [] }
+  const rows = d.consumption_by_wo_category
+  return {
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: rows.map((r) => r.name ?? '未分类') },
+    yAxis: { type: 'value', name: '消耗成本' },
+    series: [{ name: '消耗成本', type: 'bar', data: rows.map((r) => Number(r.cost)) }],
+  }
+})
+
+const monthlyTrendOption = computed<EChartsOption>(() => {
+  const d = data.value
+  if (!d) return { series: [] }
+  const rows = d.consumption_monthly_trend
+  return {
+    tooltip: { trigger: 'axis' },
+    xAxis: { type: 'category', data: rows.map((r) => r.month) },
+    yAxis: { type: 'value', name: '消耗成本' },
+    series: [
+      { name: '消耗成本', type: 'line', smooth: true, data: rows.map((r) => Number(r.cost)) },
+    ],
   }
 })
 
@@ -151,6 +177,26 @@ defineExpose({ categoryId, fetch })
         <BaseChart :option="topConsumedOption" />
       </el-col>
     </el-row>
+
+    <el-row :gutter="12" class="chart-row">
+      <el-col :span="12">
+        <div class="chart-title">按工单分类消耗成本</div>
+        <BaseChart :option="woCategoryOption" />
+      </el-col>
+      <el-col :span="12">
+        <div class="chart-title">按月消耗趋势</div>
+        <BaseChart :option="monthlyTrendOption" />
+      </el-col>
+    </el-row>
+
+    <div class="chart-title">按工单分类消耗明细</div>
+    <el-table :data="data?.consumption_by_wo_category ?? []" border size="small">
+      <el-table-column label="工单分类">
+        <template #default="{ row }">{{ row.name ?? '未分类' }}</template>
+      </el-table-column>
+      <el-table-column prop="cost" label="消耗成本" />
+      <el-table-column prop="qty" label="消耗量" />
+    </el-table>
 
     <div class="chart-title">低库存明细</div>
     <el-table :data="data?.low_stock_items ?? []" border size="small">

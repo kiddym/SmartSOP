@@ -38,8 +38,11 @@ async function rememberStyle(): Promise<void> {
   }
 }
 
+// 「正文」在数据模型里用 heading_level=null 表示；但 el-option 的 value 不接受 null
+// （会触发 Vue prop 类型告警），故 UI 层用哨兵 0 代表正文，绑定/回调处与 null 互转。
+const BODY_LEVEL = 0
 const LEVELS = [
-  { value: null as number | null, label: '正文' },
+  { value: BODY_LEVEL, label: '正文' },
   { value: 1, label: '一级章节' },
   { value: 2, label: '二级章节' },
   { value: 3, label: '三级章节' },
@@ -63,8 +66,9 @@ const pushBody = useDebounceFn((v: string) => {
   if (node.value) void store.updateBody(node.value.id, v)
 }, 500)
 
-function onLevel(v: number | null): void {
-  if (node.value) void store.setLevel(node.value.id, v)
+function onLevel(v: number): void {
+  // 哨兵 0（正文）转回数据模型的 null
+  if (node.value) void store.setLevel(node.value.id, v === BODY_LEVEL ? null : v)
 }
 function onKindSwitch(isStep: boolean): void {
   if (node.value) void store.setKind(node.value.id, isStep ? 'step' : 'node')
@@ -110,8 +114,8 @@ const alertClass = computed(() => (isAlertType(schema.value.type) ? `alert-${sch
   <div v-if="node" class="node-detail">
     <el-form v-if="!props.readonly" label-position="top">
       <el-form-item label="层级">
-        <el-select :model-value="node.heading_level" @change="onLevel">
-          <el-option v-for="l in LEVELS" :key="String(l.value)" :value="l.value as number" :label="l.label" />
+        <el-select :model-value="node.heading_level ?? BODY_LEVEL" @change="onLevel">
+          <el-option v-for="l in LEVELS" :key="l.value" :value="l.value" :label="l.label" />
         </el-select>
       </el-form-item>
       <div class="inline">

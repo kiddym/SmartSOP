@@ -63,6 +63,9 @@ class CustomerCreate(BaseModel):
     description: str = ""
     rate: Decimal = Decimal("0")
     billing_currency: str = Field(default="", max_length=8)
+    billing_name: str | None = Field(default=None, max_length=300)
+    billing_address: str | None = Field(default=None, max_length=500)
+    billing_address2: str | None = Field(default=None, max_length=500)
     address: str = Field(default="", max_length=500)
     phone: str = Field(default="", max_length=60)
     email: str = Field(default="", max_length=200)
@@ -78,6 +81,9 @@ class CustomerUpdate(BaseModel):
     description: str | None = None
     rate: Decimal | None = None
     billing_currency: str | None = Field(default=None, max_length=8)
+    billing_name: str | None = Field(default=None, max_length=300)
+    billing_address: str | None = Field(default=None, max_length=500)
+    billing_address2: str | None = Field(default=None, max_length=500)
     address: str | None = Field(default=None, max_length=500)
     phone: str | None = Field(default=None, max_length=60)
     email: str | None = Field(default=None, max_length=200)
@@ -95,6 +101,9 @@ class CustomerRead(BaseModel):
     description: str
     rate: Decimal
     billing_currency: str
+    billing_name: str | None = None
+    billing_address: str | None = None
+    billing_address2: str | None = None
     address: str
     phone: str
     email: str

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, onMounted, type Component } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElIcon, ElMenu, ElMenuItem, ElSubMenu } from 'element-plus'
 import {
@@ -35,14 +35,27 @@ import {
   Setting,
   Grid,
   Collection,
+  Upload,
+  Operation,
+  Files,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
+import { useCompanySettingsStore } from '@/store/companySettings'
 
 defineProps<{ collapsed: boolean }>()
 const route = useRoute()
 const auth = useAuthStore()
 const billing = useBillingStore()
+const companySettings = useCompanySettingsStore()
+
+// 兜底：登录链路通常已在 loadMe 拉过；若侧栏挂载时仍未加载则补拉一次。
+// 失败时 settings 保持 null，显隐 getter 降级为全部显示，绝不因此隐藏导航。
+onMounted(() => {
+  if (!companySettings.settings && !companySettings.loading) {
+    void companySettings.loadSettings().catch(() => {})
+  }
+})
 
 // 套餐对比页路径（锁定项点击引导至此，而非进入会满屏 402 的模块）。
 const PLANS_PATH = '/billing/plans'
@@ -112,7 +125,40 @@ const analyticsItems = computed<NavItem[]>(() => {
   return []
 })
 
-const groups = computed<NavGroup[]>(() => [
+// 公司设置「导航模块显隐」开关 → 被隐藏的入口路径集合。
+// 某开关为 false 才隐藏对应路径；未加载/失败时 isModuleVisible 返回 true，集合为空 → 全部显示。
+// 此显隐与已有权限/feature 门控正交：在权限可见的基础上再叠加隐藏。
+const hiddenPaths = computed<Set<string>>(() => {
+  const hidden = new Set<string>()
+  const vis = companySettings.isModuleVisible
+  if (!vis('show_requests')) hidden.add('/maintenance/requests')
+  if (!vis('show_locations')) hidden.add('/assets/locations')
+  if (!vis('show_meters')) hidden.add('/maintenance/meters')
+  if (!vis('show_vendors_customers')) {
+    hidden.add('/inventory/vendors')
+    hidden.add('/maintenance/customers')
+  }
+  return hidden
+})
+
+// 按公司设置过滤掉被隐藏路径的叶子项（递归进子分组）。
+function filterEntries(entries: NavEntry[]): NavEntry[] {
+  const hidden = hiddenPaths.value
+  if (hidden.size === 0) return entries
+  return entries
+    .map((e) => {
+      if (isSubGroup(e)) {
+        return { ...e, items: e.items.filter((it) => !it.path || !hidden.has(it.path)) }
+      }
+      return e
+    })
+    .filter((e) => {
+      if (isSubGroup(e)) return e.items.length > 0
+      return !e.path || !hidden.has(e.path)
+    })
+}
+
+const rawGroups = computed<NavGroup[]>(() => [
   {
     label: 'SOP',
     entries: [
@@ -179,7 +225,15 @@ const groups = computed<NavGroup[]>(() => [
         items: [
           { label: '系统设置', path: '/admin/settings', icon: Setting },
           { label: '字段管理', path: '/admin/fields', icon: Grid },
+          {
+            label: '工作流',
+            path: '/admin/workflows',
+            requiredPermission: 'workflow.view',
+            icon: Operation,
+          },
           { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
+          { label: '数据导入', path: '/admin/imports', icon: Upload },
+          { label: '文件库', path: '/admin/files', icon: Files },
         ],
       },
       {
@@ -190,6 +244,11 @@ const groups = computed<NavGroup[]>(() => [
     ],
   },
 ])
+
+// 叠加公司设置显隐过滤后的最终分组。
+const groups = computed<NavGroup[]>(() =>
+  rawGroups.value.map((g) => ({ ...g, entries: filterEntries(g.entries) })),
+)
 
 const activeMenu = computed<string>(() => {
   const p = route.path

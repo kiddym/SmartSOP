@@ -23,6 +23,10 @@ vi.mock('@/api/procedures', () => ({
 vi.mock('@/api/workOrderCategories', () => ({
   listWorkOrderCategories: vi.fn().mockResolvedValue([{ id: 'c1', name: '常规' }]),
 }))
+vi.mock('@/api/fieldConfigurations', () => ({
+  getFieldConfig: vi.fn().mockResolvedValue([]),
+  putFieldConfig: vi.fn(),
+}))
 
 import WorkOrderFormDialog from '@/components/workorder/WorkOrderFormDialog.vue'
 import type { WorkOrderRead } from '@/types/workOrder'
@@ -74,6 +78,8 @@ describe('WorkOrderFormDialog', () => {
       completed_at: null,
       category_id: null,
       created_by_user_id: null,
+      signature_url: null,
+      required_signature: false,
       assignee_ids: [],
       team_ids: [],
     }

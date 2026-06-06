@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from datetime import date
+
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app import permissions
@@ -16,6 +18,7 @@ from app.schemas.work_order import (
     ActivityRead,
     AssigneesSet,
     AttachProcedure,
+    CalendarEvent,
     CommentCreate,
     ExecutionView,
     StepResultUpdate,
@@ -29,6 +32,7 @@ from app.schemas.work_order import (
 )
 from app.services import work_order_execution_service as exe
 from app.services import work_order_service as svc
+from app.services.pdf import work_order_report as report
 
 router = APIRouter(prefix="/api/v1/work-orders", tags=["work-orders"])
 
@@ -72,6 +76,26 @@ def list_work_orders(
     return [svc.to_read(db, w, viewer=current_user) for w in rows]
 
 
+# 注：/urgent-count 须注册在 /{work_order_id} 之前，否则会被路径参数吞掉
+@router.get("/urgent-count")
+def urgent_count(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> dict[str, int]:
+    return {"count": svc.urgent_count(db)}
+
+
+# 注：/events 须注册在 /{work_order_id} 之前，否则会被路径参数吞掉
+@router.get("/events", response_model=list[CalendarEvent])
+def calendar_events(
+    start: date,
+    end: date,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> list[dict[str, object]]:
+    return svc.calendar_events(db, start=start, end=end)
+
+
 @router.post("", response_model=WorkOrderRead, status_code=201)
 def create_work_order(
     payload: WorkOrderCreate,
@@ -94,6 +118,22 @@ def get_work_order(
 ) -> dict[str, object]:
     wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
     return svc.to_read(db, wo, viewer=current_user)
+
+
+@router.get("/{work_order_id}/report")
+def work_order_report(
+    work_order_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> Response:
+    """生成并下载工单 PDF 报告（当前租户）。"""
+    wo = _ensure(svc.get_work_order(db, work_order_id), current_user.company_id)
+    pdf_bytes, filename = report.generate_work_order_report(db, wo)
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/{work_order_id}", response_model=WorkOrderRead)

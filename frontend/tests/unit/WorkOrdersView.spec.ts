@@ -6,8 +6,12 @@ import { createPinia, setActivePinia } from 'pinia'
 const push = vi.fn()
 vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
 
-const { lw, dw } = vi.hoisted(() => ({ lw: vi.fn(), dw: vi.fn() }))
-vi.mock('@/api/workOrders', () => ({ listWorkOrders: lw, deleteWorkOrder: dw }))
+const { lw, dw, lev } = vi.hoisted(() => ({ lw: vi.fn(), dw: vi.fn(), lev: vi.fn() }))
+vi.mock('@/api/workOrders', () => ({
+  listWorkOrders: lw,
+  deleteWorkOrder: dw,
+  listWorkOrderEvents: lev,
+}))
 vi.mock('@/api/assets', () => ({
   listAssetsMini: vi.fn().mockResolvedValue([{ id: 'a1', name: '泵' }]),
 }))
@@ -72,6 +76,7 @@ beforeEach(() => {
   push.mockReset()
   lw.mockReset().mockResolvedValue([wo])
   dw.mockReset().mockResolvedValue(undefined)
+  lev.mockReset().mockResolvedValue([])
 })
 afterEach(() => {
   document.body.innerHTML = ''
@@ -128,5 +133,72 @@ describe('WorkOrdersView', () => {
 
     const lastCall = lw.mock.calls[lw.mock.calls.length - 1][0]
     expect(lastCall).toMatchObject({ status: 'OPEN', procedure_attached: false })
+  })
+
+  it('切到日历视图按当月首尾日调 events 端点', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    // 固定到 2026-06 便于断言月界
+    vm.calendarDate = new Date(2026, 5, 15)
+    vm.viewMode = 'calendar'
+    await flushPromises()
+    expect(lev).toHaveBeenCalled()
+    const [start, end] = lev.mock.calls[lev.mock.calls.length - 1]
+    expect(start).toBe('2026-06-01')
+    expect(end).toBe('2026-06-30')
+  })
+
+  it('日历格渲染工单/PM事件，点工单事件跳详情', async () => {
+    lev.mockResolvedValue([
+      {
+        type: 'work_order',
+        id: 'w9',
+        custom_id: 'WO-009',
+        title: '更换轴承',
+        date: '2026-06-10',
+        status: 'OPEN',
+        priority: 'HIGH',
+      },
+      {
+        type: 'pm',
+        id: 'p9',
+        custom_id: 'PM-009',
+        title: '月度润滑',
+        date: '2026-06-20',
+        status: null,
+        priority: null,
+      },
+    ])
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.calendarDate = new Date(2026, 5, 15)
+    vm.viewMode = 'calendar'
+    await flushPromises()
+
+    expect(w.text()).toContain('WO-009')
+    expect(w.text()).toContain('更换轴承')
+    expect(w.text()).toContain('PM-009')
+    expect(w.text()).toContain('月度润滑')
+
+    // 点工单事件跳详情（el-tag 根 span 被 element 内部包裹，直接驱动暴露的处理器）
+    const woTag = w.findAll('.cal-event').find((t) => t.text().includes('WO-009'))
+    expect(woTag).toBeTruthy()
+    const vm2 = w.vm as any
+    vm2.onEventClick({ type: 'work_order', id: 'w9' })
+    expect(push).toHaveBeenCalledWith('/maintenance/work-orders/w9')
+  })
+
+  it('切回列表视图隐藏日历', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.viewMode = 'calendar'
+    await flushPromises()
+    expect(w.find('.calendar-wrap').exists()).toBe(true)
+    vm.viewMode = 'list'
+    await flushPromises()
+    expect(w.find('.calendar-wrap').exists()).toBe(false)
   })
 })

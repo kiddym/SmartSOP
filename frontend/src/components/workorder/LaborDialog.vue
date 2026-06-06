@@ -28,6 +28,7 @@ interface FormState {
   time_category_id: string | null
   hourly_rate: string
   notes: string
+  include_to_total: boolean
 }
 const form = reactive<FormState>({
   minutes: 0,
@@ -35,6 +36,7 @@ const form = reactive<FormState>({
   time_category_id: null,
   hourly_rate: '',
   notes: '',
+  include_to_total: true,
 })
 
 async function fetchOptions() {
@@ -54,6 +56,7 @@ function resetOrFill() {
     form.time_category_id = null
     form.hourly_rate = ''
     form.notes = ''
+    form.include_to_total = true
     return
   }
   form.minutes = Math.round(props.editing.duration_seconds / 60)
@@ -61,6 +64,7 @@ function resetOrFill() {
   form.time_category_id = props.editing.time_category_id
   form.hourly_rate = props.editing.hourly_rate
   form.notes = props.editing.notes
+  form.include_to_total = props.editing.include_to_total
 }
 
 watch(
@@ -82,6 +86,7 @@ async function submitForm() {
     time_category_id: form.time_category_id || null,
     hourly_rate: form.hourly_rate || null,
     notes: form.notes,
+    include_to_total: form.include_to_total,
   }
   submitting.value = true
   try {
@@ -142,6 +147,9 @@ defineExpose({ form, submitForm })
       </el-form-item>
       <el-form-item label="备注">
         <el-input v-model="form.notes" type="textarea" placeholder="请输入备注" />
+      </el-form-item>
+      <el-form-item label="计入总计">
+        <el-switch v-model="form.include_to_total" />
       </el-form-item>
     </el-form>
     <template #footer>

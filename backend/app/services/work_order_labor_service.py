@@ -80,6 +80,7 @@ def create_labor(
         duration_seconds=payload.duration_seconds,
         hourly_rate=rate,
         notes=payload.notes,
+        include_to_total=payload.include_to_total,
         company_id=company_id,
     )
     db.add(row)

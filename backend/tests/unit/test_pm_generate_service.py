@@ -65,7 +65,9 @@ def test_generate_once_manual_allows_future_no_advance(db: Session):
     wo = svc.generate_once(
         db, pm, actor_user_id="a", now=datetime(2026, 6, 1, 9, 0), enforce_due=False
     )
-    assert wo.due_date == date(2026, 12, 1)
+    # E6：工单 due_date 锚定生成日(+due_date_delay)，非 next_due_date。
+    assert wo is not None
+    assert wo.due_date == date(2026, 6, 1)
     assert pm.next_due_date == before  # 未到期手动生成不推进（§3.3 no-op）
 
 

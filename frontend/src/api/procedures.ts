@@ -30,12 +30,14 @@ export interface ProcedureListQuery {
 export const fetchProcedureList = async (
   params?: ProcedureListQuery,
 ): Promise<PageResult<ProcedureRow>> =>
-  (await http.get<PageResult<ProcedureRow>>('/procedures', { params })).data
+  // skipErrorToast：列表加载失败（尤其 FEATURE_LOCKED）由 store/view 自行内联提示，
+  // 不弹通用错误 toast，避免与「升级订阅」引导重复刷屏。
+  (await http.get<PageResult<ProcedureRow>>('/procedures', { params, skipErrorToast: true })).data
 
 export const fetchProcedureLibrary = async (
   params?: ProcedureListQuery,
 ): Promise<PageResult<ProcedureRow>> =>
-  (await http.get<PageResult<ProcedureRow>>('/procedures/library', { params })).data
+  (await http.get<PageResult<ProcedureRow>>('/procedures/library', { params, skipErrorToast: true })).data
 
 export const fetchProcedureDetail = async (id: string): Promise<ProcedureDetail> =>
   (await http.get<ProcedureDetail>(`/procedures/${id}`)).data

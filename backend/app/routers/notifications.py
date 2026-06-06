@@ -6,7 +6,7 @@ import json
 import math
 from datetime import date, datetime, timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -14,9 +14,17 @@ from app.deps import get_current_user, get_db
 from app.errors import not_found
 from app.models.base import utcnow
 from app.models.notification import Notification
+from app.models.push_token import PushToken
 from app.models.user import User
 from app.schemas.common import Page
-from app.schemas.notification import NotificationRead, ReadAllResult, UnreadCount
+from app.schemas.notification import (
+    NotificationRead,
+    PushTokenDelete,
+    PushTokenRead,
+    PushTokenRegister,
+    ReadAllResult,
+    UnreadCount,
+)
 
 router = APIRouter(prefix="/api/v1/notifications", tags=["notifications"])
 
@@ -134,3 +142,56 @@ def mark_all_read(
         n.read_at = now
     db.commit()
     return ReadAllResult(updated=len(rows))
+
+
+@router.post("/push-token", response_model=PushTokenRead)
+def register_push_token(
+    payload: PushTokenRegister,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PushTokenRead:
+    """注册/更新当前用户的推送 token。按 (user_id, token) 幂等 upsert：
+    已存在则更新 platform 返回 200，新建返回 201。仅管理自己的 token。"""
+    existing = db.execute(
+        select(PushToken).where(
+            PushToken.user_id == current_user.id,
+            PushToken.token == payload.token,
+        )
+    ).scalar_one_or_none()
+    if existing is not None:
+        existing.platform = payload.platform
+        db.commit()
+        db.refresh(existing)
+        response.status_code = 200
+        return PushTokenRead(id=existing.id, token=existing.token, platform=existing.platform)
+    row = PushToken(
+        company_id=current_user.company_id,
+        user_id=current_user.id,
+        token=payload.token,
+        platform=payload.platform,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    response.status_code = 201
+    return PushTokenRead(id=row.id, token=row.token, platform=row.platform)
+
+
+@router.delete("/push-token", status_code=204)
+def delete_push_token(
+    payload: PushTokenDelete,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> Response:
+    """注销当前用户的某个推送 token。只能删自己的；删别人/不存在均视为无操作（仍 204）。"""
+    row = db.execute(
+        select(PushToken).where(
+            PushToken.user_id == current_user.id,
+            PushToken.token == payload.token,
+        )
+    ).scalar_one_or_none()
+    if row is not None:
+        db.delete(row)
+        db.commit()
+    return Response(status_code=204)

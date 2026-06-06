@@ -21,6 +21,42 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/auth/RegisterView.vue'),
     meta: { title: '注册' },
   },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+    meta: { title: '找回密码' },
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    meta: { title: '重置密码' },
+  },
+  {
+    path: '/accept-invite',
+    name: 'accept-invite',
+    component: () => import('@/views/auth/AcceptInviteView.vue'),
+    meta: { title: '接受邀请' },
+  },
+  {
+    path: '/verify-email',
+    name: 'verify-email',
+    component: () => import('@/views/auth/VerifyEmailView.vue'),
+    meta: { title: '邮箱验证' },
+  },
+  {
+    path: '/account/profile',
+    name: 'account-profile',
+    component: () => import('@/views/account/ProfileView.vue'),
+    meta: { title: '个人资料', requiresAuth: true },
+  },
+  {
+    path: '/account/change-password',
+    name: 'change-password',
+    component: () => import('@/views/auth/ChangePasswordView.vue'),
+    meta: { title: '修改密码', requiresAuth: true },
+  },
   { path: '/', redirect: '/procedures/library' },
   {
     path: '/procedures/library',
@@ -93,12 +129,42 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/settings/fields', redirect: '/admin/fields' },
   {
+    path: '/admin/request-fields',
+    name: 'request-fields',
+    component: () => import('@/views/settings/RequestFieldsView.vue'),
+    meta: { title: '请求表单字段', requiresAuth: true },
+  },
+  {
+    path: '/admin/work-order-fields',
+    name: 'work-order-fields',
+    component: () => import('@/views/settings/WorkOrderFieldsView.vue'),
+    meta: { title: '工单表单字段', requiresAuth: true },
+  },
+  {
     path: '/admin/heading-rules',
     name: 'heading-rules',
     component: () => import('@/views/settings/HeadingRulesView.vue'),
     meta: { title: '标题字典', requiresAuth: true },
   },
   { path: '/settings/heading-rules', redirect: '/admin/heading-rules' },
+  {
+    path: '/admin/workflows',
+    name: 'admin-workflows',
+    component: () => import('@/views/settings/WorkflowsView.vue'),
+    meta: { title: '工作流', requiresAuth: true, requiredPermission: 'workflow.view' },
+  },
+  {
+    path: '/admin/imports',
+    name: 'admin-imports',
+    component: () => import('@/views/admin/ImportView.vue'),
+    meta: { title: '数据导入', requiresAuth: true, requiredPermission: 'asset.create' },
+  },
+  {
+    path: '/admin/files',
+    name: 'admin-files',
+    component: () => import('@/views/admin/FileLibraryView.vue'),
+    meta: { title: '文件库', requiresAuth: true },
+  },
   {
     path: '/admin/users',
     name: 'platform-users',
@@ -142,12 +208,28 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/maindata/locations', redirect: '/assets/locations' },
   {
+    // 位置详情：路径含 locations 静态段，比 /assets/:id 更具体，
+    // vue-router 静态段优先，不遮蔽 /assets/locations 列表，也不被 /assets/:id 捕获。
+    path: '/assets/locations/:id',
+    name: 'maindata-location-detail',
+    component: () => import('@/views/maindata/LocationDetailView.vue'),
+    meta: { title: '位置详情', requiresAuth: true, requiredPermission: 'location.view' },
+  },
+  {
     path: '/assets',
     name: 'maindata-assets',
     component: () => import('@/views/maindata/AssetsView.vue'),
     meta: { title: '资产', requiresAuth: true, requiredPermission: 'asset.view' },
   },
   { path: '/maindata/assets', redirect: '/assets' },
+  {
+    // 动态详情路由：置于静态 /assets/locations 与 /assets 之后，
+    // vue-router 静态路径优先匹配，locations 不会被 :id 遮蔽。
+    path: '/assets/:id',
+    name: 'maindata-asset-detail',
+    component: () => import('@/views/maindata/AssetDetailView.vue'),
+    meta: { title: '资产详情', requiresAuth: true, requiredPermission: 'asset.view' },
+  },
   {
     path: '/inventory/parts',
     name: 'inventory-parts',
@@ -161,6 +243,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '多备件套件', requiresAuth: true, requiredPermission: 'part.view' },
   },
   { path: '/inventory/multi-parts', redirect: '/inventory/parts/kits' },
+  {
+    // 动态详情路由：置于静态 /inventory/parts 与 /inventory/parts/kits 之后，
+    // vue-router 静态路径优先匹配，kits 不会被 :id 遮蔽。
+    path: '/inventory/parts/:id',
+    name: 'inventory-part-detail',
+    component: () => import('@/views/inventory/PartDetailView.vue'),
+    meta: { title: '备件详情', requiresAuth: true, requiredPermission: 'part.view' },
+  },
   {
     path: '/inventory/purchase-orders',
     name: 'inventory-purchase-orders',

@@ -18,6 +18,7 @@ from app.schemas.meter import (
     MeterRead,
     MeterReadingCreate,
     MeterReadingRead,
+    MeterReadingUpdate,
     MeterUpdate,
     ReadingResult,
     TriggerCreate,
@@ -46,6 +47,12 @@ def _ensure_trigger(trig: MeterTrigger | None, meter_id: str, company_id: str) -
     return trig
 
 
+def _ensure_reading(reading: MeterReading | None, meter_id: str, company_id: str) -> MeterReading:
+    if reading is None or reading.company_id != company_id or reading.meter_id != meter_id:
+        raise not_found("METER_READING_NOT_FOUND", "读数不存在")
+    return reading
+
+
 def _read_trigger(db: Session, trig: MeterTrigger) -> TriggerRead:
     data = TriggerRead.model_validate(trig)
     data.assignee_ids = ts.assignee_ids(db, trig.id)
@@ -60,8 +67,10 @@ def list_meters(
     location_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_VIEW)),
-) -> list[Meter]:
-    return svc.list_meters(db, asset_id=asset_id, location_id=location_id)
+) -> list[dict[str, object]]:
+    return [
+        svc.to_read(db, m) for m in svc.list_meters(db, asset_id=asset_id, location_id=location_id)
+    ]
 
 
 @router.post("", response_model=MeterRead, status_code=status.HTTP_201_CREATED)
@@ -69,8 +78,9 @@ def create_meter(
     payload: MeterCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_CREATE)),
-) -> Meter:
-    return svc.create_meter(db, payload, current_user.company_id, actor_user_id=current_user.id)
+) -> dict[str, object]:
+    m = svc.create_meter(db, payload, current_user.company_id, actor_user_id=current_user.id)
+    return svc.to_read(db, m)
 
 
 @router.get("/{meter_id}", response_model=MeterRead)
@@ -78,8 +88,9 @@ def get_meter(
     meter_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_VIEW)),
-) -> Meter:
-    return _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+) -> dict[str, object]:
+    m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+    return svc.to_read(db, m)
 
 
 @router.patch("/{meter_id}", response_model=MeterRead)
@@ -88,9 +99,10 @@ def update_meter(
     payload: MeterUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_EDIT)),
-) -> Meter:
+) -> dict[str, object]:
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
-    return svc.update_meter(db, m, payload, current_user.company_id, actor_user_id=current_user.id)
+    m = svc.update_meter(db, m, payload, current_user.company_id, actor_user_id=current_user.id)
+    return svc.to_read(db, m)
 
 
 @router.delete("/{meter_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
@@ -131,6 +143,35 @@ def submit_reading(
         reading=MeterReadingRead.model_validate(reading),
         generated_work_order_ids=[wo.id for wo in wos],
     )
+
+
+@router.patch("/{meter_id}/readings/{reading_id}", response_model=MeterReadingRead)
+def update_reading(
+    meter_id: str,
+    reading_id: str,
+    payload: MeterReadingUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.READING_CREATE)),
+) -> MeterReading:
+    m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+    reading = _ensure_reading(svc.get_reading(db, reading_id), meter_id, current_user.company_id)
+    return svc.update_reading(db, reading, m, payload)
+
+
+@router.delete(
+    "/{meter_id}/readings/{reading_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    response_model=None,
+)
+def delete_reading(
+    meter_id: str,
+    reading_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.READING_CREATE)),
+) -> None:
+    _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+    reading = _ensure_reading(svc.get_reading(db, reading_id), meter_id, current_user.company_id)
+    svc.delete_reading(db, reading)
 
 
 # ---- 触发器 ----

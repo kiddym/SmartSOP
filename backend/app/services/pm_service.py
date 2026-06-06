@@ -121,6 +121,8 @@ def create_pm(
         start_date=payload.start_date,
         frequency_unit=payload.frequency_unit,
         frequency_value=payload.frequency_value,
+        due_date_delay=payload.due_date_delay,
+        ends_on=payload.ends_on,
         next_due_date=payload.start_date,
         company_id=company_id,
     )
@@ -255,6 +257,66 @@ def due_candidates(db: Session, *, today: date) -> list[str]:
     return list(db.execute(stmt).scalars().all())
 
 
+AUTO_DISABLE_THRESHOLD = 5
+"""连续 N 张自动生成工单无人响应即自动停用 PM（防僵尸刷单）。"""
+
+
+def _evaluate_auto_disable(db: Session, pm: PreventiveMaintenance, *, now: datetime) -> bool:
+    """评估上一张自动生成工单的响应情况，更新连续无响应计数。
+
+    近似信号（WorkOrder 无 pm_id 反查）：仅看 last_work_order_id 这张。
+    若其仍 OPEN 且 first_responded_at 为空 -> 计数+1；否则归零。
+    达阈值则停用 PM 并返回 True（调用方跳过本次生成）。"""
+    from app.models.work_order import WorkOrder
+    from app.models.work_order_status import WorkOrderStatus
+
+    if pm.last_work_order_id is not None:
+        prev = db.get(WorkOrder, pm.last_work_order_id)
+        unresponded = (
+            prev is not None
+            and prev.is_active
+            and prev.first_responded_at is None
+            and prev.status == WorkOrderStatus.OPEN
+        )
+        pm.consecutive_unresponded = (pm.consecutive_unresponded + 1) if unresponded else 0
+    if pm.consecutive_unresponded >= AUTO_DISABLE_THRESHOLD:
+        pm.is_enabled = False
+        pm.consecutive_unresponded = 0
+        _log(
+            db,
+            pm.id,
+            pm.company_id,
+            "AUTO_DISABLED",
+            comment=f"连续 {AUTO_DISABLE_THRESHOLD} 张工单无人响应，自动停用",
+        )
+        db.commit()
+        db.refresh(pm)
+        return True
+    return False
+
+
+def upcoming_candidates(db: Session, *, today: date, horizon: int) -> list[str]:
+    """跨租户取"即将到期但尚未到期"的启用 PM id（调用方需 bypass_tenant_scope）。
+
+    today < next_due_date <= today+horizon。horizon<=0 时返回空（公司未开提醒）。"""
+    if horizon <= 0:
+        return []
+    from datetime import timedelta
+
+    cutoff = today + timedelta(days=horizon)
+    stmt = (
+        select(PreventiveMaintenance.id)
+        .where(
+            PreventiveMaintenance.is_active.is_(True),
+            PreventiveMaintenance.is_enabled.is_(True),
+            PreventiveMaintenance.next_due_date > today,
+            PreventiveMaintenance.next_due_date <= cutoff,
+        )
+        .order_by(PreventiveMaintenance.custom_id)
+    )
+    return list(db.execute(stmt).scalars().all())
+
+
 def generate_once(
     db: Session,
     pm: PreventiveMaintenance,
@@ -262,12 +324,15 @@ def generate_once(
     actor_user_id: str | None,
     now: datetime,
     enforce_due: bool,
-) -> WorkOrder:
+) -> WorkOrder | None:
     """生成一张工单（复制预设）并锥摆推进 next_due_date。返回 WorkOrder。
 
     调度任务 enforce_due=True（校验到期）；手动端点 enforce_due=False（允许提前）。
+    调度路径下若触发 ends_on 终止或失效自停，则不生成并返回 None。
     工单服务在函数内 import 避免模块级循环依赖。
     """
+    from datetime import timedelta
+
     from app.schemas.work_order import WorkOrderCreate
     from app.services import work_order_execution_service as exe
     from app.services import work_order_service as wos
@@ -276,7 +341,21 @@ def generate_once(
     if enforce_due and not (pm.is_active and pm.is_enabled and pm.next_due_date <= today):
         raise bad_request("PM_NOT_DUE", "PM 未到期")
 
-    generated_due = pm.next_due_date
+    # ends_on 终止：next_due_date 超过结束日则停止再生成并自动停用（仅调度路径）。
+    if enforce_due and pm.ends_on is not None and pm.next_due_date > pm.ends_on:
+        pm.is_enabled = False
+        _log(db, pm.id, pm.company_id, "ENDED", comment=f"已过结束日 {pm.ends_on.isoformat()}")
+        db.commit()
+        db.refresh(pm)
+        return None
+
+    # 失效自停：评估上一张自动生成的工单是否无人响应，更新连续计数；
+    # 达阈值则停用并跳过本次生成（仅调度路径 enforce_due=True 评估，手动路径不计）。
+    if enforce_due and _evaluate_auto_disable(db, pm, now=now):
+        return None
+
+    # 工单 due_date = 生成日 + due_date_delay 天（表达"给 N 天完成"）。
+    generated_due = today + timedelta(days=pm.due_date_delay)
     wo_payload = WorkOrderCreate(
         title=pm.title,
         description=pm.description,

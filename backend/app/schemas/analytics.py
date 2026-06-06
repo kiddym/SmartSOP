@@ -171,6 +171,18 @@ class TrendAnalytics(BaseModel):
     buckets: list[TrendBucket]
 
 
+class WoCategoryConsumptionRow(BaseModel):
+    category_id: str | None
+    name: str | None
+    cost: Decimal
+    qty: Decimal
+
+
+class MonthlyConsumptionRow(BaseModel):
+    month: str
+    cost: Decimal
+
+
 class InventoryAnalytics(BaseModel):
     total_inventory_value: Decimal
     inventory_value_by_category: list[CategoryValueRow]
@@ -179,3 +191,5 @@ class InventoryAnalytics(BaseModel):
     top_consumed_parts: list[TopConsumedRow]
     abc_classification: list[ABCRow]
     abc_summary: dict[str, int]
+    consumption_by_wo_category: list[WoCategoryConsumptionRow] = []
+    consumption_monthly_trend: list[MonthlyConsumptionRow] = []

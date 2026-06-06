@@ -129,6 +129,7 @@ def generate_now(
 
     pm = _ensure(svc.get_pm(db, pm_id), current_user.company_id)
     wo = svc.generate_once(db, pm, actor_user_id=current_user.id, now=utcnow(), enforce_due=False)
+    assert wo is not None  # 手动路径 enforce_due=False 必出工单
     return wos.to_read(db, wo, viewer=current_user)
 
 

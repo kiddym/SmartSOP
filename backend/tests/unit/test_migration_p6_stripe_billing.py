@@ -19,8 +19,9 @@ def _cfg() -> Config:
     return cfg
 
 
-def test_single_head_is_p6_stripe_billing() -> None:
-    assert set(ScriptDirectory.from_config(_cfg()).get_heads()) == {"p6_stripe_billing"}
+def test_single_head_no_branching() -> None:
+    # 不锚定具体 revision 名（迁移会持续追加）；守护「单 head 无分叉」不变量。
+    assert len(ScriptDirectory.from_config(_cfg()).get_heads()) == 1
 
 
 def test_sqlite_upgrade_downgrade_roundtrip(
@@ -29,7 +30,7 @@ def test_sqlite_upgrade_downgrade_roundtrip(
     db_path = tmp_path / "rt.db"
     monkeypatch.setattr(settings, "database_url", f"sqlite:///{db_path}")
     cfg = _cfg()
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "p6_stripe_billing")
     conn = sqlite3.connect(db_path)
     try:
         company_cols = {r[1] for r in conn.execute("PRAGMA table_info(tb_company)")}
@@ -55,4 +56,4 @@ def test_sqlite_upgrade_downgrade_roundtrip(
         assert event_table == [], "tb_billing_event should not exist after downgrade"
     finally:
         conn2.close()
-    command.upgrade(cfg, "head")
+    command.upgrade(cfg, "p6_stripe_billing")

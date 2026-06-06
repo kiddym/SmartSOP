@@ -23,6 +23,8 @@ class WorkOrderCreate(BaseModel):
     category_id: str | None = None
     # 建单时可选立即挂接已发布 SOP
     procedure_id: str | None = None
+    # 完成是否强制签名
+    required_signature: bool = False
 
 
 class WorkOrderUpdate(BaseModel):
@@ -34,11 +36,14 @@ class WorkOrderUpdate(BaseModel):
     location_id: str | None = None
     primary_user_id: str | None = None
     category_id: str | None = None
+    required_signature: bool | None = None
 
 
 class WorkOrderTransition(BaseModel):
     to_status: WorkOrderStatus
     note: str = ""
+    # 完成转移时可携带签名存档；其他转移忽略
+    signature_url: str | None = Field(default=None, max_length=512)
 
 
 class AssigneesSet(BaseModel):
@@ -74,9 +79,27 @@ class WorkOrderRead(BaseModel):
     first_responded_at: datetime | None = None
     archived: bool = False
     is_compliant: bool | None = None
+    signature_url: str | None = None
+    required_signature: bool = False
     assignee_ids: list[str] = []
     team_ids: list[str] = []
     can_be_edited: bool = False
+
+
+class CalendarEvent(BaseModel):
+    """日历事件：聚合工单（按 due_date）与启用 PM（按 next_due_date）。
+
+    work_order 事件携带 status/priority 供前端按状态/优先级上色并跳详情；
+    pm 事件 status/priority 缺省（PM 无对应概念）。
+    """
+
+    type: Literal["work_order", "pm"]
+    id: str
+    custom_id: str | None = None
+    title: str
+    date: date
+    status: WorkOrderStatus | None = None
+    priority: WorkOrderPriority | None = None
 
 
 class StepResultUpdate(BaseModel):

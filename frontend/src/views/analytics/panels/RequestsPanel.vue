@@ -49,10 +49,13 @@ const statusPieOption = computed<EChartsOption>(() => {
     series: [
       {
         type: 'pie',
-        data: Object.entries(d.by_status).map(([k, v]) => ({
-          name: REQUEST_STATUS_LABELS[k] ?? k,
-          value: v,
-        })),
+        // 过滤 0 值切片：避免 0 值分类标签堆叠重叠、不可读。
+        data: Object.entries(d.by_status)
+          .filter(([, v]) => v > 0)
+          .map(([k, v]) => ({
+            name: REQUEST_STATUS_LABELS[k] ?? k,
+            value: v,
+          })),
       },
     ],
   }

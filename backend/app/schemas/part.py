@@ -18,11 +18,15 @@ class PartCreate(BaseModel):
     barcode: str | None = Field(default=None, max_length=120)
     non_stock: bool = False
     category_id: str | None = None
+    area: str | None = Field(default=None, max_length=200)
+    additional_infos: str | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
     asset_ids: list[str] = []
     location_ids: list[str] = []
     pm_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
 
 
 class PartUpdate(BaseModel):
@@ -35,11 +39,15 @@ class PartUpdate(BaseModel):
     barcode: str | None = Field(default=None, max_length=120)
     non_stock: bool | None = None
     category_id: str | None = None
+    area: str | None = Field(default=None, max_length=200)
+    additional_infos: str | None = None
     assignee_ids: list[str] | None = None
     team_ids: list[str] | None = None
     asset_ids: list[str] | None = None
     location_ids: list[str] | None = None
     pm_ids: list[str] | None = None
+    vendor_ids: list[str] | None = None
+    customer_ids: list[str] | None = None
 
 
 class PartRead(BaseModel):
@@ -56,11 +64,15 @@ class PartRead(BaseModel):
     non_stock: bool
     is_low_stock: bool
     category_id: str | None = None
+    area: str | None = None
+    additional_infos: str | None = None
     assignee_ids: list[str] = []
     team_ids: list[str] = []
     asset_ids: list[str] = []
     location_ids: list[str] = []
     pm_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
 
 
 class PartMini(BaseModel):

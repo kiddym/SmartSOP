@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.deps import RequestMeta, get_current_user, get_db, get_request_meta
 from app.models.user import User
-from app.schemas.attachment import AttachmentOut, AttachmentUpdate
+from app.schemas.attachment import AttachmentOut, AttachmentUpdate, LibraryAttachmentOut
 from app.services import attachment_service
 
 router = APIRouter(prefix="/api/v1", tags=["attachments"])
@@ -61,6 +61,38 @@ async def upload_attachment_generic(
     return AttachmentOut.model_validate(att)
 
 
+@router.get("/attachments/library", response_model=dict)
+def list_attachment_library(
+    entity_type: str | None = Query(default=None),
+    file_type: str | None = Query(default=None),
+    include_hidden: bool = Query(default=False),
+    q: str | None = Query(default=None),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict[str, object]:
+    """全局文件库：当前 company 下跨实体列出全部附件（任意认证用户可读，租户隔离）。
+
+    路由声明在 /attachments/{attachment_id}/* 动态段之前，静态 /library 段优先匹配。
+    """
+    rows, total = attachment_service.list_library(
+        db,
+        entity_type=entity_type,
+        file_type=file_type,
+        include_hidden=include_hidden,
+        q=q,
+        limit=limit,
+        offset=offset,
+    )
+    return {
+        "items": [LibraryAttachmentOut.model_validate(r).model_dump(mode="json") for r in rows],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
 @router.get("/attachments/{attachment_id}/download")
 def download_attachment(
     attachment_id: str,
@@ -99,6 +131,7 @@ def update_attachment(
         attachment_id,
         description=payload.description,
         sort_order=payload.sort_order,
+        hidden=payload.hidden,
         meta=meta,
     )
     db.commit()

@@ -1,3 +1,5 @@
+import type { AssetStatus } from './maindata'
+
 // 公共
 export type WorkOrderPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH'
 
@@ -47,6 +49,8 @@ export interface RequestApprove {
   assignee_ids?: string[]
   team_ids?: string[]
   procedure_id?: string | null
+  // 审批同时联动关联资产状态（可空）：仅当请求关联了资产时由前端附带。
+  asset_status?: AssetStatus | null
 }
 export interface RequestReason {
   reason: string
@@ -68,6 +72,8 @@ export interface PMRead {
   start_date: string
   frequency_unit: PMFrequencyUnit
   frequency_value: number
+  due_date_delay: number
+  ends_on: string | null
   next_due_date: string
   is_enabled: boolean
   last_generated_at: string | null
@@ -86,6 +92,8 @@ export interface PMCreate {
   start_date: string
   frequency_unit: PMFrequencyUnit
   frequency_value: number
+  due_date_delay?: number
+  ends_on?: string | null
   assignee_ids?: string[]
   team_ids?: string[]
 }
@@ -102,6 +110,9 @@ export interface MeterRead {
   update_frequency_days: number | null
   asset_id: string | null
   location_id: string | null
+  meter_category_id: string | null
+  image_url: string | null
+  user_ids: string[]
 }
 export interface MeterCreate {
   name: string
@@ -109,8 +120,25 @@ export interface MeterCreate {
   update_frequency_days?: number | null
   asset_id?: string | null
   location_id?: string | null
+  meter_category_id?: string | null
+  image_url?: string | null
+  user_ids?: string[] | null
 }
 export type MeterUpdate = Partial<MeterCreate>
+
+export interface MeterCategoryRead {
+  id: string
+  name: string
+  description: string | null
+}
+export interface MeterCategoryCreate {
+  name: string
+  description?: string | null
+}
+export interface MeterCategoryUpdate {
+  name?: string
+  description?: string | null
+}
 
 export interface MeterReadingRead {
   id: string
