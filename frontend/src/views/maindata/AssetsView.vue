@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { listAssets, createAsset, updateAsset, deleteAsset } from '@/api/assets'
 import { listAssetCategories } from '@/api/assetCategories'
@@ -25,6 +26,11 @@ import AssetCategoryManageDialog from '@/components/maindata/AssetCategoryManage
 import AssetDowntimeDialog from '@/components/maindata/AssetDowntimeDialog.vue'
 
 const auth = useAuthStore()
+const router = useRouter()
+
+function openDetail(row: AssetRead) {
+  router.push(`/assets/${row.id}`)
+}
 
 // ── status mapping ─────────────────────────────────────────
 const STATUS_LABELS: Record<AssetStatus, string> = {
@@ -373,7 +379,11 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
       border
       style="width: 100%; margin-top: 16px"
     >
-      <el-table-column prop="name" label="名称" min-width="180" />
+      <el-table-column label="名称" min-width="180">
+        <template #default="{ row }">
+          <el-button link type="primary" @click="openDetail(row)">{{ row.name }}</el-button>
+        </template>
+      </el-table-column>
       <el-table-column prop="custom_id" label="编号" min-width="120" />
       <el-table-column label="状态" width="110">
         <template #default="{ row }">
@@ -386,8 +396,16 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
       <el-table-column label="分类" min-width="120">
         <template #default="{ row }">{{ categoryName(row.category_id) }}</template>
       </el-table-column>
-      <el-table-column label="操作" width="200" align="center" fixed="right">
+      <el-table-column label="操作" width="260" align="center" fixed="right">
         <template #default="{ row }">
+          <el-button
+            v-if="auth.hasPermission('asset.view')"
+            link
+            type="primary"
+            @click="openDetail(row)"
+          >
+            详情
+          </el-button>
           <el-button
             v-if="auth.hasPermission('asset.edit')"
             link

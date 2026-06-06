@@ -10,6 +10,7 @@ import type {
 } from '@/types/maindata'
 
 export const listAssets = () => http.get<AssetRead[]>('/assets').then((r) => r.data)
+export const getAsset = (id: string) => http.get<AssetRead>(`/assets/${id}`).then((r) => r.data)
 export const listAssetsMini = () => http.get<AssetMini[]>('/assets/mini').then((r) => r.data)
 export const createAsset = (p: AssetCreate) =>
   http.post<AssetRead>('/assets', p).then((r) => r.data)

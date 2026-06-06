@@ -185,6 +185,14 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/maindata/assets', redirect: '/assets' },
   {
+    // 动态详情路由：置于静态 /assets/locations 与 /assets 之后，
+    // vue-router 静态路径优先匹配，locations 不会被 :id 遮蔽。
+    path: '/assets/:id',
+    name: 'maindata-asset-detail',
+    component: () => import('@/views/maindata/AssetDetailView.vue'),
+    meta: { title: '资产详情', requiresAuth: true, requiredPermission: 'asset.view' },
+  },
+  {
     path: '/inventory/parts',
     name: 'inventory-parts',
     component: () => import('@/views/inventory/PartsHubView.vue'),
