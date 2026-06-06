@@ -5,7 +5,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -32,4 +32,19 @@ class Meter(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
     meter_category_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("tb_meter_category.id", ondelete="SET NULL"), index=True
+    )
+    image_url: Mapped[str | None] = mapped_column(String(512), default=None)
+
+
+class MeterUser(Base, UUIDMixin, TimestampMixin, TenantMixin):
+    """计量↔用户 M:N：该计量的通知关注人列表（每租户）。"""
+
+    __tablename__ = "tb_meter_user"
+    __table_args__ = (UniqueConstraint("meter_id", "user_id", name="uq_meter_user"),)
+
+    meter_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_meter.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("tb_user.id", ondelete="CASCADE"), index=True
     )

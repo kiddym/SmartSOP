@@ -103,6 +103,8 @@ export interface MeterRead {
   asset_id: string | null
   location_id: string | null
   meter_category_id: string | null
+  image_url: string | null
+  user_ids: string[]
 }
 export interface MeterCreate {
   name: string
@@ -111,6 +113,8 @@ export interface MeterCreate {
   asset_id?: string | null
   location_id?: string | null
   meter_category_id?: string | null
+  image_url?: string | null
+  user_ids?: string[] | null
 }
 export type MeterUpdate = Partial<MeterCreate>
 

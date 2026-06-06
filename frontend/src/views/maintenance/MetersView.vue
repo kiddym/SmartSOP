@@ -138,6 +138,8 @@ interface MetaFormState {
   asset_id: string | null
   location_id: string | null
   meter_category_id: string | null
+  image_url: string
+  user_ids: string[]
 }
 const metaForm = reactive<MetaFormState>({
   name: '',
@@ -146,6 +148,8 @@ const metaForm = reactive<MetaFormState>({
   asset_id: null,
   location_id: null,
   meter_category_id: null,
+  image_url: '',
+  user_ids: [],
 })
 
 function resetMetaForm() {
@@ -155,6 +159,8 @@ function resetMetaForm() {
   metaForm.asset_id = null
   metaForm.location_id = null
   metaForm.meter_category_id = null
+  metaForm.image_url = ''
+  metaForm.user_ids = []
 }
 
 function openCreate() {
@@ -172,6 +178,8 @@ function openEdit(row: MeterRead) {
   metaForm.asset_id = row.asset_id
   metaForm.location_id = row.location_id
   metaForm.meter_category_id = row.meter_category_id
+  metaForm.image_url = row.image_url ?? ''
+  metaForm.user_ids = [...row.user_ids]
   metaMode.value = 'edit'
   editingId.value = row.id
   metaVisible.value = true
@@ -189,6 +197,8 @@ async function submitMeta() {
     asset_id: metaForm.asset_id || null,
     location_id: metaForm.location_id || null,
     meter_category_id: metaForm.meter_category_id || null,
+    image_url: metaForm.image_url.trim() || null,
+    user_ids: metaForm.user_ids,
   }
   metaSubmitting.value = true
   try {
@@ -325,7 +335,9 @@ defineExpose({
   readingValue,
   openCreate,
   openEdit,
+  submitMeta,
   metaForm,
+  users,
   categories,
   categoryDialogVisible,
 })
@@ -461,6 +473,21 @@ defineExpose({
             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
+        <el-form-item label="主图地址">
+          <el-input v-model="metaForm.image_url" placeholder="请输入主图 URL" />
+        </el-form-item>
+        <el-form-item label="关注人">
+          <el-select
+            v-model="metaForm.user_ids"
+            multiple
+            filterable
+            clearable
+            placeholder="选择通知关注人"
+            style="width: 100%"
+          >
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button type="primary" :loading="metaSubmitting" @click="submitMeta">保存</el-button>
@@ -487,6 +514,15 @@ defineExpose({
           </el-descriptions-item>
           <el-descriptions-item label="推荐频率">
             {{ detailMeter.update_frequency_days ?? '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="主图">
+            {{ detailMeter.image_url || '—' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="关注人">
+            <template v-if="detailMeter.user_ids.length">
+              {{ detailMeter.user_ids.map(userName).join('、') }}
+            </template>
+            <template v-else>—</template>
           </el-descriptions-item>
         </el-descriptions>
 

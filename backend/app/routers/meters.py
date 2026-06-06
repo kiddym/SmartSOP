@@ -60,8 +60,11 @@ def list_meters(
     location_id: str | None = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_VIEW)),
-) -> list[Meter]:
-    return svc.list_meters(db, asset_id=asset_id, location_id=location_id)
+) -> list[dict[str, object]]:
+    return [
+        svc.to_read(db, m)
+        for m in svc.list_meters(db, asset_id=asset_id, location_id=location_id)
+    ]
 
 
 @router.post("", response_model=MeterRead, status_code=status.HTTP_201_CREATED)
@@ -69,8 +72,9 @@ def create_meter(
     payload: MeterCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_CREATE)),
-) -> Meter:
-    return svc.create_meter(db, payload, current_user.company_id, actor_user_id=current_user.id)
+) -> dict[str, object]:
+    m = svc.create_meter(db, payload, current_user.company_id, actor_user_id=current_user.id)
+    return svc.to_read(db, m)
 
 
 @router.get("/{meter_id}", response_model=MeterRead)
@@ -78,8 +82,9 @@ def get_meter(
     meter_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_VIEW)),
-) -> Meter:
-    return _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+) -> dict[str, object]:
+    m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
+    return svc.to_read(db, m)
 
 
 @router.patch("/{meter_id}", response_model=MeterRead)
@@ -88,9 +93,10 @@ def update_meter(
     payload: MeterUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_EDIT)),
-) -> Meter:
+) -> dict[str, object]:
     m = _ensure_meter(svc.get_meter(db, meter_id), current_user.company_id)
-    return svc.update_meter(db, m, payload, current_user.company_id, actor_user_id=current_user.id)
+    m = svc.update_meter(db, m, payload, current_user.company_id, actor_user_id=current_user.id)
+    return svc.to_read(db, m)
 
 
 @router.delete("/{meter_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)

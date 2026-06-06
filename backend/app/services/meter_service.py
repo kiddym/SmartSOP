@@ -6,22 +6,70 @@ FIRE 生单、REARM 武装→commit。触发器评估委托 meter_trigger_servic
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
+from app.errors import not_found
 from app.models.base import utcnow
-from app.models.meter import Meter
+from app.models.meter import Meter, MeterUser
 from app.models.meter_reading import MeterReading
 from app.models.meter_trigger import MeterTrigger
+from app.models.user import User, UserStatus
 from app.models.work_order import WorkOrder
 from app.schemas.meter import MeterCreate, MeterReadingCreate, MeterUpdate
 from app.services import meter_trigger_service as ts
 from app.services import sequence_service
 
 
+def user_ids(db: Session, meter_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(MeterUser.user_id)
+            .where(MeterUser.meter_id == meter_id)
+            .order_by(MeterUser.user_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def to_read(db: Session, m: Meter) -> dict[str, object]:
+    return {
+        "id": m.id,
+        "custom_id": m.custom_id,
+        "name": m.name,
+        "unit": m.unit,
+        "update_frequency_days": m.update_frequency_days,
+        "asset_id": m.asset_id,
+        "location_id": m.location_id,
+        "meter_category_id": m.meter_category_id,
+        "image_url": m.image_url,
+        "user_ids": user_ids(db, m.id),
+    }
+
+
+def _validate_users(db: Session, ids: list[str] | None, company_id: str) -> None:
+    """校验关注人归属当前租户（不存在/非 active/他租户均 404）。"""
+    if ids is None:
+        return
+    for uid in dict.fromkeys(ids):
+        u = db.get(User, uid)
+        if u is None or u.company_id != company_id or u.status != UserStatus.active:
+            raise not_found("USER_NOT_FOUND", "用户不存在")
+
+
+def _sync_users(db: Session, m: Meter, ids: list[str] | None, company_id: str) -> None:
+    if ids is None:
+        return
+    db.execute(delete(MeterUser).where(MeterUser.meter_id == m.id))
+    for uid in dict.fromkeys(ids):
+        db.add(MeterUser(meter_id=m.id, user_id=uid, company_id=company_id))
+
+
 def create_meter(
     db: Session, payload: MeterCreate, company_id: str, actor_user_id: str | None
 ) -> Meter:
+    _validate_users(db, payload.user_ids, company_id)
     seq = sequence_service.next_value(db, "meter", company_id)
     m = Meter(
         custom_id=sequence_service.format_custom_id("MTR", seq),
@@ -31,9 +79,12 @@ def create_meter(
         asset_id=payload.asset_id,
         location_id=payload.location_id,
         meter_category_id=payload.meter_category_id,
+        image_url=payload.image_url,
         company_id=company_id,
     )
     db.add(m)
+    db.flush()
+    _sync_users(db, m, payload.user_ids, company_id)
     db.commit()
     db.refresh(m)
     return m
@@ -60,8 +111,12 @@ def get_meter(db: Session, meter_id: str) -> Meter | None:
 def update_meter(
     db: Session, m: Meter, payload: MeterUpdate, company_id: str, actor_user_id: str | None
 ) -> Meter:
-    for k, v in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    new_user_ids = data.pop("user_ids", None)
+    _validate_users(db, new_user_ids, company_id)
+    for k, v in data.items():
         setattr(m, k, v)
+    _sync_users(db, m, new_user_ids, company_id)
     db.commit()
     db.refresh(m)
     return m

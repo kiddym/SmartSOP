@@ -70,6 +70,8 @@ const meter1 = {
   asset_id: 'a1',
   location_id: 'l1',
   meter_category_id: 'mc1',
+  image_url: 'https://img/oil.png',
+  user_ids: ['u1'],
 }
 const reading1 = {
   id: 'rd1',
@@ -224,5 +226,53 @@ describe('MetersView', () => {
     await flushPromises()
     expect(um).toHaveBeenCalled()
     expect(um.mock.calls[0][1]).toMatchObject({ meter_category_id: 'mc1' })
+  })
+
+  it('新建提交携带 image_url 与 user_ids', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openCreate()
+    await flushPromises()
+    vm.metaForm.name = '温度计'
+    vm.metaForm.image_url = '  https://img/t.png  '
+    vm.metaForm.user_ids = ['u1']
+    await vm.submitMeta()
+    await flushPromises()
+    expect(cm).toHaveBeenCalled()
+    expect(cm.mock.calls[0][0]).toMatchObject({
+      name: '温度计',
+      image_url: 'https://img/t.png',
+      user_ids: ['u1'],
+    })
+  })
+
+  it('编辑回填 image_url 与 user_ids 并提交携带之', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openEdit(meter1)
+    await flushPromises()
+    expect(vm.metaForm.image_url).toBe('https://img/oil.png')
+    expect(vm.metaForm.user_ids).toEqual(['u1'])
+    await vm.submitMeta()
+    await flushPromises()
+    expect(um).toHaveBeenCalled()
+    expect(um.mock.calls[0][1]).toMatchObject({
+      image_url: 'https://img/oil.png',
+      user_ids: ['u1'],
+    })
+  })
+
+  it('空主图地址提交为 null', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openCreate()
+    await flushPromises()
+    vm.metaForm.name = '计量'
+    await vm.submitMeta()
+    await flushPromises()
+    expect(cm.mock.calls[0][0]).toMatchObject({ image_url: null, user_ids: [] })
   })
 })

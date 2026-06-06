@@ -18,6 +18,8 @@ class MeterCreate(BaseModel):
     asset_id: str | None = None
     location_id: str | None = None
     meter_category_id: str | None = None
+    image_url: str | None = Field(default=None, max_length=512)
+    user_ids: list[str] | None = None
 
 
 class MeterUpdate(BaseModel):
@@ -27,6 +29,8 @@ class MeterUpdate(BaseModel):
     asset_id: str | None = None
     location_id: str | None = None
     meter_category_id: str | None = None
+    image_url: str | None = Field(default=None, max_length=512)
+    user_ids: list[str] | None = None
 
 
 class MeterRead(BaseModel):
@@ -39,6 +43,8 @@ class MeterRead(BaseModel):
     asset_id: str | None = None
     location_id: str | None = None
     meter_category_id: str | None = None
+    image_url: str | None = None
+    user_ids: list[str] = []
 
 
 class MeterReadingCreate(BaseModel):
