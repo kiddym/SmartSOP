@@ -79,6 +79,11 @@ export interface CompanySettings {
   timezone: string
   default_currency_code: string
   auto_assign: boolean
+  // 导航模块显隐开关（后端默认 true）。某项为 false 时侧栏隐藏对应入口。
+  show_requests: boolean
+  show_locations: boolean
+  show_meters: boolean
+  show_vendors_customers: boolean
 }
 
 export type CompanySettingsUpdate = Partial<CompanySettings>

@@ -71,6 +71,13 @@ export const useAuthStore = defineStore('auth', {
       } catch {
         // 订阅加载失败不阻断主流程
       }
+      // 加载公司设置供导航模块显隐（失败不阻塞登录；失败时侧栏降级为全部显示）。
+      try {
+        const { useCompanySettingsStore } = await import('./companySettings')
+        await useCompanySettingsStore().loadSettings()
+      } catch {
+        // 公司设置加载失败不阻断主流程
+      }
     },
 
     logout(): void {
