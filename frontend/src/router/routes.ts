@@ -117,6 +117,12 @@ export const routes: RouteRecordRaw[] = [
   },
   { path: '/settings/fields', redirect: '/admin/fields' },
   {
+    path: '/admin/request-fields',
+    name: 'request-fields',
+    component: () => import('@/views/settings/RequestFieldsView.vue'),
+    meta: { title: '请求表单字段', requiresAuth: true },
+  },
+  {
     path: '/admin/heading-rules',
     name: 'heading-rules',
     component: () => import('@/views/settings/HeadingRulesView.vue'),

@@ -18,6 +18,7 @@ import { listLocationsMini } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import { listTeams } from '@/api/teams'
 import { listProceduresMini } from '@/api/procedures'
+import { getFieldConfig } from '@/api/fieldConfigurations'
 import type {
   RequestRead,
   RequestStatus,
@@ -77,6 +78,40 @@ const locationsMini = ref<LocationMini[]>([])
 const users = ref<UserRead[]>([])
 const teams = ref<TeamRead[]>([])
 const procedures = ref<ProcedureMini[]>([])
+
+// ── 请求表单字段配置（FieldConfiguration，form_key=REQUEST）──
+// 默认：全部字段可见、按原有规则（仅 title 必填）。加载失败时降级保持此默认，不阻断建单。
+const REQUEST_FIELDS = ['description', 'priority', 'due_date', 'asset', 'location'] as const
+type RequestField = (typeof REQUEST_FIELDS)[number]
+const fieldVisible = reactive<Record<RequestField, boolean>>({
+  description: true,
+  priority: true,
+  due_date: true,
+  asset: true,
+  location: true,
+})
+const fieldRequired = reactive<Record<RequestField, boolean>>({
+  description: false,
+  priority: false,
+  due_date: false,
+  asset: false,
+  location: false,
+})
+
+async function fetchFieldConfig() {
+  try {
+    const cfg = await getFieldConfig('REQUEST')
+    for (const item of cfg) {
+      if ((REQUEST_FIELDS as readonly string[]).includes(item.field_name)) {
+        const key = item.field_name as RequestField
+        fieldVisible[key] = item.visible
+        fieldRequired[key] = item.required
+      }
+    }
+  } catch {
+    // 降级：保持全部可见、仅 title 必填的默认配置；不打断页面加载与建单。
+  }
+}
 
 const filterStatus = ref<RequestStatus | ''>('')
 const filterPriority = ref<WorkOrderPriority | ''>('')
@@ -138,6 +173,7 @@ onMounted(async () => {
     fetchUsers(),
     fetchTeams(),
     fetchProcedures(),
+    fetchFieldConfig(),
   ])
 })
 
@@ -197,9 +233,23 @@ function openEdit(row: RequestRead) {
   dialogVisible.value = true
 }
 
+// 按配置校验可见且必填的字段（title 不受配置影响，始终必填）。
+function validateRequiredFields(): string | null {
+  if (!form.title.trim()) return '标题'
+  if (fieldVisible.description && fieldRequired.description && !form.description.trim())
+    return '描述'
+  if (fieldVisible.priority && fieldRequired.priority && (!form.priority || form.priority === 'NONE'))
+    return '优先级'
+  if (fieldVisible.due_date && fieldRequired.due_date && !form.due_date) return '截止日期'
+  if (fieldVisible.asset && fieldRequired.asset && !form.asset_id) return '资产'
+  if (fieldVisible.location && fieldRequired.location && !form.location_id) return '位置'
+  return null
+}
+
 async function submitForm() {
-  if (!form.title.trim()) {
-    ElMessage.warning('请填写标题')
+  const missing = validateRequiredFields()
+  if (missing) {
+    ElMessage.warning(`请填写${missing}`)
     return
   }
   const payload = {
@@ -356,6 +406,8 @@ defineExpose({
   handleReject,
   handleCancel,
   openActivities,
+  fieldVisible,
+  fieldRequired,
 })
 </script>
 
@@ -498,10 +550,10 @@ defineExpose({
         <el-form-item label="标题" required>
           <el-input v-model="form.title" placeholder="请输入标题" />
         </el-form-item>
-        <el-form-item label="描述">
+        <el-form-item v-if="fieldVisible.description" label="描述" :required="fieldRequired.description">
           <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
         </el-form-item>
-        <el-form-item label="优先级">
+        <el-form-item v-if="fieldVisible.priority" label="优先级" :required="fieldRequired.priority">
           <el-select v-model="form.priority" style="width: 100%">
             <el-option
               v-for="p in PRIORITY_OPTIONS"
@@ -511,7 +563,7 @@ defineExpose({
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="到期日">
+        <el-form-item v-if="fieldVisible.due_date" label="到期日" :required="fieldRequired.due_date">
           <el-date-picker
             v-model="form.due_date"
             type="date"
@@ -520,7 +572,7 @@ defineExpose({
             style="width: 100%"
           />
         </el-form-item>
-        <el-form-item label="资产">
+        <el-form-item v-if="fieldVisible.asset" label="资产" :required="fieldRequired.asset">
           <el-select
             v-model="form.asset_id"
             placeholder="请选择资产"
@@ -531,7 +583,7 @@ defineExpose({
             <el-option v-for="a in assetsMini" :key="a.id" :label="a.name" :value="a.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="位置">
+        <el-form-item v-if="fieldVisible.location" label="位置" :required="fieldRequired.location">
           <el-select
             v-model="form.location_id"
             placeholder="请选择位置"
