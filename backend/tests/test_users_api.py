@@ -86,6 +86,65 @@ def test_list_users_tenant_isolated(client):
     assert globex == {"admin@globex.com", "carol@globex.com"}
 
 
+def test_create_user_with_profile_fields(client):
+    """Admin may set phone/job_title/rate/avatar_url at creation."""
+    t = _admin(client)
+    r = client.post(
+        "/api/v1/users",
+        headers=_h(t),
+        json={
+            "email": "bob@acme.com",
+            "password": "secret123",
+            "name": "Bob",
+            "phone": "+1-555-0100",
+            "job_title": "Technician",
+            "rate": "42.5000",
+            "avatar_url": "https://cdn.example.com/bob.png",
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["phone"] == "+1-555-0100"
+    assert body["job_title"] == "Technician"
+    assert str(body["rate"]) in ("42.5", "42.5000", "42.50")
+    assert body["avatar_url"] == "https://cdn.example.com/bob.png"
+
+
+def test_update_user_profile_fields(client):
+    """Profile fields are editable via PATCH and persisted."""
+    t = _admin(client)
+    uid = client.post(
+        "/api/v1/users",
+        headers=_h(t),
+        json={"email": "bob@acme.com", "password": "secret123", "name": "Bob"},
+    ).json()["id"]
+    r = client.patch(
+        f"/api/v1/users/{uid}",
+        headers=_h(t),
+        json={"phone": "12345", "job_title": "Lead", "rate": "60"},
+    )
+    assert r.status_code == 200, r.text
+    fetched = client.get(f"/api/v1/users/{uid}", headers=_h(t)).json()
+    assert fetched["phone"] == "12345"
+    assert fetched["job_title"] == "Lead"
+    assert str(fetched["rate"]) in ("60", "60.0", "60.0000", "60.00")
+
+
+def test_profile_fields_default_null(client):
+    """Users created without profile fields expose them as null."""
+    t = _admin(client)
+    uid = client.post(
+        "/api/v1/users",
+        headers=_h(t),
+        json={"email": "bob@acme.com", "password": "secret123", "name": "Bob"},
+    ).json()["id"]
+    fetched = client.get(f"/api/v1/users/{uid}", headers=_h(t)).json()
+    assert fetched["phone"] is None
+    assert fetched["job_title"] is None
+    assert fetched["rate"] is None
+    assert fetched["avatar_url"] is None
+
+
 def test_get_other_tenant_user_404(client):
     """Cross-tenant fetch by id (db.get bypasses read-scope) must 404."""
     t1 = _admin(client)

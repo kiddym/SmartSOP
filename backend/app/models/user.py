@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import enum
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import Boolean, ForeignKey, String, UniqueConstraint
+from sqlalchemy import Boolean, ForeignKey, Numeric, String, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -31,6 +32,12 @@ class User(Base, UUIDMixin, TimestampMixin, TenantMixin):
         String(36), ForeignKey("tb_role.id", ondelete="SET NULL"), nullable=True
     )
     locale: Mapped[str] = mapped_column(String(16), nullable=False, default="zh-CN")
+    # Profile fields (optional). ``rate`` is the worker's default hourly labor
+    # rate, used as a fallback when logging work-order labor.
+    phone: Mapped[str | None] = mapped_column(String(40), default=None)
+    job_title: Mapped[str | None] = mapped_column(String(128), default=None)
+    rate: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), default=None)
+    avatar_url: Mapped[str | None] = mapped_column(String(512), default=None)
     last_login_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     # Reserved: platform-operator identity (Phase 0: always False).
     is_platform_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)

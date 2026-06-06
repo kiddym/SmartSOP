@@ -21,6 +21,10 @@ def create_user(db: Session, payload: UserCreate, company_id: str | None = None)
         password_hash=security.hash_password(payload.password),
         name=payload.name,
         role_id=payload.role_id,
+        phone=payload.phone,
+        job_title=payload.job_title,
+        rate=payload.rate,
+        avatar_url=payload.avatar_url,
         company_id=company_id,
     )
     db.add(user)
