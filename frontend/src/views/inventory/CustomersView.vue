@@ -58,6 +58,9 @@ interface FormState {
   description: string
   rate: string
   billing_currency: string
+  billing_name: string
+  billing_address: string
+  billing_address2: string
   address: string
   phone: string
   email: string
@@ -73,6 +76,9 @@ const form = reactive<FormState>({
   description: '',
   rate: '',
   billing_currency: '',
+  billing_name: '',
+  billing_address: '',
+  billing_address2: '',
   address: '',
   phone: '',
   email: '',
@@ -90,6 +96,9 @@ function resetForm() {
   form.description = ''
   form.rate = ''
   form.billing_currency = ''
+  form.billing_name = ''
+  form.billing_address = ''
+  form.billing_address2 = ''
   form.address = ''
   form.phone = ''
   form.email = ''
@@ -110,6 +119,9 @@ function openEdit(row: CustomerRead) {
   resetForm()
   Object.assign(form, {
     ...row,
+    billing_name: row.billing_name ?? '',
+    billing_address: row.billing_address ?? '',
+    billing_address2: row.billing_address2 ?? '',
     part_ids: [...row.part_ids],
     asset_ids: [...row.asset_ids],
     location_ids: [...row.location_ids],
@@ -133,6 +145,9 @@ async function submitForm() {
       description: form.description,
       rate: form.rate,
       billing_currency: form.billing_currency,
+      billing_name: form.billing_name || null,
+      billing_address: form.billing_address || null,
+      billing_address2: form.billing_address2 || null,
       address: form.address,
       phone: form.phone,
       email: form.email,
@@ -237,9 +252,25 @@ async function handleDelete(row: CustomerRead) {
           <el-input v-model="form.customer_type" placeholder="请输入类型" />
         </el-form-item>
 
+        <el-divider content-position="left">账单信息</el-divider>
+
         <el-form-item label="结算货币">
           <el-input v-model="form.billing_currency" placeholder="如 CNY / USD" />
         </el-form-item>
+
+        <el-form-item label="账单名">
+          <el-input v-model="form.billing_name" placeholder="请输入账单名" />
+        </el-form-item>
+
+        <el-form-item label="账单地址">
+          <el-input v-model="form.billing_address" placeholder="请输入账单地址" />
+        </el-form-item>
+
+        <el-form-item label="地址行 2">
+          <el-input v-model="form.billing_address2" placeholder="请输入地址行 2" />
+        </el-form-item>
+
+        <el-divider content-position="left">其他</el-divider>
 
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />

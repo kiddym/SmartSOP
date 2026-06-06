@@ -97,6 +97,14 @@ def create_purchase_order(
         shipping_method=payload.shipping_method,
         terms_of_payment=payload.terms_of_payment,
         expected_delivery_date=payload.expected_delivery_date,
+        shipping_to_name=payload.shipping_to_name,
+        shipping_company_name=payload.shipping_company_name,
+        shipping_city=payload.shipping_city,
+        shipping_state=payload.shipping_state,
+        shipping_zip_code=payload.shipping_zip_code,
+        shipping_phone=payload.shipping_phone,
+        shipping_fax=payload.shipping_fax,
+        requisitioned_by_name=payload.requisitioned_by_name,
         company_id=company_id,
     )
     db.add(po)

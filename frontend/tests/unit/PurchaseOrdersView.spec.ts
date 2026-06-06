@@ -139,6 +139,68 @@ describe('PurchaseOrdersView', () => {
     })
   })
 
+  it('新建提交携带收货细化字段', async () => {
+    const w = mountView()
+    await flushPromises()
+    const addBtn = w.findAll('.el-button').find((b) => b.text() === '新建采购单')
+    await addBtn!.trigger('click')
+    await flushPromises()
+    const vm = w.vm as any
+    vm.form.vendor_id = 'v1'
+    vm.form.shipping_to_name = '张三'
+    vm.form.shipping_company_name = '收货公司'
+    vm.form.shipping_city = '上海'
+    vm.form.shipping_state = '上海市'
+    vm.form.shipping_zip_code = '200120'
+    vm.form.shipping_phone = '021-12345678'
+    vm.form.shipping_fax = '021-87654321'
+    vm.form.requisitioned_by_name = '李四'
+    await flushPromises()
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(cpo).toHaveBeenCalled()
+    expect(cpo.mock.calls[0][0]).toMatchObject({
+      vendor_id: 'v1',
+      shipping_to_name: '张三',
+      shipping_company_name: '收货公司',
+      shipping_city: '上海',
+      shipping_state: '上海市',
+      shipping_zip_code: '200120',
+      shipping_phone: '021-12345678',
+      shipping_fax: '021-87654321',
+      requisitioned_by_name: '李四',
+    })
+  })
+
+  it('收货细化字段未填时提交为 null', async () => {
+    const w = mountView()
+    await flushPromises()
+    const addBtn = w.findAll('.el-button').find((b) => b.text() === '新建采购单')
+    await addBtn!.trigger('click')
+    await flushPromises()
+    const vm = w.vm as any
+    vm.form.vendor_id = 'v1'
+    await flushPromises()
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(cpo.mock.calls[0][0]).toMatchObject({
+      shipping_to_name: null,
+      shipping_company_name: null,
+      shipping_city: null,
+      shipping_state: null,
+      shipping_zip_code: null,
+      shipping_phone: null,
+      shipping_fax: null,
+      requisitioned_by_name: null,
+    })
+  })
+
   it('打开 DRAFT 采购单显示提交按钮并调 submit', async () => {
     const w = mountView()
     await flushPromises()

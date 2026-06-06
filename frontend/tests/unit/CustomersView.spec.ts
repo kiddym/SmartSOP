@@ -94,6 +94,53 @@ describe('CustomersView', () => {
     expect(cc.mock.calls[0][0]).toMatchObject({ name: '乙方', billing_currency: 'USD' })
   })
 
+  it('新建提交携带账单字段', async () => {
+    const w = mountView()
+    await flushPromises()
+    const addBtn = w.findAll('.el-button').find((b) => b.text() === '新建客户')
+    await addBtn!.trigger('click')
+    await flushPromises()
+    const vm = w.vm as any
+    vm.form.name = '乙方'
+    vm.form.billing_name = '结算抬头'
+    vm.form.billing_address = '上海市某路 1 号'
+    vm.form.billing_address2 = 'B 座 18 楼'
+    await flushPromises()
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(cc).toHaveBeenCalled()
+    expect(cc.mock.calls[0][0]).toMatchObject({
+      name: '乙方',
+      billing_name: '结算抬头',
+      billing_address: '上海市某路 1 号',
+      billing_address2: 'B 座 18 楼',
+    })
+  })
+
+  it('账单字段未填时提交为 null', async () => {
+    const w = mountView()
+    await flushPromises()
+    const addBtn = w.findAll('.el-button').find((b) => b.text() === '新建客户')
+    await addBtn!.trigger('click')
+    await flushPromises()
+    const vm = w.vm as any
+    vm.form.name = '乙方'
+    await flushPromises()
+    const saveBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '保存',
+    ) as HTMLElement
+    saveBtn.click()
+    await flushPromises()
+    expect(cc.mock.calls[0][0]).toMatchObject({
+      billing_name: null,
+      billing_address: null,
+      billing_address2: null,
+    })
+  })
+
   it('无权限隐藏新建按钮', async () => {
     authState.can = false
     const w = mountView()

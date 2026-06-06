@@ -119,6 +119,14 @@ export interface PurchaseOrderRead {
   shipping_method: string
   terms_of_payment: string
   expected_delivery_date: string | null
+  shipping_to_name: string | null
+  shipping_company_name: string | null
+  shipping_city: string | null
+  shipping_state: string | null
+  shipping_zip_code: string | null
+  shipping_phone: string | null
+  shipping_fax: string | null
+  requisitioned_by_name: string | null
   resolution_note: string
   resolved_by_user_id: string | null
   resolved_at: string | null
@@ -133,6 +141,14 @@ export interface PurchaseOrderCreate {
   shipping_method?: string
   terms_of_payment?: string
   expected_delivery_date?: string | null
+  shipping_to_name?: string | null
+  shipping_company_name?: string | null
+  shipping_city?: string | null
+  shipping_state?: string | null
+  shipping_zip_code?: string | null
+  shipping_phone?: string | null
+  shipping_fax?: string | null
+  requisitioned_by_name?: string | null
   lines?: POLineCreate[]
 }
 export type PurchaseOrderUpdate = Partial<PurchaseOrderCreate>
@@ -209,6 +225,9 @@ export interface CustomerRead {
   description: string
   rate: string
   billing_currency: string
+  billing_name: string | null
+  billing_address: string | null
+  billing_address2: string | null
   address: string
   phone: string
   email: string
@@ -223,6 +242,9 @@ export interface CustomerCreate {
   description?: string
   rate?: string
   billing_currency?: string
+  billing_name?: string | null
+  billing_address?: string | null
+  billing_address2?: string | null
   address?: string
   phone?: string
   email?: string

@@ -26,6 +26,10 @@ class Customer(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
         Numeric(18, 4), nullable=False, default=Decimal("0"), server_default="0"
     )
     billing_currency: Mapped[str] = mapped_column(String(8), default="", server_default="")
+    # 账单信息细化（全可空；与 billing_currency 同组）
+    billing_name: Mapped[str | None] = mapped_column(String(300), default=None)
+    billing_address: Mapped[str | None] = mapped_column(String(500), default=None)
+    billing_address2: Mapped[str | None] = mapped_column(String(500), default=None)
     address: Mapped[str] = mapped_column(String(500), default="", server_default="")
     phone: Mapped[str] = mapped_column(String(60), default="", server_default="")
     email: Mapped[str] = mapped_column(String(200), default="", server_default="")
