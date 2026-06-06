@@ -30,6 +30,13 @@ def _make_asset(client: TestClient, db: Session, token: str) -> str:
     return aid
 
 
+def _make_request(client: TestClient, token: str) -> str:
+    h = {"Authorization": f"Bearer {token}"}
+    return client.post(
+        "/api/v1/requests", headers=h, json={"title": "漏水报修"}
+    ).json()["id"]
+
+
 def test_generic_flow_on_asset(client: TestClient, db: Session, storage_tmp: Path) -> None:
     tok = _register(client, "Acme", "a@acme.com")
     h = {"Authorization": f"Bearer {tok}"}
@@ -59,6 +66,66 @@ def test_generic_flow_on_asset(client: TestClient, db: Session, storage_tmp: Pat
     assert dele.status_code == 204
     assert (
         client.get(ATT, headers=h, params={"entity_type": "asset", "entity_id": aid}).json() == []
+    )
+
+
+def test_generic_flow_on_request(client: TestClient, db: Session, storage_tmp: Path) -> None:
+    """确认 request 实体已注册并可挂附件（上传/列出/删除）。"""
+    tok = _register(client, "Acme", "a@acme.com")
+    h = {"Authorization": f"Bearer {tok}"}
+    rid = _make_request(client, tok)
+
+    up = client.post(
+        ATT,
+        headers=h,
+        data={"entity_type": "request", "entity_id": rid, "description": "现场照片"},
+        files={"file": ("photo.jpg", b"JPG", "image/jpeg")},
+    )
+    assert up.status_code == 201, up.text
+    att = up.json()
+    assert att["entity_type"] == "request" and att["entity_id"] == rid
+
+    listed = client.get(ATT, headers=h, params={"entity_type": "request", "entity_id": rid})
+    assert [a["id"] for a in listed.json()] == [att["id"]]
+
+    dele = client.delete(f"{ATT}/{att['id']}", headers=h)
+    assert dele.status_code == 204
+    assert (
+        client.get(
+            ATT, headers=h, params={"entity_type": "request", "entity_id": rid}
+        ).json()
+        == []
+    )
+
+
+def test_cross_tenant_request_attachment_not_leaked(
+    client: TestClient, db: Session, storage_tmp: Path
+) -> None:
+    tokA = _register(client, "CoA", "a@a.com")
+    tokB = _register(client, "CoB", "b@b.com")
+    hA = {"Authorization": f"Bearer {tokA}"}
+    hB = {"Authorization": f"Bearer {tokB}"}
+    rid = _make_request(client, tokA)
+    client.post(
+        ATT,
+        headers=hA,
+        data={"entity_type": "request", "entity_id": rid},
+        files={"file": ("s.jpg", b"S", "image/jpeg")},
+    )
+    assert (
+        client.get(
+            ATT, headers=hB, params={"entity_type": "request", "entity_id": rid}
+        ).status_code
+        == 404
+    )
+    assert (
+        client.post(
+            ATT,
+            headers=hB,
+            data={"entity_type": "request", "entity_id": rid},
+            files={"file": ("x.jpg", b"x", "image/jpeg")},
+        ).status_code
+        == 404
     )
 
 

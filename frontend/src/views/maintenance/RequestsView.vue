@@ -26,10 +26,11 @@ import type {
   ActivityRead,
   ProcedureMini,
 } from '@/types/maintenance'
-import type { AssetMini, LocationMini } from '@/types/maindata'
+import type { AssetMini, LocationMini, AssetStatus } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
 import { formatDateTime } from '@/utils/format'
+import EntityAttachments from '@/components/EntityAttachments.vue'
 
 const auth = useAuthStore()
 
@@ -55,6 +56,20 @@ const STATUS_TAG: Record<RequestStatus, string> = {
 const STATUS_OPTIONS = (Object.keys(STATUS_LABELS) as RequestStatus[]).map((v) => ({
   value: v,
   label: STATUS_LABELS[v],
+}))
+// 资产状态（审批联动用）。中文同资产模块一致。
+const ASSET_STATUS_LABELS: Record<AssetStatus, string> = {
+  OPERATIONAL: '运行中',
+  STANDBY: '待机',
+  MODERNIZATION: '改造中',
+  INSPECTION_SCHEDULED: '待巡检',
+  COMMISSIONING: '调试中',
+  EMERGENCY_SHUTDOWN: '紧急停机',
+  DOWN: '停机',
+}
+const ASSET_STATUS_OPTIONS = (Object.keys(ASSET_STATUS_LABELS) as AssetStatus[]).map((v) => ({
+  value: v,
+  label: ASSET_STATUS_LABELS[v],
 }))
 const PRIORITY_OPTIONS = (Object.keys(PRIORITY_LABELS) as WorkOrderPriority[]).map((v) => ({
   value: v,
@@ -288,6 +303,7 @@ interface ApproveFormState {
   team_ids: string[]
   procedure_id: string | null
   note: string
+  asset_status: AssetStatus | null
 }
 const approveForm = reactive<ApproveFormState>({
   primary_user_id: null,
@@ -295,7 +311,10 @@ const approveForm = reactive<ApproveFormState>({
   team_ids: [],
   procedure_id: null,
   note: '',
+  asset_status: null,
 })
+// 当前审批请求关联的资产 id（决定是否显示资产状态选择）。
+const approvingAssetId = ref<string | null>(null)
 
 function openApprove(row: RequestRead) {
   approveForm.primary_user_id = null
@@ -303,7 +322,9 @@ function openApprove(row: RequestRead) {
   approveForm.team_ids = []
   approveForm.procedure_id = null
   approveForm.note = ''
+  approveForm.asset_status = null
   approvingId.value = row.id
+  approvingAssetId.value = row.asset_id
   approveVisible.value = true
 }
 
@@ -314,6 +335,9 @@ async function submitApprove() {
     assignee_ids: approveForm.assignee_ids,
     team_ids: approveForm.team_ids,
     procedure_id: approveForm.procedure_id || null,
+    // 仅当请求关联了资产且选择了状态时附带，避免空值误传。
+    asset_status:
+      approvingAssetId.value && approveForm.asset_status ? approveForm.asset_status : null,
   }
   try {
     approveSubmitting.value = true
@@ -381,6 +405,15 @@ async function submitComment() {
   }
 }
 
+// ── attachments ────────────────────────────────────────────
+const attachmentsVisible = ref(false)
+const attachmentReqId = ref('')
+
+function openAttachments(row: RequestRead) {
+  attachmentReqId.value = row.id
+  attachmentsVisible.value = true
+}
+
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: RequestRead) {
   try {
@@ -406,6 +439,8 @@ defineExpose({
   handleReject,
   handleCancel,
   openActivities,
+  openAttachments,
+  approvingAssetId,
   fieldVisible,
   fieldRequired,
 })
@@ -527,6 +562,7 @@ defineExpose({
             取消
           </el-button>
           <el-button link type="primary" @click="openActivities(row)">活动</el-button>
+          <el-button link type="primary" @click="openAttachments(row)">附件</el-button>
           <el-button
             v-if="auth.hasPermission('request.delete')"
             link
@@ -652,6 +688,21 @@ defineExpose({
             <el-option v-for="pr in procedures" :key="pr.id" :label="pr.name" :value="pr.id" />
           </el-select>
         </el-form-item>
+        <el-form-item v-if="approvingAssetId" label="资产状态">
+          <el-select
+            v-model="approveForm.asset_status"
+            placeholder="可选：审批后同步资产状态"
+            clearable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in ASSET_STATUS_OPTIONS"
+              :key="s.value"
+              :label="s.label"
+              :value="s.value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="approveForm.note" type="textarea" placeholder="请输入备注" />
         </el-form-item>
@@ -687,6 +738,16 @@ defineExpose({
           发表评论
         </el-button>
       </div>
+    </el-dialog>
+
+    <!-- attachments dialog -->
+    <el-dialog v-model="attachmentsVisible" title="请求附件" width="700px">
+      <EntityAttachments
+        v-if="attachmentsVisible"
+        entity-type="request"
+        :entity-id="attachmentReqId"
+        :editable="auth.hasPermission('request.create')"
+      />
     </el-dialog>
   </div>
 </template>

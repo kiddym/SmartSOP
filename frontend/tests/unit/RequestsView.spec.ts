@@ -42,6 +42,13 @@ vi.mock('@/api/teams', () => ({
 vi.mock('@/api/procedures', () => ({
   listProceduresMini: vi.fn().mockResolvedValue([{ id: 'pr1', name: '保养SOP' }]),
 }))
+const lea = vi.hoisted(() => vi.fn())
+vi.mock('@/api/attachments', () => ({
+  listEntityAttachments: lea,
+  uploadEntityAttachment: vi.fn(),
+  downloadAttachment: vi.fn(),
+  deleteAttachment: vi.fn(),
+}))
 
 const authState = vi.hoisted(() => ({ can: true }))
 vi.mock('@/store/auth', () => ({
@@ -100,6 +107,19 @@ beforeEach(() => {
     },
   ])
   addc.mockReset().mockResolvedValue({})
+  lea.mockReset().mockResolvedValue([
+    {
+      id: 'att1',
+      procedure_id: null,
+      file_name: '现场照片.jpg',
+      mime_type: 'image/jpeg',
+      size_bytes: 2048,
+      description: '',
+      sort_order: 0,
+      created_at: '2026-06-01T01:00:00',
+      updated_at: '2026-06-01T01:00:00',
+    },
+  ])
 })
 
 afterEach(() => {
@@ -173,6 +193,51 @@ describe('RequestsView', () => {
     await vm.handleReject(pendingReq)
     await flushPromises()
     expect(rr).toHaveBeenCalledWith('r1', { reason: '信息不足' })
+  })
+
+  it('审批弹窗带资产状态提交携带 asset_status', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openApprove(pendingReq) // pendingReq.asset_id = 'a1'
+    await flushPromises()
+    expect(vm.approvingAssetId).toBe('a1')
+    vm.approveForm.asset_status = 'DOWN'
+    await flushPromises()
+    const confirmBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '批准并生成工单',
+    ) as HTMLElement
+    confirmBtn.click()
+    await flushPromises()
+    expect(ar).toHaveBeenCalled()
+    expect(ar.mock.calls[0][1]).toMatchObject({ asset_status: 'DOWN' })
+  })
+
+  it('无关联资产时 asset_status 不附带', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openApprove({ ...pendingReq, asset_id: null })
+    await flushPromises()
+    expect(vm.approvingAssetId).toBeNull()
+    vm.approveForm.asset_status = 'DOWN' // 即便误设也不应附带
+    await flushPromises()
+    const confirmBtn = Array.from(document.querySelectorAll('.el-dialog .el-button')).find(
+      (b) => b.textContent?.trim() === '批准并生成工单',
+    ) as HTMLElement
+    confirmBtn.click()
+    await flushPromises()
+    expect(ar.mock.calls[0][1].asset_status).toBeNull()
+  })
+
+  it('附件区渲染并列出附件', async () => {
+    const w = mountView()
+    await flushPromises()
+    const vm = w.vm as any
+    vm.openAttachments(pendingReq)
+    await flushPromises()
+    expect(lea).toHaveBeenCalledWith('request', 'r1')
+    expect(document.body.textContent).toContain('现场照片.jpg')
   })
 
   it('无权限隐藏新建按钮', async () => {

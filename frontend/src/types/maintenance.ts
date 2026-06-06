@@ -1,3 +1,5 @@
+import type { AssetStatus } from './maindata'
+
 // 公共
 export type WorkOrderPriority = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH'
 
@@ -47,6 +49,8 @@ export interface RequestApprove {
   assignee_ids?: string[]
   team_ids?: string[]
   procedure_id?: string | null
+  // 审批同时联动关联资产状态（可空）：仅当请求关联了资产时由前端附带。
+  asset_status?: AssetStatus | null
 }
 export interface RequestReason {
   reason: string

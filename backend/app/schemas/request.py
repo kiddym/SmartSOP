@@ -6,6 +6,7 @@ from datetime import date, datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.models.asset_status import AssetStatus
 from app.models.request_status import RequestStatus
 from app.models.work_order_status import WorkOrderPriority
 
@@ -34,6 +35,8 @@ class RequestApprove(BaseModel):
     assignee_ids: list[str] = []
     team_ids: list[str] = []
     procedure_id: str | None = None
+    # 审批同时联动关联资产状态（可空）：仅当请求关联了资产时生效，走停机树联动路径。
+    asset_status: AssetStatus | None = None
 
 
 class RequestReason(BaseModel):

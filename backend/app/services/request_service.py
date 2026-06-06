@@ -189,11 +189,22 @@ def approve_request(
 
     工单服务在函数内部 import 以避免模块级循环依赖。
     """
+    from app.services import maintenance_asset_service as assets
     from app.services import work_order_execution_service as exe
     from app.services import work_order_service as wos
 
     if not can_transition(r.status, RequestStatus.APPROVED):
         raise bad_request("REQUEST_BAD_TRANSITION", f"非法状态转移 {r.status.value}->APPROVED")
+    # 审批联动资产状态：仅当传入 asset_status 且请求关联了归属当前租户的资产时，
+    # 复用 apply_status_transition 走停机树联动（勿裸 setattr，避免破坏 DOWN⟺停机不变量）。
+    if payload.asset_status is not None and r.asset_id is not None:
+        asset = assets.get_asset(db, r.asset_id)
+        if asset is None or asset.company_id != company_id:
+            raise bad_request("ASSET_NOT_FOUND", "关联资产不存在或不属于当前公司", field="asset_id")
+        if asset.status != payload.asset_status:
+            old_status = asset.status
+            asset.status = payload.asset_status
+            assets.apply_status_transition(db, asset, old_status, asset.status, company_id)
     wo_payload = WorkOrderCreate(
         title=r.title,
         description=r.description,
