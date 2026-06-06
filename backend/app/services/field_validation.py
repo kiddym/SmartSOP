@@ -1,8 +1,8 @@
 """共享自定义字段值校验。
 
 不依赖具体 ORM 模型——只要字段定义对象有 key/name/field_type/validation_rules/
-options 属性即可（ProcedureField 与 CustomFieldDef 均满足）。未知键容忍（不报错）；
-required 仅在 require_check=True 时强制。
+options 属性即可（ProcedureField 满足该协议；后续 CustomFieldDef（Task 2）亦将满足）。
+未知键容忍（不报错）；required 仅在 require_check=True 时强制。
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import re
 from collections.abc import Sequence
-from typing import Any, Protocol
+from typing import Any, NoReturn, Protocol
 
 from app.errors import unprocessable
 
@@ -30,7 +30,7 @@ def _is_empty(val: Any) -> bool:
     return val is None or val == "" or val == []
 
 
-def _err(field: FieldDef, msg: str) -> None:
+def _err(field: FieldDef, msg: str) -> NoReturn:
     raise unprocessable("CUSTOM_FIELD_INVALID", f"字段「{field.name}」{msg}", field=field.key)
 
 
@@ -40,6 +40,7 @@ def _option_values(field: FieldDef) -> set[str]:
 
 
 def validate_one(field: FieldDef, val: Any) -> None:
+    """校验单个字段值（已知 present）；通常经 validate_against_definitions 调用，也可单独用于单字段实时校验。"""
     schema = field.validation_rules or {}
     ftype = field.field_type
     if ftype in ("text", "textarea"):
