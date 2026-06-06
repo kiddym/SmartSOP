@@ -16,8 +16,11 @@ export interface LocationRead {
   address: string
   longitude: number | null
   latitude: number | null
+  image_url: string | null
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
 }
 export interface LocationCreate {
   name: string
@@ -26,8 +29,11 @@ export interface LocationCreate {
   address?: string
   longitude?: number | null
   latitude?: number | null
+  image_url?: string | null
   assigned_user_ids?: string[]
   team_ids?: string[]
+  vendor_ids?: string[]
+  customer_ids?: string[]
 }
 export type LocationUpdate = Partial<LocationCreate>
 export interface LocationMini {

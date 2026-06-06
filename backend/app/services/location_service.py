@@ -5,9 +5,11 @@ from __future__ import annotations
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request
+from app.errors import bad_request, not_found
 from app.models.base import utcnow
+from app.models.customer import Customer, CustomerLocation
 from app.models.location import Location, LocationTeam, LocationUser
+from app.models.vendor import Vendor, VendorLocation
 from app.schemas.location import LocationCreate, LocationUpdate
 from app.services import sequence_service
 
@@ -28,6 +30,30 @@ def _team_ids(db: Session, location_id: str) -> list[str]:
     )
 
 
+def _vendor_ids(db: Session, location_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(VendorLocation.vendor_id)
+            .where(VendorLocation.location_id == location_id)
+            .order_by(VendorLocation.vendor_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def _customer_ids(db: Session, location_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(CustomerLocation.customer_id)
+            .where(CustomerLocation.location_id == location_id)
+            .order_by(CustomerLocation.customer_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
 def to_read(db: Session, loc: Location) -> dict[str, object]:
     return {
         "id": loc.id,
@@ -38,8 +64,11 @@ def to_read(db: Session, loc: Location) -> dict[str, object]:
         "address": loc.address,
         "longitude": loc.longitude,
         "latitude": loc.latitude,
+        "image_url": loc.image_url,
         "assigned_user_ids": _user_ids(db, loc.id),
         "team_ids": _team_ids(db, loc.id),
+        "vendor_ids": _vendor_ids(db, loc.id),
+        "customer_ids": _customer_ids(db, loc.id),
     }
 
 
@@ -72,11 +101,35 @@ def _validate_parent(db: Session, loc_id: str, parent_id: str | None) -> None:
         raise bad_request("LOCATION_CYCLE", "父位置不能是自身的后代")
 
 
+def _validate_owned(
+    db: Session, model: type, ids: list[str], company_id: str, code: str, label: str
+) -> None:
+    """校验目标实体归属当前租户（不存在/非 active/他租户均 404）。"""
+    for eid in dict.fromkeys(ids):
+        row = db.get(model, eid)
+        if row is None or not row.is_active or row.company_id != company_id:
+            raise not_found(code, f"{label}不存在")
+
+
+def _validate_partner_ids(
+    db: Session,
+    vendor_ids: list[str] | None,
+    customer_ids: list[str] | None,
+    company_id: str,
+) -> None:
+    if vendor_ids is not None:
+        _validate_owned(db, Vendor, vendor_ids, company_id, "VENDOR_NOT_FOUND", "供应商")
+    if customer_ids is not None:
+        _validate_owned(db, Customer, customer_ids, company_id, "CUSTOMER_NOT_FOUND", "客户")
+
+
 def _sync_relations(
     db: Session,
     loc: Location,
     user_ids: list[str] | None,
     team_ids: list[str] | None,
+    vendor_ids: list[str] | None,
+    customer_ids: list[str] | None,
     company_id: str,
 ) -> None:
     if user_ids is not None:
@@ -87,9 +140,18 @@ def _sync_relations(
         db.execute(delete(LocationTeam).where(LocationTeam.location_id == loc.id))
         for tid in dict.fromkeys(team_ids):
             db.add(LocationTeam(location_id=loc.id, team_id=tid, company_id=company_id))
+    if vendor_ids is not None:
+        db.execute(delete(VendorLocation).where(VendorLocation.location_id == loc.id))
+        for vid in dict.fromkeys(vendor_ids):
+            db.add(VendorLocation(location_id=loc.id, vendor_id=vid, company_id=company_id))
+    if customer_ids is not None:
+        db.execute(delete(CustomerLocation).where(CustomerLocation.location_id == loc.id))
+        for cid in dict.fromkeys(customer_ids):
+            db.add(CustomerLocation(location_id=loc.id, customer_id=cid, company_id=company_id))
 
 
 def create_location(db: Session, payload: LocationCreate, company_id: str) -> Location:
+    _validate_partner_ids(db, payload.vendor_ids, payload.customer_ids, company_id)
     seq = sequence_service.next_value(db, "location", company_id)
     loc = Location(
         custom_id=sequence_service.format_custom_id("L", seq),
@@ -99,11 +161,20 @@ def create_location(db: Session, payload: LocationCreate, company_id: str) -> Lo
         address=payload.address,
         longitude=payload.longitude,
         latitude=payload.latitude,
+        image_url=payload.image_url,
         company_id=company_id,
     )
     db.add(loc)
     db.flush()
-    _sync_relations(db, loc, payload.assigned_user_ids, payload.team_ids, company_id)
+    _sync_relations(
+        db,
+        loc,
+        payload.assigned_user_ids,
+        payload.team_ids,
+        payload.vendor_ids,
+        payload.customer_ids,
+        company_id,
+    )
     db.commit()
     db.refresh(loc)
     return loc
@@ -141,9 +212,13 @@ def update_location(
         _validate_parent(db, loc.id, data["parent_id"])
     user_ids = data.pop("assigned_user_ids", None)
     team_ids = data.pop("team_ids", None)
+    vendor_ids = data.pop("vendor_ids", None)
+    customer_ids = data.pop("customer_ids", None)
+    # 校验须在 setattr 之前，确保非法目标不会落库
+    _validate_partner_ids(db, vendor_ids, customer_ids, company_id)
     for k, v in data.items():
         setattr(loc, k, v)
-    _sync_relations(db, loc, user_ids, team_ids, company_id)
+    _sync_relations(db, loc, user_ids, team_ids, vendor_ids, customer_ids, company_id)
     db.commit()
     db.refresh(loc)
     return loc

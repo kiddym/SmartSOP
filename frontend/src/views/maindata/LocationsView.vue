@@ -4,8 +4,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { listLocations, createLocation, updateLocation, deleteLocation } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import { listTeams } from '@/api/teams'
+import { listVendorsMini } from '@/api/vendors'
+import { listCustomersMini } from '@/api/customers'
 import type { LocationRead, LocationCreate, LocationUpdate } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
+import type { VendorMini, CustomerMini } from '@/types/inventory'
 import { useAuthStore } from '@/store/auth'
 import { buildTree, collectDescendantIds } from '@/utils/tree'
 
@@ -16,6 +19,8 @@ const loading = ref(false)
 const locations = ref<LocationRead[]>([])
 const users = ref<UserRead[]>([])
 const teams = ref<TeamRead[]>([])
+const vendorsMini = ref<VendorMini[]>([])
+const customersMini = ref<CustomerMini[]>([])
 
 const tree = computed(() => buildTree(locations.value))
 
@@ -37,8 +42,22 @@ async function fetchTeams() {
   teams.value = await listTeams()
 }
 
+async function fetchVendorsMini() {
+  vendorsMini.value = await listVendorsMini()
+}
+
+async function fetchCustomersMini() {
+  customersMini.value = await listCustomersMini()
+}
+
 onMounted(async () => {
-  await Promise.all([fetchLocations(), fetchUsers(), fetchTeams()])
+  await Promise.all([
+    fetchLocations(),
+    fetchUsers(),
+    fetchTeams(),
+    fetchVendorsMini(),
+    fetchCustomersMini(),
+  ])
 })
 
 // ── dialog ─────────────────────────────────────────────────
@@ -56,8 +75,11 @@ interface FormState {
   address: string
   longitude: number | null
   latitude: number | null
+  image_url: string
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
 }
 
 const form = reactive<FormState>({
@@ -67,8 +89,11 @@ const form = reactive<FormState>({
   address: '',
   longitude: null,
   latitude: null,
+  image_url: '',
   assigned_user_ids: [],
   team_ids: [],
+  vendor_ids: [],
+  customer_ids: [],
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建位置' : '编辑位置'))
@@ -89,8 +114,11 @@ function resetForm() {
   form.address = ''
   form.longitude = null
   form.latitude = null
+  form.image_url = ''
   form.assigned_user_ids = []
   form.team_ids = []
+  form.vendor_ids = []
+  form.customer_ids = []
 }
 
 function openCreate() {
@@ -109,8 +137,11 @@ function openEdit(row: LocationRead) {
     address: row.address,
     longitude: row.longitude,
     latitude: row.latitude,
+    image_url: row.image_url ?? '',
     assigned_user_ids: [...row.assigned_user_ids],
     team_ids: [...row.team_ids],
+    vendor_ids: [...row.vendor_ids],
+    customer_ids: [...row.customer_ids],
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -132,8 +163,11 @@ async function submitForm() {
       address: form.address,
       longitude: form.longitude,
       latitude: form.latitude,
+      image_url: form.image_url || null,
       assigned_user_ids: form.assigned_user_ids,
       team_ids: form.team_ids,
+      vendor_ids: form.vendor_ids,
+      customer_ids: form.customer_ids,
     }
     if (dialogMode.value === 'create') {
       await createLocation(payload as LocationCreate)
@@ -152,8 +186,8 @@ async function submitForm() {
   }
 }
 
-// expose for tests (cycle-prevention assertion on parentOptions)
-defineExpose({ parentOptions, openEdit })
+// expose for tests (cycle-prevention assertion on parentOptions; rich-field submit)
+defineExpose({ parentOptions, openEdit, openCreate, form, submitForm })
 
 // ── delete ─────────────────────────────────────────────────
 async function handleDelete(row: LocationRead) {
@@ -249,6 +283,10 @@ async function handleDelete(row: LocationRead) {
           <el-input v-model="form.address" placeholder="请输入地址" />
         </el-form-item>
 
+        <el-form-item label="主图">
+          <el-input v-model="form.image_url" placeholder="请输入主图地址" />
+        </el-form-item>
+
         <el-form-item label="经度">
           <el-input-number
             v-model="form.longitude"
@@ -282,6 +320,30 @@ async function handleDelete(row: LocationRead) {
         <el-form-item label="团队">
           <el-select v-model="form.team_ids" multiple placeholder="请选择团队" style="width: 100%">
             <el-option v-for="t in teams" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+
+        <el-divider content-position="left">关联</el-divider>
+        <el-form-item label="供应商">
+          <el-select
+            v-model="form.vendor_ids"
+            multiple
+            filterable
+            placeholder="请选择供应商"
+            style="width: 100%"
+          >
+            <el-option v-for="v in vendorsMini" :key="v.id" :label="v.name" :value="v.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="客户">
+          <el-select
+            v-model="form.customer_ids"
+            multiple
+            filterable
+            placeholder="请选择客户"
+            style="width: 100%"
+          >
+            <el-option v-for="c in customersMini" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
       </el-form>

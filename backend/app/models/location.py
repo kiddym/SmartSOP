@@ -20,6 +20,7 @@ class Location(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     address: Mapped[str] = mapped_column(String(500), default="", server_default="")
     longitude: Mapped[float | None] = mapped_column(Float, default=None)
     latitude: Mapped[float | None] = mapped_column(Float, default=None)
+    image_url: Mapped[str | None] = mapped_column(String(512), default=None)
 
 
 class LocationUser(Base, UUIDMixin, TimestampMixin, TenantMixin):

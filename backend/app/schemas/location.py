@@ -12,8 +12,11 @@ class LocationCreate(BaseModel):
     address: str = ""
     longitude: float | None = None
     latitude: float | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] = []
     team_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
 
 
 class LocationUpdate(BaseModel):
@@ -23,8 +26,11 @@ class LocationUpdate(BaseModel):
     address: str | None = None
     longitude: float | None = None
     latitude: float | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] | None = None
     team_ids: list[str] | None = None
+    vendor_ids: list[str] | None = None
+    customer_ids: list[str] | None = None
 
 
 class LocationRead(BaseModel):
@@ -37,8 +43,11 @@ class LocationRead(BaseModel):
     address: str
     longitude: float | None = None
     latitude: float | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] = []
     team_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
 
 
 class LocationMini(BaseModel):

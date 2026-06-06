@@ -3,13 +3,15 @@ import { mount, flushPromises } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia, setActivePinia } from 'pinia'
 
-const { ll, cl, ul, dl, lu, lt } = vi.hoisted(() => ({
+const { ll, cl, ul, dl, lu, lt, lv, lc } = vi.hoisted(() => ({
   ll: vi.fn(),
   cl: vi.fn(),
   ul: vi.fn(),
   dl: vi.fn(),
   lu: vi.fn(),
   lt: vi.fn(),
+  lv: vi.fn(),
+  lc: vi.fn(),
 }))
 vi.mock('@/api/locations', () => ({
   listLocations: ll,
@@ -19,6 +21,8 @@ vi.mock('@/api/locations', () => ({
 }))
 vi.mock('@/api/users', () => ({ listUsers: lu }))
 vi.mock('@/api/teams', () => ({ listTeams: lt }))
+vi.mock('@/api/vendors', () => ({ listVendorsMini: lv }))
+vi.mock('@/api/customers', () => ({ listCustomersMini: lc }))
 vi.mock('@/store/auth', () => ({
   useAuthStore: () => ({ hasPermission: () => true, user: { role_code: 'admin' } }),
 }))
@@ -41,8 +45,11 @@ beforeEach(() => {
       address: '北京',
       longitude: null,
       latitude: null,
+      image_url: null,
       assigned_user_ids: [],
       team_ids: [],
+      vendor_ids: [],
+      customer_ids: [],
     },
     {
       id: 'l2',
@@ -53,8 +60,11 @@ beforeEach(() => {
       address: '',
       longitude: null,
       latitude: null,
+      image_url: null,
       assigned_user_ids: [],
       team_ids: [],
+      vendor_ids: [],
+      customer_ids: [],
     },
   ])
   cl.mockReset().mockResolvedValue({})
@@ -73,6 +83,8 @@ beforeEach(() => {
     },
   ])
   lt.mockReset().mockResolvedValue([{ id: 't1', name: '机械组', description: '', member_ids: [] }])
+  lv.mockReset().mockResolvedValue([{ id: 'v1', name: '供应商甲', custom_id: 'V-001' }])
+  lc.mockReset().mockResolvedValue([{ id: 'c1', name: '客户乙', custom_id: 'C-001' }])
 })
 
 // el-dialog 通过 teleport 挂到 document.body，attachTo 不会随组件卸载清理，
@@ -111,6 +123,37 @@ describe('LocationsView', () => {
     await flushPromises()
     expect(cl).toHaveBeenCalled()
     expect(cl.mock.calls[0][0]).toMatchObject({ name: '新机房' })
+  })
+
+  it('新建提交携带主图与供应商/客户关联', async () => {
+    const w = mountView()
+    await flushPromises()
+    expect(lv).toHaveBeenCalled()
+    expect(lc).toHaveBeenCalled()
+    const vm = w.vm as unknown as {
+      openCreate: () => void
+      form: {
+        name: string
+        image_url: string
+        vendor_ids: string[]
+        customer_ids: string[]
+      }
+      submitForm: () => Promise<void>
+    }
+    vm.openCreate()
+    vm.form.name = '新机房'
+    vm.form.image_url = '/img/loc.png'
+    vm.form.vendor_ids = ['v1']
+    vm.form.customer_ids = ['c1']
+    await vm.submitForm()
+    await flushPromises()
+    expect(cl).toHaveBeenCalled()
+    expect(cl.mock.calls[0][0]).toMatchObject({
+      name: '新机房',
+      image_url: '/img/loc.png',
+      vendor_ids: ['v1'],
+      customer_ids: ['c1'],
+    })
   })
 
   it('编辑回填名称到表单', async () => {
