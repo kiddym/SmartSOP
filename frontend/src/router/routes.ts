@@ -154,6 +154,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '数据导入', requiresAuth: true, requiredPermission: 'asset.create' },
   },
   {
+    path: '/admin/files',
+    name: 'admin-files',
+    component: () => import('@/views/admin/FileLibraryView.vue'),
+    meta: { title: '文件库', requiresAuth: true },
+  },
+  {
     path: '/admin/users',
     name: 'platform-users',
     component: () => import('@/views/platform/UsersView.vue'),

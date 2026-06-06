@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from fastapi import status
-from sqlalchemy import func, select
+from sqlalchemy import ColumnElement, func, select
 from sqlalchemy.orm import Session
 
 from app import storage, tenant
@@ -50,6 +50,11 @@ def _resolve_mime(file_name: str, content_type: str | None) -> str:
         return content_type
     guessed, _ = mimetypes.guess_type(file_name)
     return guessed or _DEFAULT_MIME
+
+
+def _resolve_file_type(mime: str) -> str:
+    """按已解析的 MIME 推断文件大类：image/* → 'IMAGE'，否则 'OTHER'（供全局文件库筛选）。"""
+    return "IMAGE" if mime.lower().startswith("image/") else "OTHER"
 
 
 def _active_rows(db: Session, entity_type: str, entity_id: str) -> list[Attachment]:
@@ -90,6 +95,46 @@ def get_or_404(db: Session, attachment_id: str) -> Attachment:
 def list_for(db: Session, user: User | None, entity_type: str, entity_id: str) -> list[Attachment]:
     entities.resolve_and_authorize(db, user, entity_type, entity_id, "read")
     return _active_rows(db, entity_type, entity_id)
+
+
+def list_library(
+    db: Session,
+    *,
+    entity_type: str | None = None,
+    file_type: str | None = None,
+    include_hidden: bool = False,
+    q: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> tuple[list[Attachment], int]:
+    """全局文件库：当前租户下跨实体列出 active 附件（不走 bypass，依赖 tenant 行级隔离）。
+
+    权限口径：任意认证用户可读，仅返回当前 company 的附件（tenant 自动作用域）。
+    procedure 附件 company_id 可能为 NULL（SOP 表 phase-0 容忍），租户作用域下不会
+    泄漏给其他公司，但也不会归属任何公司 → 全局文件库不含此类无主 procedure 附件。
+    返回 (当前页行, 命中总数)。
+    """
+    conds: list[ColumnElement[bool]] = [Attachment.is_active.is_(True)]
+    if entity_type:
+        conds.append(Attachment.entity_type == entity_type)
+    if file_type:
+        conds.append(Attachment.file_type == file_type)
+    if not include_hidden:
+        conds.append(Attachment.hidden.is_(False))
+    if q:
+        conds.append(Attachment.file_name.ilike(f"%{q}%"))
+
+    total = int(db.execute(select(func.count()).select_from(Attachment).where(*conds)).scalar_one())
+    rows = list(
+        db.execute(
+            select(Attachment)
+            .where(*conds)
+            .order_by(Attachment.created_at.desc(), Attachment.id)
+            .limit(limit)
+            .offset(offset)
+        ).scalars()
+    )
+    return rows, total
 
 
 def download_for(db: Session, user: User | None, attachment_id: str) -> tuple[bytes, str, str]:
@@ -143,6 +188,7 @@ def upload_for(
     rel = path.relative_to(storage.storage_root()).as_posix()
     get_storage_backend().write(rel, data)
 
+    mime = _resolve_mime(name, content_type)
     att = Attachment(
         # 显式落宿主 company_id：procedure 宿主解析走 bypass，且内部写路径可能无
         # tenant 上下文（自动盖值不生效）。附件归属随宿主，故直接取宿主的 company_id。
@@ -151,7 +197,8 @@ def upload_for(
         entity_id=entity_id,
         file_name=name,
         storage_path=rel,
-        mime_type=_resolve_mime(name, content_type),
+        mime_type=mime,
+        file_type=_resolve_file_type(mime),
         size_bytes=size,
         description=description.strip(),
         sort_order=len(existing),
@@ -170,19 +217,30 @@ def update_for(
     *,
     description: str | None,
     sort_order: int | None,
+    hidden: bool | None = None,
     meta: RequestMeta,
 ) -> Attachment:
-    """改元数据（仅 description / sort_order）+ 钩子。"""
+    """改元数据（description / sort_order / hidden）+ 钩子。"""
     att = get_or_404(db, attachment_id)
     host = entities.resolve_and_authorize(db, user, att.entity_type, att.entity_id, "write")
 
-    before = {"description": att.description, "sort_order": att.sort_order}
+    before = {
+        "description": att.description,
+        "sort_order": att.sort_order,
+        "hidden": att.hidden,
+    }
     if description is not None:
         att.description = description.strip()
     if sort_order is not None:
         att.sort_order = sort_order
+    if hidden is not None:
+        att.hidden = hidden
     db.flush()
-    after = {"description": att.description, "sort_order": att.sort_order}
+    after = {
+        "description": att.description,
+        "sort_order": att.sort_order,
+        "hidden": att.hidden,
+    }
     if att.entity_type == "procedure":
         old_value, new_value = audit_service.compute_diff(before, after)
         if new_value:

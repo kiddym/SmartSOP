@@ -1,5 +1,5 @@
 import { http } from './http'
-import type { AttachmentOut } from '@/types/attachment'
+import type { AttachmentOut, LibraryPage, LibraryQuery } from '@/types/attachment'
 
 export const listAttachments = (procedureId: string): Promise<AttachmentOut[]> =>
   http.get<AttachmentOut[]>(`/procedures/${procedureId}/attachments`).then(r => r.data)
@@ -51,3 +51,11 @@ export const uploadEntityAttachment = (
   fd.append('description', description)
   return http.post<AttachmentOut>('/attachments', fd).then((r) => r.data)
 }
+
+// 全局文件库：当前 company 下跨实体分页列出附件（支持类型/关键字/含隐藏过滤）。
+export const listFileLibrary = (query: LibraryQuery = {}): Promise<LibraryPage> =>
+  http.get<LibraryPage>('/attachments/library', { params: query }).then((r) => r.data)
+
+// 改附件隐藏标记（复用通用 PUT /attachments/{id}）。
+export const setAttachmentHidden = (attachId: string, hidden: boolean): Promise<AttachmentOut> =>
+  http.put<AttachmentOut>(`/attachments/${attachId}`, { hidden }).then((r) => r.data)

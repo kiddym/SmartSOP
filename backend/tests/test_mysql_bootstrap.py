@@ -73,14 +73,15 @@ def test_mysql_upgrade_head_full_chain(monkeypatch: pytest.MonkeyPatch) -> None:
     # 整链 upgrade —— 历史首障是 initial_schema 的 TEXT 字面默认（1101），整链通即红线绿。
     command.upgrade(cfg, "head")
 
-    # 单 head 守护：脚本目录仍单 head，且库已推进到该 head。
+    # 单 head 守护：脚本目录仍单 head（不锚定具体名，迁移持续追加），且库已推进到该 head。
     heads = ScriptDirectory.from_config(cfg).get_heads()
-    assert heads == ["p6_stripe_billing"]
+    assert len(heads) == 1
+    head = heads[0]
 
     engine = create_engine(_MYSQL_URL)
     try:
         with engine.connect() as conn:
             version = conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
-        assert version == "p6_stripe_billing"
+        assert version == head
     finally:
         engine.dispose()

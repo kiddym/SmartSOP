@@ -37,6 +37,7 @@ import {
   Collection,
   Upload,
   Operation,
+  Files,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
@@ -232,6 +233,7 @@ const rawGroups = computed<NavGroup[]>(() => [
           },
           { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
           { label: '数据导入', path: '/admin/imports', icon: Upload },
+          { label: '文件库', path: '/admin/files', icon: Files },
         ],
       },
       {

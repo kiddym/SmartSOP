@@ -17,6 +17,8 @@ class AttachmentOut(BaseModel):
     entity_id: str
     file_name: str
     mime_type: str
+    file_type: str
+    hidden: bool
     size_bytes: int
     description: str
     sort_order: int
@@ -31,7 +33,26 @@ class AttachmentOut(BaseModel):
 
 
 class AttachmentUpdate(BaseModel):
-    """修改附件元数据（仅 description / sort_order）。"""
+    """修改附件元数据（description / sort_order / hidden）。"""
 
     description: str | None = Field(default=None, max_length=2000)
     sort_order: int | None = Field(default=None, ge=0)
+    hidden: bool | None = Field(default=None)
+
+
+class LibraryAttachmentOut(BaseModel):
+    """全局文件库列表项（跨实体浏览，含宿主标识与文件大类）。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    entity_type: str
+    entity_id: str
+    file_name: str
+    mime_type: str
+    file_type: str
+    hidden: bool
+    size_bytes: int
+    description: str
+    created_at: datetime
+    updated_at: datetime
