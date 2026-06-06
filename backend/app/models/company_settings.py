@@ -44,3 +44,10 @@ class CompanySettings(Base, UUIDMixin, TimestampMixin, TenantMixin):
         Integer, default=0, server_default="0"
     )
     auto_assign_requests: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    # 导航模块显隐（UiConfiguration）：默认全显。
+    show_requests: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    show_locations: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    show_meters: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
+    show_vendors_customers: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="1"
+    )

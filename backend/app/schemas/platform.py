@@ -49,6 +49,10 @@ class CompanySettingsOut(BaseModel):
     simplified_work_order: bool
     days_before_pm_notification: int
     auto_assign_requests: bool
+    show_requests: bool
+    show_locations: bool
+    show_meters: bool
+    show_vendors_customers: bool
 
 
 class CompanySettingsUpdate(BaseModel):
@@ -65,3 +69,7 @@ class CompanySettingsUpdate(BaseModel):
     simplified_work_order: bool | None = None
     days_before_pm_notification: int | None = Field(default=None, ge=0)
     auto_assign_requests: bool | None = None
+    show_requests: bool | None = None
+    show_locations: bool | None = None
+    show_meters: bool | None = None
+    show_vendors_customers: bool | None = None

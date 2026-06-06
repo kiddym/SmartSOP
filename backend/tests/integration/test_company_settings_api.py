@@ -52,6 +52,27 @@ def test_general_preferences_defaults_and_update(client):
     assert again["auto_assign_requests"] is True
 
 
+def test_ui_module_visibility_defaults_and_update(client):
+    """导航模块显隐开关默认全显，可关闭并持久化。"""
+    h = {"Authorization": f"Bearer {_token(client)}"}
+    r = client.get("/api/v1/company-settings", headers=h).json()
+    assert r["show_requests"] is True
+    assert r["show_locations"] is True
+    assert r["show_meters"] is True
+    assert r["show_vendors_customers"] is True
+    u = client.put(
+        "/api/v1/company-settings",
+        headers=h,
+        json={"show_meters": False, "show_vendors_customers": False},
+    )
+    assert u.status_code == 200, u.text
+    assert u.json()["show_meters"] is False
+    assert u.json()["show_vendors_customers"] is False
+    assert u.json()["show_requests"] is True
+    again = client.get("/api/v1/company-settings", headers=h).json()
+    assert again["show_meters"] is False
+
+
 def test_settings_isolated_per_company(client):
     """两公司各自独立的 settings。"""
     hA = {
