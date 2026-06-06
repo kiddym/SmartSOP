@@ -12,3 +12,18 @@ export const refresh = async (refreshToken: string): Promise<TokenPair> =>
 
 export const fetchMe = async (): Promise<CurrentUser> =>
   (await http.get<CurrentUser>('/auth/me', { skipErrorToast: true })).data
+
+export const forgotPassword = async (email: string, companySlug?: string): Promise<void> => {
+  await http.post('/auth/forgot-password', { email, company_slug: companySlug || undefined }, { skipErrorToast: true })
+}
+
+export const resetPassword = async (token: string, newPassword: string): Promise<void> => {
+  await http.post('/auth/reset-password', { token, new_password: newPassword }, { skipErrorToast: true })
+}
+
+export const changePassword = async (oldPassword: string, newPassword: string): Promise<void> => {
+  await http.post('/auth/change-password', { old_password: oldPassword, new_password: newPassword }, { skipErrorToast: true })
+}
+
+export const acceptInvite = async (token: string, name: string, password: string): Promise<TokenPair> =>
+  (await http.post<TokenPair>('/auth/accept-invite', { token, name, password }, { skipErrorToast: true })).data

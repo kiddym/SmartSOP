@@ -15,6 +15,10 @@ async function logout(): Promise<void> {
   await router.push({ name: 'login' })
 }
 
+async function goChangePassword(): Promise<void> {
+  await router.push({ name: 'change-password' })
+}
+
 defineExpose({ logout })
 </script>
 
@@ -23,7 +27,8 @@ defineExpose({ logout })
     <span class="user-menu-trigger">{{ displayName }}</span>
     <template #dropdown>
       <el-dropdown-menu>
-        <el-dropdown-item data-test="logout" @click="logout">{{ t('auth.logout') }}</el-dropdown-item>
+        <el-dropdown-item data-test="change-password" @click="goChangePassword">{{ t('auth.changeTitle') }}</el-dropdown-item>
+        <el-dropdown-item divided data-test="logout" @click="logout">{{ t('auth.logout') }}</el-dropdown-item>
       </el-dropdown-menu>
     </template>
   </el-dropdown>

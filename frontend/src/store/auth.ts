@@ -50,6 +50,17 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async acceptInvite(token: string, name: string, password: string): Promise<void> {
+      this.loading = true
+      try {
+        const pair = await authApi.acceptInvite(token, name, password)
+        this._applyTokens(pair.access_token, pair.refresh_token)
+        await this.loadMe()
+      } finally {
+        this.loading = false
+      }
+    },
+
     async loadMe(): Promise<void> {
       this.user = await authApi.fetchMe()
       // 加载公司订阅供 feature 门控（失败不阻塞登录）。

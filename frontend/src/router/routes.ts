@@ -21,6 +21,30 @@ export const routes: RouteRecordRaw[] = [
     component: () => import('@/views/auth/RegisterView.vue'),
     meta: { title: '注册' },
   },
+  {
+    path: '/forgot-password',
+    name: 'forgot-password',
+    component: () => import('@/views/auth/ForgotPasswordView.vue'),
+    meta: { title: '找回密码' },
+  },
+  {
+    path: '/reset-password',
+    name: 'reset-password',
+    component: () => import('@/views/auth/ResetPasswordView.vue'),
+    meta: { title: '重置密码' },
+  },
+  {
+    path: '/accept-invite',
+    name: 'accept-invite',
+    component: () => import('@/views/auth/AcceptInviteView.vue'),
+    meta: { title: '接受邀请' },
+  },
+  {
+    path: '/account/change-password',
+    name: 'change-password',
+    component: () => import('@/views/auth/ChangePasswordView.vue'),
+    meta: { title: '修改密码', requiresAuth: true },
+  },
   { path: '/', redirect: '/procedures/library' },
   {
     path: '/procedures/library',

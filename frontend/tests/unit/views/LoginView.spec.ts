@@ -14,6 +14,7 @@ function makeRouter(): Router {
       { path: '/', name: 'home', component: { template: '<div/>' } },
       { path: '/login', name: 'login', component: { template: '<div/>' } },
       { path: '/register', name: 'register', component: { template: '<div/>' } },
+      { path: '/forgot-password', name: 'forgot-password', component: { template: '<div/>' } },
     ],
   })
 }
