@@ -89,8 +89,7 @@ def test_import_locations_creates_rows(client) -> None:
 def test_import_parts_creates_rows(client) -> None:
     t = _admin(client)
     csv_text = (
-        "name,description,unit,cost,quantity,min_quantity,category\n"
-        "滤芯,高效,个,12.5,10,2,\n"
+        "name,description,unit,cost,quantity,min_quantity,category\n滤芯,高效,个,12.5,10,2,\n"
     )
     r = _upload(client, t, "parts", csv_text)
     assert r.status_code == 200, r.text
@@ -105,9 +104,7 @@ def test_import_parts_creates_rows(client) -> None:
 
 def test_import_resolves_related_category_by_name(client) -> None:
     t = _admin(client)
-    cat = client.post(
-        "/api/v1/asset-categories", headers=_h(t), json={"name": "泵类"}
-    )
+    cat = client.post("/api/v1/asset-categories", headers=_h(t), json={"name": "泵类"})
     assert cat.status_code in (200, 201), cat.text
     csv_text = (
         "name,status,category,location,manufacturer,model,serial_number\n"

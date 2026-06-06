@@ -128,9 +128,7 @@ def test_cross_tenant_vendor_rejected(client):
     ta = _admin(client, company="Acme", email="a@acme.com")
     tb = _admin(client, company="Beta", email="b@beta.com")
     v_a = _vendor(client, ta)
-    r = client.post(
-        "/api/v1/locations", headers=_h(tb), json={"name": "厂区", "vendor_ids": [v_a]}
-    )
+    r = client.post("/api/v1/locations", headers=_h(tb), json={"name": "厂区", "vendor_ids": [v_a]})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "VENDOR_NOT_FOUND"
 

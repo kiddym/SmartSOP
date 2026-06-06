@@ -52,12 +52,8 @@ def test_part_work_orders_endpoint_dedup(client, db):
     client.post("/api/v1/work-orders", headers=h, json={"title": "NonConsumer"})
     tenant.set_current_company_id(cid)
     # two consumptions of the same part on the same WO -> WO appears once
-    db.add(
-        PartConsumption(part_id=part, work_order_id=a, quantity=1, unit_cost=1, company_id=cid)
-    )
-    db.add(
-        PartConsumption(part_id=part, work_order_id=a, quantity=2, unit_cost=1, company_id=cid)
-    )
+    db.add(PartConsumption(part_id=part, work_order_id=a, quantity=1, unit_cost=1, company_id=cid))
+    db.add(PartConsumption(part_id=part, work_order_id=a, quantity=2, unit_cost=1, company_id=cid))
     db.commit()
     rows = client.get(f"/api/v1/parts/{part}/work-orders", headers=h).json()
     assert [r["title"] for r in rows] == ["Consumer"]

@@ -59,9 +59,7 @@ def test_create_meter_with_image_url(client, db):
 def test_update_meter_image_url(client, db):
     t = _admin(client)
     _unlock_pro(db)
-    mid = client.post(
-        "/api/v1/meters", headers=_h(t), json={"name": "M"}
-    ).json()["id"]
+    mid = client.post("/api/v1/meters", headers=_h(t), json={"name": "M"}).json()["id"]
     r = client.patch(
         f"/api/v1/meters/{mid}", headers=_h(t), json={"image_url": "https://img/y.png"}
     )
@@ -90,9 +88,9 @@ def test_update_user_ids_full_replace(client, db):
     _unlock_pro(db)
     u1 = _make_user(client, t, email="u1@acme.com")
     u2 = _make_user(client, t, email="u2@acme.com")
-    mid = client.post(
-        "/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}
-    ).json()["id"]
+    mid = client.post("/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}).json()[
+        "id"
+    ]
     r = client.patch(f"/api/v1/meters/{mid}", headers=_h(t), json={"user_ids": [u2]})
     assert r.status_code == 200
     assert r.json()["user_ids"] == [u2]
@@ -102,9 +100,9 @@ def test_user_ids_none_keeps_existing(client, db):
     t = _admin(client)
     _unlock_pro(db)
     u1 = _make_user(client, t, email="u1@acme.com")
-    mid = client.post(
-        "/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}
-    ).json()["id"]
+    mid = client.post("/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}).json()[
+        "id"
+    ]
     # 不传 user_ids -> 不改
     r = client.patch(f"/api/v1/meters/{mid}", headers=_h(t), json={"name": "M2"})
     assert r.status_code == 200
@@ -115,9 +113,9 @@ def test_user_ids_empty_clears(client, db):
     t = _admin(client)
     _unlock_pro(db)
     u1 = _make_user(client, t, email="u1@acme.com")
-    mid = client.post(
-        "/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}
-    ).json()["id"]
+    mid = client.post("/api/v1/meters", headers=_h(t), json={"name": "M", "user_ids": [u1]}).json()[
+        "id"
+    ]
     r = client.patch(f"/api/v1/meters/{mid}", headers=_h(t), json={"user_ids": []})
     assert r.status_code == 200
     assert r.json()["user_ids"] == []
@@ -128,9 +126,7 @@ def test_cross_tenant_user_rejected_on_create(client, db):
     tb = _admin(client, company="Globex", email="b@globex.com")
     _unlock_pro(db)
     foreign = _make_user(client, tb, email="b-user@globex.com")
-    r = client.post(
-        "/api/v1/meters", headers=_h(ta), json={"name": "M", "user_ids": [foreign]}
-    )
+    r = client.post("/api/v1/meters", headers=_h(ta), json={"name": "M", "user_ids": [foreign]})
     assert r.status_code == 404, r.text
 
 
@@ -140,7 +136,5 @@ def test_cross_tenant_user_rejected_on_update(client, db):
     _unlock_pro(db)
     foreign = _make_user(client, tb, email="b-user@globex.com")
     mid = client.post("/api/v1/meters", headers=_h(ta), json={"name": "M"}).json()["id"]
-    r = client.patch(
-        f"/api/v1/meters/{mid}", headers=_h(ta), json={"user_ids": [foreign]}
-    )
+    r = client.patch(f"/api/v1/meters/{mid}", headers=_h(ta), json={"user_ids": [foreign]})
     assert r.status_code == 404
