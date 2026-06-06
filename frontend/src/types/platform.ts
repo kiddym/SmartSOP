@@ -13,6 +13,7 @@ export interface UserRead {
   job_title: string | null
   rate: string | null
   avatar_url: string | null
+  email_verified?: boolean
   last_login_at: string | null
   created_at: string
 }

@@ -55,5 +55,6 @@ class UserRead(BaseModel):
     job_title: str | None = None
     rate: Decimal | None = None
     avatar_url: str | None = None
+    email_verified: bool = False
     last_login_at: datetime | None = None
     created_at: datetime

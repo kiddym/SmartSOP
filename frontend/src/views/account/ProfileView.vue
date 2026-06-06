@@ -3,6 +3,7 @@ import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useI18n } from 'vue-i18n'
 import { getMyProfile, updateMyProfile } from '@/api/users'
+import { requestVerification } from '@/api/auth'
 import { errorMessage } from '@/api/http'
 import { useAuthStore } from '@/store/auth'
 import type { UserRead } from '@/types/platform'
@@ -12,6 +13,7 @@ const auth = useAuthStore()
 
 const loading = ref(false)
 const submitting = ref(false)
+const sendingVerification = ref(false)
 const profile = ref<UserRead | null>(null)
 
 const form = reactive({
@@ -67,6 +69,18 @@ async function submit(): Promise<void> {
   }
 }
 
+async function sendVerification(): Promise<void> {
+  sendingVerification.value = true
+  try {
+    await requestVerification()
+    ElMessage.success(t('account.verificationSent'))
+  } catch (err) {
+    ElMessage.error(errorMessage(err) ?? t('account.verificationFailed'))
+  } finally {
+    sendingVerification.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -86,6 +100,24 @@ onMounted(load)
       <el-form label-width="120px" @submit.prevent="submit">
         <el-form-item :label="t('account.email')">
           <el-input :model-value="profile?.email ?? ''" data-test="email" disabled />
+        </el-form-item>
+        <el-form-item :label="t('account.emailVerified')">
+          <el-tag v-if="profile?.email_verified" type="success" data-test="email-verified">
+            {{ t('account.verified') }}
+          </el-tag>
+          <template v-else>
+            <el-tag type="info" data-test="email-unverified">{{ t('account.unverified') }}</el-tag>
+            <el-button
+              link
+              type="primary"
+              :loading="sendingVerification"
+              data-test="send-verification"
+              style="margin-left: 8px"
+              @click="sendVerification"
+            >
+              {{ t('account.sendVerification') }}
+            </el-button>
+          </template>
         </el-form-item>
         <el-form-item :label="t('account.name')">
           <el-input v-model="form.name" data-test="name" maxlength="128" />

@@ -24,4 +24,12 @@ export interface CurrentUser {
   company_id: string
   role_code: string | null
   permissions: string[]
+  email_verified?: boolean
+}
+
+export interface SwitchableAccount {
+  company_id: string
+  company_name: string
+  company_slug: string
+  user_id: string
 }

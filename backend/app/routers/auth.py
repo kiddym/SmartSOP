@@ -18,10 +18,18 @@ from app.schemas.auth import (
     RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
+    SwitchableAccount,
+    SwitchAccountRequest,
     TokenPair,
+    VerifyEmailRequest,
 )
 from app.schemas.platform import AcceptInviteRequest
-from app.services import auth_service, invitation_service, password_reset_service
+from app.services import (
+    auth_service,
+    email_verification_service,
+    invitation_service,
+    password_reset_service,
+)
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 
@@ -116,6 +124,44 @@ def accept_invite(payload: AcceptInviteRequest, db: Session = Depends(get_db)) -
     return _tokens(db, user)
 
 
+@router.get("/switchable-accounts", response_model=list[SwitchableAccount])
+def switchable_accounts(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> list[SwitchableAccount]:
+    """当前用户可切入的公司列表。普通用户返回空列表。"""
+    return auth_service.list_switchable_accounts(db, current_user)
+
+
+@router.post("/switch-account", response_model=TokenPair)
+def switch_account(
+    payload: SwitchAccountRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TokenPair:
+    """切换到目标公司的同 email 成员账户，签发指向该真实成员身份的 token。"""
+    member = auth_service.switch_account(db, current_user, payload.company_id)
+    tenant.set_current_company_id(member.company_id)
+    return _tokens(db, member)
+
+
+@router.post("/request-verification", status_code=200)
+def request_verification(
+    current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+) -> dict[str, str]:
+    """认证用户请求给自己发送邮箱验证邮件（落 outbox）。"""
+    email_verification_service.request_verification(db, current_user)
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/verify-email", status_code=200)
+def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)) -> dict[str, str]:
+    """校验邮箱验证 token，置 email_verified=True。无需认证（token 即凭证）。"""
+    email_verification_service.verify(db, token=payload.token)
+    db.commit()
+    return {"status": "ok"}
+
+
 @router.get("/me", response_model=CurrentUser)
 def me(
     current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
@@ -127,4 +173,5 @@ def me(
         company_id=current_user.company_id,
         role_code=_role_code(db, current_user),
         permissions=sorted(user_permission_codes(db, current_user)),
+        email_verified=current_user.email_verified,
     )

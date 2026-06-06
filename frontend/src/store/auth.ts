@@ -61,6 +61,23 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async switchAccount(companyId: string): Promise<void> {
+      this.loading = true
+      try {
+        const pair = await authApi.switchAccount(companyId)
+        // 切换前清理旧公司的轮询/通知状态，避免跨租户残留。
+        void import('./notifications').then(({ useNotificationStore }) => {
+          const n = useNotificationStore()
+          n.stopPolling()
+          n.$reset()
+        })
+        this._applyTokens(pair.access_token, pair.refresh_token)
+        await this.loadMe()
+      } finally {
+        this.loading = false
+      }
+    },
+
     async loadMe(): Promise<void> {
       this.user = await authApi.fetchMe()
       // 加载公司订阅供 feature 门控（失败不阻塞登录）。

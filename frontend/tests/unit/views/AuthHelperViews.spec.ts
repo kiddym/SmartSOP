@@ -6,6 +6,7 @@ import { createRouter, createMemoryHistory, type Router } from 'vue-router'
 import ForgotPasswordView from '@/views/auth/ForgotPasswordView.vue'
 import ResetPasswordView from '@/views/auth/ResetPasswordView.vue'
 import AcceptInviteView from '@/views/auth/AcceptInviteView.vue'
+import VerifyEmailView from '@/views/auth/VerifyEmailView.vue'
 import * as authApi from '@/api/auth'
 import { useAuthStore } from '@/store/auth'
 import i18n from '@/i18n'
@@ -19,6 +20,7 @@ function makeRouter(): Router {
       { path: '/forgot-password', name: 'forgot-password', component: { template: '<div/>' } },
       { path: '/reset-password', name: 'reset-password', component: { template: '<div/>' } },
       { path: '/accept-invite', name: 'accept-invite', component: { template: '<div/>' } },
+      { path: '/verify-email', name: 'verify-email', component: { template: '<div/>' } },
     ],
   })
 }
@@ -85,5 +87,37 @@ describe('Auth helper views', () => {
     await flushPromises()
     expect(spy).toHaveBeenCalledWith('inv999', 'New Member', 'memberpw1')
     expect(push).toHaveBeenCalledWith('/')
+  })
+
+  it('VerifyEmailView 有效 token 调用 verifyEmail 并显示成功', async () => {
+    const router = makeRouter()
+    await router.push('/verify-email?token=vtok1')
+    await router.isReady()
+    const spy = vi.spyOn(authApi, 'verifyEmail').mockResolvedValue()
+    const w = mount(VerifyEmailView, { global: { plugins: [ElementPlus, router, i18n] } })
+    await flushPromises()
+    expect(spy).toHaveBeenCalledWith('vtok1')
+    expect(w.find('[data-test="verify-success"]').exists()).toBe(true)
+  })
+
+  it('VerifyEmailView 缺 token 直接失败、不调用接口', async () => {
+    const router = makeRouter()
+    await router.push('/verify-email')
+    await router.isReady()
+    const spy = vi.spyOn(authApi, 'verifyEmail').mockResolvedValue()
+    const w = mount(VerifyEmailView, { global: { plugins: [ElementPlus, router, i18n] } })
+    await flushPromises()
+    expect(spy).not.toHaveBeenCalled()
+    expect(w.find('[data-test="verify-failed"]').exists()).toBe(true)
+  })
+
+  it('VerifyEmailView 无效 token 显示失败', async () => {
+    const router = makeRouter()
+    await router.push('/verify-email?token=bad')
+    await router.isReady()
+    vi.spyOn(authApi, 'verifyEmail').mockRejectedValue(new Error('invalid'))
+    const w = mount(VerifyEmailView, { global: { plugins: [ElementPlus, router, i18n] } })
+    await flushPromises()
+    expect(w.find('[data-test="verify-failed"]').exists()).toBe(true)
   })
 })

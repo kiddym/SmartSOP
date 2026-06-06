@@ -50,17 +50,20 @@ from app.models.purchase_order import (
     PurchaseOrderLine,
 )
 from app.models.purchase_order_category import PurchaseOrderCategory
+from app.models.push_token import PushToken
 from app.models.request import Request
 from app.models.request_activity import RequestActivity
 from app.models.role import Role
 from app.models.sequence import Sequence
 from app.models.settings import ProcedureSettings
 from app.models.source_docx import ProcedureSourceDocx
+from app.models.super_account_relation import SuperAccountRelation
 from app.models.team import Team, TeamUser
 from app.models.time_category import TimeCategory
 from app.models.user import User
 from app.models.user_invitation import UserInvitation
 from app.models.vendor import Vendor, VendorAsset, VendorLocation, VendorPart
+from app.models.verification_token import VerificationToken
 from app.models.work_order import WorkOrder, WorkOrderAssignee, WorkOrderTeam
 from app.models.work_order_activity import WorkOrderActivity
 from app.models.work_order_additional_cost import WorkOrderAdditionalCost
@@ -138,10 +141,12 @@ __all__ = [
     "PurchaseOrderActivity",
     "PurchaseOrderCategory",
     "PurchaseOrderLine",
+    "PushToken",
     "Request",
     "RequestActivity",
     "Role",
     "Sequence",
+    "SuperAccountRelation",
     "Team",
     "TeamUser",
     "TimeCategory",
@@ -151,6 +156,7 @@ __all__ = [
     "VendorAsset",
     "VendorLocation",
     "VendorPart",
+    "VerificationToken",
     "WorkOrder",
     "WorkOrderActivity",
     "WorkOrderAdditionalCost",

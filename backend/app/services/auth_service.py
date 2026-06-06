@@ -13,12 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import security, tenant
-from app.errors import bad_request
+from app.errors import bad_request, forbidden
 from app.models.company import Company
 from app.models.role import Role
+from app.models.super_account_relation import SuperAccountRelation
 from app.models.user import User, UserStatus
 from app.permissions import BUILTIN_ROLES
-from app.schemas.auth import LoginRequest, RegisterRequest
+from app.schemas.auth import LoginRequest, RegisterRequest, SwitchableAccount
 from app.seed import seed_tenant_sop
 
 
@@ -110,3 +111,84 @@ def change_password(db: Session, user: User, old_password: str, new_password: st
         raise bad_request("INVALID_CREDENTIALS", "原密码不正确")
     user.password_hash = security.hash_password(new_password)
     db.flush()
+
+
+def _authorized_company_ids(db: Session, user: User) -> set[str] | None:
+    """返回 user 被授权切入的公司 id 集合。
+
+    - is_platform_admin：返回 None 表示「不限」（全部公司）。
+    - 否则：返回 SuperAccountRelation 白名单中的 target_company_id 集合（可能为空）。
+    普通用户即落入「空集合」，无任何切换权。
+    """
+    if user.is_platform_admin:
+        return None
+    with tenant.bypass_tenant_scope():
+        rows = db.execute(
+            select(SuperAccountRelation.target_company_id).where(
+                SuperAccountRelation.super_user_id == user.id
+            )
+        ).all()
+    return {r[0] for r in rows}
+
+
+def list_switchable_accounts(db: Session, user: User) -> list[SwitchableAccount]:
+    """列出当前用户可切入的公司 + 各公司内同 email 的成员账户身份。
+
+    安全口径：只列出「目标公司内确实存在同 email 的活跃成员账户」的公司——
+    切换始终落到真实成员身份，不暴露无成员账户的公司。普通用户得空列表。
+    """
+    allowed = _authorized_company_ids(db, user)
+    if allowed is not None and not allowed:
+        return []
+    out: list[SwitchableAccount] = []
+    with tenant.bypass_tenant_scope():
+        members = (
+            db.execute(
+                select(User).where(
+                    User.email == user.email,
+                    User.status == UserStatus.active,
+                    User.id != user.id,
+                )
+            )
+            .scalars()
+            .all()
+        )
+        for member in members:
+            if allowed is not None and member.company_id not in allowed:
+                continue
+            company = db.get(Company, member.company_id)
+            if company is None:
+                continue
+            out.append(
+                SwitchableAccount(
+                    company_id=company.id,
+                    company_name=company.name,
+                    company_slug=company.slug,
+                    user_id=member.id,
+                )
+            )
+    return out
+
+
+def switch_account(db: Session, user: User, target_company_id: str) -> User:
+    """切换到目标公司内的同 email 成员账户，返回该成员 User（调用方据此签发 token）。
+
+    安全要点（见 SuperAccountRelation 文档）：
+    1. 仅 is_platform_admin 或存在 (user, target) 授权关系者可调，否则 403；
+    2. 目标公司内必须存在同 email 的活跃成员账户，token 始终指向该真实成员身份，
+       绝不让 token 凭空获得无成员关系公司的写权限。无对应成员→403。
+    """
+    allowed = _authorized_company_ids(db, user)
+    if allowed is not None and target_company_id not in allowed:
+        raise forbidden("SWITCH_NOT_AUTHORIZED", "无权切换到该公司")
+    with tenant.bypass_tenant_scope():
+        member = db.execute(
+            select(User).where(
+                User.email == user.email,
+                User.company_id == target_company_id,
+                User.status == UserStatus.active,
+            )
+        ).scalar_one_or_none()
+    if member is None:
+        raise forbidden("NO_MEMBER_ACCOUNT", "目标公司不存在对应成员账户")
+    return member

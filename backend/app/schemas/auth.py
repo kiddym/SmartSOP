@@ -36,6 +36,7 @@ class CurrentUser(BaseModel):
     company_id: str
     role_code: str | None = None
     permissions: list[str] = []
+    email_verified: bool = False
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -51,3 +52,20 @@ class ResetPasswordRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     old_password: str
     new_password: str = Field(min_length=8, max_length=128)
+
+
+class SwitchableAccount(BaseModel):
+    """可切换进的目标公司 + 目标成员账户身份。"""
+
+    company_id: str
+    company_name: str
+    company_slug: str
+    user_id: str
+
+
+class SwitchAccountRequest(BaseModel):
+    company_id: str
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str

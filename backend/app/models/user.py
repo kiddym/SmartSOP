@@ -41,3 +41,7 @@ class User(Base, UUIDMixin, TimestampMixin, TenantMixin):
     last_login_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
     # Reserved: platform-operator identity (Phase 0: always False).
     is_platform_admin: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # 邮箱验证标记（附加能力，不作登录门槛；既有行迁移回填 True）。
+    email_verified: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="0"
+    )

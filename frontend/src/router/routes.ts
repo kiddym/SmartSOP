@@ -40,6 +40,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '接受邀请' },
   },
   {
+    path: '/verify-email',
+    name: 'verify-email',
+    component: () => import('@/views/auth/VerifyEmailView.vue'),
+    meta: { title: '邮箱验证' },
+  },
+  {
     path: '/account/profile',
     name: 'account-profile',
     component: () => import('@/views/account/ProfileView.vue'),
