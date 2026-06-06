@@ -37,6 +37,7 @@ from app.routers import (
     deprecations,
     field_configurations,
     fields,
+    floor_plans,
     folders,
     heading_rules,
     locations,
@@ -157,6 +158,7 @@ app.include_router(notifications.router)
 app.include_router(notification_preferences.router)
 app.include_router(asset_categories.router)
 app.include_router(deprecations.router)
+app.include_router(floor_plans.router)
 app.include_router(folders.router)
 app.include_router(audit_logs.router)
 app.include_router(procedures.router)
