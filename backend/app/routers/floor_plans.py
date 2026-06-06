@@ -19,9 +19,7 @@ from app.schemas.floor_plan import FloorPlanCreate, FloorPlanRead, FloorPlanUpda
 from app.services import floor_plan_service as svc
 from app.services import location_service as locations
 
-router = APIRouter(
-    prefix="/api/v1/locations/{location_id}/floor-plans", tags=["floor-plans"]
-)
+router = APIRouter(prefix="/api/v1/locations/{location_id}/floor-plans", tags=["floor-plans"])
 
 
 def _ensure_location(db: Session, location_id: str, company_id: str) -> None:
@@ -71,9 +69,7 @@ def update_floor_plan(
     return svc.update(db, row, payload)
 
 
-@router.delete(
-    "/{floor_plan_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None
-)
+@router.delete("/{floor_plan_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def delete_floor_plan(
     location_id: str,
     floor_plan_id: str,

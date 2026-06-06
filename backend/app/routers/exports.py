@@ -77,7 +77,16 @@ def export_work_orders(
     assets = _name_map(db, Asset)
     cats = _name_map(db, WorkOrderCategory)
     users = {uid: name for uid, name in db.execute(select(User.id, User.name)).all()}
-    header = ["custom_id", "title", "status", "priority", "due_date", "asset", "category", "assignee"]
+    header = [
+        "custom_id",
+        "title",
+        "status",
+        "priority",
+        "due_date",
+        "asset",
+        "category",
+        "assignee",
+    ]
     rows: list[list[Any]] = []
     for wo in work_order_service.list_work_orders(db):
         rows.append(

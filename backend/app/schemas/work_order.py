@@ -79,6 +79,22 @@ class WorkOrderRead(BaseModel):
     can_be_edited: bool = False
 
 
+class CalendarEvent(BaseModel):
+    """日历事件：聚合工单（按 due_date）与启用 PM（按 next_due_date）。
+
+    work_order 事件携带 status/priority 供前端按状态/优先级上色并跳详情；
+    pm 事件 status/priority 缺省（PM 无对应概念）。
+    """
+
+    type: Literal["work_order", "pm"]
+    id: str
+    custom_id: str | None = None
+    title: str
+    date: date
+    status: WorkOrderStatus | None = None
+    priority: WorkOrderPriority | None = None
+
+
 class StepResultUpdate(BaseModel):
     response: dict[str, Any] | None = None
     is_done: bool | None = None

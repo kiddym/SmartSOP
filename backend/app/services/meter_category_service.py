@@ -10,12 +10,8 @@ from app.models.meter_category import MeterCategory
 from app.schemas.meter_category import MeterCategoryCreate, MeterCategoryUpdate
 
 
-def create_category(
-    db: Session, payload: MeterCategoryCreate, company_id: str
-) -> MeterCategory:
-    cat = MeterCategory(
-        name=payload.name, description=payload.description, company_id=company_id
-    )
+def create_category(db: Session, payload: MeterCategoryCreate, company_id: str) -> MeterCategory:
+    cat = MeterCategory(name=payload.name, description=payload.description, company_id=company_id)
     db.add(cat)
     db.commit()
     db.refresh(cat)
@@ -24,9 +20,7 @@ def create_category(
 
 def list_categories(db: Session) -> list[MeterCategory]:
     return list(
-        db.execute(select(MeterCategory).where(MeterCategory.is_active.is_(True)))
-        .scalars()
-        .all()
+        db.execute(select(MeterCategory).where(MeterCategory.is_active.is_(True))).scalars().all()
     )
 
 
@@ -37,9 +31,7 @@ def get_category(db: Session, category_id: str) -> MeterCategory | None:
     return cat
 
 
-def update_category(
-    db: Session, cat: MeterCategory, payload: MeterCategoryUpdate
-) -> MeterCategory:
+def update_category(db: Session, cat: MeterCategory, payload: MeterCategoryUpdate) -> MeterCategory:
     for k, v in payload.model_dump(exclude_unset=True).items():
         setattr(cat, k, v)
     db.commit()

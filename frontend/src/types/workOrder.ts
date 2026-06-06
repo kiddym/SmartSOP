@@ -68,6 +68,17 @@ export interface WorkOrderCommentCreate {
   comment: string
 }
 
+export type CalendarEventType = 'work_order' | 'pm'
+export interface CalendarEvent {
+  type: CalendarEventType
+  id: string
+  custom_id: string | null
+  title: string
+  date: string
+  status: WorkOrderStatus | null
+  priority: WorkOrderPriority | null
+}
+
 export interface TimeCategoryRead {
   id: string
   name: string

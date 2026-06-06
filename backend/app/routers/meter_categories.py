@@ -50,9 +50,7 @@ def update_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_CATEGORY_MANAGE)),
 ) -> MeterCategory:
-    cat = _ensure(
-        meter_category_service.get_category(db, category_id), current_user.company_id
-    )
+    cat = _ensure(meter_category_service.get_category(db, category_id), current_user.company_id)
     return meter_category_service.update_category(db, cat, payload)
 
 
@@ -62,7 +60,5 @@ def delete_category(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_permission(permissions.METER_CATEGORY_MANAGE)),
 ) -> None:
-    cat = _ensure(
-        meter_category_service.get_category(db, category_id), current_user.company_id
-    )
+    cat = _ensure(meter_category_service.get_category(db, category_id), current_user.company_id)
     meter_category_service.delete_category(db, cat)

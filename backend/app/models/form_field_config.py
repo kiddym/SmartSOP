@@ -16,9 +16,7 @@ from app.models.base import Base, TenantMixin, TimestampMixin, UUIDMixin
 class FormFieldConfig(Base, UUIDMixin, TimestampMixin, TenantMixin):
     __tablename__ = "tb_form_field_config"
     __table_args__ = (
-        UniqueConstraint(
-            "company_id", "form_key", "field_name", name="uq_form_field_config"
-        ),
+        UniqueConstraint("company_id", "form_key", "field_name", name="uq_form_field_config"),
     )
 
     form_key: Mapped[str] = mapped_column(String(32), nullable=False, index=True)

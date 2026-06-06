@@ -26,14 +26,10 @@ def list_by_location(db: Session, location_id: str) -> list[FloorPlan]:
 
 
 def get(db: Session, floor_plan_id: str) -> FloorPlan | None:
-    return db.execute(
-        select(FloorPlan).where(FloorPlan.id == floor_plan_id)
-    ).scalar_one_or_none()
+    return db.execute(select(FloorPlan).where(FloorPlan.id == floor_plan_id)).scalar_one_or_none()
 
 
-def create(
-    db: Session, location_id: str, company_id: str, payload: FloorPlanCreate
-) -> FloorPlan:
+def create(db: Session, location_id: str, company_id: str, payload: FloorPlanCreate) -> FloorPlan:
     row = FloorPlan(
         location_id=location_id,
         company_id=company_id,

@@ -11,6 +11,7 @@ vi.mock('@/api/http', () => ({ http: { get, post, patch, put, delete: del } }))
 
 import {
   listWorkOrders,
+  listWorkOrderEvents,
   getWorkOrder,
   createWorkOrder,
   updateWorkOrder,
@@ -57,6 +58,12 @@ describe('work orders api', () => {
     await listWorkOrders({ status: 'OPEN', assignee_id: 'u1', procedure_attached: true })
     expect(get).toHaveBeenCalledWith('/work-orders', {
       params: { status: 'OPEN', assignee_id: 'u1', procedure_attached: true },
+    })
+  })
+  it('listWorkOrderEvents GET /work-orders/events with start/end', async () => {
+    await listWorkOrderEvents('2026-06-01', '2026-06-30')
+    expect(get).toHaveBeenCalledWith('/work-orders/events', {
+      params: { start: '2026-06-01', end: '2026-06-30' },
     })
   })
   it('getWorkOrder GET /work-orders/{id}', async () => {

@@ -62,8 +62,7 @@ def list_meters(
     current_user: User = Depends(require_permission(permissions.METER_VIEW)),
 ) -> list[dict[str, object]]:
     return [
-        svc.to_read(db, m)
-        for m in svc.list_meters(db, asset_id=asset_id, location_id=location_id)
+        svc.to_read(db, m) for m in svc.list_meters(db, asset_id=asset_id, location_id=location_id)
     ]
 
 

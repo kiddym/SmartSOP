@@ -60,7 +60,9 @@ class PreventiveMaintenance(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, Te
     frequency_value: Mapped[int] = mapped_column(Integer, nullable=False)
     next_due_date: Mapped[date] = mapped_column(Date, nullable=False)
     # 生单时工单 due_date = 生成日 + due_date_delay 天（默认 0=当日；表达"给 N 天完成"）。
-    due_date_delay: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    due_date_delay: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     # 排程结束日：next_due_date 超过 ends_on 时停止再生成并自动停用（None=永不结束）。
     ends_on: Mapped[date | None] = mapped_column(Date, default=None)
     is_enabled: Mapped[bool] = mapped_column(

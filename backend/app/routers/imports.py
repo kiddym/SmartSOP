@@ -106,9 +106,7 @@ def _build_asset(db: Session, row: dict[str, str], company_id: str, _user_id: st
         model=row.get("model", "").strip(),
         serial_number=row.get("serial_number", "").strip(),
         category_id=(
-            _resolve_name(db, AssetCategory, category, company_id, "资产分类")
-            if category
-            else None
+            _resolve_name(db, AssetCategory, category, company_id, "资产分类") if category else None
         ),
         location_id=(
             _resolve_name(db, Location, location, company_id, "位置") if location else None
@@ -125,9 +123,7 @@ def _build_location(db: Session, row: dict[str, str], company_id: str, _user_id:
     payload = LocationCreate(
         name=name,
         address=row.get("address", "").strip(),
-        parent_id=(
-            _resolve_name(db, Location, parent, company_id, "父位置") if parent else None
-        ),
+        parent_id=(_resolve_name(db, Location, parent, company_id, "父位置") if parent else None),
     )
     location_service.create_location(db, payload, company_id)
 
@@ -153,9 +149,7 @@ def _build_part(db: Session, row: dict[str, str], company_id: str, user_id: str)
             else Decimal("0")
         ),
         category_id=(
-            _resolve_name(db, PartCategory, category, company_id, "备件分类")
-            if category
-            else None
+            _resolve_name(db, PartCategory, category, company_id, "备件分类") if category else None
         ),
     )
     part_service.create_part(db, payload, company_id, actor_user_id=user_id)
@@ -179,9 +173,7 @@ def _build_meter(db: Session, row: dict[str, str], company_id: str, user_id: str
             _resolve_name(db, Location, location, company_id, "位置") if location else None
         ),
         meter_category_id=(
-            _resolve_name(db, MeterCategory, category, company_id, "计量分类")
-            if category
-            else None
+            _resolve_name(db, MeterCategory, category, company_id, "计量分类") if category else None
         ),
     )
     meter_service.create_meter(db, payload, company_id, actor_user_id=user_id)
@@ -271,9 +263,7 @@ async def import_csv(
 
     # 行号从 2 起（1 为表头），与用户在表格里看到的一致。
     for idx, row in enumerate(reader, start=2):
-        clean = {
-            k.strip(): (v if v is not None else "") for k, v in row.items() if k is not None
-        }
+        clean = {k.strip(): (v if v is not None else "") for k, v in row.items() if k is not None}
         try:
             builder(db, clean, company_id, current_user.id)
             created += 1

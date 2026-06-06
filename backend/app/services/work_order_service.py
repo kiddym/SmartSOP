@@ -7,6 +7,8 @@ transition 时按需 import）。
 
 from __future__ import annotations
 
+from datetime import date
+
 from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
@@ -256,12 +258,72 @@ _OPEN_WO_STATUSES = (
 
 def urgent_count(db: Session) -> int:
     """当前租户下 urgent=True 且处于未完成/未取消（OPEN/IN_PROGRESS/ON_HOLD）的工单数。"""
-    stmt = select(func.count()).select_from(WorkOrder).where(
-        WorkOrder.is_active.is_(True),
-        WorkOrder.urgent.is_(True),
-        WorkOrder.status.in_(_OPEN_WO_STATUSES),
+    stmt = (
+        select(func.count())
+        .select_from(WorkOrder)
+        .where(
+            WorkOrder.is_active.is_(True),
+            WorkOrder.urgent.is_(True),
+            WorkOrder.status.in_(_OPEN_WO_STATUSES),
+        )
     )
     return int(db.execute(stmt).scalar_one())
+
+
+def calendar_events(db: Session, *, start: date, end: date) -> list[dict[str, object]]:
+    """聚合 [start,end] 内的日历事件（当前租户）：
+
+    - 工单：due_date 落在区间的活跃工单 → type=work_order（含 status/priority）。
+    - PM：next_due_date 落在区间的活跃且启用 PM → type=pm。
+
+    在 service 层内 import PreventiveMaintenance 避免模块级循环依赖。
+    """
+    from app.models.preventive_maintenance import PreventiveMaintenance
+
+    events: list[dict[str, object]] = []
+    wo_stmt = (
+        select(WorkOrder)
+        .where(
+            WorkOrder.is_active.is_(True),
+            WorkOrder.due_date.is_not(None),
+            WorkOrder.due_date >= start,
+            WorkOrder.due_date <= end,
+        )
+        .order_by(WorkOrder.due_date, WorkOrder.custom_id)
+    )
+    for wo in db.execute(wo_stmt).scalars().all():
+        events.append(
+            {
+                "type": "work_order",
+                "id": wo.id,
+                "custom_id": wo.custom_id,
+                "title": wo.title,
+                "date": wo.due_date,
+                "status": wo.status,
+                "priority": wo.priority,
+            }
+        )
+    pm_stmt = (
+        select(PreventiveMaintenance)
+        .where(
+            PreventiveMaintenance.is_active.is_(True),
+            PreventiveMaintenance.is_enabled.is_(True),
+            PreventiveMaintenance.next_due_date >= start,
+            PreventiveMaintenance.next_due_date <= end,
+        )
+        .order_by(PreventiveMaintenance.next_due_date, PreventiveMaintenance.custom_id)
+    )
+    for pm in db.execute(pm_stmt).scalars().all():
+        events.append(
+            {
+                "type": "pm",
+                "id": pm.id,
+                "custom_id": pm.custom_id,
+                "title": pm.title,
+                "date": pm.next_due_date,
+            }
+        )
+    return events
 
 
 def get_work_order(db: Session, work_order_id: str) -> WorkOrder | None:

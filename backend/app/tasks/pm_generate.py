@@ -69,10 +69,7 @@ def _remind_upcoming(db: Session, *, today: date) -> int:
                 ).all()
             }
             team_ids = {
-                r
-                for (r,) in db.execute(
-                    select(PMTeam.team_id).where(PMTeam.pm_id == pm.id)
-                ).all()
+                r for (r,) in db.execute(select(PMTeam.team_id).where(PMTeam.pm_id == pm.id)).all()
             }
             recips |= notif.resolve_team_members(db, pm.company_id, team_ids)
             recips = notif.active_recipient_subset(db, pm.company_id, recips, None)

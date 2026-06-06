@@ -19,6 +19,7 @@ import type {
   AdditionalCostCreate,
   AdditionalCostUpdate,
   CostSummaryRead,
+  CalendarEvent,
 } from '@/types/workOrder'
 
 export interface ListWorkOrdersParams {
@@ -34,6 +35,8 @@ export const listWorkOrders = (params: ListWorkOrdersParams = {}) =>
   http.get<WorkOrderRead[]>('/work-orders', { params }).then((r) => r.data)
 export const getWorkOrder = (id: string) =>
   http.get<WorkOrderRead>(`/work-orders/${id}`).then((r) => r.data)
+export const listWorkOrderEvents = (start: string, end: string) =>
+  http.get<CalendarEvent[]>('/work-orders/events', { params: { start, end } }).then((r) => r.data)
 export const createWorkOrder = (p: WorkOrderCreate) =>
   http.post<WorkOrderRead>('/work-orders', p).then((r) => r.data)
 export const updateWorkOrder = (id: string, p: WorkOrderUpdate) =>

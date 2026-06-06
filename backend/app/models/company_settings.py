@@ -40,14 +40,10 @@ class CompanySettings(Base, UUIDMixin, TimestampMixin, TenantMixin):
     )
     simplified_work_order: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # PM 到期前 N 天发提醒（0=不提醒），供 E6 排程提醒使用。
-    days_before_pm_notification: Mapped[int] = mapped_column(
-        Integer, default=0, server_default="0"
-    )
+    days_before_pm_notification: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     auto_assign_requests: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # 导航模块显隐（UiConfiguration）：默认全显。
     show_requests: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     show_locations: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
     show_meters: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")
-    show_vendors_customers: Mapped[bool] = mapped_column(
-        Boolean, default=True, server_default="1"
-    )
+    show_vendors_customers: Mapped[bool] = mapped_column(Boolean, default=True, server_default="1")

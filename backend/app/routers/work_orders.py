@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,7 @@ from app.schemas.work_order import (
     ActivityRead,
     AssigneesSet,
     AttachProcedure,
+    CalendarEvent,
     CommentCreate,
     ExecutionView,
     StepResultUpdate,
@@ -79,6 +82,17 @@ def urgent_count(
     current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
 ) -> dict[str, int]:
     return {"count": svc.urgent_count(db)}
+
+
+# 注：/events 须注册在 /{work_order_id} 之前，否则会被路径参数吞掉
+@router.get("/events", response_model=list[CalendarEvent])
+def calendar_events(
+    start: date,
+    end: date,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_permission(permissions.WORK_ORDER_VIEW)),
+) -> list[dict[str, object]]:
+    return svc.calendar_events(db, start=start, end=end)
 
 
 @router.post("", response_model=WorkOrderRead, status_code=201)

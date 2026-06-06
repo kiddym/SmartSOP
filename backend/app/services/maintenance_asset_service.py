@@ -298,9 +298,7 @@ def update_asset(db: Session, a: Asset, payload: AssetUpdate, company_id: str) -
         setattr(a, k, v)
     if "status" in data:
         apply_status_transition(db, a, old_status, a.status, company_id)
-    _sync_relations(
-        db, a, user_ids, team_ids_, vendor_ids_, customer_ids_, part_ids_, company_id
-    )
+    _sync_relations(db, a, user_ids, team_ids_, vendor_ids_, customer_ids_, part_ids_, company_id)
     db.commit()
     db.refresh(a)
     return a

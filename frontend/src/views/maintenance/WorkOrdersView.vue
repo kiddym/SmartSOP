@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { listWorkOrders, deleteWorkOrder } from '@/api/workOrders'
+import { listWorkOrders, deleteWorkOrder, listWorkOrderEvents } from '@/api/workOrders'
 import type { ListWorkOrdersParams } from '@/api/workOrders'
 import { listAssetsMini } from '@/api/assets'
 import { listLocationsMini } from '@/api/locations'
@@ -13,7 +13,12 @@ import { useAuthStore } from '@/store/auth'
 import { exportWorkOrders } from '@/api/exports'
 import { formatDate } from '@/utils/format'
 import { WO_STATUS_LABELS, WO_STATUS_TAG } from '@/utils/workOrder'
-import type { WorkOrderRead, WorkOrderStatus, WorkOrderPriority } from '@/types/workOrder'
+import type {
+  WorkOrderRead,
+  WorkOrderStatus,
+  WorkOrderPriority,
+  CalendarEvent,
+} from '@/types/workOrder'
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead } from '@/types/platform'
 
@@ -110,6 +115,78 @@ onMounted(async () => {
   ])
 })
 
+// ── view mode (list / calendar) ────────────────────────────
+const viewMode = ref<'list' | 'calendar'>('list')
+
+// el-calendar v-model：当前选中日期，月份切换由其表头驱动
+const calendarDate = ref(new Date())
+const calendarEvents = ref<CalendarEvent[]>([])
+const calendarLoading = ref(false)
+
+function pad(n: number): string {
+  return String(n).padStart(2, '0')
+}
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// 当月首尾日（本地时区），用于调 events 端点
+function monthBounds(d: Date): { start: string; end: string } {
+  const start = new Date(d.getFullYear(), d.getMonth(), 1)
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return { start: ymd(start), end: ymd(end) }
+}
+
+async function fetchCalendarEvents() {
+  calendarLoading.value = true
+  try {
+    const { start, end } = monthBounds(calendarDate.value)
+    calendarEvents.value = await listWorkOrderEvents(start, end)
+  } finally {
+    calendarLoading.value = false
+  }
+}
+
+// 按天分组事件，供日期格渲染
+const eventsByDay = computed<Record<string, CalendarEvent[]>>(() => {
+  const map: Record<string, CalendarEvent[]> = {}
+  for (const ev of calendarEvents.value) {
+    ;(map[ev.date] ??= []).push(ev)
+  }
+  return map
+})
+
+function dayEvents(day: string): CalendarEvent[] {
+  return eventsByDay.value[day] ?? []
+}
+
+// 事件标签上色：工单按状态/优先级，PM 固定 info
+function eventTagType(ev: CalendarEvent): string {
+  if (ev.type === 'pm') return 'info'
+  if (ev.priority === 'HIGH') return 'danger'
+  return ev.status ? WO_STATUS_TAG[ev.status] : 'info'
+}
+
+function eventLabel(ev: CalendarEvent): string {
+  const code = ev.custom_id ? `${ev.custom_id} ` : ''
+  return `${code}${ev.title}`
+}
+
+function onEventClick(ev: CalendarEvent) {
+  if (ev.type === 'work_order') router.push('/maintenance/work-orders/' + ev.id)
+}
+
+// 切到日历视图时首次取数；月份切换（calendarDate 跨月）时重新取数
+watch(viewMode, (m) => {
+  if (m === 'calendar') void fetchCalendarEvents()
+})
+watch(calendarDate, (next, prev) => {
+  if (viewMode.value !== 'calendar') return
+  if (next.getFullYear() !== prev.getFullYear() || next.getMonth() !== prev.getMonth()) {
+    void fetchCalendarEvents()
+  }
+})
+
 // ── actions ────────────────────────────────────────────────
 function openCreate() {
   editingWO.value = null
@@ -142,15 +219,34 @@ async function handleDelete(row: WorkOrderRead) {
   }
 }
 
-defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus, filterProcedure })
+defineExpose({
+  openCreate,
+  goDetail,
+  handleDelete,
+  fetchWorkOrders,
+  filterStatus,
+  filterProcedure,
+  viewMode,
+  calendarDate,
+  calendarEvents,
+  fetchCalendarEvents,
+  dayEvents,
+  onEventClick,
+})
 </script>
 
 <template>
   <div class="page">
-    <h2 class="page-title">工单管理</h2>
+    <div class="page-header">
+      <h2 class="page-title">工单管理</h2>
+      <el-radio-group v-model="viewMode" class="view-switch">
+        <el-radio-button value="list">列表</el-radio-button>
+        <el-radio-button value="calendar">日历</el-radio-button>
+      </el-radio-group>
+    </div>
 
     <!-- toolbar -->
-    <div class="toolbar">
+    <div v-show="viewMode === 'list'" class="toolbar">
       <el-button v-if="auth.hasPermission('work_order.create')" type="primary" @click="openCreate">
         新建工单
       </el-button>
@@ -230,6 +326,7 @@ defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus
 
     <!-- work orders table -->
     <el-table
+      v-show="viewMode === 'list'"
       v-loading="loading"
       :data="workOrders"
       row-key="id"
@@ -281,6 +378,31 @@ defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus
       </el-table-column>
     </el-table>
 
+    <!-- calendar view -->
+    <div v-if="viewMode === 'calendar'" v-loading="calendarLoading" class="calendar-wrap">
+      <el-calendar v-model="calendarDate">
+        <template #date-cell="{ data }">
+          <div class="cal-cell">
+            <span class="cal-day">{{ data.day.split('-')[2] }}</span>
+            <div class="cal-events">
+              <el-tag
+                v-for="ev in dayEvents(data.day)"
+                :key="ev.type + ':' + ev.id"
+                size="small"
+                :type="eventTagType(ev)"
+                :effect="ev.type === 'pm' ? 'plain' : 'light'"
+                class="cal-event"
+                :class="{ clickable: ev.type === 'work_order' }"
+                @click.stop="onEventClick(ev)"
+              >
+                {{ ev.type === 'pm' ? 'PM ' : '' }}{{ eventLabel(ev) }}
+              </el-tag>
+            </div>
+          </div>
+        </template>
+      </el-calendar>
+    </div>
+
     <!-- form dialog -->
     <WorkOrderFormDialog
       v-model:visible="formVisible"
@@ -299,10 +421,16 @@ defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus
   max-width: 1200px;
   padding: 20px 24px;
 }
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 20px;
+}
 .page-title {
   font-size: 20px;
   font-weight: 600;
-  margin: 0 0 20px;
+  margin: 0;
   color: var(--text-primary, #1a1a1a);
 }
 .toolbar {
@@ -310,5 +438,33 @@ defineExpose({ openCreate, goDetail, handleDelete, fetchWorkOrders, filterStatus
   align-items: center;
   gap: 12px;
   flex-wrap: wrap;
+}
+.calendar-wrap {
+  margin-top: 16px;
+}
+.cal-cell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 64px;
+}
+.cal-day {
+  font-size: 13px;
+}
+.cal-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  overflow: hidden;
+}
+.cal-event {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-event.clickable {
+  cursor: pointer;
 }
 </style>
