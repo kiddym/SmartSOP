@@ -7,8 +7,9 @@ ProcedureAsset）。类名 Asset、表名 tb_asset。
 from __future__ import annotations
 
 from datetime import date
+from typing import Any
 
-from sqlalchemy import Date, ForeignKey, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import JSON, Date, ForeignKey, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -49,6 +50,10 @@ class Asset(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     area: Mapped[str | None] = mapped_column(String(200), default=None)
     additional_infos: Mapped[str | None] = mapped_column(Text, default=None)
     image_url: Mapped[str | None] = mapped_column(String(512), default=None)
+    # 业务自定义字段值（按 CustomFieldDef.key 存；JSON 括号表达式默认避开 MySQL 1101）
+    custom_values: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default=text("('{}')")
+    )
 
 
 class AssetUser(Base, UUIDMixin, TimestampMixin, TenantMixin):
