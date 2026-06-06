@@ -153,3 +153,45 @@ def test_request_update_merges_preserving_archived(client):
     client.patch(f"/api/v1/requests/{rid}", headers=h, json={"custom_values": {"a": "9"}})
     got = client.get(f"/api/v1/requests/{rid}", headers=h).json()["custom_values"]
     assert got == {"a": "9", "b": "2"}
+
+
+# ---------------------------------------------------------------------------
+# Location
+# ---------------------------------------------------------------------------
+
+
+def test_location_custom_values_roundtrip(client):
+    h = _h(_admin(client))
+    _def(client, h, "location", key="note", field_type="text")
+    r = client.post(
+        "/api/v1/locations", headers=h, json={"name": "L", "custom_values": {"note": "x"}}
+    )
+    assert r.status_code == 201, r.text
+    lid = r.json()["id"]
+    assert r.json()["custom_values"] == {"note": "x"}
+    assert (
+        client.get(f"/api/v1/locations/{lid}", headers=h).json()["custom_values"]["note"] == "x"
+    )
+
+
+def test_location_unknown_key_422(client):
+    h = _h(_admin(client))
+    r = client.post(
+        "/api/v1/locations", headers=h, json={"name": "L", "custom_values": {"ghost": 1}}
+    )
+    assert r.status_code == 422
+
+
+def test_location_update_merges_preserving_archived(client):
+    h = _h(_admin(client))
+    _def(client, h, "location", key="a", field_type="text")
+    d2 = _def(client, h, "location", key="b", field_type="text")
+    lid = client.post(
+        "/api/v1/locations",
+        headers=h,
+        json={"name": "L", "custom_values": {"a": "1", "b": "2"}},
+    ).json()["id"]
+    client.patch(f"/api/v1/custom-fields/{d2['id']}/archive", headers=h)
+    client.patch(f"/api/v1/locations/{lid}", headers=h, json={"custom_values": {"a": "9"}})
+    got = client.get(f"/api/v1/locations/{lid}", headers=h).json()["custom_values"]
+    assert got == {"a": "9", "b": "2"}

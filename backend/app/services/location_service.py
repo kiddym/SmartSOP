@@ -11,7 +11,7 @@ from app.models.customer import Customer, CustomerLocation
 from app.models.location import Location, LocationTeam, LocationUser
 from app.models.vendor import Vendor, VendorLocation
 from app.schemas.location import LocationCreate, LocationUpdate
-from app.services import sequence_service
+from app.services import custom_field_service, sequence_service
 
 
 def _user_ids(db: Session, location_id: str) -> list[str]:
@@ -69,6 +69,7 @@ def to_read(db: Session, loc: Location) -> dict[str, object]:
         "team_ids": _team_ids(db, loc.id),
         "vendor_ids": _vendor_ids(db, loc.id),
         "customer_ids": _customer_ids(db, loc.id),
+        "custom_values": loc.custom_values or {},
     }
 
 
@@ -151,6 +152,7 @@ def _sync_relations(
 
 
 def create_location(db: Session, payload: LocationCreate, company_id: str) -> Location:
+    custom_field_service.validate_values(db, "location", payload.custom_values)
     _validate_partner_ids(db, payload.vendor_ids, payload.customer_ids, company_id)
     seq = sequence_service.next_value(db, "location", company_id)
     loc = Location(
@@ -162,6 +164,7 @@ def create_location(db: Session, payload: LocationCreate, company_id: str) -> Lo
         longitude=payload.longitude,
         latitude=payload.latitude,
         image_url=payload.image_url,
+        custom_values=payload.custom_values,
         company_id=company_id,
     )
     db.add(loc)
@@ -208,6 +211,8 @@ def update_location(
     db: Session, loc: Location, payload: LocationUpdate, company_id: str
 ) -> Location:
     data = payload.model_dump(exclude_unset=True)
+    # custom_values 不能走通用 setattr 循环（会整体覆盖且绕过校验），单独处理
+    custom_values = data.pop("custom_values", None)
     if "parent_id" in data:
         _validate_parent(db, loc.id, data["parent_id"])
     user_ids = data.pop("assigned_user_ids", None)
@@ -218,6 +223,9 @@ def update_location(
     _validate_partner_ids(db, vendor_ids, customer_ids, company_id)
     for k, v in data.items():
         setattr(loc, k, v)
+    if custom_values is not None:
+        custom_field_service.validate_values(db, "location", custom_values)
+        loc.custom_values = {**(loc.custom_values or {}), **custom_values}
     _sync_relations(db, loc, user_ids, team_ids, vendor_ids, customer_ids, company_id)
     db.commit()
     db.refresh(loc)
