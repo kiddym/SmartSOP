@@ -6,6 +6,9 @@ import { listAssetCategories } from '@/api/assetCategories'
 import { listLocationsMini } from '@/api/locations'
 import { listUsers } from '@/api/users'
 import { listTeams } from '@/api/teams'
+import { listVendorsMini } from '@/api/vendors'
+import { listCustomersMini } from '@/api/customers'
+import { listPartsMini } from '@/api/parts'
 import type {
   AssetRead,
   AssetCreate,
@@ -14,6 +17,7 @@ import type {
   AssetCategoryRead,
   LocationMini,
 } from '@/types/maindata'
+import type { VendorMini, CustomerMini, PartMini } from '@/types/inventory'
 import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
 import { buildTree, collectDescendantIds } from '@/utils/tree'
@@ -57,6 +61,9 @@ const categories = ref<AssetCategoryRead[]>([])
 const locationsMini = ref<LocationMini[]>([])
 const users = ref<UserRead[]>([])
 const teams = ref<TeamRead[]>([])
+const vendorsMini = ref<VendorMini[]>([])
+const customersMini = ref<CustomerMini[]>([])
+const partsMini = ref<PartMini[]>([])
 
 const tree = computed(() => buildTree(assets.value))
 
@@ -94,6 +101,15 @@ async function fetchUsers() {
 async function fetchTeams() {
   teams.value = await listTeams()
 }
+async function fetchVendorsMini() {
+  vendorsMini.value = await listVendorsMini()
+}
+async function fetchCustomersMini() {
+  customersMini.value = await listCustomersMini()
+}
+async function fetchPartsMini() {
+  partsMini.value = await listPartsMini()
+}
 
 onMounted(async () => {
   await Promise.all([
@@ -102,6 +118,9 @@ onMounted(async () => {
     fetchLocationsMini(),
     fetchUsers(),
     fetchTeams(),
+    fetchVendorsMini(),
+    fetchCustomersMini(),
+    fetchPartsMini(),
   ])
 })
 
@@ -129,9 +148,15 @@ interface FormState {
   acquisition_cost: string
   barcode: string
   nfc_id: string
+  area: string
+  additional_infos: string
+  image_url: string
   primary_user_id: string | null
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
+  part_ids: string[]
 }
 
 const form = reactive<FormState>({
@@ -150,9 +175,15 @@ const form = reactive<FormState>({
   acquisition_cost: '',
   barcode: '',
   nfc_id: '',
+  area: '',
+  additional_infos: '',
+  image_url: '',
   primary_user_id: null,
   assigned_user_ids: [],
   team_ids: [],
+  vendor_ids: [],
+  customer_ids: [],
+  part_ids: [],
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建资产' : '编辑资产'))
@@ -182,9 +213,15 @@ function resetForm() {
   form.acquisition_cost = ''
   form.barcode = ''
   form.nfc_id = ''
+  form.area = ''
+  form.additional_infos = ''
+  form.image_url = ''
   form.primary_user_id = null
   form.assigned_user_ids = []
   form.team_ids = []
+  form.vendor_ids = []
+  form.customer_ids = []
+  form.part_ids = []
 }
 
 function openCreate() {
@@ -212,9 +249,15 @@ function openEdit(row: AssetRead) {
     acquisition_cost: row.acquisition_cost ?? '',
     barcode: row.barcode ?? '',
     nfc_id: row.nfc_id ?? '',
+    area: row.area ?? '',
+    additional_infos: row.additional_infos ?? '',
+    image_url: row.image_url ?? '',
     primary_user_id: row.primary_user_id,
     assigned_user_ids: [...row.assigned_user_ids],
     team_ids: [...row.team_ids],
+    vendor_ids: [...row.vendor_ids],
+    customer_ids: [...row.customer_ids],
+    part_ids: [...row.part_ids],
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -245,9 +288,15 @@ async function submitForm() {
       acquisition_cost: form.acquisition_cost || null,
       barcode: form.barcode || null,
       nfc_id: form.nfc_id || null,
+      area: form.area || null,
+      additional_infos: form.additional_infos || null,
+      image_url: form.image_url || null,
       primary_user_id: form.primary_user_id,
       assigned_user_ids: form.assigned_user_ids,
       team_ids: form.team_ids,
+      vendor_ids: form.vendor_ids,
+      customer_ids: form.customer_ids,
+      part_ids: form.part_ids,
     }
     if (dialogMode.value === 'create') {
       await createAsset(payload as AssetCreate)
@@ -382,6 +431,13 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
         <el-form-item label="描述">
           <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
         </el-form-item>
+        <el-form-item label="更多信息">
+          <el-input
+            v-model="form.additional_infos"
+            type="textarea"
+            placeholder="请输入更多信息"
+          />
+        </el-form-item>
         <el-form-item label="状态">
           <el-select v-model="form.status" placeholder="请选择状态" style="width: 100%">
             <el-option
@@ -424,6 +480,12 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
           >
             <el-option v-for="c in categories" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="区域">
+          <el-input v-model="form.area" placeholder="请输入区域/库区" />
+        </el-form-item>
+        <el-form-item label="主图地址">
+          <el-input v-model="form.image_url" placeholder="请输入主图 URL" />
         </el-form-item>
 
         <el-divider content-position="left">设备</el-divider>
@@ -497,6 +559,41 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
         <el-form-item label="团队">
           <el-select v-model="form.team_ids" multiple placeholder="请选择团队" style="width: 100%">
             <el-option v-for="t in teams" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+
+        <el-divider content-position="left">关联</el-divider>
+        <el-form-item label="供应商">
+          <el-select
+            v-model="form.vendor_ids"
+            multiple
+            filterable
+            placeholder="请选择供应商"
+            style="width: 100%"
+          >
+            <el-option v-for="v in vendorsMini" :key="v.id" :label="v.name" :value="v.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="客户">
+          <el-select
+            v-model="form.customer_ids"
+            multiple
+            filterable
+            placeholder="请选择客户"
+            style="width: 100%"
+          >
+            <el-option v-for="c in customersMini" :key="c.id" :label="c.name" :value="c.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="备件">
+          <el-select
+            v-model="form.part_ids"
+            multiple
+            filterable
+            placeholder="请选择备件"
+            style="width: 100%"
+          >
+            <el-option v-for="p in partsMini" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
         </el-form-item>
       </el-form>

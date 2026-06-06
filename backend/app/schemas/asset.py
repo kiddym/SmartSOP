@@ -27,8 +27,14 @@ class AssetCreate(BaseModel):
     barcode: str | None = None
     nfc_id: str | None = None
     primary_user_id: str | None = None
+    area: str | None = None
+    additional_infos: str | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] = []
     team_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
+    part_ids: list[str] = []
 
 
 class AssetUpdate(BaseModel):
@@ -48,8 +54,14 @@ class AssetUpdate(BaseModel):
     barcode: str | None = None
     nfc_id: str | None = None
     primary_user_id: str | None = None
+    area: str | None = None
+    additional_infos: str | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] | None = None
     team_ids: list[str] | None = None
+    vendor_ids: list[str] | None = None
+    customer_ids: list[str] | None = None
+    part_ids: list[str] | None = None
 
 
 class AssetRead(BaseModel):
@@ -72,8 +84,14 @@ class AssetRead(BaseModel):
     barcode: str | None = None
     nfc_id: str | None = None
     primary_user_id: str | None = None
+    area: str | None = None
+    additional_infos: str | None = None
+    image_url: str | None = None
     assigned_user_ids: list[str] = []
     team_ids: list[str] = []
+    vendor_ids: list[str] = []
+    customer_ids: list[str] = []
+    part_ids: list[str] = []
 
 
 class AssetMini(BaseModel):

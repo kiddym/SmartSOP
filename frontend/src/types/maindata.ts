@@ -55,8 +55,14 @@ export interface AssetRead {
   barcode: string | null
   nfc_id: string | null
   primary_user_id: string | null
+  area: string | null
+  additional_infos: string | null
+  image_url: string | null
   assigned_user_ids: string[]
   team_ids: string[]
+  vendor_ids: string[]
+  customer_ids: string[]
+  part_ids: string[]
 }
 export interface AssetCreate {
   name: string
@@ -75,8 +81,14 @@ export interface AssetCreate {
   barcode?: string | null
   nfc_id?: string | null
   primary_user_id?: string | null
+  area?: string | null
+  additional_infos?: string | null
+  image_url?: string | null
   assigned_user_ids?: string[]
   team_ids?: string[]
+  vendor_ids?: string[]
+  customer_ids?: string[]
+  part_ids?: string[]
 }
 export type AssetUpdate = Partial<AssetCreate>
 export interface AssetMini {

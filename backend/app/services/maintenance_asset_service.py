@@ -6,11 +6,14 @@ from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import InstrumentedAttribute
 
-from app.errors import bad_request, conflict
+from app.errors import bad_request, conflict, not_found
 from app.models.asset_downtime import AssetDowntime
 from app.models.asset_status import DOWN_STATUSES, AssetStatus
 from app.models.base import utcnow
+from app.models.customer import Customer, CustomerAsset
 from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
+from app.models.part import Part, PartAsset
+from app.models.vendor import Vendor, VendorAsset
 from app.schemas.asset import AssetCreate, AssetUpdate, DowntimeClose, DowntimeCreate
 from app.services import sequence_service
 
@@ -24,6 +27,42 @@ def assigned_user_ids(db: Session, asset_id: str) -> list[str]:
 def team_ids(db: Session, asset_id: str) -> list[str]:
     return list(
         db.execute(select(AssetTeam.team_id).where(AssetTeam.asset_id == asset_id)).scalars().all()
+    )
+
+
+def vendor_ids(db: Session, asset_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(VendorAsset.vendor_id)
+            .where(VendorAsset.asset_id == asset_id)
+            .order_by(VendorAsset.vendor_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def customer_ids(db: Session, asset_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(CustomerAsset.customer_id)
+            .where(CustomerAsset.asset_id == asset_id)
+            .order_by(CustomerAsset.customer_id)
+        )
+        .scalars()
+        .all()
+    )
+
+
+def part_ids(db: Session, asset_id: str) -> list[str]:
+    return list(
+        db.execute(
+            select(PartAsset.part_id)
+            .where(PartAsset.asset_id == asset_id)
+            .order_by(PartAsset.part_id)
+        )
+        .scalars()
+        .all()
     )
 
 
@@ -47,8 +86,14 @@ def to_read(db: Session, a: Asset) -> dict[str, object]:
         "barcode": a.barcode,
         "nfc_id": a.nfc_id,
         "primary_user_id": a.primary_user_id,
+        "area": a.area,
+        "additional_infos": a.additional_infos,
+        "image_url": a.image_url,
         "assigned_user_ids": assigned_user_ids(db, a.id),
         "team_ids": team_ids(db, a.id),
+        "vendor_ids": vendor_ids(db, a.id),
+        "customer_ids": customer_ids(db, a.id),
+        "part_ids": part_ids(db, a.id),
     }
 
 
@@ -95,8 +140,25 @@ def _validate_parent(db: Session, asset_id: str, parent_id: str | None) -> None:
         raise bad_request("ASSET_CYCLE", "父资产不能是自身的后代")
 
 
+def _validate_owned(
+    db: Session, model: type, ids: list[str], company_id: str, code: str, label: str
+) -> None:
+    """校验目标实体归属当前租户（不存在/非 active/他租户均 404）。"""
+    for eid in dict.fromkeys(ids):
+        row = db.get(model, eid)
+        if row is None or not row.is_active or row.company_id != company_id:
+            raise not_found(code, f"{label}不存在")
+
+
 def _sync_relations(
-    db: Session, a: Asset, user_ids: list[str] | None, team_ids_: list[str] | None, company_id: str
+    db: Session,
+    a: Asset,
+    user_ids: list[str] | None,
+    team_ids_: list[str] | None,
+    vendor_ids_: list[str] | None,
+    customer_ids_: list[str] | None,
+    part_ids_: list[str] | None,
+    company_id: str,
 ) -> None:
     if user_ids is not None:
         db.execute(delete(AssetUser).where(AssetUser.asset_id == a.id))
@@ -106,17 +168,64 @@ def _sync_relations(
         db.execute(delete(AssetTeam).where(AssetTeam.asset_id == a.id))
         for tid in dict.fromkeys(team_ids_):
             db.add(AssetTeam(asset_id=a.id, team_id=tid, company_id=company_id))
+    if vendor_ids_ is not None:
+        db.execute(delete(VendorAsset).where(VendorAsset.asset_id == a.id))
+        for vid in dict.fromkeys(vendor_ids_):
+            db.add(VendorAsset(asset_id=a.id, vendor_id=vid, company_id=company_id))
+    if customer_ids_ is not None:
+        db.execute(delete(CustomerAsset).where(CustomerAsset.asset_id == a.id))
+        for cid in dict.fromkeys(customer_ids_):
+            db.add(CustomerAsset(asset_id=a.id, customer_id=cid, company_id=company_id))
+    if part_ids_ is not None:
+        db.execute(delete(PartAsset).where(PartAsset.asset_id == a.id))
+        for pid in dict.fromkeys(part_ids_):
+            db.add(PartAsset(asset_id=a.id, part_id=pid, company_id=company_id))
+
+
+def _validate_partner_ids(
+    db: Session,
+    vendor_ids_: list[str] | None,
+    customer_ids_: list[str] | None,
+    part_ids_: list[str] | None,
+    company_id: str,
+) -> None:
+    if vendor_ids_ is not None:
+        _validate_owned(db, Vendor, vendor_ids_, company_id, "VENDOR_NOT_FOUND", "供应商")
+    if customer_ids_ is not None:
+        _validate_owned(db, Customer, customer_ids_, company_id, "CUSTOMER_NOT_FOUND", "客户")
+    if part_ids_ is not None:
+        _validate_owned(db, Part, part_ids_, company_id, "PART_NOT_FOUND", "备件")
 
 
 def create_asset(db: Session, payload: AssetCreate, company_id: str) -> Asset:
     _check_code_unique(db, Asset.barcode, payload.barcode, None)
     _check_code_unique(db, Asset.nfc_id, payload.nfc_id, None)
+    _validate_partner_ids(
+        db, payload.vendor_ids, payload.customer_ids, payload.part_ids, company_id
+    )
     seq = sequence_service.next_value(db, "asset", company_id)
-    data = payload.model_dump(exclude={"assigned_user_ids", "team_ids"})
+    data = payload.model_dump(
+        exclude={
+            "assigned_user_ids",
+            "team_ids",
+            "vendor_ids",
+            "customer_ids",
+            "part_ids",
+        }
+    )
     a = Asset(custom_id=sequence_service.format_custom_id("A", seq), company_id=company_id, **data)
     db.add(a)
     db.flush()
-    _sync_relations(db, a, payload.assigned_user_ids, payload.team_ids, company_id)
+    _sync_relations(
+        db,
+        a,
+        payload.assigned_user_ids,
+        payload.team_ids,
+        payload.vendor_ids,
+        payload.customer_ids,
+        payload.part_ids,
+        company_id,
+    )
     db.commit()
     db.refresh(a)
     return a
@@ -179,12 +288,19 @@ def update_asset(db: Session, a: Asset, payload: AssetUpdate, company_id: str) -
         _check_code_unique(db, Asset.nfc_id, data["nfc_id"], a.id)
     user_ids = data.pop("assigned_user_ids", None)
     team_ids_ = data.pop("team_ids", None)
+    vendor_ids_ = data.pop("vendor_ids", None)
+    customer_ids_ = data.pop("customer_ids", None)
+    part_ids_ = data.pop("part_ids", None)
+    # 校验须在 setattr 之前，确保非法目标不会落库
+    _validate_partner_ids(db, vendor_ids_, customer_ids_, part_ids_, company_id)
     old_status = a.status
     for k, v in data.items():
         setattr(a, k, v)
     if "status" in data:
         apply_status_transition(db, a, old_status, a.status, company_id)
-    _sync_relations(db, a, user_ids, team_ids_, company_id)
+    _sync_relations(
+        db, a, user_ids, team_ids_, vendor_ids_, customer_ids_, part_ids_, company_id
+    )
     db.commit()
     db.refresh(a)
     return a
