@@ -74,6 +74,7 @@ beforeEach(() => {
       vendor_ids: ['v1'],
       customer_ids: ['cu1'],
       part_ids: ['p1'],
+      custom_values: {},
     },
     {
       id: 'a2',
@@ -102,6 +103,7 @@ beforeEach(() => {
       vendor_ids: [],
       customer_ids: [],
       part_ids: [],
+      custom_values: {},
     },
   ])
   ca.mockReset().mockResolvedValue({})

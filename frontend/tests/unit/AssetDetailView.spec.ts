@@ -75,6 +75,7 @@ const ASSET = {
   vendor_ids: ['v1'],
   customer_ids: ['cu1'],
   part_ids: ['p1'],
+  custom_values: {},
 }
 
 function mountView() {
