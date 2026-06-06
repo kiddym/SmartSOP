@@ -41,6 +41,23 @@ export interface PartMini {
   custom_id: string
 }
 
+// 工单备件消耗
+export interface PartConsumptionRead {
+  id: string
+  part_id: string
+  work_order_id: string
+  quantity: string
+  unit_cost: string
+  total_cost: string
+  consumed_by_user_id: string | null
+  consumed_at: string
+}
+
+export interface PartConsumptionCreate {
+  part_id: string
+  quantity: string
+}
+
 // 多备件套件
 export interface MultiPartRead {
   id: string

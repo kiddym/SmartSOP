@@ -9,6 +9,7 @@ import OverviewTab from '@/components/workorder/OverviewTab.vue'
 import LaborCostTab from '@/components/workorder/LaborCostTab.vue'
 import ActivityTab from '@/components/workorder/ActivityTab.vue'
 import ExecutionTab from '@/components/workorder/ExecutionTab.vue'
+import PartsConsumptionTab from '@/components/workorder/PartsConsumptionTab.vue'
 import WorkOrderFormDialog from '@/components/workorder/WorkOrderFormDialog.vue'
 import type { WorkOrderRead, WorkOrderStatus } from '@/types/workOrder'
 
@@ -106,6 +107,9 @@ defineExpose({ doTransition, load, wo })
       </el-tab-pane>
       <el-tab-pane label="工时成本" name="labor-cost" lazy>
         <LaborCostTab :work-order-id="woId" />
+      </el-tab-pane>
+      <el-tab-pane v-if="auth.hasPermission('part.view')" label="备件" name="parts" lazy>
+        <PartsConsumptionTab :work-order-id="woId" />
       </el-tab-pane>
       <el-tab-pane label="活动" name="activity" lazy>
         <ActivityTab :work-order-id="woId" />
