@@ -7,8 +7,9 @@ cost/quantity/min_quantity 用 Numeric(18,4) 避免浮点漂移。is_low_stock �
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 
-from sqlalchemy import Boolean, ForeignKey, Numeric, String, Text, UniqueConstraint, text
+from sqlalchemy import JSON, Boolean, ForeignKey, Numeric, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import (
@@ -45,6 +46,10 @@ class Part(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     )
     area: Mapped[str | None] = mapped_column(String(200), default=None)
     additional_infos: Mapped[str | None] = mapped_column(Text, default=None)
+    # 业务自定义字段值（按 CustomFieldDef.key 存；JSON 括号表达式默认避开 MySQL 1101）
+    custom_values: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default=text("('{}')")
+    )
 
     @property
     def is_low_stock(self) -> bool:
