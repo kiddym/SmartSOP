@@ -26,7 +26,10 @@ def list_step_results(db: Session, work_order_id: str) -> list[WorkOrderStepResu
     return list(
         db.execute(
             select(WorkOrderStepResult)
-            .where(WorkOrderStepResult.work_order_id == work_order_id)
+            .where(
+                WorkOrderStepResult.work_order_id == work_order_id,
+                WorkOrderStepResult.is_active.is_(True),
+            )
             .order_by(WorkOrderStepResult.node_sort_order, WorkOrderStepResult.id)
         )
         .scalars()

@@ -12,10 +12,10 @@ from typing import Any
 from sqlalchemy import JSON, ForeignKey, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.models.base import DATETIME6, Base, TenantMixin, TimestampMixin, UUIDMixin
+from app.models.base import DATETIME6, Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
 
 
-class WorkOrderStepResult(Base, UUIDMixin, TimestampMixin, TenantMixin):
+class WorkOrderStepResult(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     __tablename__ = "tb_work_order_step_result"
 
     work_order_id: Mapped[str] = mapped_column(
