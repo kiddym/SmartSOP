@@ -19,6 +19,7 @@ from app.models.procedure import Procedure
 from app.models.request import Request
 from app.models.user import User
 from app.models.work_order import WorkOrder
+from app.models.work_order_step_result import WorkOrderStepResult
 from app.services import attachment_hooks as hooks
 
 
@@ -49,6 +50,14 @@ ENTITY_REGISTRY: dict[str, EntitySpec] = {
         Request,
         permissions.REQUEST_VIEW,
         permissions.REQUEST_CREATE,
+        scoped=True,
+    ),
+    "work_order_step_result": EntitySpec(
+        # 步骤附件 = 执行动作：读=work_order.view，写=work_order.execute（与步骤完成同权，
+        # 避免有执行权无编辑权的执行人被挡）。
+        WorkOrderStepResult,
+        permissions.WORK_ORDER_VIEW,
+        permissions.WORK_ORDER_EXECUTE,
         scoped=True,
     ),
 }

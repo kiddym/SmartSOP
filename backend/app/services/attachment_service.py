@@ -72,6 +72,39 @@ def _active_rows(db: Session, entity_type: str, entity_id: str) -> list[Attachme
         )
 
 
+def count_active(db: Session, entity_type: str, entity_id: str) -> int:
+    """某宿主实体下 active 附件数（内部用，不做权限检查；调用方须已授权）。"""
+    return int(
+        db.execute(
+            select(func.count())
+            .select_from(Attachment)
+            .where(
+                Attachment.entity_type == entity_type,
+                Attachment.entity_id == entity_id,
+                Attachment.is_active.is_(True),
+            )
+        ).scalar_one()
+    )
+
+
+def count_active_by_entity_ids(
+    db: Session, entity_type: str, entity_ids: list[str]
+) -> dict[str, int]:
+    """批量：entity_id → active 附件数（仅返回有附件的 id）。"""
+    if not entity_ids:
+        return {}
+    rows = db.execute(
+        select(Attachment.entity_id, func.count())
+        .where(
+            Attachment.entity_type == entity_type,
+            Attachment.entity_id.in_(entity_ids),
+            Attachment.is_active.is_(True),
+        )
+        .group_by(Attachment.entity_id)
+    ).all()
+    return {eid: int(n) for eid, n in rows}
+
+
 def _bytes_or_404(att: Attachment) -> bytes:
     try:
         return get_storage_backend().read(att.storage_path)
