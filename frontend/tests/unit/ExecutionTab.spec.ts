@@ -35,6 +35,7 @@ function makeView(): ExecutionView {
         done_by_user_id: 'u1',
         done_at: '2026-06-01T02:00:00',
         notes: '完成',
+        attachment_count: 0,
       },
       {
         id: 's2',
@@ -47,6 +48,7 @@ function makeView(): ExecutionView {
         done_by_user_id: null,
         done_at: null,
         notes: '',
+        attachment_count: 0,
       },
       {
         id: 's3',
@@ -59,6 +61,7 @@ function makeView(): ExecutionView {
         done_by_user_id: null,
         done_at: null,
         notes: '',
+        attachment_count: 0,
       },
     ],
   }

@@ -1,12 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadRequestOptions } from 'element-plus'
 import { getExecution, patchStepResult } from '@/api/workOrders'
+import { listEntityAttachments, uploadEntityAttachment, deleteAttachment } from '@/api/attachments'
 import { listUsers } from '@/api/users'
 import { useAuthStore } from '@/store/auth'
 import type { ExecutionView, StepResultRead, StepResultUpdate } from '@/types/workOrder'
+import type { AttachmentOut } from '@/types/attachment'
 import type { UserRead } from '@/types/platform'
 import { formatDateTime } from '@/utils/format'
+import SignaturePad from '@/components/workorder/SignaturePad.vue'
 
 const props = defineProps<{ workOrderId: string }>()
 
@@ -55,6 +59,34 @@ function isMulti(step: StepResultRead): boolean {
   return stepType(step) === 'CHECKBOX'
 }
 
+// 附件类型步骤：UPLOAD / PHOTO / SIGNATURE（SIGNATURE 控件 Task 7 加，加载逻辑本 Task 覆盖）。
+const ATTACHMENT_TYPES = new Set(['UPLOAD', 'PHOTO', 'SIGNATURE'])
+function isAttachmentType(step: StepResultRead): boolean {
+  return ATTACHMENT_TYPES.has(stepType(step))
+}
+
+// 按 step id 缓存附件列表。
+const stepAttachments = reactive<Record<string, AttachmentOut[]>>({})
+
+async function loadStepAttachments(stepId: string): Promise<void> {
+  stepAttachments[stepId] = await listEntityAttachments('work_order_step_result', stepId)
+}
+
+async function onUpload(stepId: string, file: File): Promise<void> {
+  await uploadEntityAttachment('work_order_step_result', stepId, file)
+  await loadStepAttachments(stepId)
+}
+
+/** 供 el-upload :http-request 绑定；接收 UploadRequestOptions，取出 file 后转给 onUpload。 */
+function handleUploadRequest(stepId: string): (opt: UploadRequestOptions) => Promise<void> {
+  return (opt: UploadRequestOptions) => onUpload(stepId, opt.file)
+}
+
+async function onRemoveAttachment(stepId: string, attId: string): Promise<void> {
+  await deleteAttachment(attId)
+  await loadStepAttachments(stepId)
+}
+
 function schemaStr(step: StepResultRead, key: string, fallback = ''): string {
   const v = step.input_schema?.[key]
   return typeof v === 'string' && v !== '' ? v : fallback
@@ -82,7 +114,12 @@ function buildResponse(step: StepResultRead): Record<string, unknown> {
 
 async function applyView(view: ExecutionView): Promise<void> {
   exec.value = view
-  for (const s of view.steps) seedDraft(s)
+  for (const s of view.steps) {
+    seedDraft(s)
+  }
+  await Promise.all(
+    view.steps.filter(isAttachmentType).map((s) => loadStepAttachments(s.id)),
+  )
 }
 
 onMounted(async () => {
@@ -195,6 +232,32 @@ defineExpose({ exec, drafts, save, canExecute })
               placeholder="选择日期"
             />
 
+            <template v-else-if="stepType(step) === 'UPLOAD' || stepType(step) === 'PHOTO'">
+              <el-upload
+                :show-file-list="false"
+                :accept="stepType(step) === 'PHOTO' ? 'image/*' : undefined"
+                :http-request="handleUploadRequest(step.id)"
+              >
+                <el-button size="small">上传文件</el-button>
+              </el-upload>
+              <ul class="att-list">
+                <li v-for="a in stepAttachments[step.id] || []" :key="a.id">
+                  {{ a.file_name }}
+                  <el-button link type="danger" size="small" @click="onRemoveAttachment(step.id, a.id)">删除</el-button>
+                </li>
+              </ul>
+            </template>
+
+            <template v-else-if="stepType(step) === 'SIGNATURE'">
+              <SignaturePad @confirm="(f) => onUpload(step.id, f)" />
+              <ul class="att-list">
+                <li v-for="a in stepAttachments[step.id] || []" :key="a.id">
+                  {{ a.file_name }}
+                  <el-button link type="danger" size="small" @click="onRemoveAttachment(step.id, a.id)">删除</el-button>
+                </li>
+              </ul>
+            </template>
+
             <span v-else class="step-hint">本步骤无录入项，确认后勾选完成。</span>
 
             <el-input
@@ -229,14 +292,23 @@ defineExpose({ exec, drafts, save, canExecute })
             </div>
           </template>
 
-          <!-- 只读态（无 work_order.execute 权限）：保持原有展示 -->
+          <!-- 只读态（无 work_order.execute 权限）：保持原有展示，附件类型步骤仅列附件 -->
           <template v-else>
-            <span class="step-readonly-value">{{
-              isMulti(step)
-                ? (Array.isArray(step.response.values) ? step.response.values.join('、') : '—')
-                : (step.response.value ?? '—')
-            }}</span>
-            <span v-if="step.notes" class="step-hint">备注：{{ step.notes }}</span>
+            <template v-if="stepType(step) === 'UPLOAD' || stepType(step) === 'PHOTO' || stepType(step) === 'SIGNATURE'">
+              <ul class="att-list">
+                <li v-for="a in stepAttachments[step.id] || []" :key="a.id">
+                  {{ a.file_name }}
+                </li>
+              </ul>
+            </template>
+            <template v-else>
+              <span class="step-readonly-value">{{
+                isMulti(step)
+                  ? (Array.isArray(step.response.values) ? step.response.values.join('、') : '—')
+                  : (step.response.value ?? '—')
+              }}</span>
+              <span v-if="step.notes" class="step-hint">备注：{{ step.notes }}</span>
+            </template>
           </template>
         </div>
       </div>
@@ -306,5 +378,14 @@ defineExpose({ exec, drafts, save, canExecute })
 }
 .step-readonly-value {
   font-size: 14px;
+}
+.att-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
 }
 </style>

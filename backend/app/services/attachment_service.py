@@ -72,6 +72,79 @@ def _active_rows(db: Session, entity_type: str, entity_id: str) -> list[Attachme
         )
 
 
+def count_active(db: Session, entity_type: str, entity_id: str) -> int:
+    """某宿主实体下 active 附件数（内部用，不做权限检查；调用方须已授权）。
+
+    不使用 bypass_tenant_scope 是有意的——调用方已在请求租户上下文内，按当前
+    company 计数正是所需，避免跨租户误计。与 _active_rows（为 procedure 等跨 scope
+    宿主才 bypass）的差异是刻意设计：procedure 宿主在某些内部路径无租户上下文，
+    故需 bypass；而工单步骤附件的调用方（update_step / execution_view）始终在
+    租户上下文内，无需也不应 bypass。
+    """
+    return int(
+        db.execute(
+            select(func.count())
+            .select_from(Attachment)
+            .where(
+                Attachment.entity_type == entity_type,
+                Attachment.entity_id == entity_id,
+                Attachment.is_active.is_(True),
+            )
+        ).scalar_one()
+    )
+
+
+def count_active_by_entity_ids(
+    db: Session, entity_type: str, entity_ids: list[str]
+) -> dict[str, int]:
+    """批量：entity_id → active 附件数（仅返回有附件的 id）。
+
+    不使用 bypass_tenant_scope 是有意的——调用方已在请求租户上下文内，按当前
+    company 计数正是所需，避免跨租户误计。与 _active_rows（为 procedure 等跨 scope
+    宿主才 bypass）的差异是刻意设计：execution_view 等批量统计调用方始终持有
+    租户上下文，tenant 行级隔离已保证只命中本租户附件。
+    """
+    if not entity_ids:
+        return {}
+    rows = db.execute(
+        select(Attachment.entity_id, func.count())
+        .where(
+            Attachment.entity_type == entity_type,
+            Attachment.entity_id.in_(entity_ids),
+            Attachment.is_active.is_(True),
+        )
+        .group_by(Attachment.entity_id)
+    ).all()
+    return {eid: int(n) for eid, n in rows}
+
+
+def soft_delete_for_entities(db: Session, entity_type: str, entity_ids: list[str]) -> int:
+    """将指定宿主 id 列表下的 active 附件批量软删（is_active=False + deleted_at）。
+
+    返回实际软删条数。调用方负责 commit/flush 边界。
+    典型场景：detach_procedure 硬删 WorkOrderStepResult 行前，先软删其附件，
+    避免孤儿附件残留到定时清理才消失。
+    """
+    if not entity_ids:
+        return 0
+    now = utcnow()
+    with tenant.bypass_tenant_scope():
+        rows = list(
+            db.execute(
+                select(Attachment).where(
+                    Attachment.entity_type == entity_type,
+                    Attachment.entity_id.in_(entity_ids),
+                    Attachment.is_active.is_(True),
+                )
+            ).scalars()
+        )
+    for att in rows:
+        att.is_active = False
+        att.deleted_at = now
+    db.flush()
+    return len(rows)
+
+
 def _bytes_or_404(att: Attachment) -> bytes:
     try:
         return get_storage_backend().read(att.storage_path)

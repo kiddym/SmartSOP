@@ -11,7 +11,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.errors import bad_request, conflict, not_found
+from app.errors import bad_request, conflict, not_found, unprocessable
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
 from app.models.procedure import Procedure
@@ -19,6 +19,7 @@ from app.models.work_order import WorkOrder
 from app.models.work_order_status import WorkOrderStatus
 from app.models.work_order_step_result import WorkOrderStepResult
 from app.schemas.work_order import StepResultUpdate
+from app.services import attachment_service
 from app.services import work_order_service as wos
 
 
@@ -26,7 +27,10 @@ def list_step_results(db: Session, work_order_id: str) -> list[WorkOrderStepResu
     return list(
         db.execute(
             select(WorkOrderStepResult)
-            .where(WorkOrderStepResult.work_order_id == work_order_id)
+            .where(
+                WorkOrderStepResult.work_order_id == work_order_id,
+                WorkOrderStepResult.is_active.is_(True),
+            )
             .order_by(WorkOrderStepResult.node_sort_order, WorkOrderStepResult.id)
         )
         .scalars()
@@ -35,7 +39,12 @@ def list_step_results(db: Session, work_order_id: str) -> list[WorkOrderStepResu
 
 
 def get_step_result(db: Session, result_id: str) -> WorkOrderStepResult | None:
-    return db.get(WorkOrderStepResult, result_id)
+    return db.execute(
+        select(WorkOrderStepResult).where(
+            WorkOrderStepResult.id == result_id,
+            WorkOrderStepResult.is_active.is_(True),
+        )
+    ).scalar_one_or_none()
 
 
 def _pinned_nodes(db: Session, procedure_id: str) -> list[ProcedureNode]:
@@ -85,6 +94,13 @@ def attach_procedure(
 def detach_procedure(db: Session, wo: WorkOrder, company_id: str) -> WorkOrder:
     if wo.status == WorkOrderStatus.COMPLETE:
         raise bad_request("WORKORDER_COMPLETE_LOCKED", "已完成工单不可解绑 SOP")
+    # 先软删 step_result 的附件，避免孤儿附件残留至定时清理。
+    rows = list(
+        db.execute(
+            select(WorkOrderStepResult).where(WorkOrderStepResult.work_order_id == wo.id)
+        ).scalars()
+    )
+    attachment_service.soft_delete_for_entities(db, "work_order_step_result", [r.id for r in rows])
     db.execute(delete(WorkOrderStepResult).where(WorkOrderStepResult.work_order_id == wo.id))
     wo.procedure_id = None
     wo.procedure_group_id = None
@@ -111,8 +127,12 @@ def execution_view(db: Session, wo: WorkOrder) -> dict[str, Any]:
         }
         for n in nodes
     ]
+    sr_rows = list_step_results(db, wo.id)
+    counts = attachment_service.count_active_by_entity_ids(
+        db, "work_order_step_result", [r.id for r in sr_rows]
+    )
     steps = []
-    for sr in list_step_results(db, wo.id):
+    for sr in sr_rows:
         steps.append(
             {
                 "id": sr.id,
@@ -125,6 +145,7 @@ def execution_view(db: Session, wo: WorkOrder) -> dict[str, Any]:
                 "done_by_user_id": sr.done_by_user_id,
                 "done_at": sr.done_at,
                 "notes": sr.notes,
+                "attachment_count": counts.get(sr.id, 0),
             }
         )
     procedure = None
@@ -137,6 +158,20 @@ def execution_view(db: Session, wo: WorkOrder) -> dict[str, Any]:
             "version": proc.version,
         }
     return {"procedure": procedure, "outline": outline, "steps": steps}
+
+
+ATTACHMENT_STEP_TYPES = frozenset({"UPLOAD", "PHOTO", "SIGNATURE"})
+
+
+def _requires_attachment(db: Session, node_id: str) -> bool:
+    """附件类型步骤且标记为必填时返回 True（type∈ATTACHMENT_STEP_TYPES 且 required truthy）。"""
+    node = db.get(ProcedureNode, node_id)
+    if node is None:
+        return False
+    schema = node.input_schema or {}
+    return str(schema.get("type", "")).upper() in ATTACHMENT_STEP_TYPES and bool(
+        schema.get("required")
+    )
 
 
 def _required_fields(db: Session, node_id: str) -> list[str]:
@@ -173,6 +208,13 @@ def update_step(
             ]
             if missing:
                 raise bad_request("STEP_REQUIRED_MISSING", "必填字段缺失", field=",".join(missing))
+            if _requires_attachment(db, sr.node_id):
+                count = attachment_service.count_active(db, "work_order_step_result", sr.id)
+                if count == 0:
+                    raise unprocessable(
+                        "STEP_ATTACHMENT_REQUIRED",
+                        "本步骤需上传附件后才能完成",
+                    )
             sr.is_done = True
             sr.done_by_user_id = actor_user_id
             sr.done_at = utcnow()
