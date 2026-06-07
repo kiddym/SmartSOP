@@ -202,6 +202,7 @@ export interface StepResultRead {
   done_by_user_id: string | null
   done_at: string | null
   notes: string
+  attachment_count: number
 }
 export interface ProcedureRef {
   id: string
