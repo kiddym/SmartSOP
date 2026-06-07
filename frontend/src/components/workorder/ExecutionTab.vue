@@ -10,6 +10,7 @@ import type { ExecutionView, StepResultRead, StepResultUpdate } from '@/types/wo
 import type { AttachmentOut } from '@/types/attachment'
 import type { UserRead } from '@/types/platform'
 import { formatDateTime } from '@/utils/format'
+import SignaturePad from '@/components/workorder/SignaturePad.vue'
 
 const props = defineProps<{ workOrderId: string }>()
 
@@ -247,6 +248,16 @@ defineExpose({ exec, drafts, save, canExecute })
               </ul>
             </template>
 
+            <template v-else-if="stepType(step) === 'SIGNATURE'">
+              <SignaturePad @confirm="(f) => onUpload(step.id, f)" />
+              <ul class="att-list">
+                <li v-for="a in stepAttachments[step.id] || []" :key="a.id">
+                  {{ a.file_name }}
+                  <el-button link type="danger" size="small" @click="onRemoveAttachment(step.id, a.id)">删除</el-button>
+                </li>
+              </ul>
+            </template>
+
             <span v-else class="step-hint">本步骤无录入项，确认后勾选完成。</span>
 
             <el-input
@@ -283,7 +294,7 @@ defineExpose({ exec, drafts, save, canExecute })
 
           <!-- 只读态（无 work_order.execute 权限）：保持原有展示，附件类型步骤仅列附件 -->
           <template v-else>
-            <template v-if="stepType(step) === 'UPLOAD' || stepType(step) === 'PHOTO'">
+            <template v-if="stepType(step) === 'UPLOAD' || stepType(step) === 'PHOTO' || stepType(step) === 'SIGNATURE'">
               <ul class="att-list">
                 <li v-for="a in stepAttachments[step.id] || []" :key="a.id">
                   {{ a.file_name }}
