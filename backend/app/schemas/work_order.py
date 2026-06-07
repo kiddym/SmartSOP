@@ -123,6 +123,7 @@ class StepResultRead(BaseModel):
     done_by_user_id: str | None = None
     done_at: datetime | None = None
     notes: str
+    attachment_count: int = 0
 
 
 class OutlineNode(BaseModel):
