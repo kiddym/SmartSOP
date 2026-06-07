@@ -109,6 +109,9 @@ function removeOption(i: number): void {
       <el-form-item label="最大数量">
         <el-input-number :model-value="num('max_count')" :min="1" :disabled="readonly" controls-position="right" @change="(v: number | undefined) => set('max_count', v)" />
       </el-form-item>
+      <el-form-item label="必填（需上传附件）">
+        <el-switch :model-value="bool('required')" :disabled="readonly" @change="(v: string | number | boolean) => set('required', !!v)" />
+      </el-form-item>
     </template>
 
     <template v-else-if="type === 'YESNO'">
@@ -127,6 +130,9 @@ function removeOption(i: number): void {
       <el-form-item label="签名提示">
         <el-input :model-value="str('hint')" :disabled="readonly" placeholder="如：操作人签名" @input="(v: string) => set('hint', v)" />
       </el-form-item>
+      <el-form-item label="必填（需上传附件）">
+        <el-switch :model-value="bool('required')" :disabled="readonly" @change="(v: string | number | boolean) => set('required', !!v)" />
+      </el-form-item>
     </template>
 
     <template v-else-if="type === 'DATE'">
@@ -138,6 +144,9 @@ function removeOption(i: number): void {
     <template v-else-if="type === 'PHOTO'">
       <el-form-item label="最大张数">
         <el-input-number :model-value="num('max_count')" :min="1" :disabled="readonly" controls-position="right" @change="(v: number | undefined) => set('max_count', v)" />
+      </el-form-item>
+      <el-form-item label="必填（需上传附件）">
+        <el-switch :model-value="bool('required')" :disabled="readonly" @change="(v: string | number | boolean) => set('required', !!v)" />
       </el-form-item>
     </template>
 
