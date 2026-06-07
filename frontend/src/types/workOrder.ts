@@ -22,6 +22,7 @@ export interface WorkOrderRead {
   required_signature: boolean
   assignee_ids: string[]
   team_ids: string[]
+  custom_values: Record<string, unknown>
 }
 export interface WorkOrderCreate {
   title: string
@@ -36,6 +37,7 @@ export interface WorkOrderCreate {
   category_id?: string | null
   procedure_id?: string | null
   required_signature?: boolean
+  custom_values?: Record<string, unknown>
 }
 export interface WorkOrderUpdate {
   title?: string
@@ -47,6 +49,7 @@ export interface WorkOrderUpdate {
   primary_user_id?: string | null
   category_id?: string | null
   required_signature?: boolean
+  custom_values?: Record<string, unknown>
 }
 export interface WorkOrderTransition {
   to_status: WorkOrderStatus

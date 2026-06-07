@@ -24,9 +24,9 @@ def _customer(client, t, name="客户X"):
 
 
 def _part(client, t, name="备件X"):
-    return client.post(
-        "/api/v1/parts", headers=_h(t), json={"name": name, "quantity": "1"}
-    ).json()["id"]
+    return client.post("/api/v1/parts", headers=_h(t), json={"name": name, "quantity": "1"}).json()[
+        "id"
+    ]
 
 
 def test_create_with_scalar_fields(client):
@@ -155,9 +155,7 @@ def test_cross_tenant_vendor_rejected(client):
     ta = _admin(client, company="Acme", email="a@acme.com")
     tb = _admin(client, company="Beta", email="b@beta.com")
     v_a = _vendor(client, ta)
-    r = client.post(
-        "/api/v1/assets", headers=_h(tb), json={"name": "泵", "vendor_ids": [v_a]}
-    )
+    r = client.post("/api/v1/assets", headers=_h(tb), json={"name": "泵", "vendor_ids": [v_a]})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "VENDOR_NOT_FOUND"
 
@@ -166,9 +164,7 @@ def test_cross_tenant_customer_rejected(client):
     ta = _admin(client, company="Acme", email="a@acme.com")
     tb = _admin(client, company="Beta", email="b@beta.com")
     c_a = _customer(client, ta)
-    r = client.post(
-        "/api/v1/assets", headers=_h(tb), json={"name": "泵", "customer_ids": [c_a]}
-    )
+    r = client.post("/api/v1/assets", headers=_h(tb), json={"name": "泵", "customer_ids": [c_a]})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "CUSTOMER_NOT_FOUND"
 
@@ -177,9 +173,7 @@ def test_cross_tenant_part_rejected(client):
     ta = _admin(client, company="Acme", email="a@acme.com")
     tb = _admin(client, company="Beta", email="b@beta.com")
     p_a = _part(client, ta)
-    r = client.post(
-        "/api/v1/assets", headers=_h(tb), json={"name": "泵", "part_ids": [p_a]}
-    )
+    r = client.post("/api/v1/assets", headers=_h(tb), json={"name": "泵", "part_ids": [p_a]})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "PART_NOT_FOUND"
 

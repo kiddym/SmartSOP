@@ -141,6 +141,12 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '工单表单字段', requiresAuth: true },
   },
   {
+    path: '/admin/custom-fields',
+    name: 'custom-fields',
+    component: () => import('@/views/settings/CustomFieldsView.vue'),
+    meta: { title: '自定义字段', requiresAuth: true },
+  },
+  {
     path: '/admin/heading-rules',
     name: 'heading-rules',
     component: () => import('@/views/settings/HeadingRulesView.vue'),

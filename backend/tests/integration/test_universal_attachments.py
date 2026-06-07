@@ -32,9 +32,7 @@ def _make_asset(client: TestClient, db: Session, token: str) -> str:
 
 def _make_request(client: TestClient, token: str) -> str:
     h = {"Authorization": f"Bearer {token}"}
-    return client.post(
-        "/api/v1/requests", headers=h, json={"title": "漏水报修"}
-    ).json()["id"]
+    return client.post("/api/v1/requests", headers=h, json={"title": "漏水报修"}).json()["id"]
 
 
 def test_generic_flow_on_asset(client: TestClient, db: Session, storage_tmp: Path) -> None:
@@ -91,10 +89,7 @@ def test_generic_flow_on_request(client: TestClient, db: Session, storage_tmp: P
     dele = client.delete(f"{ATT}/{att['id']}", headers=h)
     assert dele.status_code == 204
     assert (
-        client.get(
-            ATT, headers=h, params={"entity_type": "request", "entity_id": rid}
-        ).json()
-        == []
+        client.get(ATT, headers=h, params={"entity_type": "request", "entity_id": rid}).json() == []
     )
 
 
@@ -113,9 +108,7 @@ def test_cross_tenant_request_attachment_not_leaked(
         files={"file": ("s.jpg", b"S", "image/jpeg")},
     )
     assert (
-        client.get(
-            ATT, headers=hB, params={"entity_type": "request", "entity_id": rid}
-        ).status_code
+        client.get(ATT, headers=hB, params={"entity_type": "request", "entity_id": rid}).status_code
         == 404
     )
     assert (

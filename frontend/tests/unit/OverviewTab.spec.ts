@@ -57,6 +57,7 @@ const wo: WorkOrderRead = {
   required_signature: false,
   assignee_ids: [],
   team_ids: [],
+  custom_values: {},
 }
 
 function mountTab(workOrder = wo) {

@@ -31,8 +31,26 @@ def _seed(client, t: str) -> None:
 
 
 _EXPECTED = {
-    "work-orders": ["custom_id", "title", "status", "priority", "due_date", "asset", "category", "assignee"],
-    "assets": ["custom_id", "name", "status", "category", "location", "manufacturer", "model", "serial_number"],
+    "work-orders": [
+        "custom_id",
+        "title",
+        "status",
+        "priority",
+        "due_date",
+        "asset",
+        "category",
+        "assignee",
+    ],
+    "assets": [
+        "custom_id",
+        "name",
+        "status",
+        "category",
+        "location",
+        "manufacturer",
+        "model",
+        "serial_number",
+    ],
     "locations": ["custom_id", "name", "address", "parent"],
     "parts": ["custom_id", "name", "quantity", "min_quantity", "unit", "cost", "category"],
     "meters": ["custom_id", "name", "unit", "asset", "location", "category"],

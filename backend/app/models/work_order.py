@@ -7,8 +7,10 @@ procedure_id/procedure_group_id 为弱引用（无 FK）：钉定的 Procedure �
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     ForeignKey,
@@ -83,6 +85,10 @@ class WorkOrder(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     signature_url: Mapped[str | None] = mapped_column(String(512), default=None)
     required_signature: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default=text("0")
+    )
+    # 业务自定义字段值（按 CustomFieldDef.key 存；JSON 括号表达式默认避开 MySQL 1101）
+    custom_values: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default=text("('{}')")
     )
 
 

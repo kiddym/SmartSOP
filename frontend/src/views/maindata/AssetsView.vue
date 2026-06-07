@@ -25,6 +25,7 @@ import { buildTree, collectDescendantIds } from '@/utils/tree'
 import AssetCategoryManageDialog from '@/components/maindata/AssetCategoryManageDialog.vue'
 import AssetDowntimeDialog from '@/components/maindata/AssetDowntimeDialog.vue'
 import { exportAssets } from '@/api/exports'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -164,6 +165,7 @@ interface FormState {
   vendor_ids: string[]
   customer_ids: string[]
   part_ids: string[]
+  custom_values: Record<string, unknown>
 }
 
 const form = reactive<FormState>({
@@ -191,6 +193,7 @@ const form = reactive<FormState>({
   vendor_ids: [],
   customer_ids: [],
   part_ids: [],
+  custom_values: {},
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建资产' : '编辑资产'))
@@ -229,6 +232,7 @@ function resetForm() {
   form.vendor_ids = []
   form.customer_ids = []
   form.part_ids = []
+  form.custom_values = {}
 }
 
 function openCreate() {
@@ -265,6 +269,7 @@ function openEdit(row: AssetRead) {
     vendor_ids: [...row.vendor_ids],
     customer_ids: [...row.customer_ids],
     part_ids: [...row.part_ids],
+    custom_values: { ...(row.custom_values ?? {}) },
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -304,6 +309,7 @@ async function submitForm() {
       vendor_ids: form.vendor_ids,
       customer_ids: form.customer_ids,
       part_ids: form.part_ids,
+      custom_values: form.custom_values,
     }
     if (dialogMode.value === 'create') {
       await createAsset(payload as AssetCreate)
@@ -618,6 +624,7 @@ defineExpose({ parentOptions, openEdit, downtimeDialogVisible, downtimeAsset })
             <el-option v-for="p in partsMini" :key="p.id" :label="p.name" :value="p.id" />
           </el-select>
         </el-form-item>
+        <CustomFieldsSection entity-type="asset" v-model="form.custom_values" />
       </el-form>
 
       <template #footer>

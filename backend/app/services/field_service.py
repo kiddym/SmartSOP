@@ -9,7 +9,6 @@ custom_values 校验（手写子集校验器，Q367）。
 
 from __future__ import annotations
 
-import datetime as dt
 import re
 from typing import Any, Literal
 
@@ -20,10 +19,10 @@ from app.errors import bad_request, conflict, not_found, unprocessable
 from app.models.base import utcnow
 from app.models.field import ProcedureField
 from app.schemas.common import BatchDeleteFailure, BatchDeleteResult
-from app.schemas.field import FieldCreate, FieldOption, FieldUpdate, FieldValidation
+from app.schemas.field import FieldCreate, FieldUpdate, FieldValidation
+from app.services import field_validation as fv
 
 KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")  # 小写字母开头 + 字母/数字/下划线（Q254）
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 # --------------------------------------------------------------------------- #
@@ -56,64 +55,13 @@ def compile_form_to_schema(field_type: str, v: FieldValidation) -> dict[str, Any
 
 
 # --------------------------------------------------------------------------- #
-# custom_values 校验（手写子集校验器，Q367/Q368）
+# custom_values 校验（委托共享模块，Q367/Q368）
 # --------------------------------------------------------------------------- #
-def _is_empty(val: Any) -> bool:
-    return val is None or val == "" or val == []
-
-
-def _err(field: ProcedureField, msg: str) -> None:
-    raise unprocessable("CUSTOM_FIELD_INVALID", f"字段「{field.name}」{msg}", field=field.key)
-
-
-def _option_values(field: ProcedureField) -> set[str]:
-    # active 与 archived 选项值均放行（旧值保留只读，Q255）。
-    return {str(o.get("value")) for o in (field.options or [])}
-
-
-def _validate_one(field: ProcedureField, val: Any) -> None:
-    schema = field.validation_rules or {}
-    ftype = field.field_type
-    if ftype in ("text", "textarea"):
-        if not isinstance(val, str):
-            _err(field, "应为文本")
-        text = val
-        if "minLength" in schema and len(text) < schema["minLength"]:
-            _err(field, f"长度不足 {schema['minLength']}")
-        if "maxLength" in schema and len(text) > schema["maxLength"]:
-            _err(field, f"长度超过 {schema['maxLength']}")
-        if "pattern" in schema and re.search(schema["pattern"], text) is None:
-            _err(field, "格式不符合要求")
-    elif ftype == "number":
-        if isinstance(val, bool) or not isinstance(val, (int, float)):
-            _err(field, "应为数字")
-        if "minimum" in schema and val < schema["minimum"]:
-            _err(field, f"不能小于 {schema['minimum']}")
-        if "maximum" in schema and val > schema["maximum"]:
-            _err(field, f"不能大于 {schema['maximum']}")
-    elif ftype == "date":
-        if not isinstance(val, str) or _DATE_RE.match(val) is None:
-            _err(field, "应为 YYYY-MM-DD 日期")
-        try:
-            dt.date.fromisoformat(val)
-        except ValueError:
-            _err(field, "日期无效")
-    elif ftype == "select":
-        if val not in _option_values(field):
-            _err(field, "不在可选项内")
-    elif ftype in ("multi_select", "checkbox"):
-        if not isinstance(val, list):
-            _err(field, "应为多选列表")
-        opts = _option_values(field)
-        for item in val:
-            if item not in opts:
-                _err(field, "含无效选项")
-
-
 def validate_values(db: Session, custom_values: dict[str, Any], *, require_check: bool) -> None:
     """校验 custom_values 对当前 active 字段（Q367/Q368）。
 
     require_check=True 时强制 required；未知键 / 已归档字段键一律容忍（Q255/Q256）。
+    实际校验逻辑委托 field_validation.validate_against_definitions（duck-typed）。
     """
     fields = list(
         db.execute(
@@ -122,12 +70,7 @@ def validate_values(db: Session, custom_values: dict[str, Any], *, require_check
             )
         ).scalars()
     )
-    for field in fields:
-        present = field.key in custom_values and not _is_empty(custom_values[field.key])
-        if field.required and require_check and not present:
-            _err(field, "为必填项，请填写")
-        if present:
-            _validate_one(field, custom_values[field.key])
+    fv.validate_against_definitions(fields, custom_values, require_check=require_check)
 
 
 # --------------------------------------------------------------------------- #
@@ -195,7 +138,7 @@ def create(db: Session, payload: FieldCreate) -> ProcedureField:
     return field
 
 
-def _merge_options(old: list[dict[str, Any]], new: list[FieldOption]) -> list[dict[str, Any]]:
+def merge_options(old: list[dict[str, Any]], new: list[Any]) -> list[dict[str, Any]]:
     """options 删除软代理（Q255）：new 中不再出现的旧选项以 archived=True 保留。"""
     new_dicts = [o.model_dump() for o in new]
     new_values = {o["value"] for o in new_dicts}
@@ -218,7 +161,7 @@ def update(db: Session, field_id: str, payload: FieldUpdate) -> ProcedureField:
     field.description = payload.description
     field.required = payload.required
     field.default_value = payload.default_value
-    field.options = _merge_options(field.options, payload.options)
+    field.options = merge_options(field.options, payload.options)
     field.validation_rules = compile_form_to_schema(field.field_type, payload.validation)
     field.sort_order = payload.sort_order
     field.show_on_cover = payload.show_on_cover

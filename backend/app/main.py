@@ -33,6 +33,7 @@ from app.routers import (
     company_settings,
     cost_categories,
     currencies,
+    custom_fields,
     customers,
     deprecations,
     exports,
@@ -182,6 +183,7 @@ app.include_router(roles.router)
 app.include_router(permissions_router.router)
 app.include_router(users.router)
 app.include_router(currencies.router)
+app.include_router(custom_fields.router)
 app.include_router(platform.router)
 app.include_router(billing.router)
 app.include_router(workflows.router)

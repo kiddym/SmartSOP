@@ -15,7 +15,7 @@ from app.models.maintenance_asset import Asset, AssetTeam, AssetUser
 from app.models.part import Part, PartAsset
 from app.models.vendor import Vendor, VendorAsset
 from app.schemas.asset import AssetCreate, AssetUpdate, DowntimeClose, DowntimeCreate
-from app.services import sequence_service
+from app.services import custom_field_service, sequence_service
 
 
 def assigned_user_ids(db: Session, asset_id: str) -> list[str]:
@@ -94,6 +94,7 @@ def to_read(db: Session, a: Asset) -> dict[str, object]:
         "vendor_ids": vendor_ids(db, a.id),
         "customer_ids": customer_ids(db, a.id),
         "part_ids": part_ids(db, a.id),
+        "custom_values": a.custom_values or {},
     }
 
 
@@ -198,6 +199,7 @@ def _validate_partner_ids(
 
 
 def create_asset(db: Session, payload: AssetCreate, company_id: str) -> Asset:
+    custom_field_service.validate_values(db, "asset", payload.custom_values)
     _check_code_unique(db, Asset.barcode, payload.barcode, None)
     _check_code_unique(db, Asset.nfc_id, payload.nfc_id, None)
     _validate_partner_ids(
@@ -280,6 +282,8 @@ def get_by_nfc(db: Session, nfc: str) -> Asset | None:
 
 def update_asset(db: Session, a: Asset, payload: AssetUpdate, company_id: str) -> Asset:
     data = payload.model_dump(exclude_unset=True)
+    # custom_values 不能走通用 setattr 循环（会整体覆盖且绕过校验），单独处理
+    custom_values = data.pop("custom_values", None)
     if "parent_id" in data:
         _validate_parent(db, a.id, data["parent_id"])
     if "barcode" in data:
@@ -298,6 +302,9 @@ def update_asset(db: Session, a: Asset, payload: AssetUpdate, company_id: str) -
         setattr(a, k, v)
     if "status" in data:
         apply_status_transition(db, a, old_status, a.status, company_id)
+    if custom_values is not None:
+        custom_field_service.validate_values(db, "asset", custom_values)
+        a.custom_values = {**(a.custom_values or {}), **custom_values}
     _sync_relations(db, a, user_ids, team_ids_, vendor_ids_, customer_ids_, part_ids_, company_id)
     db.commit()
     db.refresh(a)

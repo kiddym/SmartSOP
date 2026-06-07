@@ -140,9 +140,7 @@ def test_approve_with_asset_status_updates_asset(db):
     c = _company(db, "acme")
     tenant.set_current_company_id(c.id)
     a = _asset(db, c.id, status=AssetStatus.OPERATIONAL)
-    r = svc.create_request(
-        db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None
-    )
+    r = svc.create_request(db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None)
     svc.approve_request(
         db,
         r,
@@ -161,9 +159,7 @@ def test_approve_with_asset_status_triggers_downtime(db):
     c = _company(db, "acme")
     tenant.set_current_company_id(c.id)
     a = _asset(db, c.id, status=AssetStatus.OPERATIONAL)
-    r = svc.create_request(
-        db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None
-    )
+    r = svc.create_request(db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None)
     svc.approve_request(
         db, r, RequestApprove(asset_status=AssetStatus.DOWN), c.id, actor_user_id="u9"
     )
@@ -177,9 +173,7 @@ def test_approve_without_asset_status_leaves_asset_unchanged(db):
     c = _company(db, "acme")
     tenant.set_current_company_id(c.id)
     a = _asset(db, c.id, status=AssetStatus.OPERATIONAL)
-    r = svc.create_request(
-        db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None
-    )
+    r = svc.create_request(db, RequestCreate(title="t", asset_id=a.id), c.id, actor_user_id=None)
     svc.approve_request(db, r, RequestApprove(), c.id, actor_user_id="u9")
     db.refresh(a)
     assert a.status == AssetStatus.OPERATIONAL

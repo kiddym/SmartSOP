@@ -71,6 +71,7 @@ beforeEach(() => {
       pm_ids: [],
       vendor_ids: ['v1'],
       customer_ids: ['cu1'],
+      custom_values: {},
     },
   ])
   cp.mockReset().mockResolvedValue({})

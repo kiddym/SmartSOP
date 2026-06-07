@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Float, ForeignKey, String, Text, UniqueConstraint, text
+from typing import Any
+
+from sqlalchemy import JSON, Float, ForeignKey, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, SoftDeleteMixin, TenantMixin, TimestampMixin, UUIDMixin
@@ -21,6 +23,10 @@ class Location(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     longitude: Mapped[float | None] = mapped_column(Float, default=None)
     latitude: Mapped[float | None] = mapped_column(Float, default=None)
     image_url: Mapped[str | None] = mapped_column(String(512), default=None)
+    # 业务自定义字段值（按 CustomFieldDef.key 存；JSON 括号表达式默认避开 MySQL 1101）
+    custom_values: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default=text("('{}')")
+    )
 
 
 class LocationUser(Base, UUIDMixin, TimestampMixin, TenantMixin):

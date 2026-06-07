@@ -52,9 +52,10 @@ def test_put_updates_visibility_and_required(client):
     assert by_name["asset"]["required"] is True
     assert by_name["location"]["visible"] is False
     # 持久化
-    again = {row["field_name"]: row for row in client.get(
-        "/api/v1/field-configurations/REQUEST", headers=h
-    ).json()}
+    again = {
+        row["field_name"]: row
+        for row in client.get("/api/v1/field-configurations/REQUEST", headers=h).json()
+    }
     assert again["asset"]["required"] is True
     assert again["location"]["visible"] is False
 
@@ -116,7 +117,8 @@ def test_config_isolated_per_company(client):
         headers=hA,
         json=[{"field_name": "asset", "visible": False, "required": False}],
     )
-    b_rows = {r["field_name"]: r for r in client.get(
-        "/api/v1/field-configurations/REQUEST", headers=hB
-    ).json()}
+    b_rows = {
+        r["field_name"]: r
+        for r in client.get("/api/v1/field-configurations/REQUEST", headers=hB).json()
+    }
     assert b_rows["asset"]["visible"] is True  # B 不受 A 影响

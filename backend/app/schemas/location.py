@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -17,6 +19,7 @@ class LocationCreate(BaseModel):
     team_ids: list[str] = []
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class LocationUpdate(BaseModel):
@@ -31,6 +34,7 @@ class LocationUpdate(BaseModel):
     team_ids: list[str] | None = None
     vendor_ids: list[str] | None = None
     customer_ids: list[str] | None = None
+    custom_values: dict[str, Any] | None = None
 
 
 class LocationRead(BaseModel):
@@ -48,6 +52,7 @@ class LocationRead(BaseModel):
     team_ids: list[str] = []
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class LocationMini(BaseModel):

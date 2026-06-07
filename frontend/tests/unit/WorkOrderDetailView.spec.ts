@@ -83,6 +83,7 @@ const wo = {
   created_by_user_id: null,
   assignee_ids: [],
   team_ids: [],
+  custom_values: {},
 }
 
 beforeEach(() => {

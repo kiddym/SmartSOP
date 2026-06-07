@@ -50,6 +50,7 @@ beforeEach(() => {
       team_ids: [],
       vendor_ids: [],
       customer_ids: [],
+      custom_values: {},
     },
     {
       id: 'l2',
@@ -65,6 +66,7 @@ beforeEach(() => {
       team_ids: [],
       vendor_ids: [],
       customer_ids: [],
+      custom_values: {},
     },
   ])
   cl.mockReset().mockResolvedValue({})

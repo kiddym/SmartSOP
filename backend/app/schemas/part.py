@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
@@ -27,6 +28,7 @@ class PartCreate(BaseModel):
     pm_ids: list[str] = []
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class PartUpdate(BaseModel):
@@ -48,6 +50,7 @@ class PartUpdate(BaseModel):
     pm_ids: list[str] | None = None
     vendor_ids: list[str] | None = None
     customer_ids: list[str] | None = None
+    custom_values: dict[str, Any] | None = None
 
 
 class PartRead(BaseModel):
@@ -73,6 +76,7 @@ class PartRead(BaseModel):
     pm_ids: list[str] = []
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class PartMini(BaseModel):

@@ -16,7 +16,7 @@ from app.models.part import Part, PartAsset, PartAssignee, PartLocation, PartPM,
 from app.models.preventive_maintenance import PreventiveMaintenance
 from app.models.vendor import Vendor, VendorPart
 from app.schemas.part import PartCreate, PartUpdate
-from app.services import sequence_service
+from app.services import custom_field_service, sequence_service
 
 
 def assignee_ids(db: Session, part_id: str) -> list[str]:
@@ -160,6 +160,7 @@ def _set_relations(
 def create_part(
     db: Session, payload: PartCreate, company_id: str, actor_user_id: str | None
 ) -> Part:
+    custom_field_service.validate_values(db, "part", payload.custom_values)
     seq = sequence_service.next_value(db, "part", company_id)
     p = Part(
         custom_id=sequence_service.format_custom_id("PRT", seq),
@@ -174,6 +175,7 @@ def create_part(
         category_id=payload.category_id,
         area=payload.area,
         additional_infos=payload.additional_infos,
+        custom_values=payload.custom_values,
         company_id=company_id,
     )
     db.add(p)
@@ -229,6 +231,8 @@ def update_part(
     db: Session, p: Part, payload: PartUpdate, company_id: str, actor_user_id: str | None
 ) -> Part:
     data = payload.model_dump(exclude_unset=True)
+    # custom_values 不能走通用 setattr 循环（会整体覆盖且绕过校验），单独处理
+    custom_values = data.pop("custom_values", None)
     new_assignees = data.pop("assignee_ids", None)
     new_teams = data.pop("team_ids", None)
     new_assets = data.pop("asset_ids", None)
@@ -247,6 +251,9 @@ def update_part(
         _validate_customer_ids(db, new_customers, company_id)
     for k, v in data.items():
         setattr(p, k, v)
+    if custom_values is not None:
+        custom_field_service.validate_values(db, "part", custom_values)
+        p.custom_values = {**(p.custom_values or {}), **custom_values}
     if new_assignees is not None:
         db.execute(delete(PartAssignee).where(PartAssignee.part_id == p.id))
         for uid in dict.fromkeys(new_assignees):

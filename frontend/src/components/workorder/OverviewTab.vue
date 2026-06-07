@@ -13,6 +13,7 @@ import type { WorkOrderRead, WorkOrderPriority } from '@/types/workOrder'
 import type { UserRead, TeamRead } from '@/types/platform'
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { ProcedureMini } from '@/types/maintenance'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 
 const props = defineProps<{
   workOrder: WorkOrderRead
@@ -243,6 +244,13 @@ defineExpose({ assigneeIds, teamIds, selectedProcedure, saveAssignment, doAttach
         </div>
       </template>
     </div>
+
+    <!-- 自定义字段 -->
+    <CustomFieldsSection
+      entity-type="work_order"
+      :model-value="(workOrder.custom_values ?? {})"
+      readonly
+    />
   </div>
 </template>
 

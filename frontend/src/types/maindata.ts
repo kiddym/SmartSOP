@@ -21,6 +21,7 @@ export interface LocationRead {
   team_ids: string[]
   vendor_ids: string[]
   customer_ids: string[]
+  custom_values: Record<string, unknown>
 }
 export interface LocationCreate {
   name: string
@@ -34,6 +35,7 @@ export interface LocationCreate {
   team_ids?: string[]
   vendor_ids?: string[]
   customer_ids?: string[]
+  custom_values?: Record<string, unknown>
 }
 export type LocationUpdate = Partial<LocationCreate>
 export interface LocationMini {
@@ -83,6 +85,7 @@ export interface AssetRead {
   vendor_ids: string[]
   customer_ids: string[]
   part_ids: string[]
+  custom_values: Record<string, unknown>
 }
 export interface AssetCreate {
   name: string
@@ -109,6 +112,7 @@ export interface AssetCreate {
   vendor_ids?: string[]
   customer_ids?: string[]
   part_ids?: string[]
+  custom_values?: Record<string, unknown>
 }
 export type AssetUpdate = Partial<AssetCreate>
 export interface AssetMini {

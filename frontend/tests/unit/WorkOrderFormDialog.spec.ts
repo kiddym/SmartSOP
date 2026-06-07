@@ -82,6 +82,7 @@ describe('WorkOrderFormDialog', () => {
       required_signature: false,
       assignee_ids: [],
       team_ids: [],
+      custom_values: {},
     }
     const w = mount(WorkOrderFormDialog, {
       props: { visible: true, mode: 'edit', editing },

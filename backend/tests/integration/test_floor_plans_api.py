@@ -16,9 +16,7 @@ def _admin(client, *, company="Acme", email="admin@acme.com"):
 
 
 def _location(client, token, name="厂区A"):
-    return client.post(
-        "/api/v1/locations", headers=_h(token), json={"name": name}
-    ).json()["id"]
+    return client.post("/api/v1/locations", headers=_h(token), json={"name": name}).json()["id"]
 
 
 def _viewer_token(client, admin_token):
@@ -66,9 +64,7 @@ def test_create_multiple_and_list(client):
 def test_patch_updates(client):
     t = _admin(client)
     loc = _location(client, t)
-    fid = client.post(
-        _base(loc), headers=_h(t), json={"name": "旧", "area": "100.00"}
-    ).json()["id"]
+    fid = client.post(_base(loc), headers=_h(t), json={"name": "旧", "area": "100.00"}).json()["id"]
     r = client.patch(
         f"{_base(loc)}/{fid}",
         headers=_h(t),
@@ -118,13 +114,9 @@ def test_cross_tenant_404(client):
     fid_b = client.post(_base(loc_b), headers=_h(tb), json={"name": "B一层"}).json()["id"]
     # A 访问 B 的位置平面图 → 位置不属 A → 404
     assert client.get(_base(loc_b), headers=_h(ta)).status_code == 404
+    assert client.post(_base(loc_b), headers=_h(ta), json={"name": "x"}).status_code == 404
     assert (
-        client.post(_base(loc_b), headers=_h(ta), json={"name": "x"}).status_code == 404
-    )
-    assert (
-        client.patch(
-            f"{_base(loc_b)}/{fid_b}", headers=_h(ta), json={"name": "x"}
-        ).status_code
+        client.patch(f"{_base(loc_b)}/{fid_b}", headers=_h(ta), json={"name": "x"}).status_code
         == 404
     )
     assert client.delete(f"{_base(loc_b)}/{fid_b}", headers=_h(ta)).status_code == 404
@@ -137,8 +129,7 @@ def test_floor_plan_not_owned_by_location_404(client):
     fid = client.post(_base(loc1), headers=_h(t), json={"name": "L1图"}).json()["id"]
     # 同租户但平面图不属 loc2 → 404
     assert (
-        client.patch(f"{_base(loc2)}/{fid}", headers=_h(t), json={"name": "x"}).status_code
-        == 404
+        client.patch(f"{_base(loc2)}/{fid}", headers=_h(t), json={"name": "x"}).status_code == 404
     )
     assert client.delete(f"{_base(loc2)}/{fid}", headers=_h(t)).status_code == 404
 
@@ -149,13 +140,9 @@ def test_viewer_can_list_but_not_write(client):
     fid = client.post(_base(loc), headers=_h(admin), json={"name": "图"}).json()["id"]
     viewer = _viewer_token(client, admin)
     assert client.get(_base(loc), headers=_h(viewer)).status_code == 200
+    assert client.post(_base(loc), headers=_h(viewer), json={"name": "x"}).status_code == 403
     assert (
-        client.post(_base(loc), headers=_h(viewer), json={"name": "x"}).status_code == 403
-    )
-    assert (
-        client.patch(
-            f"{_base(loc)}/{fid}", headers=_h(viewer), json={"name": "x"}
-        ).status_code
+        client.patch(f"{_base(loc)}/{fid}", headers=_h(viewer), json={"name": "x"}).status_code
         == 403
     )
     assert client.delete(f"{_base(loc)}/{fid}", headers=_h(viewer)).status_code == 403

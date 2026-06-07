@@ -13,6 +13,7 @@ import type { VendorMini, CustomerMini } from '@/types/inventory'
 import { useAuthStore } from '@/store/auth'
 import { exportLocations } from '@/api/exports'
 import { buildTree, collectDescendantIds } from '@/utils/tree'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -87,6 +88,7 @@ interface FormState {
   team_ids: string[]
   vendor_ids: string[]
   customer_ids: string[]
+  custom_values: Record<string, unknown>
 }
 
 const form = reactive<FormState>({
@@ -101,6 +103,7 @@ const form = reactive<FormState>({
   team_ids: [],
   vendor_ids: [],
   customer_ids: [],
+  custom_values: {},
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建位置' : '编辑位置'))
@@ -126,6 +129,7 @@ function resetForm() {
   form.team_ids = []
   form.vendor_ids = []
   form.customer_ids = []
+  form.custom_values = {}
 }
 
 function openCreate() {
@@ -149,6 +153,7 @@ function openEdit(row: LocationRead) {
     team_ids: [...row.team_ids],
     vendor_ids: [...row.vendor_ids],
     customer_ids: [...row.customer_ids],
+    custom_values: { ...(row.custom_values ?? {}) },
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -175,6 +180,7 @@ async function submitForm() {
       team_ids: form.team_ids,
       vendor_ids: form.vendor_ids,
       customer_ids: form.customer_ids,
+      custom_values: form.custom_values,
     }
     if (dialogMode.value === 'create') {
       await createLocation(payload as LocationCreate)
@@ -357,6 +363,7 @@ async function handleDelete(row: LocationRead) {
             <el-option v-for="c in customersMini" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
+        <CustomFieldsSection entity-type="location" v-model="form.custom_values" />
       </el-form>
 
       <template #footer>

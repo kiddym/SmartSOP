@@ -17,6 +17,7 @@ from app.models.company import Company
 from app.models.company_settings import CompanySettings
 from app.models.cost_category import CostCategory
 from app.models.currency import Currency
+from app.models.custom_field_def import CustomFieldDef
 from app.models.customer import Customer, CustomerAsset, CustomerLocation, CustomerPart
 from app.models.deprecation import AssetDeprecation
 from app.models.email_outbox import EmailOutbox
@@ -88,6 +89,7 @@ __all__ = [
     "CompanySettings",
     "CostCategory",
     "Currency",
+    "CustomFieldDef",
     "Customer",
     "CustomerAsset",
     "CustomerLocation",

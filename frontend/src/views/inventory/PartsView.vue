@@ -11,6 +11,7 @@ import { listTeams } from '@/api/teams'
 import { listVendorsMini } from '@/api/vendors'
 import { listCustomersMini } from '@/api/customers'
 import PartCategoryManageDialog from '@/components/inventory/PartCategoryManageDialog.vue'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import type {
   PartRead,
   PartCreate,
@@ -131,6 +132,7 @@ interface FormState {
   location_ids: string[]
   vendor_ids: string[]
   customer_ids: string[]
+  custom_values: Record<string, unknown>
 }
 
 const form = reactive<FormState>({
@@ -151,6 +153,7 @@ const form = reactive<FormState>({
   location_ids: [],
   vendor_ids: [],
   customer_ids: [],
+  custom_values: {},
 })
 
 const dialogTitle = computed(() => (dialogMode.value === 'create' ? '新建备件' : '编辑备件'))
@@ -173,6 +176,7 @@ function resetForm() {
   form.location_ids = []
   form.vendor_ids = []
   form.customer_ids = []
+  form.custom_values = {}
 }
 
 function openCreate() {
@@ -202,6 +206,7 @@ function openEdit(row: PartRead) {
     location_ids: [...row.location_ids],
     vendor_ids: [...row.vendor_ids],
     customer_ids: [...row.customer_ids],
+    custom_values: { ...(row.custom_values ?? {}) },
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -234,6 +239,7 @@ async function submitForm() {
       location_ids: form.location_ids,
       vendor_ids: form.vendor_ids,
       customer_ids: form.customer_ids,
+      custom_values: form.custom_values,
     }
     if (dialogMode.value === 'create') {
       await createPart(payload as PartCreate)
@@ -453,6 +459,7 @@ async function handleDelete(row: PartRead) {
             <el-option v-for="c in customersMini" :key="c.id" :label="c.name" :value="c.id" />
           </el-select>
         </el-form-item>
+        <CustomFieldsSection entity-type="part" v-model="form.custom_values" />
       </el-form>
 
       <template #footer>

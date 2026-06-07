@@ -13,6 +13,7 @@ import type { WorkOrderRead, WorkOrderPriority, WorkOrderCategoryRead } from '@/
 import type { AssetMini, LocationMini } from '@/types/maindata'
 import type { UserRead, TeamRead } from '@/types/platform'
 import type { ProcedureMini } from '@/types/maintenance'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 
 const props = defineProps<{
   visible: boolean
@@ -108,6 +109,7 @@ interface FormState {
   category_id: string | null
   procedure_id: string | null
   required_signature: boolean
+  custom_values: Record<string, unknown>
 }
 
 const form = reactive<FormState>({
@@ -123,6 +125,7 @@ const form = reactive<FormState>({
   category_id: null,
   procedure_id: null,
   required_signature: false,
+  custom_values: {},
 })
 
 // ── helpers ────────────────────────────────────────────────
@@ -151,6 +154,7 @@ function resetOrFill() {
     form.category_id = null
     form.procedure_id = null
     form.required_signature = false
+    form.custom_values = {}
   } else {
     const e = props.editing
     form.title = e.title
@@ -165,6 +169,7 @@ function resetOrFill() {
     form.team_ids = []
     form.procedure_id = null
     form.required_signature = e.required_signature
+    form.custom_values = { ...(e.custom_values ?? {}) }
   }
 }
 
@@ -230,6 +235,7 @@ async function submitForm() {
         team_ids: form.team_ids,
         procedure_id: form.procedure_id || null,
         required_signature: form.required_signature,
+        custom_values: form.custom_values,
       }
       result = await createWorkOrder(payload)
     } else {
@@ -243,6 +249,7 @@ async function submitForm() {
         primary_user_id: form.primary_user_id || null,
         category_id: form.category_id || null,
         required_signature: form.required_signature,
+        custom_values: form.custom_values,
       }
       result = await updateWorkOrder(props.editing!.id, payload)
     }
@@ -378,6 +385,7 @@ defineExpose({ form, submitForm, fieldVisible, fieldRequired })
           </el-select>
         </el-form-item>
       </template>
+      <CustomFieldsSection entity-type="work_order" v-model="form.custom_values" />
     </el-form>
     <template #footer>
       <el-button type="primary" :loading="submitting" @click="submitForm">保存</el-button>

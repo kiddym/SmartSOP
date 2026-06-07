@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -35,6 +36,7 @@ class AssetCreate(BaseModel):
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
     part_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class AssetUpdate(BaseModel):
@@ -62,6 +64,7 @@ class AssetUpdate(BaseModel):
     vendor_ids: list[str] | None = None
     customer_ids: list[str] | None = None
     part_ids: list[str] | None = None
+    custom_values: dict[str, Any] | None = None
 
 
 class AssetRead(BaseModel):
@@ -92,6 +95,7 @@ class AssetRead(BaseModel):
     vendor_ids: list[str] = []
     customer_ids: list[str] = []
     part_ids: list[str] = []
+    custom_values: dict[str, Any] = {}
 
 
 class AssetMini(BaseModel):

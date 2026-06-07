@@ -66,9 +66,9 @@ def test_po_create_shipping_detail_null_when_omitted(client):
 def test_po_update_shipping_detail_fields_in_draft(client):
     t = _admin(client)
     vid = _vendor(client, t)
-    po_id = client.post(
-        "/api/v1/purchase-orders", headers=_h(t), json={"vendor_id": vid}
-    ).json()["id"]
+    po_id = client.post("/api/v1/purchase-orders", headers=_h(t), json={"vendor_id": vid}).json()[
+        "id"
+    ]
     r = client.patch(
         f"/api/v1/purchase-orders/{po_id}",
         headers=_h(t),

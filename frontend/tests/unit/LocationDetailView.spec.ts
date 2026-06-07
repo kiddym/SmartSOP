@@ -57,6 +57,7 @@ const LOCATION = {
   team_ids: [],
   vendor_ids: ['v1'],
   customer_ids: ['cu1'],
+  custom_values: {},
 }
 
 function mountView() {

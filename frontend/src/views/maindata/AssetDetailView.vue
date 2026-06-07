@@ -14,6 +14,7 @@ import { getDeprecation, putDeprecation, deleteDeprecation } from '@/api/depreca
 import { WO_STATUS_LABELS, WO_STATUS_TAG } from '@/utils/workOrder'
 import { useAuthStore } from '@/store/auth'
 import EntityAttachments from '@/components/EntityAttachments.vue'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 import type {
   AssetRead,
   AssetStatus,
@@ -320,6 +321,11 @@ defineExpose({
               asset.additional_infos || '—'
             }}</el-descriptions-item>
           </el-descriptions>
+          <CustomFieldsSection
+            entity-type="asset"
+            :model-value="(asset.custom_values ?? {})"
+            readonly
+          />
         </div>
       </el-tab-pane>
 

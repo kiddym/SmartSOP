@@ -33,6 +33,7 @@ export interface RequestRead {
   resolution_note: string
   resolved_by_user_id: string | null
   resolved_at: string | null
+  custom_values: Record<string, unknown>
 }
 export interface RequestCreate {
   title: string
@@ -41,6 +42,7 @@ export interface RequestCreate {
   due_date?: string | null
   asset_id?: string | null
   location_id?: string | null
+  custom_values?: Record<string, unknown>
 }
 export type RequestUpdate = Partial<RequestCreate>
 export interface RequestApprove {

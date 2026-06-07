@@ -7,8 +7,9 @@ priority 复用 WorkOrderPriority 枚举（DRY，同 NONE/LOW/MEDIUM/HIGH）。
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Any
 
-from sqlalchemy import Date, ForeignKey, String, Text, text
+from sqlalchemy import JSON, Date, ForeignKey, String, Text, text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -48,3 +49,7 @@ class Request(Base, UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin):
     resolution_note: Mapped[str] = mapped_column(Text, default="", server_default=text("('')"))
     resolved_by_user_id: Mapped[str | None] = mapped_column(String(36), default=None)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME6, default=None)
+    # 业务自定义字段值（按 CustomFieldDef.key 存；JSON 括号表达式默认避开 MySQL 1101）
+    custom_values: Mapped[dict[str, Any]] = mapped_column(
+        JSON, default=dict, server_default=text("('{}')")
+    )

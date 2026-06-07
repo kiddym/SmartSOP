@@ -225,6 +225,7 @@ const rawGroups = computed<NavGroup[]>(() => [
         items: [
           { label: '系统设置', path: '/admin/settings', icon: Setting },
           { label: '字段管理', path: '/admin/fields', icon: Grid },
+          { label: '自定义字段', path: '/admin/custom-fields', icon: Grid },
           {
             label: '工作流',
             path: '/admin/workflows',

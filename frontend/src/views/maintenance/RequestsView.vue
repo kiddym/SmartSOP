@@ -31,6 +31,7 @@ import type { UserRead, TeamRead } from '@/types/platform'
 import { useAuthStore } from '@/store/auth'
 import { formatDateTime } from '@/utils/format'
 import EntityAttachments from '@/components/EntityAttachments.vue'
+import CustomFieldsSection from '@/components/CustomFieldsSection.vue'
 
 const auth = useAuthStore()
 
@@ -207,6 +208,7 @@ interface FormState {
   due_date: string | null
   asset_id: string | null
   location_id: string | null
+  custom_values: Record<string, unknown>
 }
 const form = reactive<FormState>({
   title: '',
@@ -215,6 +217,7 @@ const form = reactive<FormState>({
   due_date: null,
   asset_id: null,
   location_id: null,
+  custom_values: {},
 })
 
 function resetForm() {
@@ -224,6 +227,7 @@ function resetForm() {
   form.due_date = null
   form.asset_id = null
   form.location_id = null
+  form.custom_values = {}
 }
 
 function openCreate() {
@@ -242,6 +246,7 @@ function openEdit(row: RequestRead) {
     due_date: row.due_date,
     asset_id: row.asset_id,
     location_id: row.location_id,
+    custom_values: { ...(row.custom_values ?? {}) },
   })
   dialogMode.value = 'edit'
   editingId.value = row.id
@@ -274,6 +279,7 @@ async function submitForm() {
     due_date: form.due_date || null,
     asset_id: form.asset_id || null,
     location_id: form.location_id || null,
+    custom_values: form.custom_values,
   }
   try {
     submitting.value = true
@@ -630,6 +636,7 @@ defineExpose({
             <el-option v-for="l in locationsMini" :key="l.id" :label="l.name" :value="l.id" />
           </el-select>
         </el-form-item>
+        <CustomFieldsSection entity-type="request" v-model="form.custom_values" />
       </el-form>
       <template #footer>
         <el-button type="primary" :loading="submitting" @click="submitForm">保存</el-button>
