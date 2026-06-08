@@ -34,12 +34,17 @@ const ENTITY_OPTIONS: { value: CustomFieldEntity; label: string }[] = [
   { value: 'part', label: '备件' },
 ]
 
+const props = withDefaults(
+  defineProps<{ lockedEntity?: CustomFieldEntity; embedded?: boolean }>(),
+  { lockedEntity: undefined, embedded: false },
+)
+
 const auth = useAuthStore()
 const canEdit = ref(auth.hasPermission('company.settings'))
 
 // ── state ──────────────────────────────────────────────────
 const loading = ref(false)
-const entityType = ref<CustomFieldEntity>('work_order')
+const entityType = ref<CustomFieldEntity>(props.lockedEntity ?? 'work_order')
 const allFields = ref<CustomFieldDef[]>([])
 
 const activeFields = computed(() =>
@@ -243,11 +248,12 @@ async function moveField(index: number, direction: 'up' | 'down') {
 
 <template>
   <div class="custom-fields-page">
-    <h2 class="page-title">自定义字段</h2>
+    <h2 v-if="!embedded" class="page-title">自定义字段</h2>
 
     <!-- toolbar -->
     <div class="toolbar">
       <el-select
+        v-if="!lockedEntity"
         v-model="entityType"
         style="width: 160px"
         @change="onEntityChange"
