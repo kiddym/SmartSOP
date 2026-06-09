@@ -16,9 +16,12 @@ const REDIRECTS: Array<[string, string]> = [
   ['/platform/users', '/admin/users'],
   ['/platform/roles', '/admin/roles'],
   ['/platform/teams', '/admin/teams'],
-  ['/platform/settings', '/admin/company'],
+  // 公司设置/系统设置已合并为组织设置聚合页,旧别名经二次跳转最终落到 /admin/config/organization。
+  ['/platform/settings', '/admin/config/organization'],
+  ['/admin/company', '/admin/config/organization'],
   ['/platform/currencies', '/admin/currencies'],
-  ['/settings', '/admin/settings'],
+  ['/settings', '/admin/config/organization'],
+  ['/admin/settings', '/admin/config/organization'],
   ['/settings/fields', '/admin/fields'],
   ['/settings/heading-rules', '/admin/heading-rules'],
   ['/audit-logs', '/admin/audit-logs'],
@@ -35,8 +38,8 @@ describe('router 旧路径重定向', () => {
   const NEW_PATHS = [
     '/procedures/folders', '/assets', '/assets/locations',
     '/inventory/parts/kits', '/maintenance/customers',
-    '/admin/users', '/admin/roles', '/admin/teams', '/admin/company',
-    '/admin/currencies', '/admin/settings', '/admin/fields', '/admin/heading-rules',
+    '/admin/users', '/admin/roles', '/admin/teams', '/admin/config/organization',
+    '/admin/currencies', '/admin/fields', '/admin/heading-rules',
     '/admin/audit-logs',
   ]
   it.each(NEW_PATHS)('新路径 %s 可解析到已命名路由', async (p) => {
