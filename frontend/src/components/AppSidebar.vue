@@ -34,6 +34,7 @@ import {
   // 管理：系统配置
   Setting,
   Grid,
+  Memo,
   Collection,
   Upload,
   Operation,
@@ -106,6 +107,8 @@ const orgConfigItems = computed<NavItem[]>(() => {
   if (auth.user?.role_code === 'super_admin') {
     items.push({ label: '货币', path: '/admin/currencies', icon: Coin })
   }
+  // 全局参数「系统设置」并入组织配置（消除旧「系统配置」子分组与同名叶子项的父子重名）。
+  items.push({ label: '系统设置', path: '/admin/settings', icon: Setting })
   return items
 })
 
@@ -220,19 +223,33 @@ const rawGroups = computed<NavGroup[]>(() => [
       },
       { label: '组织配置', icon: OfficeBuilding, items: orgConfigItems.value },
       {
-        label: '系统配置',
-        icon: Setting,
+        label: 'SOP 配置',
+        icon: Document,
         items: [
-          { label: '系统设置', path: '/admin/settings', icon: Setting },
-          { label: '字段管理', path: '/admin/fields', icon: Grid },
-          { label: '自定义字段', path: '/admin/custom-fields', icon: Grid },
+          // 「程序字段」即旧「字段管理」(底层 ProcedureField,本就是 SOP 程序字段),正名归入 SOP。
+          { label: '程序字段', path: '/admin/fields', icon: Grid },
+          { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
+        ],
+      },
+      {
+        label: '表单与字段',
+        icon: Memo,
+        items: [
+          { label: '工单表单字段', path: '/admin/work-order-fields', icon: Tickets },
+          { label: '请求表单字段', path: '/admin/request-fields', icon: ChatDotRound },
+          { label: '自定义字段', path: '/admin/custom-fields', icon: Memo },
+        ],
+      },
+      {
+        label: '自动化与数据',
+        icon: Operation,
+        items: [
           {
             label: '工作流',
             path: '/admin/workflows',
             requiredPermission: 'workflow.view',
             icon: Operation,
           },
-          { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
           { label: '数据导入', path: '/admin/imports', icon: Upload },
           { label: '文件库', path: '/admin/files', icon: Files },
         ],
