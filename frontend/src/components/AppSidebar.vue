@@ -31,7 +31,7 @@ import {
   // 管理：组织配置
   OfficeBuilding,
   Coin,
-  // 管理：系统配置
+  // 管理：SOP 配置 / 表单与字段 / 自动化与数据
   Grid,
   Memo,
   Collection,
