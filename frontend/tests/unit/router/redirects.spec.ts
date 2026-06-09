@@ -40,9 +40,10 @@ describe('router 旧路径重定向', () => {
     '/procedures/folders', '/assets', '/assets/locations',
     '/inventory/parts/kits', '/maintenance/customers',
     '/admin/users', '/admin/roles', '/admin/teams', '/admin/config/organization',
-    '/admin/currencies', '/admin/fields', '/admin/heading-rules',
-    '/admin/audit-logs',
+    '/admin/currencies', '/admin/audit-logs',
   ]
+  // 注:/admin/fields、/admin/heading-rules 等旧字段路径已转为 redirect(指向配置中心聚合页 tab),
+  // 其解析覆盖见 configRoutes.spec.ts「配置中心路由」。
   it.each(NEW_PATHS)('新路径 %s 可解析到已命名路由', async (p) => {
     const router = makeRouter()
     await router.push(p)
