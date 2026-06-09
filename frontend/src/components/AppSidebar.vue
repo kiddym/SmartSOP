@@ -32,7 +32,6 @@ import {
   OfficeBuilding,
   Coin,
   // 管理：系统配置
-  Setting,
   Grid,
   Memo,
   Collection,
@@ -103,12 +102,13 @@ function menuIndex(it: NavItem): string {
 
 // 货币管理仅 super_admin 可见；其余组织配置项不受限。
 const orgConfigItems = computed<NavItem[]>(() => {
-  const items: NavItem[] = [{ label: '公司设置', path: '/admin/company', icon: OfficeBuilding }]
+  // 公司资料 + 全局参数已合并为「组织设置」聚合页(/admin/config/organization,两 tab)。
+  const items: NavItem[] = [
+    { label: '组织设置', path: '/admin/config/organization', icon: OfficeBuilding },
+  ]
   if (auth.user?.role_code === 'super_admin') {
     items.push({ label: '货币', path: '/admin/currencies', icon: Coin })
   }
-  // 全局参数「系统设置」并入组织配置（消除旧「系统配置」子分组与同名叶子项的父子重名）。
-  items.push({ label: '系统设置', path: '/admin/settings', icon: Setting })
   return items
 })
 
@@ -182,7 +182,6 @@ const rawGroups = computed<NavGroup[]>(() => [
         icon: Timer,
       },
       { label: '计量', path: '/maintenance/meters', feature: 'meters', icon: Odometer },
-      { label: '客户', path: '/maintenance/customers', icon: Avatar },
     ],
   },
   {
@@ -202,6 +201,12 @@ const rawGroups = computed<NavGroup[]>(() => [
         feature: 'purchasing',
         icon: ShoppingCart,
       },
+    ],
+  },
+  {
+    label: '往来单位',
+    entries: [
+      { label: '客户', path: '/maintenance/customers', icon: Avatar },
       { label: '供应商', path: '/inventory/vendors', icon: Shop },
     ],
   },

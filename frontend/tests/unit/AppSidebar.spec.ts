@@ -6,6 +6,8 @@ import AppSidebar from '@/components/AppSidebar.vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
 import type { CurrentUser } from '@/types/auth'
+import { useCompanySettingsStore } from '@/store/companySettings'
+import type { CompanySettings } from '@/types/platform'
 
 function makeRouter(initialPath: string): Router {
   return createRouter({
@@ -24,6 +26,7 @@ function makeRouter(initialPath: string): Router {
       { path: '/admin/roles', component: { template: '<div/>' } },
       { path: '/admin/teams', component: { template: '<div/>' } },
       { path: '/admin/company', component: { template: '<div/>' } },
+      { path: '/admin/config/organization', component: { template: '<div/>' } },
       { path: '/admin/currencies', component: { template: '<div/>' } },
       { path: '/assets', component: { template: '<div/>' } },
       { path: '/assets/locations', component: { template: '<div/>' } },
@@ -73,11 +76,19 @@ interface ExposedGroup {
 describe('AppSidebar', () => {
   beforeEach(() => setActivePinia(createPinia()))
 
-  it('collapsed=false：6 个 group-label（SOP/维护/资产/库存采购/分析/管理）', async () => {
+  it('collapsed=false：7 个 group-label（含往来单位）', async () => {
     setUser('super_admin')
     const w = await mountSidebar('/procedures/library')
     const labels = w.findAll('.menu-group-label')
-    expect(labels.map((l) => l.text())).toEqual(['SOP', '维护', '资产', '库存采购', '分析', '管理'])
+    expect(labels.map((l) => l.text())).toEqual([
+      'SOP',
+      '维护',
+      '资产',
+      '库存采购',
+      '往来单位',
+      '分析',
+      '管理',
+    ])
   })
 
   it('SOP 组含 程序库/草稿箱/文件夹（不再含审计日志）', async () => {
@@ -96,13 +107,15 @@ describe('AppSidebar', () => {
     expect(w.text()).not.toContain('通知中心')
   })
 
-  it('客户归入维护组', async () => {
+  it('客户与供应商归入「往来单位」组,且不再在维护/库存采购组', async () => {
     const w = await mountSidebar('/procedures/library')
-    const items = w.findAll('.el-menu-item')
-    expect(items.some((i) => i.text().includes('客户'))).toBe(true)
     const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const partners = groups.find((g) => g.label === '往来单位')!
+    expect(partners.entries.map((e) => e.label)).toEqual(['客户', '供应商'])
     const maintenance = groups.find((g) => g.label === '维护')!
-    expect(maintenance.entries.some((e) => e.label === '客户')).toBe(true)
+    expect(maintenance.entries.some((e) => e.label === '客户')).toBe(false)
+    const inventory = groups.find((g) => g.label === '库存采购')!
+    expect(inventory.entries.some((e) => e.label === '供应商')).toBe(false)
   })
 
   it('管理组：super_admin 见货币，非 super_admin 不见', async () => {
@@ -115,7 +128,7 @@ describe('AppSidebar', () => {
     expect(w2.text()).not.toContain('货币')
   })
 
-  it('管理组：4 个折叠子分组（人员与权限/组织配置/系统配置/审计）', async () => {
+  it('管理组：6 个折叠子分组', async () => {
     setUser('super_admin')
     const w = await mountSidebar('/admin/users')
     const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
@@ -123,13 +136,22 @@ describe('AppSidebar', () => {
     expect(admin.entries.map((e) => e.label)).toEqual([
       '人员与权限',
       '组织配置',
-      '系统配置',
+      'SOP 配置',
+      '表单与字段',
+      '自动化与数据',
       '审计',
     ])
-    // 每个子分组都带 items（NavSubGroup）
     expect(admin.entries.every((e) => Array.isArray(e.items))).toBe(true)
-    const subMenus = w.findAll('.el-sub-menu')
-    expect(subMenus.length).toBe(4)
+    expect(w.findAll('.el-sub-menu').length).toBe(6)
+  })
+
+  it('组织配置子组：公司设置/系统设置 已合并为「组织设置」单叶子', async () => {
+    setUser('super_admin')
+    const w = await mountSidebar('/admin/users')
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const admin = groups.find((g) => g.label === '管理')!
+    const org = admin.entries.find((e) => e.label === '组织配置')!
+    expect(org.items!.map((i) => i.label)).toEqual(['组织设置', '货币'])
   })
 
   it('collapsed=true：group-label 不渲染', async () => {
@@ -143,6 +165,7 @@ describe('AppSidebar', () => {
     ['/assets/locations', '/assets/locations'],
     ['/admin/users', '/admin/users'],
     ['/admin/settings', '/admin/settings'],
+    ['/admin/config/organization', '/admin/config/organization'],
     ['/admin/fields', '/admin/fields'],
     ['/admin/audit-logs', '/admin/audit-logs'],
     ['/maintenance/customers', '/maintenance/customers'],
@@ -170,13 +193,12 @@ describe('AppSidebar', () => {
     expect((w.vm as unknown as { activeMenu: string }).activeMenu).toBe('/admin/heading-rules')
   })
 
-  it('维护组：资产不再属维护；工单/请求/预防性维护/计量/客户 均可点（无 is-disabled）', async () => {
+  it('维护组：工单/请求/预防性维护/计量 均可点（客户已移出）', async () => {
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     const find = (label: string) => items.find((i) => i.text().includes(label))!
-    for (const label of ['工单', '请求', '预防性维护', '计量', '客户']) {
-      const it = find(label)
-      expect(it.classes()).not.toContain('is-disabled')
+    for (const label of ['工单', '请求', '预防性维护', '计量']) {
+      expect(find(label).classes()).not.toContain('is-disabled')
     }
   })
 
@@ -195,15 +217,35 @@ describe('AppSidebar', () => {
     }
   })
 
-  it('库存采购组：备件库存/采购单/供应商 均可点（多备件套件已下沉为 Tab）', async () => {
+  it('库存采购组：备件库存/采购单 均可点（供应商已移出，多备件套件已下沉为 Tab）', async () => {
     const w = await mountSidebar('/procedures/library')
     const items = w.findAll('.el-menu-item')
     const find = (label: string) => items.find((i) => i.text().includes(label))!
-    for (const label of ['备件库存', '采购单', '供应商']) {
+    for (const label of ['备件库存', '采购单']) {
       expect(find(label).classes()).not.toContain('is-disabled')
     }
-    // 多备件套件不再作为侧栏一级项
     expect(items.some((i) => i.text().includes('多备件套件'))).toBe(false)
+  })
+
+  it('往来单位组：客户/供应商 均可点', async () => {
+    const w = await mountSidebar('/procedures/library')
+    const items = w.findAll('.el-menu-item')
+    const find = (label: string) => items.find((i) => i.text().includes(label))!
+    for (const label of ['客户', '供应商']) {
+      expect(find(label).classes()).not.toContain('is-disabled')
+    }
+  })
+
+  it('关闭 show_vendors_customers 后「往来单位」整组消失', async () => {
+    setUser('super_admin')
+    const cs = useCompanySettingsStore()
+    // 仅设该开关为关;其余开关字段缺省 → isModuleVisible 返回 true(显示)。
+    cs.settings = { show_vendors_customers: false } as unknown as CompanySettings
+    const w = await mountSidebar('/procedures/library')
+    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
+    const partners = groups.find((g) => g.label === '往来单位')
+    expect(partners?.entries.length ?? 0).toBe(0)
+    expect(w.findAll('.menu-group-label').map((l) => l.text())).not.toContain('往来单位')
   })
 
   it('在 /inventory/parts 时 activeMenu 为该路径', async () => {
