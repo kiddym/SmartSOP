@@ -32,7 +32,7 @@ interface MenuCommand {
 // 顺序 / label / path 任何修改请同步 AppTopBar.spec.ts。
 const MENU_COMMANDS: readonly MenuCommand[] = [
   { group: '配置', label: '文件夹配置', path: '/procedures/folders' },
-  { group: '配置', label: '系统设置', path: '/admin/settings' },
+  { group: '配置', label: '组织设置', path: '/admin/config/organization' },
   { group: '配置', label: '字段管理', path: '/admin/fields' },
   { group: '配置', label: '标题字典', path: '/admin/heading-rules' },
   { group: '历史', label: '审计日志', path: '/admin/audit-logs' },
