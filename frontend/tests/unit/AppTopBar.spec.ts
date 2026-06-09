@@ -14,8 +14,7 @@ function makeRouter() {
     routes: [
       { path: '/procedures/folders', component: { template: '<div/>' } },
       { path: '/admin/config/organization', component: { template: '<div/>' } },
-      { path: '/admin/fields', component: { template: '<div/>' } },
-      { path: '/admin/heading-rules', component: { template: '<div/>' } },
+      { path: '/admin/config/sop', component: { template: '<div/>' } },
       { path: '/admin/audit-logs', component: { template: '<div/>' } },
       { path: '/', component: { template: '<div/>' } },
     ],
@@ -80,8 +79,8 @@ describe('AppTopBar', () => {
     expect(commands).toHaveLength(5)
     expect(commands[0]).toEqual({ group: '配置', label: '文件夹配置', path: '/procedures/folders' })
     expect(commands[1]).toEqual({ group: '配置', label: '组织设置', path: '/admin/config/organization' })
-    expect(commands[2]).toEqual({ group: '配置', label: '字段管理', path: '/admin/fields' })
-    expect(commands[3]).toEqual({ group: '配置', label: '标题字典', path: '/admin/heading-rules' })
+    expect(commands[2]).toEqual({ group: '配置', label: '字段管理', path: '/admin/config/sop?tab=fields' })
+    expect(commands[3]).toEqual({ group: '配置', label: '标题字典', path: '/admin/config/sop?tab=heading-rules' })
     expect(commands[4]).toEqual({ group: '历史', label: '审计日志', path: '/admin/audit-logs' })
   })
 

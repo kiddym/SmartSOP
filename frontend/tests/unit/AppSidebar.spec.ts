@@ -20,6 +20,7 @@ function makeRouter(initialPath: string): Router {
       { path: '/procedures/:id/edit', component: { template: '<div/>' } },
       { path: '/admin/audit-logs', component: { template: '<div/>' } },
       { path: '/admin/settings', component: { template: '<div/>' } },
+      { path: '/admin/config', component: { template: '<div/>' } },
       { path: '/admin/fields', component: { template: '<div/>' } },
       { path: '/admin/heading-rules', component: { template: '<div/>' } },
       { path: '/admin/users', component: { template: '<div/>' } },
@@ -118,40 +119,32 @@ describe('AppSidebar', () => {
     expect(inventory.entries.some((e) => e.label === '供应商')).toBe(false)
   })
 
-  it('管理组：super_admin 见货币，非 super_admin 不见', async () => {
+  it('管理组:货币已移入配置中心,任何角色侧栏均不含货币入口', async () => {
     setUser('super_admin')
     const w1 = await mountSidebar('/admin/users')
-    expect(w1.text()).toContain('货币')
+    expect(w1.text()).not.toContain('货币')
     setActivePinia(createPinia())
     setUser('manager')
     const w2 = await mountSidebar('/admin/users')
     expect(w2.text()).not.toContain('货币')
   })
 
-  it('管理组：6 个折叠子分组', async () => {
+  it('管理组:人员与权限子分组 + 配置中心单入口', async () => {
     setUser('super_admin')
     const w = await mountSidebar('/admin/users')
     const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
     const admin = groups.find((g) => g.label === '管理')!
-    expect(admin.entries.map((e) => e.label)).toEqual([
-      '人员与权限',
-      '组织配置',
-      'SOP 配置',
-      '表单与字段',
-      '自动化与数据',
-      '审计',
-    ])
-    expect(admin.entries.every((e) => Array.isArray(e.items))).toBe(true)
-    expect(w.findAll('.el-sub-menu').length).toBe(6)
+    expect(admin.entries.map((e) => e.label)).toEqual(['人员与权限', '配置中心'])
+    expect(w.findAll('.el-sub-menu').length).toBe(1)
+    // 配置中心 是叶子,指向 Hub
+    const hub = admin.entries.find((e) => e.label === '配置中心')!
+    expect(hub.path).toBe('/admin/config')
   })
 
-  it('组织配置子组：公司设置/系统设置 已合并为「组织设置」单叶子', async () => {
+  it('管理组:货币已移入配置中心,侧栏不再直挂', async () => {
     setUser('super_admin')
     const w = await mountSidebar('/admin/users')
-    const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
-    const admin = groups.find((g) => g.label === '管理')!
-    const org = admin.entries.find((e) => e.label === '组织配置')!
-    expect(org.items!.map((i) => i.label)).toEqual(['组织设置', '货币'])
+    expect(w.text()).not.toContain('货币')
   })
 
   it('collapsed=true：group-label 不渲染', async () => {
@@ -165,6 +158,7 @@ describe('AppSidebar', () => {
     ['/assets/locations', '/assets/locations'],
     ['/admin/users', '/admin/users'],
     ['/admin/settings', '/admin/settings'],
+    ['/admin/config', '/admin/config'],
     ['/admin/config/organization', '/admin/config/organization'],
     ['/admin/fields', '/admin/fields'],
     ['/admin/audit-logs', '/admin/audit-logs'],

@@ -8,7 +8,6 @@ import {
   Document,
   EditPen,
   Folder,
-  List,
   // 维护
   Tickets,
   ChatDotRound,
@@ -28,16 +27,8 @@ import {
   User,
   UserFilled,
   Connection,
-  // 管理：组织配置
-  OfficeBuilding,
-  Coin,
-  // 管理：SOP 配置 / 表单与字段 / 自动化与数据
-  Grid,
-  Memo,
-  Collection,
-  Upload,
-  Operation,
-  Files,
+  // 管理：配置中心
+  Setting,
 } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/store/auth'
 import { useBillingStore } from '@/store/billing'
@@ -99,18 +90,6 @@ function menuIndex(it: NavItem): string {
   if (isLocked(it)) return PLANS_PATH
   return it.path ?? `soon:${it.label}`
 }
-
-// 货币管理仅 super_admin 可见；其余组织配置项不受限。
-const orgConfigItems = computed<NavItem[]>(() => {
-  // 公司资料 + 全局参数已合并为「组织设置」聚合页(/admin/config/organization,两 tab)。
-  const items: NavItem[] = [
-    { label: '组织设置', path: '/admin/config/organization', icon: OfficeBuilding },
-  ]
-  if (auth.user?.role_code === 'super_admin') {
-    items.push({ label: '货币', path: '/admin/currencies', icon: Coin })
-  }
-  return items
-})
 
 // 「分析仪表盘」按 analytics.view 门控：有权限才显示并可点；无权限则整组隐藏。
 const analyticsItems = computed<NavItem[]>(() => {
@@ -226,44 +205,7 @@ const rawGroups = computed<NavGroup[]>(() => [
           { label: '团队', path: '/admin/teams', icon: Connection },
         ],
       },
-      { label: '组织配置', icon: OfficeBuilding, items: orgConfigItems.value },
-      {
-        label: 'SOP 配置',
-        icon: Document,
-        items: [
-          // 「程序字段」即旧「字段管理」(底层 ProcedureField,本就是 SOP 程序字段),正名归入 SOP。
-          { label: '程序字段', path: '/admin/fields', icon: Grid },
-          { label: '标题字典', path: '/admin/heading-rules', icon: Collection },
-        ],
-      },
-      {
-        label: '表单与字段',
-        icon: Memo,
-        items: [
-          { label: '工单表单字段', path: '/admin/work-order-fields', icon: Tickets },
-          { label: '请求表单字段', path: '/admin/request-fields', icon: ChatDotRound },
-          { label: '自定义字段', path: '/admin/custom-fields', icon: Memo },
-        ],
-      },
-      {
-        label: '自动化与数据',
-        icon: Operation,
-        items: [
-          {
-            label: '工作流',
-            path: '/admin/workflows',
-            requiredPermission: 'workflow.view',
-            icon: Operation,
-          },
-          { label: '数据导入', path: '/admin/imports', icon: Upload },
-          { label: '文件库', path: '/admin/files', icon: Files },
-        ],
-      },
-      {
-        label: '审计',
-        icon: List,
-        items: [{ label: '审计日志', path: '/admin/audit-logs', icon: List }],
-      },
+      { label: '配置中心', path: '/admin/config', icon: Setting },
     ],
   },
 ])
