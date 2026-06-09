@@ -1,14 +1,6 @@
 <script setup lang="ts">
-import { ref, reactive, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import {
-  listCostCategories,
-  createCostCategory,
-  updateCostCategory,
-  deleteCostCategory,
-} from '@/api/costCategories'
-import type { CostCategoryRead } from '@/types/workOrder'
-import { useAuthStore } from '@/store/auth'
+import { ref } from 'vue'
+import CostCategoryManagePanel from './CostCategoryManagePanel.vue'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{
@@ -16,172 +8,38 @@ const emit = defineEmits<{
   (e: 'changed'): void
 }>()
 
-const auth = useAuthStore()
+const panelRef = ref<InstanceType<typeof CostCategoryManagePanel> | null>(null)
 
-const loading = ref(false)
-const categories = ref<CostCategoryRead[]>([])
-
-async function fetchCategories() {
-  loading.value = true
-  try {
-    categories.value = await listCostCategories()
-  } finally {
-    loading.value = false
-  }
+function close() {
+  emit('update:visible', false)
 }
 
-watch(
-  () => props.visible,
-  (v) => {
-    if (v) fetchCategories()
+defineExpose({
+  openCreate: (...a: unknown[]) => panelRef.value?.openCreate(...a as []),
+  openEdit: (...a: unknown[]) => panelRef.value?.openEdit(...a as [Parameters<InstanceType<typeof CostCategoryManagePanel>['openEdit']>[0]]),
+  submitForm: () => panelRef.value?.submitForm(),
+  handleDelete: (...a: unknown[]) => panelRef.value?.handleDelete(...a as [Parameters<InstanceType<typeof CostCategoryManagePanel>['handleDelete']>[0]]),
+  get form() {
+    return panelRef.value?.form
   },
-  { immediate: true },
-)
-
-type FormMode = 'create' | 'edit'
-
-const formVisible = ref(false)
-const formMode = ref<FormMode>('create')
-const editingId = ref<string | null>(null)
-const submitting = ref(false)
-const form = reactive<{ name: string; description: string }>({
-  name: '',
-  description: '',
 })
-
-function resetForm() {
-  form.name = ''
-  form.description = ''
-}
-
-function openCreate() {
-  formMode.value = 'create'
-  editingId.value = null
-  resetForm()
-  formVisible.value = true
-}
-
-function openEdit(row: CostCategoryRead) {
-  formMode.value = 'edit'
-  editingId.value = row.id
-  resetForm()
-  form.name = row.name
-  form.description = row.description
-  formVisible.value = true
-}
-
-async function submitForm() {
-  if (!form.name.trim()) {
-    ElMessage.warning('请填写分类名称')
-    return
-  }
-  submitting.value = true
-  try {
-    const payload = {
-      name: form.name.trim(),
-      description: form.description,
-    }
-    if (formMode.value === 'create') {
-      await createCostCategory(payload)
-    } else {
-      if (!editingId.value) return
-      await updateCostCategory(editingId.value, payload)
-    }
-    ElMessage.success('保存成功')
-    formVisible.value = false
-    await fetchCategories()
-    emit('changed')
-  } catch {
-    ElMessage.error('保存失败，请重试')
-  } finally {
-    submitting.value = false
-  }
-}
-
-async function handleDelete(row: CostCategoryRead) {
-  try {
-    await ElMessageBox.confirm(`确认删除成本分类「${row.name}」？`, '提示', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消',
-    })
-    await deleteCostCategory(row.id)
-    ElMessage.success('已删除')
-    await fetchCategories()
-    emit('changed')
-  } catch {
-    // cancelled or error handled by interceptor
-  }
-}
-
-defineExpose({ openCreate, openEdit, submitForm, handleDelete, form })
 </script>
 
 <template>
   <el-dialog
-    :model-value="visible"
+    :model-value="props.visible"
     title="管理成本分类"
     width="560px"
     :close-on-click-modal="false"
-    @update:model-value="(v: boolean) => emit('update:visible', v)"
+    @update:model-value="close"
   >
-    <div class="toolbar">
-      <el-button
-        v-if="auth.hasPermission('cost_category.manage')"
-        type="primary"
-        @click="openCreate"
-      >
-        新增分类
-      </el-button>
-    </div>
-
-    <el-table v-loading="loading" :data="categories" border style="width: 100%; margin-top: 12px">
-      <el-table-column prop="name" label="名称" min-width="160" />
-      <el-table-column prop="description" label="描述" min-width="200" />
-      <el-table-column
-        v-if="auth.hasPermission('cost_category.manage')"
-        label="操作"
-        width="160"
-        align="center"
-      >
-        <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-
+    <CostCategoryManagePanel
+      v-if="props.visible"
+      ref="panelRef"
+      @changed="emit('changed')"
+    />
     <template #footer>
-      <el-button @click="emit('update:visible', false)">关闭</el-button>
-    </template>
-  </el-dialog>
-
-  <el-dialog
-    v-model="formVisible"
-    :title="formMode === 'create' ? '新增成本分类' : '编辑成本分类'"
-    width="460px"
-    append-to-body
-    :close-on-click-modal="false"
-  >
-    <el-form label-width="80px" @submit.prevent="submitForm">
-      <el-form-item label="名称" required>
-        <el-input v-model="form.name" placeholder="请输入分类名称" />
-      </el-form-item>
-      <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
-      </el-form-item>
-    </el-form>
-
-    <template #footer>
-      <el-button @click="formVisible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submitForm">保存</el-button>
+      <el-button @click="close">关闭</el-button>
     </template>
   </el-dialog>
 </template>
-
-<style scoped>
-.toolbar {
-  display: flex;
-  gap: 8px;
-}
-</style>
