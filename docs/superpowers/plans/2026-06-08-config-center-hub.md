@@ -12,6 +12,27 @@
 
 ---
 
+## 执行前对账(2026-06-09,侧栏 IA 整改合入 main 之后)
+
+本计划写于侧栏 IA 整改之前。该整改已合入 `main`(组织设置聚合页 + 客户/供应商「往来单位」组),导致以下 task 需按此对账执行,**对账项优先于下方原文**:
+
+- **Task 1 已完成**(commit `ca4e38a`,`CustomFieldsView` 已带 `lockedEntity`/`embedded`)→ **整体跳过**。`CustomFieldEntity` 取值:`'work_order' | 'asset' | 'request' | 'location' | 'part'`;`listCustomFields(entity, includeArchived)`。
+- **Task 9(Hub)**:阶段 ① 入口指向 `/admin/config/organization?tab=company`(不是 `/admin/company`),阶段 ③ 指向 `/admin/config/organization?tab=global`(不是 `/admin/settings`)。其余阶段与测试不变。
+- **Task 10(路由)**:
+  - `frontend/tests/unit/configRoutes.spec.ts` **已存在**(含组织设置路由用例)→ **追加** config-center 用例,勿覆盖;原 4 个用例须保持绿。
+  - `/admin/config/organization` **已是命名路由**,勿重复新增;本 task 只新增 `/admin/config`(Hub)+ `/admin/config/sop|work-order|request|custom-fields` 四个聚合页路由。
+  - 待转 redirect 的 5 条旧路由当前仍是组件路由,其 name 分别为 `field-manage`/`heading-rules`/`work-order-fields`/`request-fields`/`custom-fields`;已 grep 确认这些 name 无外部 `{name:}` 引用,转 redirect 安全。
+- **Task 11(侧栏)**:当前「管理」组实为 **6 个子分组**(人员与权限/组织配置/SOP 配置/表单与字段/自动化与数据/审计),非计划假设的「四拆」起点。
+  - 终态仍按计划:「管理」= `人员与权限`(子分组:用户/角色/团队)+ `配置中心`(叶子 → `/admin/config`)。需移除 组织配置/SOP 配置/表单与字段/自动化与数据/审计 五个子分组,并删除 `orgConfigItems` computed。
+  - **`Setting` 图标在 IA 整改时已从 import 移除**,本 task 需重新 import(配置中心叶子用)。其余仅被被删子分组使用的图标(`OfficeBuilding`/`Coin`/`Grid`/`Memo`/`Collection`/`Upload`/`Operation`/`Files`/`List`)按 lint 提示清除。
+  - `往来单位` 顶级组及其测试 **不动**。
+  - 需更新会因此破坏的 `AppSidebar.spec.ts` 用例:①「管理组:6 个折叠子分组」→ 改为断言 `['人员与权限','配置中心']` 且 `.el-sub-menu` 仅 1 个;②「组织配置子组…组织设置单叶子」→ 删除(子分组已不存在);③「管理组:super_admin 见货币」→ 货币移入 Hub,侧栏不再有货币,改为断言侧栏**不含**「货币」。
+  - **顺带**:`AppTopBar.vue` 命令面板 `MENU_COMMANDS` 中「字段管理」(`/admin/fields`)、「标题字典」(`/admin/heading-rules`)转 redirect 后仍可用但走二跳;为与 IA 整改一致(避免残留旧 IA 直链),改指 `/admin/config/sop?tab=fields` 与 `/admin/config/sop?tab=heading-rules`,并同步 `AppTopBar.spec.ts`。
+- **聚合页标题**:沿用计划原文(各聚合页保留 `<h2 class="page-title">`);与已合入的 `OrganizationConfigView`(无聚合标题)略有不一致,属可接受的次要差异,本轮不回改 Organization 页。
+- **Time/Cost 分类 Dialog 带 `defineExpose`**(`openCreate/openEdit/submitForm/handleDelete/form`)且有额外字段(`hourly_rate`):抽 Panel 时这些方法须随逻辑迁入 Panel,壳 Dialog 通过对 Panel 的 ref 再 `defineExpose` 转发,保证既有命令式调用不破。三个 Dialog 均 emit `changed`,Panel 需 re-emit、Dialog 转发。
+
+---
+
 ## 文件结构
 
 **新建:**
