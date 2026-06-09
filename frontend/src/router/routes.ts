@@ -115,10 +115,14 @@ export const routes: RouteRecordRaw[] = [
     meta: { title: '通知中心', requiresAuth: true },
   },
   {
+    path: '/admin/config/organization',
+    name: 'config-organization',
+    component: () => import('@/views/admin/config/OrganizationConfigView.vue'),
+    meta: { title: '组织设置', requiresAuth: true },
+  },
+  {
     path: '/admin/settings',
-    name: 'global-settings',
-    component: () => import('@/views/settings/SettingsView.vue'),
-    meta: { title: '系统设置', requiresAuth: true },
+    redirect: { path: '/admin/config/organization', query: { tab: 'global' } },
   },
   { path: '/settings', redirect: '/admin/settings' },
   {
@@ -194,9 +198,7 @@ export const routes: RouteRecordRaw[] = [
   { path: '/platform/teams', redirect: '/admin/teams' },
   {
     path: '/admin/company',
-    name: 'platform-settings',
-    component: () => import('@/views/platform/CompanySettingsView.vue'),
-    meta: { title: '公司设置', requiresAuth: true },
+    redirect: { path: '/admin/config/organization', query: { tab: 'company' } },
   },
   { path: '/platform/settings', redirect: '/admin/company' },
   {
@@ -265,13 +267,13 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/inventory/vendors',
-    name: 'inventory-vendors',
+    name: 'partners-vendors',
     component: () => import('@/views/inventory/VendorsView.vue'),
     meta: { title: '供应商', requiresAuth: true, requiredPermission: 'vendor.view' },
   },
   {
     path: '/maintenance/customers',
-    name: 'inventory-customers',
+    name: 'partners-customers',
     component: () => import('@/views/inventory/CustomersView.vue'),
     meta: { title: '客户', requiresAuth: true, requiredPermission: 'customer.view' },
   },
