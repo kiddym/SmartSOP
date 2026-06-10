@@ -72,11 +72,9 @@ export const routes: RouteRecordRaw[] = [
   },
   {
     path: '/procedures/folders',
-    name: 'folder-manage',
-    component: () => import('@/views/folders/FolderManageView.vue'),
-    meta: { title: '文件夹配置', requiresAuth: true },
+    redirect: { path: '/admin/config/sop', query: { tab: 'folders' } },
   },
-  { path: '/folders', redirect: '/procedures/folders' },
+  { path: '/folders', redirect: { path: '/admin/config/sop', query: { tab: 'folders' } } },
   {
     path: '/procedures/:id/edit',
     name: 'procedure-edit',

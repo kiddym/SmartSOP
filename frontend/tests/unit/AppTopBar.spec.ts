@@ -77,7 +77,7 @@ describe('AppTopBar', () => {
     const w = mountTopBar()
     const commands = (w.vm as unknown as { MENU_COMMANDS: ReadonlyArray<{ group: string; label: string; path: string }> }).MENU_COMMANDS
     expect(commands).toHaveLength(5)
-    expect(commands[0]).toEqual({ group: '配置', label: '文件夹配置', path: '/procedures/folders' })
+    expect(commands[0]).toEqual({ group: '配置', label: '文件夹配置', path: '/admin/config/sop?tab=folders' })
     expect(commands[1]).toEqual({ group: '配置', label: '组织设置', path: '/admin/config/organization' })
     expect(commands[2]).toEqual({ group: '配置', label: '字段管理', path: '/admin/config/sop?tab=fields' })
     expect(commands[3]).toEqual({ group: '配置', label: '标题字典', path: '/admin/config/sop?tab=heading-rules' })
@@ -92,7 +92,7 @@ describe('AppTopBar', () => {
       global: { plugins: [router, i18n], stubs: { NotificationBell: true } },
     })
     const onCommand = (w.vm as unknown as { onCommand: (p: string) => void }).onCommand
-    onCommand('/procedures/folders')
-    expect(push).toHaveBeenCalledWith('/procedures/folders')
+    onCommand('/admin/config/sop?tab=folders')
+    expect(push).toHaveBeenCalledWith('/admin/config/sop?tab=folders')
   })
 })

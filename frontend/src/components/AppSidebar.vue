@@ -7,7 +7,6 @@ import {
   // SOP
   Document,
   EditPen,
-  Folder,
   // 维护
   Tickets,
   ChatDotRound,
@@ -146,7 +145,6 @@ const rawGroups = computed<NavGroup[]>(() => [
     entries: [
       { label: '程序库', path: '/procedures/library', feature: 'sop', icon: Document },
       { label: '草稿箱', path: '/procedures/drafts', feature: 'sop', icon: EditPen },
-      { label: '文件夹', path: '/procedures/folders', feature: 'sop', icon: Folder },
     ],
   },
   {
@@ -226,7 +224,6 @@ const activeMenu = computed<string>(() => {
   if (p.startsWith('/maintenance/')) return p
   if (p.startsWith('/analytics')) return '/analytics'
   if (p.startsWith('/procedures/drafts')) return '/procedures/drafts'
-  if (p.startsWith('/procedures/folders')) return '/procedures/folders'
   if (p.startsWith('/procedures')) return '/procedures/library'
   return ''
 })
