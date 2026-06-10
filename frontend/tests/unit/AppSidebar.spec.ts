@@ -92,14 +92,14 @@ describe('AppSidebar', () => {
     ])
   })
 
-  it('SOP 组含 程序库/草稿箱/文件夹（不再含审计日志）', async () => {
+  it('SOP 组含 程序库/草稿箱（文件夹已移入配置中心,审计日志亦不在此）', async () => {
     const w = await mountSidebar('/procedures/library')
     expect(w.text()).toContain('程序库')
     expect(w.text()).toContain('草稿箱')
-    expect(w.text()).toContain('文件夹')
+    expect(w.text()).not.toContain('文件夹')
     const groups = (w.vm as unknown as { groups: ExposedGroup[] }).groups
     const sop = groups.find((g) => g.label === 'SOP')!
-    expect(sop.entries.map((e) => e.label)).toEqual(['程序库', '草稿箱', '文件夹'])
+    expect(sop.entries.map((e) => e.label)).toEqual(['程序库', '草稿箱'])
   })
 
   it('通知中心已从侧栏移除（顶栏铃铛为唯一入口）', async () => {
@@ -164,7 +164,6 @@ describe('AppSidebar', () => {
     ['/admin/audit-logs', '/admin/audit-logs'],
     ['/maintenance/customers', '/maintenance/customers'],
     ['/inventory/parts/kits', '/inventory/parts'],
-    ['/procedures/folders', '/procedures/folders'],
   ])('在 %s 时 activeMenu 为 %s', async (path, active) => {
     setUser('super_admin')
     const w = await mountSidebar(path)
