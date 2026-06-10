@@ -11,6 +11,7 @@ import CustomFieldsConfigView from '@/views/admin/config/CustomFieldsConfigView.
 const stubs = {
   FieldManageView: { template: '<div class="s-field-manage" />' },
   HeadingRulesView: { template: '<div class="s-heading-rules" />' },
+  FolderManageView: { template: '<div class="s-folder-manage" />' },
   WorkOrderFieldsView: { template: '<div class="s-wo-fields" />' },
   RequestFieldsView: { template: '<div class="s-req-fields" />' },
   CustomFieldsView: { template: '<div class="s-custom-fields" />' },
@@ -28,14 +29,18 @@ function mountWith(comp: unknown, query: Record<string, string> = {}) {
 }
 
 describe('SopConfigView', () => {
-  it('渲染程序字段与标题字典两个 tab', async () => {
+  it('渲染程序字段/标题字典/文件夹三个 tab', async () => {
     const w = await mountWith(SopConfigView)
     const labels = w.findAll('.el-tabs__item').map((n) => n.text())
-    expect(labels).toEqual(expect.arrayContaining(['程序字段', '标题字典']))
+    expect(labels).toEqual(expect.arrayContaining(['程序字段', '标题字典', '文件夹']))
   })
   it('按 query.tab=heading-rules 选中标题字典', async () => {
     const w = await mountWith(SopConfigView, { tab: 'heading-rules' })
     expect(w.find('.el-tabs__item.is-active').text()).toBe('标题字典')
+  })
+  it('按 query.tab=folders 选中文件夹', async () => {
+    const w = await mountWith(SopConfigView, { tab: 'folders' })
+    expect(w.find('.el-tabs__item.is-active').text()).toBe('文件夹')
   })
 })
 
