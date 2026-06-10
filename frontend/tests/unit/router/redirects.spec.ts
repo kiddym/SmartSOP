@@ -8,7 +8,8 @@ function makeRouter() {
 }
 
 const REDIRECTS: Array<[string, string]> = [
-  ['/folders', '/procedures/folders'],
+  ['/folders', '/admin/config/sop'],
+  ['/procedures/folders', '/admin/config/sop'],
   ['/maindata/assets', '/assets'],
   ['/maindata/locations', '/assets/locations'],
   ['/inventory/multi-parts', '/inventory/parts/kits'],
@@ -36,8 +37,16 @@ describe('router 旧路径重定向', () => {
     expect(router.currentRoute.value.path).toBe(newPath)
   })
 
+  it('/procedures/folders 重定向携带 query.tab=folders', async () => {
+    const router = makeRouter()
+    await router.push('/procedures/folders')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/admin/config/sop')
+    expect(router.currentRoute.value.query.tab).toBe('folders')
+  })
+
   const NEW_PATHS = [
-    '/procedures/folders', '/assets', '/assets/locations',
+    '/assets', '/assets/locations',
     '/inventory/parts/kits', '/maintenance/customers',
     '/admin/users', '/admin/roles', '/admin/teams', '/admin/config/organization',
     '/admin/currencies', '/admin/audit-logs',
