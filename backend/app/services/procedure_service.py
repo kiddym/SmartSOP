@@ -145,6 +145,39 @@ def _out_model(db: Session, proc: Procedure) -> ProcedureOut:
     return ProcedureOut.model_validate(data)
 
 
+def _out_models(db: Session, rows: list[Procedure]) -> list[ProcedureOut]:
+    """批量构造 ProcedureOut：一次 IN() 取 folder 路径 + 一次 GROUP BY 取版本数，消除逐行 N+1。
+
+    语义与 _out_model 完全一致：folder 缺失→""，版本数仅计 is_active=true 同 group。
+    Folder/Procedure 均为 TenantScoped，IN()/GROUP BY 在同一请求上下文运行，受相同自动租户过滤。
+    """
+    if not rows:
+        return []
+    folder_ids = {p.folder_id for p in rows if p.folder_id is not None}
+    path_by_folder: dict[str, str] = {}
+    if folder_ids:
+        for fid, full_path in db.execute(
+            select(Folder.id, Folder.full_path).where(Folder.id.in_(folder_ids))
+        ).all():
+            path_by_folder[fid] = full_path
+    group_ids = {p.procedure_group_id for p in rows}
+    count_by_group: dict[str, int] = {
+        gid: int(n)
+        for gid, n in db.execute(
+            select(Procedure.procedure_group_id, func.count())
+            .where(Procedure.procedure_group_id.in_(group_ids), Procedure.is_active.is_(True))
+            .group_by(Procedure.procedure_group_id)
+        ).all()
+    }
+    out: list[ProcedureOut] = []
+    for proc in rows:
+        data: dict[str, Any] = {f: getattr(proc, f) for f in _OUT_FIELDS}
+        data["folder_full_path"] = path_by_folder.get(proc.folder_id, "")
+        data["version_count_in_group"] = count_by_group.get(proc.procedure_group_id, 0)
+        out.append(ProcedureOut.model_validate(data))
+    return out
+
+
 def _meta_model(db: Session, proc: Procedure) -> ProcedureMeta:
     data: dict[str, Any] = {f: getattr(proc, f) for f in _META_FIELDS}
     data["folder_full_path"] = _folder_full_path(db, proc.folder_id)
@@ -573,7 +606,7 @@ def list_procedures(
         stmt = stmt.where(Procedure.status == status)
 
     rows, total = _paginate(db, _apply_sort(stmt, sort), page, page_size)
-    return [_out_model(db, p) for p in rows], total
+    return _out_models(db, rows), total
 
 
 def list_library(
@@ -599,7 +632,7 @@ def list_library(
         stmt = stmt.where(Procedure.folder_id == folder_id)
 
     rows, total = _paginate(db, _apply_sort(stmt, sort), page, page_size)
-    return [_out_model(db, p) for p in rows], total
+    return _out_models(db, rows), total
 
 
 def get_detail(db: Session, proc_id: str) -> ProcedureDetail:
