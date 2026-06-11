@@ -44,3 +44,15 @@ def test_create_user_enforces_seat_limit(client):
     )
     assert r.status_code == 402
     assert r.json()["detail"]["code"] == "SEAT_LIMIT_REACHED"
+
+
+def test_create_user_accepts_own_company_role(client):
+    ta = _register(client, "Acme", "a@acme.com")
+    own_role = client.get("/api/v1/roles", headers=_h(ta)).json()[0]["id"]
+    r = client.post(
+        "/api/v1/users",
+        headers=_h(ta),
+        json={"email": "member@acme.com", "password": "secret123", "name": "Member", "role_id": own_role},
+    )
+    assert r.status_code == 201, r.text
+    assert r.json()["role_id"] == own_role
