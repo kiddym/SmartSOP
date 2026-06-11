@@ -1,9 +1,14 @@
 import pytest
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from app import deps, security, tenant
 from app.schemas.auth import RegisterRequest
 from app.services import auth_service
+
+
+def _request(method: str = "POST") -> Request:
+    """构造一个最小 ASGI Request，供直接调用 get_current_user 的单元测试使用。"""
+    return Request({"type": "http", "method": method, "headers": []})
 
 
 def _register(db):
@@ -18,7 +23,7 @@ def test_get_current_user_sets_context(db):
         user_id=user.id, company_id=user.company_id, role_code="super_admin"
     )
     try:
-        loaded = deps.get_current_user(token=token, db=db)
+        loaded = deps.get_current_user(_request(), token=token, db=db)
         assert loaded.id == user.id
         assert tenant.get_current_company_id() == user.company_id
     finally:
@@ -27,7 +32,7 @@ def test_get_current_user_sets_context(db):
 
 def test_get_current_user_bad_token_401(db):
     with pytest.raises(HTTPException) as exc:
-        deps.get_current_user(token="garbage", db=db)
+        deps.get_current_user(_request(), token="garbage", db=db)
     assert exc.value.status_code == 401
 
 

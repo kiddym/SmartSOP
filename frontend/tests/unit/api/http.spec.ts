@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { isVersionConflict, errorMessage } from '@/api/http'
+import { http, isVersionConflict, errorMessage } from '@/api/http'
+
+describe('http client', () => {
+  it('sends cookies so <img> asset requests authenticate', () => {
+    expect(http.defaults.withCredentials).toBe(true)
+  })
+})
 
 describe('isVersionConflict', () => {
   it('true on HTTP 409', () => {

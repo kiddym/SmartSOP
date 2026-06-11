@@ -17,6 +17,9 @@ export interface ApiErrorDetail {
 
 export const http: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+  // 携带 cookie：浏览器加载 <img src> 等资源请求无法带 Authorization 头，
+  // 依赖后端 GET 的 access_token cookie 兜底鉴权（审计 #6）。
+  withCredentials: true,
   timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
