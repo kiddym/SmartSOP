@@ -36,3 +36,12 @@ def test_mutation_rejects_cookie_only(client):
         json={"old_password": "secret123", "new_password": "newsecret123"},
     )
     assert r.status_code == 401  # 写操作不认 cookie，防 CSRF
+
+
+def test_feature_gated_get_accepts_cookie_only(client):
+    """audit #6 真实链路：经 require_feature 包装的 GET（procedures 路由）也接受 cookie 兜底。"""
+    tok = _register(client)
+    client.cookies.clear()
+    client.cookies.set("access_token", tok)
+    r = client.get("/api/v1/procedures", params={"page": 1, "page_size": 1})  # 无 Authorization 头
+    assert r.status_code == 200
