@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getSettings, updateSettings } from '@/api/settings'
+import { isVersionConflict } from '@/api/http'
 import type { SettingsOut, SettingsUpdate } from '@/types/settings'
 
 const settings = ref<SettingsOut | null>(null)
@@ -49,8 +50,7 @@ async function handleSave() {
     }
     ElMessage.success('保存成功')
   } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 409) {
+    if (isVersionConflict(err)) {
       ElMessage.error('设置已被他人修改，请刷新后重试')
       await loadSettings() // refresh to get latest revision
     } else {
