@@ -116,6 +116,9 @@ _PATCHABLE = frozenset(
     {"heading_level", "kind", "body", "input_schema", "attachment_marks", "skip_numbering"}
 )
 
+# 影响编号的字段：仅当本次变更触及这些字段时才重算 code（正文/schema/marks 不影响编号）。
+_NUMBERING_FIELDS = frozenset({"heading_level", "kind", "skip_numbering"})
+
 
 def patch_node(
     db: Session, node_id: str, changes: dict[str, Any], *, expected_revision: int
@@ -143,7 +146,8 @@ def patch_node(
         setattr(node, k, v)
     optimistic_lock.bump(node)
     db.flush()
-    node_numbering.recompute(db, node.procedure_id)
+    if changes.keys() & _NUMBERING_FIELDS:
+        node_numbering.recompute(db, node.procedure_id)
     _learn_from_edit(db, node, old_level, old_mark)  # M3 隐式学习信号
     return node
 
