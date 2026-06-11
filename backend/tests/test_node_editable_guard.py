@@ -48,3 +48,32 @@ def test_patch_node_on_draft_ok(db):
     _proc, node = _proc_with_node(db, status="DRAFT")
     out = node_service.patch_node(db, node.id, {"body": "ok"}, expected_revision=node.revision)
     assert out.body == "ok"
+
+
+def test_create_node_on_published_rejected(db):
+    proc, _node = _proc_with_node(db, status="PUBLISHED")
+    with pytest.raises(HTTPException) as ei:
+        node_service.create_node(db, proc.id, {"body": "x", "heading_level": 1, "kind": "node"})
+    assert ei.value.status_code == 400
+    assert ei.value.detail["code"] == "PROCEDURE_READONLY"
+
+
+def test_delete_node_on_published_rejected(db):
+    _proc, node = _proc_with_node(db, status="PUBLISHED")
+    with pytest.raises(HTTPException) as ei:
+        node_service.delete_node(db, node.id)
+    assert ei.value.status_code == 400
+
+
+def test_batch_update_on_published_rejected(db):
+    _proc, node = _proc_with_node(db, status="PUBLISHED")
+    with pytest.raises(HTTPException) as ei:
+        node_service.batch_update(db, node.procedure_id, {node.id: {"heading_level": 2}})
+    assert ei.value.status_code == 400
+
+
+def test_reorder_on_published_rejected(db):
+    _proc, node = _proc_with_node(db, status="PUBLISHED")
+    with pytest.raises(HTTPException) as ei:
+        node_service.reorder(db, node.procedure_id, [node.id])
+    assert ei.value.status_code == 400

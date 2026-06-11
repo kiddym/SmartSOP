@@ -161,6 +161,12 @@ def get_or_404(db: Session, proc_id: str) -> Procedure:
     return _get(db, proc_id)
 
 
+def assert_node_host_editable(db: Session, procedure_id: str) -> None:
+    """节点宿主可编辑守卫：查程序（不存在→404）+ 断言为当前版本草稿。供 node_service 复用，
+    使"可编辑"判定的唯一权威集中于本模块。"""
+    _assert_editable(get_or_404(db, procedure_id))
+
+
 def resolve_leaf_folder(db: Session, folder_id: str) -> Folder:
     """公开校验叶子文件夹。供 version_flow_service 复用。"""
     return _resolve_leaf_folder(db, folder_id)

@@ -14,7 +14,6 @@ from sqlalchemy.orm import Session
 from app.errors import bad_request, not_found, payload_too_large
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
-from app.models.procedure import Procedure
 from app.services import heading_learning_service, node_numbering, optimistic_lock
 from app.services._invariants import enforce_node_invariants
 from app.services.node_tree import TreeNode, build_tree
@@ -63,15 +62,11 @@ def _get_node(db: Session, node_id: str) -> ProcedureNode:
 
 
 def _assert_procedure_editable(db: Session, procedure_id: str) -> None:
-    """节点写入前置守卫：宿主须为当前版本草稿（与 procedure_service._assert_editable 同口径）。
-    查询走租户作用域，跨租户程序自然 404，顺带为节点写入补齐租户隔离。"""
-    proc = db.execute(
-        select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
-    ).scalar_one_or_none()
-    if proc is None:
-        raise not_found("NOT_FOUND", "程序不存在")
-    if not (proc.is_current and proc.status == "DRAFT"):
-        raise bad_request("PROCEDURE_READONLY", "仅当前版本的草稿可编辑")
+    """节点写入前置守卫：委托 procedure_service 校验宿主为当前草稿（单一权威，避免判定分叉）。
+    该查询同样受租户作用域，跨租户程序 404，故也把节点写入的宿主检查限定在本租户。"""
+    from app.services import procedure_service  # 局部导入避免循环
+
+    procedure_service.assert_node_host_editable(db, procedure_id)
 
 
 def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
