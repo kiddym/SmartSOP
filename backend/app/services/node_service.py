@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.errors import bad_request, not_found, payload_too_large
 from app.models.base import utcnow
 from app.models.node import ProcedureNode
+from app.models.procedure import Procedure
 from app.services import heading_learning_service, node_numbering, optimistic_lock
 from app.services._invariants import enforce_node_invariants
 from app.services.node_tree import TreeNode, build_tree
@@ -59,6 +60,18 @@ def _get_node(db: Session, node_id: str) -> ProcedureNode:
     if node is None:
         raise not_found("NOT_FOUND", "节点不存在")
     return node
+
+
+def _assert_procedure_editable(db: Session, procedure_id: str) -> None:
+    """节点写入前置守卫：宿主须为当前版本草稿（与 procedure_service._assert_editable 同口径）。
+    查询走租户作用域，跨租户程序自然 404，顺带为节点写入补齐租户隔离。"""
+    proc = db.execute(
+        select(Procedure).where(Procedure.id == procedure_id, Procedure.is_active.is_(True))
+    ).scalar_one_or_none()
+    if proc is None:
+        raise not_found("NOT_FOUND", "程序不存在")
+    if not (proc.is_current and proc.status == "DRAFT"):
+        raise bad_request("PROCEDURE_READONLY", "仅当前版本的草稿可编辑")
 
 
 def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
@@ -114,6 +127,7 @@ def patch_node(
 ) -> ProcedureNode:
     """单字段更新(spec §3.1)。changes 只允许 _PATCHABLE 的键。"""
     node = _get_node(db, node_id)
+    _assert_procedure_editable(db, node.procedure_id)
     optimistic_lock.verify_revision(node.revision, expected_revision)
 
     unknown = set(changes) - _PATCHABLE
@@ -142,6 +156,7 @@ def patch_node(
 def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> ProcedureNode:
     """新建节点,默认追加到末尾(sort_order = 当前 max + _SORT_GAP)。
     data 可含 sort_order 显式指定位置。"""
+    _assert_procedure_editable(db, procedure_id)
     kind = data.get("kind", "node")
     heading_level = data.get("heading_level")
     input_schema = data.get("input_schema", {})
@@ -175,6 +190,7 @@ def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> Procedu
 def delete_node(db: Session, node_id: str) -> None:
     """软删单节点。子节点不随删(派生关系,删后自动重派生)。"""
     node = _get_node(db, node_id)
+    _assert_procedure_editable(db, node.procedure_id)
     node.is_active = False
     node.deleted_at = utcnow()
     db.flush()
@@ -187,6 +203,7 @@ def batch_update(
     """批量改 heading_level/kind 等(多选浮动条 / 取代旧 apply_marks)。
     改动后若节点 mark_status=='review' 则清回 'unmarked'(确认动作,spec §6.4)。
     单事务,任一不变量违反则整体抛错(router 不 commit → 回滚)。"""
+    _assert_procedure_editable(db, procedure_id)
     changed: list[ProcedureNode] = []
     observed: list[tuple[ProcedureNode, int | None, str]] = []  # (node, old_level, old_mark) M3
     for node_id, changes in updates.items():
@@ -220,6 +237,7 @@ def batch_update(
 def reorder(db: Session, procedure_id: str, ordered_ids: list[str]) -> None:
     """按 ordered_ids 给本程序所有 active 节点重写 sort_order(gap 序)。
     ordered_ids 必须恰好是本程序当前所有 active 节点 id 的一个排列。"""
+    _assert_procedure_editable(db, procedure_id)
     rows = _active_nodes(db, procedure_id)
     existing = {r.id for r in rows}
     if set(ordered_ids) != existing or len(ordered_ids) != len(existing):
