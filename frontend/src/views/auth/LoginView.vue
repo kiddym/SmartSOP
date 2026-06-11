@@ -50,7 +50,7 @@ async function submit(): Promise<void> {
         <el-input v-model="password" data-test="password" type="password" show-password autocomplete="current-password" @keyup.enter="submit" />
       </el-form-item>
       <el-form-item :label="t('auth.companySlugOptional')" prop="companySlug">
-        <el-input v-model="companySlug" data-test="company-slug" autocomplete="organization" />
+        <el-input v-model="companySlug" data-test="company-slug" autocomplete="organization" @keyup.enter="submit" />
       </el-form-item>
       <el-button type="primary" :loading="submitting" data-test="submit" style="width: 100%" @click="submit">
         {{ t('auth.login') }}
