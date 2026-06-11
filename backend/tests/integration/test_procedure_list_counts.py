@@ -1,8 +1,9 @@
 """程序列表批量构造的正确性回归（审计 #10：folder_full_path + version_count_in_group）。
 
-采用 `_sop_auth` fixture（enterprise 公司 + 已认证 client）并复用既有
+采用 `_sop_auth` fixture（enterprise 公司 + 已认证 client）并用本地定义的
 `_make_leaf`/`_make_procedure` 助手造一行真实数据，使 path/count 断言真正执行——
-而非空 items 的 no-op。批量构造 `_out_models` 必须与逐行 `_out_model` 字节一致。
+而非空 items 的 no-op。验证已填充的行经批量路径（`_out_models`）返回正确的
+folder_full_path 与 version_count_in_group。
 """
 from __future__ import annotations
 
