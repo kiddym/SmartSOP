@@ -96,8 +96,8 @@ def resolve_and_authorize(
     spec = get_spec(entity_type)
     host = _lookup_host(db, spec, entity_id)
     # 跨租户归属校验：宿主走 bypass 查回（scoped=False），故此处显式比对 company_id，
-    # 防止认证用户凭 id 访问他公司宿主下的附件（审计 #2）。宿主 company_id 为 NULL
-    # 的 phase-0 无主程序不参与比对（保持既有容忍）。
+    # 防止认证用户凭 id 访问他公司宿主下的附件（审计 #2）。
+    # 防御性：宿主无 company_id 时跳过比对（正常 schema 下不会发生）。
     host_company_id = getattr(host, "company_id", None)
     if user is not None and host_company_id is not None and host_company_id != user.company_id:
         raise not_found("NOT_FOUND", "目标对象不存在")
