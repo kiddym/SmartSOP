@@ -50,7 +50,7 @@ async function handleSave() {
     ElMessage.success('保存成功')
   } catch (err: unknown) {
     const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 412) {
+    if (status === 409) {
       ElMessage.error('设置已被他人修改，请刷新后重试')
       await loadSettings() // refresh to get latest revision
     } else {
@@ -92,7 +92,7 @@ onMounted(loadSettings)
           <span class="readonly-value">{{ settings?.auto_archive_days ?? '-' }} 天</span>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="saving" :disabled="loading" @click="handleSave">保存</el-button>
+          <el-button type="primary" :loading="saving" :disabled="loading" data-test="save" @click="handleSave">保存</el-button>
         </el-form-item>
       </el-form>
     </el-card>
