@@ -47,3 +47,7 @@ export const requestVerification = async (): Promise<void> => {
 export const verifyEmail = async (token: string): Promise<void> => {
   await http.post('/auth/verify-email', { token }, { skipErrorToast: true })
 }
+
+export const logout = async (): Promise<void> => {
+  await http.post('/auth/logout', {}, { skipErrorToast: true })
+}

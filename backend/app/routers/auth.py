@@ -105,6 +105,13 @@ def refresh(payload: RefreshRequest, response: Response, db: Session = Depends(g
     return _issue(db, user, response)
 
 
+@router.post("/logout", status_code=200)
+def logout(response: Response) -> dict[str, str]:
+    """清除 access_token cookie（无需认证：登出即清自身浏览器 cookie，消除残留会话 GET 重放）。"""
+    response.delete_cookie("access_token", path="/api/v1")
+    return {"status": "ok"}
+
+
 @router.post("/forgot-password", status_code=200)
 def forgot_password(
     payload: ForgotPasswordRequest, db: Session = Depends(get_db)
