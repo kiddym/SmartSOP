@@ -111,9 +111,13 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _require_secret_in_production(self) -> "Settings":
-        if self.is_production and self.secret_key == "dev-insecure-change-me":
+        if not self.is_production:
+            return self
+        secret = self.secret_key.strip()
+        if secret == "dev-insecure-change-me" or len(secret) < 32:
             raise ValueError(
-                "SECRET_KEY 必须在生产环境（APP_ENV=production）显式配置为非默认值"
+                "生产环境（APP_ENV=production）必须配置强 SECRET_KEY："
+                "非默认值、非空白、且长度 ≥ 32 字符"
             )
         return self
 
