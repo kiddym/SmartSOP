@@ -151,13 +151,15 @@ def delete_attachment(
 
 
 # --------------------------------------------------------------------------- #
-# procedure 兼容别名（无认证，行为同既有；前端 SOP 零改）
+# procedure 兼容别名（认证 + 跨租户隔离，URL 不变）
 # --------------------------------------------------------------------------- #
 @router.get("/procedures/{procedure_id}/attachments", response_model=list[AttachmentOut])
 def list_procedure_attachments(
-    procedure_id: str, db: Session = Depends(get_db)
+    procedure_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
 ) -> list[AttachmentOut]:
-    rows = attachment_service.list_for(db, None, "procedure", procedure_id)
+    rows = attachment_service.list_for(db, user, "procedure", procedure_id)
     return [AttachmentOut.model_validate(r) for r in rows]
 
 
@@ -171,6 +173,7 @@ async def upload_procedure_attachments(
     files: list[UploadFile] = File(...),
     description: str = Form(default=""),
     db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
     meta: RequestMeta = Depends(get_request_meta),
 ) -> list[AttachmentOut]:
     created = []
@@ -178,7 +181,7 @@ async def upload_procedure_attachments(
         data = await f.read()
         att = attachment_service.upload_for(
             db,
-            None,
+            user,
             "procedure",
             procedure_id,
             data,

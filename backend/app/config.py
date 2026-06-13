@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -108,6 +108,18 @@ class Settings(BaseSettings):
     @property
     def is_production(self) -> bool:
         return self.app_env.lower() in {"production", "prod"}
+
+    @model_validator(mode="after")
+    def _require_secret_in_production(self) -> "Settings":
+        if not self.is_production:
+            return self
+        secret = self.secret_key.strip()
+        if secret == "dev-insecure-change-me" or len(secret) < 32:
+            raise ValueError(
+                "生产环境（APP_ENV=production）必须配置强 SECRET_KEY："
+                "非默认值、非空白、且长度 ≥ 32 字符"
+            )
+        return self
 
 
 @lru_cache(maxsize=1)

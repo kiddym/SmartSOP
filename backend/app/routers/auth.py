@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response
 from sqlalchemy.orm import Session
 
 from app import security, tenant
+from app.config import settings
 from app.deps import get_current_user, get_db, user_permission_codes
 from app.errors import conflict, unauthorized
 from app.models.role import Role
@@ -53,26 +54,42 @@ def _tokens(db: Session, user: User) -> TokenPair:
     )
 
 
+def _issue(db: Session, user: User, response: Response) -> TokenPair:
+    pair = _tokens(db, user)
+    response.set_cookie(
+        "access_token",
+        pair.access_token,
+        max_age=settings.access_token_expire_minutes * 60,
+        httponly=True,
+        samesite="lax",
+        secure=settings.is_production,
+        path="/api/v1",
+    )
+    return pair
+
+
 @router.post("/register", response_model=TokenPair, status_code=201)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> TokenPair:
+def register(
+    payload: RegisterRequest, response: Response, db: Session = Depends(get_db)
+) -> TokenPair:
     try:
         user = auth_service.register(db, payload)
     except auth_service.AuthError as exc:
         raise conflict("COMPANY_EXISTS", str(exc)) from exc
-    return _tokens(db, user)
+    return _issue(db, user, response)
 
 
 @router.post("/login", response_model=TokenPair)
-def login(payload: LoginRequest, db: Session = Depends(get_db)) -> TokenPair:
+def login(payload: LoginRequest, response: Response, db: Session = Depends(get_db)) -> TokenPair:
     try:
         user = auth_service.authenticate(db, payload)
     except auth_service.AuthError as exc:
         raise unauthorized("LOGIN_FAILED", str(exc)) from exc
-    return _tokens(db, user)
+    return _issue(db, user, response)
 
 
 @router.post("/refresh", response_model=TokenPair)
-def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair:
+def refresh(payload: RefreshRequest, response: Response, db: Session = Depends(get_db)) -> TokenPair:
     try:
         claims = security.decode_token(payload.refresh_token)
     except security.TokenError:
@@ -85,7 +102,14 @@ def refresh(payload: RefreshRequest, db: Session = Depends(get_db)) -> TokenPair
         raise unauthorized("USER_NOT_FOUND", "用户不存在")
     if user.status != UserStatus.active:
         raise unauthorized("ACCOUNT_DISABLED", "账号已禁用")
-    return _tokens(db, user)
+    return _issue(db, user, response)
+
+
+@router.post("/logout", status_code=200)
+def logout(response: Response) -> dict[str, str]:
+    """清除 access_token cookie（无需认证：登出即清自身浏览器 cookie，消除残留会话 GET 重放）。"""
+    response.delete_cookie("access_token", path="/api/v1")
+    return {"status": "ok"}
 
 
 @router.post("/forgot-password", status_code=200)
@@ -116,12 +140,14 @@ def change_password(
 
 
 @router.post("/accept-invite", response_model=TokenPair)
-def accept_invite(payload: AcceptInviteRequest, db: Session = Depends(get_db)) -> TokenPair:
+def accept_invite(
+    payload: AcceptInviteRequest, response: Response, db: Session = Depends(get_db)
+) -> TokenPair:
     user = invitation_service.accept(
         db, token=payload.token, name=payload.name, password=payload.password
     )
     db.commit()
-    return _tokens(db, user)
+    return _issue(db, user, response)
 
 
 @router.get("/switchable-accounts", response_model=list[SwitchableAccount])
@@ -135,13 +161,14 @@ def switchable_accounts(
 @router.post("/switch-account", response_model=TokenPair)
 def switch_account(
     payload: SwitchAccountRequest,
+    response: Response,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> TokenPair:
     """切换到目标公司的同 email 成员账户，签发指向该真实成员身份的 token。"""
     member = auth_service.switch_account(db, current_user, payload.company_id)
     tenant.set_current_company_id(member.company_id)
-    return _tokens(db, member)
+    return _issue(db, member, response)
 
 
 @router.post("/request-verification", status_code=200)

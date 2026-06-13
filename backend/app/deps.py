@@ -47,9 +47,14 @@ def get_request_meta(request: Request) -> RequestMeta:
 
 
 def get_current_user(
+    request: Request,
     token: str | None = Depends(oauth2_scheme),
     db: Session = Depends(get_db),
 ) -> User:
+    # 仅安全方法（GET/HEAD）允许用 access_token cookie 兜底，使浏览器 <img> 等
+    # 无法携带 Authorization 头的资源请求可认证；写操作只认头，避免 CSRF。
+    if not token and request.method in ("GET", "HEAD"):
+        token = request.cookies.get("access_token")
     if not token:
         raise unauthorized("UNAUTHENTICATED", "未认证")
     try:

@@ -128,21 +128,37 @@ def _folder_full_path(db: Session, folder_id: str) -> str:
     return folder.full_path if folder is not None else ""
 
 
-def _version_count(db: Session, group_id: str) -> int:
-    return int(
-        db.execute(
-            select(func.count())
-            .select_from(Procedure)
-            .where(Procedure.procedure_group_id == group_id, Procedure.is_active.is_(True))
-        ).scalar_one()
-    )
+def _out_models(db: Session, rows: list[Procedure]) -> list[ProcedureOut]:
+    """批量构造 ProcedureOut：一次 IN() 取 folder 路径 + 一次 GROUP BY 取版本数，消除逐行 N+1。
 
-
-def _out_model(db: Session, proc: Procedure) -> ProcedureOut:
-    data: dict[str, Any] = {f: getattr(proc, f) for f in _OUT_FIELDS}
-    data["folder_full_path"] = _folder_full_path(db, proc.folder_id)
-    data["version_count_in_group"] = _version_count(db, proc.procedure_group_id)
-    return ProcedureOut.model_validate(data)
+    语义：folder 缺失→""，版本数仅计 is_active=true 同 group。
+    Folder/Procedure 均为 TenantScoped，IN()/GROUP BY 在同一请求上下文运行，受相同自动租户过滤。
+    """
+    if not rows:
+        return []
+    folder_ids = {p.folder_id for p in rows if p.folder_id is not None}
+    path_by_folder: dict[str, str] = {}
+    if folder_ids:
+        for fid, full_path in db.execute(
+            select(Folder.id, Folder.full_path).where(Folder.id.in_(folder_ids))
+        ).all():
+            path_by_folder[fid] = full_path
+    group_ids = {p.procedure_group_id for p in rows}
+    count_by_group: dict[str, int] = {
+        gid: int(n)
+        for gid, n in db.execute(
+            select(Procedure.procedure_group_id, func.count())
+            .where(Procedure.procedure_group_id.in_(group_ids), Procedure.is_active.is_(True))
+            .group_by(Procedure.procedure_group_id)
+        ).all()
+    }
+    out: list[ProcedureOut] = []
+    for proc in rows:
+        data: dict[str, Any] = {f: getattr(proc, f) for f in _OUT_FIELDS}
+        data["folder_full_path"] = path_by_folder.get(proc.folder_id, "")
+        data["version_count_in_group"] = count_by_group.get(proc.procedure_group_id, 0)
+        out.append(ProcedureOut.model_validate(data))
+    return out
 
 
 def _meta_model(db: Session, proc: Procedure) -> ProcedureMeta:
@@ -159,6 +175,12 @@ def to_meta(db: Session, proc: Procedure) -> ProcedureMeta:
 def get_or_404(db: Session, proc_id: str) -> Procedure:
     """公开取程序（不存在抛 NOT_FOUND）。供 version_flow_service 复用。"""
     return _get(db, proc_id)
+
+
+def assert_node_host_editable(db: Session, procedure_id: str) -> None:
+    """节点宿主可编辑守卫：查程序（不存在→404）+ 断言为当前版本草稿。供 node_service 复用，
+    使"可编辑"判定的唯一权威集中于本模块。"""
+    _assert_editable(get_or_404(db, procedure_id))
 
 
 def resolve_leaf_folder(db: Session, folder_id: str) -> Folder:
@@ -567,7 +589,7 @@ def list_procedures(
         stmt = stmt.where(Procedure.status == status)
 
     rows, total = _paginate(db, _apply_sort(stmt, sort), page, page_size)
-    return [_out_model(db, p) for p in rows], total
+    return _out_models(db, rows), total
 
 
 def list_library(
@@ -593,7 +615,7 @@ def list_library(
         stmt = stmt.where(Procedure.folder_id == folder_id)
 
     rows, total = _paginate(db, _apply_sort(stmt, sort), page, page_size)
-    return [_out_model(db, p) for p in rows], total
+    return _out_models(db, rows), total
 
 
 def get_detail(db: Session, proc_id: str) -> ProcedureDetail:

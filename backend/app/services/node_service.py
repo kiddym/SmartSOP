@@ -61,6 +61,14 @@ def _get_node(db: Session, node_id: str) -> ProcedureNode:
     return node
 
 
+def _assert_procedure_editable(db: Session, procedure_id: str) -> None:
+    """节点写入前置守卫：委托 procedure_service 校验宿主为当前草稿（单一权威，避免判定分叉）。
+    该查询同样受租户作用域，跨租户程序 404，故也把节点写入的宿主检查限定在本租户。"""
+    from app.services import procedure_service  # 局部导入避免循环
+
+    procedure_service.assert_node_host_editable(db, procedure_id)
+
+
 def get_nodes(db: Session, procedure_id: str) -> list[dict[str, Any]]:
     """返回扁平 list,每项含派生 parent_id/depth + 持久字段。"""
     rows = _active_nodes(db, procedure_id)
@@ -108,12 +116,16 @@ _PATCHABLE = frozenset(
     {"heading_level", "kind", "body", "input_schema", "attachment_marks", "skip_numbering"}
 )
 
+# 影响编号的字段：仅当本次变更触及这些字段时才重算 code（正文/schema/marks 不影响编号）。
+_NUMBERING_FIELDS = frozenset({"heading_level", "kind", "skip_numbering"})
+
 
 def patch_node(
     db: Session, node_id: str, changes: dict[str, Any], *, expected_revision: int
 ) -> ProcedureNode:
     """单字段更新(spec §3.1)。changes 只允许 _PATCHABLE 的键。"""
     node = _get_node(db, node_id)
+    _assert_procedure_editable(db, node.procedure_id)
     optimistic_lock.verify_revision(node.revision, expected_revision)
 
     unknown = set(changes) - _PATCHABLE
@@ -134,7 +146,8 @@ def patch_node(
         setattr(node, k, v)
     optimistic_lock.bump(node)
     db.flush()
-    node_numbering.recompute(db, node.procedure_id)
+    if changes.keys() & _NUMBERING_FIELDS:
+        node_numbering.recompute(db, node.procedure_id)
     _learn_from_edit(db, node, old_level, old_mark)  # M3 隐式学习信号
     return node
 
@@ -142,6 +155,7 @@ def patch_node(
 def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> ProcedureNode:
     """新建节点,默认追加到末尾(sort_order = 当前 max + _SORT_GAP)。
     data 可含 sort_order 显式指定位置。"""
+    _assert_procedure_editable(db, procedure_id)
     kind = data.get("kind", "node")
     heading_level = data.get("heading_level")
     input_schema = data.get("input_schema", {})
@@ -175,6 +189,7 @@ def create_node(db: Session, procedure_id: str, data: dict[str, Any]) -> Procedu
 def delete_node(db: Session, node_id: str) -> None:
     """软删单节点。子节点不随删(派生关系,删后自动重派生)。"""
     node = _get_node(db, node_id)
+    _assert_procedure_editable(db, node.procedure_id)
     node.is_active = False
     node.deleted_at = utcnow()
     db.flush()
@@ -187,6 +202,7 @@ def batch_update(
     """批量改 heading_level/kind 等(多选浮动条 / 取代旧 apply_marks)。
     改动后若节点 mark_status=='review' 则清回 'unmarked'(确认动作,spec §6.4)。
     单事务,任一不变量违反则整体抛错(router 不 commit → 回滚)。"""
+    _assert_procedure_editable(db, procedure_id)
     changed: list[ProcedureNode] = []
     observed: list[tuple[ProcedureNode, int | None, str]] = []  # (node, old_level, old_mark) M3
     for node_id, changes in updates.items():
@@ -220,6 +236,7 @@ def batch_update(
 def reorder(db: Session, procedure_id: str, ordered_ids: list[str]) -> None:
     """按 ordered_ids 给本程序所有 active 节点重写 sort_order(gap 序)。
     ordered_ids 必须恰好是本程序当前所有 active 节点 id 的一个排列。"""
+    _assert_procedure_editable(db, procedure_id)
     rows = _active_nodes(db, procedure_id)
     existing = {r.id for r in rows}
     if set(ordered_ids) != existing or len(ordered_ids) != len(existing):

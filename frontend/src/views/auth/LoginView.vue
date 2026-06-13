@@ -14,6 +14,7 @@ const auth = useAuthStore()
 
 const email = ref('')
 const password = ref('')
+const companySlug = ref('')
 const submitting = ref(false)
 
 async function submit(): Promise<void> {
@@ -23,7 +24,11 @@ async function submit(): Promise<void> {
   }
   submitting.value = true
   try {
-    await auth.login({ email: email.value, password: password.value })
+    await auth.login({
+      email: email.value,
+      password: password.value,
+      company_slug: companySlug.value || undefined,
+    })
     const redirect = (route.query.redirect as string) || '/'
     await router.push(redirect)
   } catch (err) {
@@ -43,6 +48,9 @@ async function submit(): Promise<void> {
       </el-form-item>
       <el-form-item :label="t('auth.password')">
         <el-input v-model="password" data-test="password" type="password" show-password autocomplete="current-password" @keyup.enter="submit" />
+      </el-form-item>
+      <el-form-item :label="t('auth.companySlugOptional')" prop="companySlug">
+        <el-input v-model="companySlug" data-test="company-slug" autocomplete="organization" @keyup.enter="submit" />
       </el-form-item>
       <el-button type="primary" :loading="submitting" data-test="submit" style="width: 100%" @click="submit">
         {{ t('auth.login') }}

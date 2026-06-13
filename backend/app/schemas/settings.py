@@ -19,6 +19,7 @@ class SettingsOut(BaseModel):
     require_read_confirmation: bool
     default_risk_level: int
     default_quality_level: int
+    auto_archive_days: int
     revision: int
     updated_at: datetime
 

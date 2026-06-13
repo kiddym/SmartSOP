@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app import security
 from app.models.user import User, UserStatus
 from app.schemas.user import SelfProfileUpdate, UserCreate, UserUpdate
+from app.services import invitation_service
 
 
 def create_user(db: Session, payload: UserCreate, company_id: str | None = None) -> User:
@@ -16,6 +17,9 @@ def create_user(db: Session, payload: UserCreate, company_id: str | None = None)
     # context, but a sync FastAPI dependency's contextvar mutation does not
     # propagate into the sync endpoint's separate threadpool task, so we pass it
     # through to guarantee the NOT-NULL tb_user.company_id is set.
+    if company_id is not None:
+        invitation_service.assert_seat_available(db, company_id)
+        invitation_service.assert_role_in_company(db, company_id, payload.role_id)
     user = User(
         email=payload.email,
         password_hash=security.hash_password(payload.password),

@@ -27,7 +27,7 @@ async function loadSwitchable(): Promise<void> {
 }
 
 async function logout(): Promise<void> {
-  auth.logout()
+  await auth.logout()
   await router.push({ name: 'login' })
 }
 

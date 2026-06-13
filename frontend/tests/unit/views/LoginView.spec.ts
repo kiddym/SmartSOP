@@ -43,4 +43,23 @@ describe('LoginView', () => {
     expect(loginSpy).toHaveBeenCalledWith({ email: 'x@y.com', password: 'pw12345678' })
     expect(push).toHaveBeenCalledWith('/folders')
   })
+
+  it('填写公司标识时将 company_slug 透传给 store.login', async () => {
+    const router = makeRouter()
+    await router.push('/login')
+    await router.isReady()
+    const s = useAuthStore()
+    const loginSpy = vi.spyOn(s, 'login').mockResolvedValue()
+
+    const w = mount(LoginView, { global: { plugins: [ElementPlus, router, i18n] } })
+    await w.find('input[type="email"]').setValue('a@acme.com')
+    await w.find('input[type="password"]').setValue('secret123')
+    await w.find('[data-test="company-slug"]').setValue('acme')
+    await w.find('[data-test="submit"]').trigger('click')
+    await flushPromises()
+
+    expect(loginSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ email: 'a@acme.com', password: 'secret123', company_slug: 'acme' }),
+    )
+  })
 })

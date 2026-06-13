@@ -20,6 +20,44 @@ from app.services import email_outbox_service
 _TTL_DAYS = 7
 
 
+def assert_seat_available(db: Session, company_id: str) -> None:
+    """座席上限守卫：在职用户 + 未过期待处理邀请 >= 上限 → 402。无限套餐放行。"""
+    company = db.get(Company, company_id)
+    limit = effective_seat_limit(
+        company.plan if company else None,
+        company.subscription_status if company else None,
+    )
+    if limit is None:
+        return
+    active_users = db.execute(
+        select(func.count())
+        .select_from(User)
+        .where(User.company_id == company_id, User.status == UserStatus.active)
+    ).scalar_one()
+    pending_invites = db.execute(
+        select(func.count())
+        .select_from(UserInvitation)
+        .where(
+            UserInvitation.company_id == company_id,
+            UserInvitation.status == "pending",
+            UserInvitation.expires_at > utcnow(),
+        )
+    ).scalar_one()
+    if active_users + pending_invites >= limit:
+        raise payment_required("SEAT_LIMIT_REACHED", "席位已达上限，请升级订阅以增加席位")
+
+
+def assert_role_in_company(db: Session, company_id: str, role_id: str | None) -> None:
+    """角色租户归属守卫：role_id 非空时必须属于本公司，否则 400。"""
+    if role_id is None:
+        return
+    role = db.execute(
+        select(Role).where(Role.id == role_id, Role.company_id == company_id)
+    ).scalar_one_or_none()
+    if role is None:
+        raise bad_request("INVALID_ROLE", "角色不存在或不属于本组织")
+
+
 def invite(
     db: Session, *, company_id: str, email: str, role_id: str | None, invited_by: str | None
 ) -> tuple[UserInvitation, str]:
@@ -29,38 +67,10 @@ def invite(
     ).scalar_one_or_none()
     if existing is not None:
         raise conflict("EMAIL_EXISTS", "该邮箱已是本组织成员")
-    # 座席上限：在职用户 + 待处理邀请共同占席（待处理邀请预占，防绕过上限）。
-    company = db.get(Company, company_id)
-    limit = effective_seat_limit(
-        company.plan if company else None,
-        company.subscription_status if company else None,
-    )
-    if limit is not None:
-        active_users = db.execute(
-            select(func.count())
-            .select_from(User)
-            .where(User.company_id == company_id, User.status == UserStatus.active)
-        ).scalar_one()
-        # 仅「未过期」的待处理邀请占席：过期邀请无法被 accept（见 accept() 的 expires_at
-        # 过滤），不应继续占用席位，否则一旦失效便永久锁死一席。
-        pending_invites = db.execute(
-            select(func.count())
-            .select_from(UserInvitation)
-            .where(
-                UserInvitation.company_id == company_id,
-                UserInvitation.status == "pending",
-                UserInvitation.expires_at > utcnow(),
-            )
-        ).scalar_one()
-        if active_users + pending_invites >= limit:
-            raise payment_required("SEAT_LIMIT_REACHED", "席位已达上限，请升级订阅以增加席位")
-    if role_id is not None:
-        # 校验 role 属于本公司，防止赋予他公司的角色（跨租户边界）
-        role = db.execute(
-            select(Role).where(Role.id == role_id, Role.company_id == company_id)
-        ).scalar_one_or_none()
-        if role is None:
-            raise bad_request("INVALID_ROLE", "角色不存在或不属于本组织")
+    assert_seat_available(db, company_id)
+    assert_role_in_company(db, company_id, role_id)
+    company_obj = db.get(Company, company_id)
+    company_name = company_obj.name if company_obj is not None else company_id
     raw = security.generate_token()
     inv = UserInvitation(
         company_id=company_id,
@@ -73,7 +83,6 @@ def invite(
     )
     db.add(inv)
     db.flush()
-    company_name = company.name if company is not None else company_id
     email_outbox_service.enqueue_transactional(
         db,
         company_id=company_id,

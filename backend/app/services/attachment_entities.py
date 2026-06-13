@@ -92,9 +92,15 @@ def resolve_and_authorize(
     entity_id: str,
     action: Literal["read", "write"],
 ) -> Any:
-    """校验 entity_type（未知→400）→查宿主（不存在/跨租户→404）→授权（不足→403）→write_guard（write 时自动校验）。返回宿主。"""
+    """校验 entity_type（未知→400）→查宿主（不存在/跨租户→404）→租户归属校验→授权（不足→403）→write_guard。返回宿主。"""
     spec = get_spec(entity_type)
     host = _lookup_host(db, spec, entity_id)
+    # 跨租户归属校验：宿主走 bypass 查回（scoped=False），故此处显式比对 company_id，
+    # 防止认证用户凭 id 访问他公司宿主下的附件（审计 #2）。
+    # 防御性：宿主无 company_id 时跳过比对（正常 schema 下不会发生）。
+    host_company_id = getattr(host, "company_id", None)
+    if user is not None and host_company_id is not None and host_company_id != user.company_id:
+        raise not_found("NOT_FOUND", "目标对象不存在")
     perm = spec.view_perm if action == "read" else spec.edit_perm
     if perm is not None and (user is None or perm not in user_permission_codes(db, user)):
         raise forbidden("FORBIDDEN", "权限不足")

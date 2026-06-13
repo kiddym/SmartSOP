@@ -17,6 +17,9 @@ export interface ApiErrorDetail {
 
 export const http: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api/v1',
+  // 携带 cookie：浏览器加载 <img src> 等资源请求无法带 Authorization 头，
+  // 依赖后端 GET 的 access_token cookie 兜底鉴权（审计 #6）。
+  withCredentials: true,
   timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
@@ -54,9 +57,21 @@ async function performRefresh(): Promise<string> {
   return data.access_token
 }
 
-function redirectToLogin(): void {
+let loggingOut = false
+
+async function redirectToLogin(): Promise<void> {
   authStorage.clearTokens()
-  // 已在登录页则不再跳转：否则登录页上的 401（如通知轮询）会把当前含 redirect 的整 URL
+  if (loggingOut) return
+  loggingOut = true
+  // 同时清服务端 access_token cookie：仅清客户端 token 会残留 cookie 至 max-age 过期，
+  // 共享机器上可被重放认证态 GET。logout 端点无需认证且恒 200（不会再触发 401，无循环）。
+  // 直发不经 api/auth（避免循环依赖）；await 确保浏览器在跳转前已处理 Set-Cookie 删除。
+  try {
+    await http.post('/auth/logout', {}, { skipErrorToast: true })
+  } catch {
+    // best-effort：清 cookie 失败也继续跳转（cookie 仍会在 max-age 后自然过期）
+  }
+  // 已在登录页则不再跳转：否则登录页上的 401（如后台请求）会把当前含 redirect 的整 URL
   // 再次 encode 拼进新的 redirect，层层自嵌套 + 逐层转义直至 431/页面崩溃（死循环）。
   if (window.location.pathname === '/login') return
   const redirect = encodeURIComponent(window.location.pathname + window.location.search)
@@ -66,6 +81,7 @@ function redirectToLogin(): void {
 // 测试钩子
 export const __test_onRequest = onRequest
 export const __test_refreshOn401 = refreshOn401
+export const __test_redirectToLogin = redirectToLogin
 
 // 统一错误提示 + 401 续期：解析后端 {detail:{code,message}} 信封并 toast；仍向调用方 reject。
 http.interceptors.response.use(
@@ -74,15 +90,16 @@ http.interceptors.response.use(
     const status = error?.response?.status
     const original = error?.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined
     const isRefreshCall = original?.url?.includes('/auth/refresh')
+    const isLogoutCall = original?.url?.includes('/auth/logout')
 
-    if (status === 401 && original && !original._retried && !isRefreshCall) {
+    if (status === 401 && original && !original._retried && !isRefreshCall && !isLogoutCall) {
       original._retried = true
       try {
         const newAccess = await refreshOn401(performRefresh)
         original.headers.set('Authorization', `Bearer ${newAccess}`)
         return http(original)
       } catch {
-        redirectToLogin()
+        await redirectToLogin()
         return Promise.reject(error)
       }
     }

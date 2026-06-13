@@ -146,7 +146,24 @@ def test_admin_edit_pins_learned_rule(db: Session) -> None:
 
 def test_patch_node_hook_records_event(db: Session) -> None:
     """钩子接线：node_service.patch_node 改级 → 自动落一条学习事件。"""
-    n = _mk(db, "p1", "小标题", 1)
+    # patch_node 现要求宿主程序为当前草稿（审计 #5 守卫），需建真实 Procedure 行。
+    import uuid
+
+    from app.models.procedure import Procedure
+
+    proc = Procedure(
+        procedure_group_id=str(uuid.uuid4()),
+        folder_id=str(uuid.uuid4()),
+        code="QC-00001",
+        name="P",
+        level_of_use="reference",
+        version=1,
+        status="DRAFT",
+        is_current=True,
+    )
+    db.add(proc)
+    db.flush()
+    n = _mk(db, proc.id, "小标题", 1)
     node_service.patch_node(db, n.id, {"heading_level": 2}, expected_revision=1)
     events = db.scalars(
         select(HeadingLearningEvent).where(HeadingLearningEvent.style_name == "小标题")
