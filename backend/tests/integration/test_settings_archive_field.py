@@ -1,6 +1,11 @@
 """GET /settings 应返回 auto_archive_days（审计 #9）。"""
 from __future__ import annotations
 
+import pytest
+
+# 本地 settings 读取受 SOP feature gate 约束（puresop 已去门控），需 enterprise 公司放行。
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
+
 
 def _register(client):
     r = client.post(

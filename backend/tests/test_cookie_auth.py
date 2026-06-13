@@ -1,6 +1,11 @@
 """GET 接受 access_token cookie；写操作仍只认 Authorization 头（审计 #6 + CSRF 安全）。"""
 from __future__ import annotations
 
+import pytest
+
+# 本地仍对 SOP 模块挂 feature gate（puresop 已去门控），require_feature 用例需 enterprise 公司放行。
+pytestmark = pytest.mark.usefixtures("_enterprise_default")
+
 
 def _register(client, company="Acme", email="a@acme.com"):
     r = client.post(
