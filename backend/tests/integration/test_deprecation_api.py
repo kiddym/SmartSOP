@@ -145,6 +145,7 @@ def test_delete(client):
 def test_requires_auth(client):
     t = _admin(client)
     aid = _asset(client, t)
+    client.cookies.clear()  # 清残留 access_token cookie：GET 现支持 cookie 兜底，需真无凭证才验 401
     assert client.get(f"/api/v1/assets/{aid}/deprecation").status_code == 401
 
 
